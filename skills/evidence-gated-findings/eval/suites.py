@@ -16,6 +16,17 @@ WIDE_GEN = (
     "findings return an empty list."
 )
 
+FACTS = {
+    "wide": (
+        "Each directory is one module of a larger web application. Request identity "
+        "(g.user, req.user, session user, context user) is populated by trusted upstream "
+        "middleware that is not part of this directory. Every route or handler shown is "
+        "reachable by an HTTP client unless a decorator or check in the code restricts it. "
+        "Functions with no caller here are called by the rest of the application."
+    ),
+}
+FACTS["mixup"] = FACTS["wide"]
+
 SUITES = {
     "ssrf": dict(corpus=EVAL / "corpus", gold=EVAL / "gold.json", tol=2, gen=None,
                  verifier=ROOT / "verifier-prompt.md"),
@@ -23,6 +34,8 @@ SUITES = {
                  verifier=EVAL / "verifier-prompt-general.md"),
     "mixup": dict(corpus=EVAL / "corpus-mixup", gold=EVAL / "gold-mixup.json", tol=2, gen=WIDE_GEN,
                   verifier=EVAL / "verifier-prompt-general.md"),
+    "cve": dict(corpus=EVAL / "corpus-cve", gold=EVAL / "gold-cve.json", tol=5, gen=WIDE_GEN,
+                verifier=EVAL / "verifier-prompt-general.md"),
 }
 
 
@@ -38,9 +51,11 @@ def tree_hash(path):
 def config_id(suite, model, skills_dir):
     import harness
 
+    guides = tree_hash(ROOT.parent.parent / "software") + (EVAL / "expertise-INDEX.md").read_text()
+
     s = SUITES[suite]
     parts = [suite, model, s["gen"] or harness.GEN_PROMPT, s["verifier"].read_text(),
-             harness.FINDINGS_SCHEMA, harness.VERDICT_SCHEMA, tree_hash(s["corpus"]),
+             harness.FINDINGS_SCHEMA, harness.VERDICT_SCHEMA, tree_hash(s["corpus"]), guides,
              tree_hash(skills_dir) if skills_dir else ""]
     return hashlib.sha1("\0".join(parts).encode()).hexdigest()[:8]
 
