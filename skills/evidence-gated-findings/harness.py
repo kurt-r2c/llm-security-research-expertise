@@ -41,12 +41,12 @@ def stage(repo, extra_skills=None):
     return d / "r"
 
 
-def generate(repo, model, skills_dir=None):
+def generate(repo, model, skills_dir=None, prompt=GEN_PROMPT):
     cwd = stage(repo, skills_dir)
     tools = ["Read", "Grep", "Glob"] + (["Skill"] if skills_dir else [])
-    return cwd, *run_claude(cwd, GEN_PROMPT, FINDINGS_SCHEMA, tools, model, skills=bool(skills_dir))
+    return cwd, *run_claude(cwd, prompt, FINDINGS_SCHEMA, tools, model, skills=bool(skills_dir))
 
 
-def verify(cwd, finding, model):
-    prompt = VERIFIER_PROMPT.replace("{finding}", json.dumps(finding, indent=2))
+def verify(cwd, finding, model, template=VERIFIER_PROMPT):
+    prompt = template.replace("{finding}", json.dumps(finding, indent=2))
     return run_claude(cwd, prompt, VERDICT_SCHEMA, ["Read", "Grep", "Glob"], model, budget="0.60")

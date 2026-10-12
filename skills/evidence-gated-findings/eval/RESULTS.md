@@ -10,6 +10,11 @@ Measured B to B+gate: +11.2 points precision, 0 points recall loss. That misses 
 bar. The direction is consistent, so the skill ships as opt-in for cases where false
 positives are expensive, not as a default that adds ~50% cost per run.
 
+Update 2026-10-12: a new overlap check in `score.py` found two label bugs in the SSRF
+gold (a TP pattern that also matched an allowlisted call, and label windows that touched
+adjacent decoys). Corrected and re-scored: numbers below are unchanged. Wider classes,
+including authorizer mix-ups, are in `RESULTS-wide.md`; the verdict is unchanged.
+
 ## Setup
 
 - 13 small synthetic repos (Python, Node, Go, PHP, Java, Ruby), each with 0-1 seeded
