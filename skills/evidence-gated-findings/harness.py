@@ -65,6 +65,8 @@ def stage(repo, extra_skills=None, expertise=False):
     return d / "r"
 
 
+FACTS_PREFIX = "Project facts (supplied by the maintainer; treat as true):\n{facts}\n\n"
+
 C_SUFFIX = (" Reference guides on vulnerability classes and language-specific pitfalls are in "
             "{path} (start with INDEX.md). Read the ones relevant to this code before reporting.")
 
@@ -72,10 +74,12 @@ C_SUFFIX = (" Reference guides on vulnerability classes and language-specific pi
 D_SUFFIX = " Use the security-research skill (Skill tool) for this audit and follow its procedure."
 
 
-def generate(repo, model, skills_dir=None, prompt=GEN_PROMPT, expertise=False, force_skill=False):
+def generate(repo, model, skills_dir=None, prompt=GEN_PROMPT, expertise=False, force_skill=False, facts=None):
     cwd = stage(repo, skills_dir, expertise)
     tools = ["Read", "Grep", "Glob"] + (["Skill"] if skills_dir else [])
     add = []
+    if facts:
+        prompt = FACTS_PREFIX.format(facts=facts) + prompt
     if force_skill:
         prompt += D_SUFFIX
     if expertise:
@@ -83,9 +87,6 @@ def generate(repo, model, skills_dir=None, prompt=GEN_PROMPT, expertise=False, f
         add = [cwd.parent / "expertise"]
     return (cwd, *run_claude(cwd, prompt, FINDINGS_SCHEMA, tools, model,
                              skills=bool(skills_dir), add_dirs=add))
-
-
-FACTS_PREFIX = "Project facts (supplied by the maintainer; treat as true):\n{facts}\n\n"
 
 
 def verify(cwd, finding, model, template=VERIFIER_PROMPT, facts=None):
