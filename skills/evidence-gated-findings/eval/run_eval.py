@@ -31,7 +31,7 @@ def one(job):
     kw = {"prompt": cfg["gen"]} if cfg["gen"] else {}
     cwd, res, cost, st, trace = harness.generate(
         cfg["corpus"] / repo, model, skills if arm in "BD" else None, expertise=(arm == "C"),
-        force_skill=(arm == "D"), **kw)
+        force_skill=(arm == "D"), facts=suites.facts_for(suite, repo) if arm == "E" else None, **kw)
     rec = {"arm": arm, "repo": repo, "rep": rep, "model": model, "suite": suite, "config_id": cid, "status": st, "gen_cost": cost,
            "trace": trace, "findings": [], "verify_cost": 0.0}
     for f in (res or {}).get("findings", []):
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     ap.add_argument("--reps", type=int, default=3)
     ap.add_argument("--model", default="sonnet")
     ap.add_argument("--workers", type=int, default=6)
-    ap.add_argument("--arms", default="AB", help="subset of A vanilla, B skills available, C guides, D skills forced")
+    ap.add_argument("--arms", default="AB", help="subset of A vanilla, B skills available, C guides, D skills forced, E facts note in the generator prompt")
     ap.add_argument("--run-dir", help="reuse a run dir (add arms to existing runs)")
     a = ap.parse_args()
     cfg_id = suites.config_id(a.suite, a.model, a.skills_dir)

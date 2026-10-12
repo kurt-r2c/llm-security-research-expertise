@@ -24,7 +24,20 @@ SPECS = [
     ("mariadb-nobs", "mariadb-corporation/mariadb-connector-nodejs", "6995c8cf8e51b2ad055de63dcaa4094eebbef5ce", "GHSA-r3rv-jm3r-62q2", "lib", ["lib/io/packet-output-stream.js", "lib/misc/utils.js"]),
     ("mariadb-setkey", "mariadb-corporation/mariadb-connector-nodejs", "144b8f4ef29539a9fb4b75d972b9dcdac4088b4e", "GHSA-v6pj-gxxw-phfw", "lib", ["lib/cmd/encoder/text-encoder.js", "lib/misc/utils.js"]),
     ("strawberry-await", "strawberry-graphql/strawberry", "2ebb79796c0e5ebb43cae1abd2b5a21363b1c00e", "GHSA-pfvf-fwfp-25mp", "strawberry", ["strawberry/permission.py"]),
+    # second batch, screened from GitHub advisories: fix commit on or after 2026-07-01, one commit, <=2 source files, <=70 lines
+    ("ipaddress-ipv6", "beaugunderson/ip-address", "ab3dc88bcf5374344168a2ba075ca7ac4ff257f8", "GHSA-2vr4-cq9g-pvrc", "src", ["src/ipv6.ts"]),
+    ("dulwich-stash", "jelmer/dulwich", "40a542cb02f9ac39a9eeac1193472903098698f9", "GHSA-cm62-gvxx-vmxx", "dulwich", ["dulwich/stash.py"]),
+    ("fastify-static", "fastify/fastify-static", "db4276f846ba56b21f93768cd6636ee5e2fc58b1", "GHSA-83w8-p2f5-377r", ".", ["index.js"]),
+    ("loofah-scrub", "flavorjones/loofah", "20867b9be689521887364b74822c41ef830523c9", "GHSA-9wjq-cp2p-hrgf", "lib", ["lib/loofah/html5/safelist.rb", "lib/loofah/html5/scrub.rb"]),
+    ("commonmark-attrs", "thephpleague/commonmark", "dfcdf4554c16aa37c15e3a5ee3243ee26147c239", "GHSA-f8fg-pg57-v4j8", "src", ["src/Extension/Attributes/Util/AttributesHelper.php"]),
+    ("pyjwt-jws", "jpadilla/pyjwt", "f91ed44dd65baaf457f4b3353ed35e98a753934c", "GHSA-9j54-fg26-wv3r", "jwt", ["jwt/api_jws.py"]),
+    ("pyjwt-algs", "jpadilla/pyjwt", "3cd9ceec33ced359decbad75b413ad668ae6332c", "GHSA-x33g-cr3x-6449", "jwt", ["jwt/algorithms.py"]),
+    ("kinopenapi-auth", "getkin/kin-openapi", "f0407d53b0730280266f454b755010e7eeb985da", "GHSA-r277-6w6q-xmqw", "openapi3filter", ["openapi3filter/validation_handler.go"]),
+    ("gitpython-submodule", "gitpython-developers/GitPython", "1ed0ebc2f2e74d979cdc367a4864a7731fdcc093", "GHSA-59cr-6r3x-644w", "git", ["git/objects/submodule/base.py"]),
+    ("olivetin-api", "OliveTin/OliveTin", "e421780c9885aa5024d2f47b4ed4898f2f18eb90", "GHSA-jm28-2wcr-qf3h", "service", ["service/internal/api/api.go"]),
 ]
+
+SKIP = re.compile(r"(^|/)(tests?|spec|__tests__|testdata|docs?|examples?|benchmarks?|node_modules|\.github|\.git)(/|$)|\.md$")
 
 
 def gh(*args):
@@ -39,11 +52,13 @@ def main():
         parent = meta["parents"][0]["sha"]
         if not dest.exists():
             tar = tarfile.open(fileobj=io.BytesIO(gh(f"repos/{repo}/tarball/{parent}")), mode="r:gz")
-            pre = tar.getmembers()[0].name.split("/")[0] + "/" + sub + "/"
+            top = tar.getmembers()[0].name.split("/")[0]
+            pre = top + "/" + (sub + "/" if sub != "." else "")
             dest.mkdir(parents=True)
             for m in tar.getmembers():
-                if m.name.startswith(pre) and (m.isfile() or m.isdir()):
-                    m.name = sub + "/" + m.name[len(pre):]
+                rel = m.name[len(pre):]
+                if m.name.startswith(pre) and (m.isfile() or m.isdir()) and not SKIP.search(rel):
+                    m.name = (sub + "/" if sub != "." else "") + rel
                     tar.extract(m, dest, filter="data")
         tp = []
         for f in meta["files"]:

@@ -25,7 +25,7 @@ def one(args):
     tmpl = cfg["verifier"].read_text()
     cost = 0.0
     for e in r["findings"]:
-        v, c, _, _ = harness.verify(cwd, e["finding"], r.get("model", "sonnet"), tmpl, facts=suites.FACTS[suite])
+        v, c, _, _ = harness.verify(cwd, e["finding"], r.get("model", "sonnet"), tmpl, facts=suites.facts_for(suite, r["repo"]))
         e["verdict_facts"] = v
         cost += c
     r["verify_facts_cost"] = cost

@@ -1,5 +1,6 @@
 """Suite definitions shared by run_eval.py and score.py."""
 import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -26,6 +27,34 @@ FACTS = {
     ),
 }
 FACTS["mixup"] = FACTS["wide"]
+
+# One-line public descriptions of the projects. Written from each project's README tagline,
+# not from the advisories or fix commits.
+CVE_DESC = {
+    "fastjwt": "fast-jwt is a Node.js library to sign, verify and decode JSON Web Tokens.",
+    "dmcg": "datamodel-code-generator is a Python tool that generates Python data models from schemas such as OpenAPI, JSON Schema and protobuf.",
+    "mariadb": "mariadb-connector-nodejs is the MariaDB client library for Node.js.",
+    "strawberry": "Strawberry is a Python GraphQL library with a permission system for resolvers.",
+    "ipaddress": "ip-address is a TypeScript library for parsing and manipulating IPv4 and IPv6 addresses.",
+    "dulwich": "Dulwich is a pure-Python implementation of Git.",
+    "fastify": "@fastify/static is a Fastify plugin that serves static files from a directory.",
+    "loofah": "Loofah is a Ruby library for sanitizing and transforming HTML and XML.",
+    "commonmark": "league/commonmark is a PHP Markdown parser with an extension system.",
+    "pyjwt": "PyJWT is a Python library for encoding and decoding JSON Web Tokens.",
+    "kinopenapi": "kin-openapi is a Go library for working with OpenAPI documents and validating HTTP requests against them.",
+    "gitpython": "GitPython is a Python library for working with Git repositories.",
+    "olivetin": "OliveTin is a web interface that runs predefined shell commands.",
+}
+CVE_NOTE = (" It is embedded in applications and services that process data from untrusted users or networks."
+            " Treat any value that originates from an end user, a remote peer, or a file or archive from outside"
+            " the process as attacker-controlled. Configuration set by the developer or operator is trusted.")
+
+
+def facts_for(suite, repo):
+    if suite == "cve":
+        return CVE_DESC[repo.split("-")[0]] + CVE_NOTE
+    return FACTS[suite]
+
 
 SUITES = {
     "ssrf": dict(corpus=EVAL / "corpus", gold=EVAL / "gold.json", tol=2, gen=None,
@@ -54,7 +83,11 @@ def config_id(suite, model, skills_dir):
     guides = tree_hash(ROOT.parent.parent / "software") + (EVAL / "expertise-INDEX.md").read_text()
 
     s = SUITES[suite]
-    parts = [suite, model, s["gen"] or harness.GEN_PROMPT, s["verifier"].read_text(),
+    if suite == "cve":
+        facts = "\0".join(facts_for(suite, r) for r in sorted(json.loads(s["gold"].read_text())))
+    else:
+        facts = FACTS.get(suite, "")
+    parts = [suite, model, s["gen"] or harness.GEN_PROMPT, facts, s["verifier"].read_text(),
              harness.FINDINGS_SCHEMA, harness.VERDICT_SCHEMA, tree_hash(s["corpus"]), guides,
              tree_hash(skills_dir) if skills_dir else ""]
     return hashlib.sha1("\0".join(parts).encode()).hexdigest()[:8]
