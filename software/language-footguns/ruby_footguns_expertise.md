@@ -6,12 +6,12 @@
 > Load-bearing 2023-2026 updates: Luke Jahnke's 2024 "Ruby 3.4 Universal
 > RCE Deserialization Gadget Chain" + "Gem::SafeMarshal escape"; Trail of
 > Bits' 2025 "Marshal madness" retrospective; 2025 Oj deserialization
-> advisories against Ruby background-job workers; 2023 ActiveRecord
+> writeup (Matt Palmer); 2023 ActiveRecord
 > annotation SQLi (CVE-2023-22794).
 >
 > **Researchers:**
 > - **Aaron Patterson** (@tenderlove) — only engineer on both core Ruby and
->   core Rails teams; member of both security response teams. Author of
+>   core Rails teams; member of both security response teams. Co-author (with Mike Dalessio) of
 >   Nokogiri (XML/HTML parser) and Psych (YAML parser, locus of the 3.1
 >   safe-by-default switch). Primary upstream source for `Marshal` /
 >   `YAML` / `Psych` security decisions.
@@ -25,8 +25,8 @@
 > - **William Bowling** (vakzz) — "Universal Deserialisation Gadget for
 >   Ruby 2.x-3.x" (devcraft.io, Jan 2021) and "Round Two" update (Apr
 >   2022); chain through `Gem::Requirement#marshal_load → TarReader#each →
->   TarHeader#from → Net::BufferedIO → Net::WriteAdapter#<<` works on all
->   2.x-3.x releases.
+>   TarHeader#from → Net::BufferedIO → Net::WriteAdapter#<<` works on Ruby
+>   2.0 through 3.0.2.
 > - **Etienne Stalmans** (Staaldraad) — "Argument injection and getting
 >   past shellwords.escape" (Nov 2019): `Shellwords.escape` does not
 >   escape `-`, permitting tar argument injection and command execution.
@@ -34,9 +34,8 @@
 > - **Alex Leahu** (Include Security) — "Discovering Deserialization Gadget
 >   Chains in Rubyland" (Mar 2024); extends Jahnke/Bowling with Rails-
 >   library gadget hunting via grep-based program analysis.
-> - **Charlie Somerville** (charliesome) — GitHub systems engineer, Ruby
->   internals via `bugs.ruby-lang.org` and Rails commits since the 3.x
->   era.
+> - **Charlie Somerville** (charliesome) — Ruby internals via
+>   `bugs.ruby-lang.org`.
 > - **Justin Collins** (@presidentbeef) — author and maintainer of
 >   Brakeman, the de facto Rails security scanner; encodes most of the
 >   audit heuristics here as analyzer warnings.
@@ -47,11 +46,6 @@
 > - **GitHub Security Lab Ruby team** — CodeQL Ruby query pack
 >   (`codeql/ruby-queries`); "Execute commands by sending JSON?" Oj
 >   deserialization writeup.
-> - **Kurt Boberg** (Semgrep) — reporter of CVE-2018-3760 (Rails Sprockets
->   path traversal via `%2e%2e/` in the asset pipeline), CVE-2022-30123
->   (Rack shell-terminal-escape injection in Lint/CommonLogger), and
->   CVE-2023-22794 (ActiveRecord SQLi via the `annotate` /
->   `optimizer_hints` / `QueryLogs` annotation surface).
 >
 > **Institutional contributors:** RubySec `ruby-advisory-db`; Brakeman
 > warning catalog; RuboCop Security cops; Rails Security Guide; OWASP
@@ -133,9 +127,8 @@ bearing artifact of this document.
 `eval(string)` parses and executes `string` as Ruby code in the
 caller's binding. `eval(USER_INPUT)` is direct remote code execution.
 There is no safe-mode flag, no allowlist, no sandbox. RuboCop's
-`Security/Eval` cop flags every `eval(...)` and recommends the
-developer prove a constant argument. The Ruby on Rails Security Guide
-states the rule plainly: do not pass user input to `eval`.
+`Security/Eval` cop flags `eval(...)` calls with a dynamic
+(non-literal) string argument.
 
 Real-world `eval` sinks in Ruby code:
 
@@ -169,7 +162,7 @@ rewrites the ancestor of every Ruby class.
 
 The block forms (`instance_eval { ... }`, `instance_exec(arg, &block)`)
 are safer in that code structure is static; only the *receiver* (and
-args, for `*_exec`) are dynamic. Bishop Fox and Praetorian both name
+args, for `*_exec`) are dynamic. Praetorian names
 `instance_eval`, `send`, `public_send`, and `constantize` as the
 canonical Ruby reflection sinks.
 
@@ -225,8 +218,7 @@ public methods. But `send` itself is a public method, so
 `obj.public_send("send", "eval", "code")` re-enters the private-method
 surface. Ruby Issue #6409 acknowledged this in 2012; the conclusion was
 that `public_send` provides no security boundary against attacker-
-chosen method names. The Bishop Fox writeup and Praetorian's
-"Ruby Unsafe Reflection Vulnerabilities" both document this pattern.
+chosen method names.
 
 ### 3.2 Defense: hash-of-symbols allowlist
 
@@ -275,10 +267,10 @@ way. `Marshal.load(attacker_bytes)` instantiates whatever object graph
 the attacker described.
 
 Timeline: Luke Jahnke's 2018 elttam writeup was the first programmatic
-gadget hunt across the Ruby stdlib. Ruby 2.7 / Rails 6.1 patched it.
+gadget hunt across the Ruby stdlib.
 William Bowling's Jan 2021 chain through `Gem::Requirement#marshal_load
 → TarReader#each → TarHeader#from → Net::BufferedIO →
-Net::WriteAdapter#<<` works on all Ruby 2 and 3 releases; "Round Two"
+Net::WriteAdapter#<<` works on Ruby 2.0 through 3.0.2; "Round Two"
 (Apr 2022) refined after subsequent patches. Jahnke returned Nov 2024
 with the Ruby 3.4 chain and Dec 2024 with `Gem::SafeMarshal` escape —
 the latter bypasses RubyGems' attempt to sandbox install-time Marshal.
@@ -299,8 +291,8 @@ Prior to Ruby 3.1, `YAML.load(string)` (== `Psych.load`) was unsafe by
 default. YAML supports `!ruby/object:ClassName` tags that instantiate
 arbitrary classes with attacker-controlled instance variables —
 gadgets reach RCE through `init_with` / `[]=` / implicit calls.
-Devcraft's universal YAML.load RCE ports the Marshal gadget through
-the `!ruby/object` tag.
+Etienne Stalmans' "Universal RCE with Ruby YAML.load" (2019) ports
+Jahnke's Marshal gadget through the `!ruby/object` tag.
 
 Ruby 3.1 / Psych 4 (`github.com/ruby/psych/issues/533`) flipped the
 default: `YAML.load` is now `safe_load` semantics, disallowing
@@ -313,7 +305,8 @@ Escape hatches:
   only with a closed set of callback-free types. Permitting `Symbol`
   + `aliases: true` reintroduces symbol-DoS; permitting an
   ActiveSupport class with `init_with` reintroduces gadgets.
-- `Psych.load_stream`: same defaults as `load`.
+- `Psych.load_stream`: does not get the safe default; in Psych 4 it
+  calls `to_ruby` with no class restriction.
 
 ### 4.3 `Oj.load` — multiple unsafe modes
 
@@ -321,10 +314,9 @@ Escape hatches:
 background-job workers (Sidekiq, Resque). `Oj.load` has parsing
 *modes*: `:object` (default — instantiates Ruby objects via `^o`
 directives), `:compat`, `:strict`, `:null`, `:rails`. `:object` mode
-is unsafe in the same shape as `YAML.unsafe_load`. The Aug 2025
+is unsafe in the same shape as `YAML.unsafe_load`. The Jul 2025
 "Object deserialization attacks using Ruby's Oj JSON parser" (Matt
-Palmer) documented critical RCE in Ruby background-job workers
-calling `Oj.load(job_payload)` with default mode. Sidekiq-class
+Palmer) documented RCE via `Oj.load` with default options. Sidekiq-class
 frameworks accept job args from Redis; an attacker reaching Redis
 lands RCE via the worker.
 
@@ -334,8 +326,7 @@ canonical writeup.
 
 ### 4.4 `JSON.load` vs `JSON.parse`
 
-`JSON.load(string)` accepts the same `^o` / `create_id` directives as
-`Oj.load` in `:object` mode — it deserializes arbitrary Ruby objects
+`JSON.load(string)` can deserialize arbitrary Ruby objects
 named via the `json_class` key. `JSON.parse(string)` only emits
 plain Ruby values (`Hash`, `Array`, `String`, `Integer`, `nil`,
 booleans). Audit rule: **never use `JSON.load` on attacker-controlled
@@ -418,7 +409,7 @@ can add `String#blank?` via `refine String do ... end`, and callers
 opt in with `using GemModule`. But: refinements bust VM method
 caches (significant runtime cost) and adoption is slow. ActiveSupport
 and most real-world "add methods to core classes" code still uses raw
-monkey-patching. Aaron Patterson's "The Case Against Monkey Patching"
+monkey-patching. Eileen Uchitelle's "The Case Against Monkey Patching"
 (Shopify Engineering) is the canonical Rails-core-perspective writeup.
 
 ### 5.4 `Module#prepend` — interception primitive
@@ -607,9 +598,8 @@ shellwords-escape research applies). Cross-link
 [[reference-shell-injection]] §"Argument injection past
 shell-escape primitives".
 
-Brakeman flags `Command Injection` warnings on both forms when the
-arguments include user input. The argv form earns a lower severity
-(MEDIUM rather than HIGH) but is still flagged.
+Brakeman flags `Command Injection` warnings when the arguments
+include user input.
 
 ### 8.3 `IO.popen`, `Open3`, `exec`, `Process.spawn`
 
@@ -625,7 +615,8 @@ block form ensures FD cleanup.
 `Shellwords.escape` escapes shell metacharacters but **not the hyphen
 `-`**. Stalmans (Nov 2019):
 `system("tar xf " + Shellwords.escape(user_filename))` is exploitable
-when `user_filename = "--checkpoint-action=exec=evil"` or `"-T -"` —
+by chaining `tar` flags: `-P` to place an attacker file at a known path,
+then `-T` to read further options (checkpoint actions) from it —
 `tar` reads these as flags. Output is shell-safe but not tar-safe.
 Cross-link [[reference-shell-injection]]. Defense: argv-form spawn
 *and* input-layer reject leading `-` (`raise unless user_filename =~
@@ -637,13 +628,13 @@ is gone.
 
 ```ruby
 require "open-uri"
-content = open(params[:file]).read     # http:// → Net::HTTP; "|cmd" → shell ≤2.0
+content = open(params[:file]).read     # http:// → Net::HTTP; "|cmd" → shell (<4.0)
 ```
 
-`open("|cmd")` invoked a subprocess in Ruby ≤2.0. Modern Ruby
-restricts; `URI.open` (network) and `File.open` (filesystem) are the
-explicit alternatives. RuboCop `Security/Open` flags every
-`Kernel#open` use. Cross-link [[reference-ssrf-url-parsing]] for the
+`open("|cmd")` spawns a subprocess; Ruby 3.3 deprecates the leading
+`|` form and Ruby 4.0 removes it; `URI.open` (network) and `File.open` (filesystem) are the
+explicit alternatives. RuboCop `Security/Open` flags
+`Kernel#open` / `URI.open` with non-literal arguments. Cross-link [[reference-ssrf-url-parsing]] for the
 SSRF surface `open-uri` introduces.
 
 ### 8.6 Defensive sketch
@@ -675,8 +666,9 @@ not `.to_sym` on the raw string.
 ### 9.2 Mass assignment + strong parameters
 
 Pre-Rails-4 `User.new(params[:user])` blindly assigned every key. The
-GitHub March 2012 disclosure (Egor Homakov) used this to set
-`User#admin` via crafted request to `rails/rails` itself. Rails 4
+GitHub March 2012 disclosure (Egor Homakov) used this in GitHub's
+public-key form to add his SSH key to the Rails project's committers
+and push to `rails/rails`. Rails 4
 introduced `strong_parameters`:
 `User.new(params.require(:user).permit(:name, :email))`. Philosophy:
 "assume unsafe until proven otherwise." Footgun: `permit(:user => {})`
@@ -738,18 +730,18 @@ SORTABLE = %w[name created_at email].freeze
 User.order(SORTABLE.include?(params[:sort]) ? params[:sort] : "id")
 ```
 
-Rails 6.1+ raises `ArgumentError` for `order(STRING)` with non-
-allowlisted SQL fragments, but only after `allow_unsafe_raw_sql=
-false` is set. New apps default safer; existing apps inherit the
-permissive default.
+Rails 6.1+ raises `ActiveRecord::UnknownAttributeReference` for
+`order(STRING)` with non-attribute SQL fragments unless wrapped in
+`Arel.sql`; in 5.2-6.0 it raised only when `allow_unsafe_raw_sql` was
+set to `:disabled`.
 
 Brakeman's `SQL Injection` warning class flags `order(USER_INPUT)`.
 
 ### 9.7 `Model.annotate(USER)` — CVE-2023-22794
 
 `Post.where(id: 1).annotate("from controller #{params[:ref]}")` —
-the annotation is meant to be a SQL comment but the implementation
-did not sanitize comment-terminating sequences (`*/`).
+the annotation is meant to be a SQL comment but the implementation's
+comment escaping was insufficient.
 `params[:ref] = "*/ ; DROP TABLE users; --"` escapes the comment and
 injects SQL. Affected: ActiveRecord >= 6.0; fixed in 6.0.6.1, 6.1.7.1,
 7.0.4.1. Same flaw in `optimizer_hints` and `QueryLogs` middleware.
@@ -880,14 +872,14 @@ crossing.
 
 ### 10.4 Hanami's stricter defaults
 
-Hanami 2.x ships with CSRF tokens, content-security-policy, automatic
-HTML escaping, and X-Frame-Options enabled by default. The HanamiSecurity page documents these. The framework is the closest Ruby
+Hanami 2.x ships with CSRF protection (when sessions are enabled), content-security-policy, automatic
+HTML escaping, and X-Frame-Options enabled by default. The framework is the closest Ruby
 analogue to a "security-by-default" web framework; Rails has caught
 up incrementally but inherits some permissive defaults from earlier
 versions.
 
 The footgun in Hanami specifically: opt-outs are still per-app.
-`config.security.content_security_policy = nil` disables CSP. Audit
+`config.actions.content_security_policy = false` disables CSP. Audit
 rule: read the application's `config/app.rb` to confirm defaults
 have not been disabled.
 
@@ -899,8 +891,8 @@ have not been disabled.
 
 When a gem is installed, RubyGems:
 
-1. Parses the `gemspec` (which is Ruby code; `Gem::Specification.new
-   { |s| ... }` blocks execute at parse time).
+1. Reads the gem's `metadata.gz`, a YAML serialization of the
+   `Gem::Specification` generated at `gem build` time.
 2. If the gem has C extensions, runs `extconf.rb` (Ruby code) and
    compiles via `make`.
 3. On `require`, executes the top-level Ruby in `lib/gem_name.rb`
@@ -919,13 +911,14 @@ A malicious gem can:
   that subsequent application code routes through attacker code.
 
 The Snyk lockfile-injection writeup details a related attack:
-modifying `Gemfile.lock` to point a legitimate-named gem at an
-attacker-controlled source. `bundle install` honors the lockfile
-without re-verifying against the original `Gemfile`.
+modifying `Gemfile.lock` to add gems the `Gemfile` does not declare.
+`bundle install` installs them; `bundle install --deployment` halts
+when the lockfile differs from what the `Gemfile` requires.
 
 ### 11.2 `Gemfile.lock` discipline
 
-The lockfile pins each gem's source, version, and checksum. Trust the
+The lockfile pins each gem's source and version (checksums only when
+the opt-in `CHECKSUMS` section is enabled, Bundler 2.6+). Trust the
 lockfile only if:
 
 1. The repository's `Gemfile.lock` is reviewed in CI (diff against
@@ -941,15 +934,12 @@ known-vulnerable versions; integrate into CI.
 
 ### 11.3 Real-world incidents
 
-- **rest-client 2019:** typosquatting attacker took over a maintainer
+- **rest-client 2019:** attacker took over a maintainer
   account and pushed a malicious version that exfiltrated env vars.
   ~1k downloads before detection.
-- **pry-byebug 2020-era:** typosquats (`pry-byebgu`, `pry-byebag`)
-  uploaded and later removed. Same shape as npm/PyPI typosquatting
-  but Ruby's install-time-eval surface makes detection harder.
 - **Trail of Bits 2024 RubyGems audit:** 33 issues across the registry
-  implementation including multiple Marshal-related sinks during gem-
-  install processing.
+  implementation including an informational finding that RubyGems can
+  store Marshaled data alongside gem files.
 
 Cross-link [[reference-cicd-supply-chain]] §"Bundler / RubyGems" for
 the full treatment.
@@ -1010,7 +1000,7 @@ the most-egregious sinks but not a substitute for Brakeman.
 **CodeQL** (`codeql/ruby-queries`, ~50 queries): `rb/unsafe-
 deserialization`, `rb/sql-injection`, `rb/code-injection`,
 `rb/command-line-injection`, `rb/path-injection`, `rb/url-redirection`,
-`rb/insecure-randomness`, `rb/regex-injection`, `rb/incomplete-url-
+`rb/regexp-injection`, `rb/incomplete-url-
 substring-sanitization`. MRVA is the heavy-weapon option for cross-
 repo variant hunting.
 
@@ -1076,10 +1066,6 @@ communication is copy-on-send. Footguns:
 - **Shareable objects:** `Ractor.make_shareable` deep-freezes; objects
   with binding-capturing Procs fail to share. Early 3.x had data races
   via buggy `make_shareable`.
-- **Marshal-based message passing:** non-shareable objects are
-  Marshal-copied across ractor boundaries. `_dump`/`_load` callbacks
-  with side effects or gadget-reachability make the ractor boundary a
-  deserialization sink.
 - **Per-ractor GIL:** true parallelism reachable. C-extension code
   that relied on the GIL may race.
 
@@ -1095,8 +1081,9 @@ Fibers are cooperative coroutines. The `async` gem (Samuel Williams)
   may see mutation from another fiber.
 - **Connection pool sharing:** must be fiber-safe, not just thread-
   safe.
-- **`Thread.current`:** fibers share thread-local state with parent.
-  Use `Fiber.current[...]` for fiber-local.
+- **`Thread.current`:** `Thread.current[...]` is fiber-local, not
+  thread-local; `thread_variable_get`/`thread_variable_set` values are
+  shared by every fiber in the thread.
 
 ### 14.3 JRuby and TruffleRuby
 
@@ -1106,7 +1093,7 @@ Fibers are cooperative coroutines. The `async` gem (Samuel Williams)
   code relying on MRI's serialize-by-default may race.
 - **TruffleRuby (GraalVM):** Java interop via GraalVM Polyglot API
   (not JRuby-compatible). Foreign-object semantics leak into Ruby's
-  method-resolution. C-extension support via Sulong; MRI assumptions
+  method-resolution. C extensions run natively since 24.0 (previously via Sulong); MRI assumptions
   in C code may fail.
 
 ### 14.4 Sorbet — opt-in typing
@@ -1131,8 +1118,8 @@ always include an `else` for user-controlled payloads.
 
 ### Researchers and primary writeups
 
-- Aaron Patterson — [tenderlove on GitHub](https://github.com/tenderlove);
-  ["The Case Against Monkey Patching" (Shopify)](https://shopify.engineering/the-case-against-monkey-patching)
+- Aaron Patterson — [tenderlove on GitHub](https://github.com/tenderlove)
+- Eileen Uchitelle — ["The Case Against Monkey Patching" (Shopify)](https://shopify.engineering/the-case-against-monkey-patching)
 - Luke Jahnke — ["Ruby 2.x Universal RCE Deserialization Gadget Chain"
   (elttam, 2018)](https://www.elttam.com/blog/ruby-deserialization);
   ["Ruby 3.4 Universal RCE Deserialization Gadget Chain"
@@ -1185,8 +1172,7 @@ always include an `else` for user-controlled payloads.
   [OWASP Ruby on Rails Cheat
   Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Ruby_on_Rails_Cheat_Sheet.html);
   [Strong Parameters
-  (2012)](https://rubyonrails.org/2012/3/21/strong-parameters); [Hanami
-  Security](https://hanamirb.org/security/); [Sorbet
+  (2012)](https://rubyonrails.org/2012/3/21/strong-parameters); [Sorbet
   T.unsafe](https://sorbet.org/docs/untyped)
 
 ### Language-runtime documentation

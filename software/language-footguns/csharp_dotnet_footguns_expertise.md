@@ -25,24 +25,22 @@
 >   Managed DCOM" post plus Black Hat USA debut paper on .NET deserialization that
 >   pre-dates the Frohoff Java work; deep COM/OXIDE/SCM research
 > - **Stephen Toub** — Partner Software Engineer, Microsoft .NET team; author of the
->   canonical `ConfigureAwait` FAQ, "How Async/Await Really Works in C#" deep-dive, and
->   the 2013 MSDN Magazine "Async/Await Best Practices" article; primary source for
+>   canonical `ConfigureAwait` FAQ and "How Async/Await Really Works in C#" deep-dive;
+>   primary source for
 >   `async void`, `ValueTask`, `TaskCompletionSource`, and `AsyncLocal<T>` discipline
 > - **David Fowler** (@davidfowl) — Partner Software Architect, ASP.NET Core team; author
 >   of `AspNetCoreDiagnosticScenarios` (`AsyncGuidance.md` + `AspNetCoreGuidance.md`)
 >   that formalized the "`async void` in ASP.NET Core is always bad" rule
 > - **Levi Broderick** (@grabyourpitchforks) — ASP.NET team; "Cryptographic Improvements
->   in ASP.NET 4.5" series introducing purpose-bound `MachineKey.Protect`; co-author of
->   the `BinaryFormatter` security guide on Microsoft Learn; "Security Reviewing .NET
->   Code: A Primer" (2020)
+>   in ASP.NET 4.5" series introducing purpose-bound `MachineKey.Protect`
 > - **Krzysztof Cwalina** — Principal Architect, Microsoft; founding member of the .NET
 >   Framework team; co-author of "Framework Design Guidelines" (Addison-Wesley) — the
 >   primary source for the IDisposable / finalizer / Dispose-pattern discipline
 > - **Joseph Albahari** — Author of "C# in a Nutshell" (O'Reilly, currently C# 12 edition);
 >   inventor of LINQPad; C# MVP since 2008; reference for `Span<T>` / `Memory<T>` /
 >   `ref struct` lifetime semantics
-> - **Scott Hanselman** — Partner PM, Microsoft; "ASP.NET — Overposting/Mass Assignment
->   Model Binding Security" walkthrough that named the MVC over-posting bug class
+> - **Scott Hanselman** — VP, Microsoft; "ASP.NET — Overposting/Mass Assignment
+>   Model Binding Security" walkthrough
 > - **Zero Day Initiative (Trend Micro)** — Pwn2Own SharePoint chain (Viettel Cyber
 >   Security, May 2025): CVE-2025-49706 + CVE-2025-49704 for unauthenticated RCE;
 >   CVE-2025-53770 / CVE-2025-53771 "ToolShell" evolutions
@@ -180,11 +178,7 @@ but is not a security boundary.
 
 Second, `stackalloc` inside a loop accumulates allocations across
 iterations because stack memory is not released until method return.
-Microsoft's CA2014 analyzer flags this. The academic study by Mohebbi
-et al. ("On the use of C# Unsafe Code Context," ESEM 2020) found
-`stackalloc` accounted for ~9% of unsafe-code posts on Stack
-Overflow with a substantial fraction containing latent overflow
-defects.
+Microsoft's CA2014 analyzer flags this.
 
 Since C# 7.2, Microsoft recommends `stackalloc Span<byte>` over raw
 pointer `stackalloc` for bounds-checked access. But the underlying
@@ -243,9 +237,9 @@ finalizer thread is **single** for the whole process — a slow or
 hung finalizer blocks every other; a finalizer that takes a lock
 held by an ordinary thread can deadlock the queue. (3) Finalizer
 **order is undefined** — A's finalizer must not assume held B is
-still alive. (4) Exceptions thrown from a finalizer are **swallowed
-in legacy .NET Framework and crash the process in .NET Core / 5+**.
-Either is wrong; finalizers must not throw.
+still alive. (4) An exception thrown from a finalizer **terminates the
+process** unless the host overrides the default policy;
+finalizers must not throw.
 
 ### 3.2 The canonical Dispose pattern
 
@@ -321,9 +315,9 @@ scopes disposal to the enclosing block. Footguns:
 footgun is mixing interfaces. A class implementing both `IDisposable`
 and `IAsyncDisposable` may run different cleanup depending on which
 method the caller invokes. A `using` statement on an
-`IAsyncDisposable`-only class calls the sync fallback (often
-blocking). An `await using` on an `IDisposable`-only class calls
-`Dispose()` synchronously, defeating the async pattern.
+`IAsyncDisposable`-only class does not compile (CS1674), and an
+`await using` on an `IDisposable`-only class does not compile
+(CS8410).
 
 Microsoft guidance: prefer `await using` for I/O-disposing classes;
 also implement `IDisposable` for sync consumers; route `Dispose()`
@@ -393,10 +387,8 @@ The ASP.NET Core action invoker gets a synchronous void return,
 considers the action complete, and starts writing the response. If
 `DoSomethingAsync()` throws, the exception crashes the worker process.
 
-Same shape appears in: `IHostedService.ExecuteAsync` mis-typed as
-`async void`; WPF/WinForms event handlers performing real I/O;
-`Where(async x => ...)` (LINQ coerces the lambda to `async void`,
-returning `true` always); `Timer.Elapsed += async (s, e) => ...`.
+Same shape appears in: WPF/WinForms event handlers performing real I/O;
+`Timer.Elapsed += async (s, e) => ...`.
 
 ### 4.3 `ConfigureAwait(false)` and deadlock surface
 
@@ -571,9 +563,10 @@ on input crossing a trust boundary, regardless of formatter**.
 
 Microsoft's guidance: "BinaryFormatter is insecure and can't be made
 secure." Timeline: .NET 5 marked `[Obsolete]` SYSLIB0011; .NET 6
-banned new uses in `dotnet/*` repos; .NET 8 removed the runtime
-implementation (opt-in NuGet package
-`System.Runtime.Serialization.Formatters` for legacy); .NET 9 every
+banned new uses in `dotnet/*` repos; .NET 8 disabled it by default
+across all project types; .NET 9 removed the runtime implementation
+(unsupported opt-in NuGet package
+`System.Runtime.Serialization.Formatters` for legacy), so every
 call throws `PlatformNotSupportedException`. Migration: `System.Text.Json`,
 `MessagePack`, or `protobuf-net`. ASP.NET WebForms ViewState requires
 either upgrade to ASP.NET Core or a custom safe formatter — neither
@@ -591,7 +584,7 @@ The 2025 SharePoint "ToolShell" chain (Viettel Cyber Security,
 Pwn2Own Berlin 2025; CVE-2025-49706 + CVE-2025-49704, then
 CVE-2025-53770 / CVE-2025-53771):
 
-1. Auth bypass (CVE-2025-49706) on `/layouts/15/ToolPane.aspx`.
+1. Auth bypass (CVE-2025-49706) on `/_layouts/15/ToolPane.aspx`.
 2. Upload of `spinstall0.aspx` to extract `MachineKey` material.
 3. Forge a valid `__VIEWSTATE` with a `ysoserial.net` payload
    targeting `ObjectStateFormatter`.
@@ -672,7 +665,7 @@ if (String.Compare(role, "admin", true) == 0)  // Bug
     GrantAdminAccess();
 ```
 
-On Turkish locale, `"ADMİN".ToLower()` is `"admi̇n"`, not `"admin"`.
+On Turkish locale, `"admin".ToUpper()` is `"ADMİN"`, not `"ADMIN"`.
 Use `StringComparison.OrdinalIgnoreCase` for non-display comparisons.
 Audit: every `String.Compare`, `String.Equals` without
 `StringComparison`, and `ToUpper()` / `ToLower()` (current culture
@@ -705,8 +698,7 @@ if (!resolved.StartsWith(safeRoot + Path.DirectorySeparatorChar))
     throw new SecurityException("Path traversal");
 ```
 
-Praetorian's writeup is the canonical reproducible example; Fortify
-covers it via `path_manipulation_base_path_overwriting`.
+Praetorian's writeup is the canonical reproducible example.
 
 ### 7.3 `Uri` parsing inconsistencies
 
@@ -807,8 +799,9 @@ members; `Span<T>` returned from methods containing `stackalloc`.
 
 Two additional ViewState footguns beyond §6.3:
 **`EnableViewStateMac="false"`** disables signature validation —
-attacker-supplied ViewState deserialized directly. Removed in .NET
-4.5.2 but legacy framework targets still permit it.
+attacker-supplied ViewState deserialized directly. Ignored starting
+in .NET 4.5.2; a September 2014 update extended this to all ASP.NET
+versions 1.1-4.5.2.
 **`EnableEventValidation="false"`** disables event-source validation
 — attacker postbacks invoke arbitrary server-side actions.
 
@@ -819,9 +812,10 @@ emit per-form tokens signed with the application key. Footguns: the
 attribute is **opt-in** (controllers without it or
 `AutoValidateAntiforgeryTokenAttribute` accept any POST); API
 controllers that disable anti-forgery for programmatic clients are
-exploitable when cookie-authenticated; older ASP.NET defaults
-`SameSite` to `Unspecified` (browsers treat as `None`); ASP.NET
-Core 3.0+ defaults to `Lax`.
+exploitable when cookie-authenticated; ASP.NET Core's generic
+cookie APIs default `SameSite` to `Unspecified` (no attribute sent),
+while the cookie-authentication cookie defaults to `Lax` and the
+antiforgery cookie to `Strict`.
 
 ### 9.3 Model binding and over-posting
 
@@ -857,9 +851,7 @@ content by sniffing, not `ContentType`.
 `UseStaticFiles()` serves `wwwroot/` files without authentication.
 Path traversal is caught by the middleware; the footgun is enabling
 `ServeUnknownFileTypes = true` or `UseDirectoryBrowser()` in
-production — both expose the filesystem. Subtle footgun: on Unix,
-`wwwroot/.env` is served by default unless extension-filtering
-excludes dot-files explicitly.
+production — both expose the filesystem.
 
 ### 9.6 Razor `@Html.Raw` and bypass-by-default
 
@@ -888,10 +880,10 @@ verified."
 
 ### 10.1 `Random` is not cryptographic
 
-`System.Random` is a deterministic PRNG (tick-based seed in .NET 5
-and earlier, thread-local seed .NET 6+). Microsoft's rule: "Do not
-use System.Random for cryptography/security purposes." The
-cryptographic alternative is `RandomNumberGenerator` (static
+`System.Random` is a deterministic PRNG (clock-based default seed on
+.NET Framework; default seed from a thread-static pseudo-random
+generator on .NET Core). Microsoft's docs direct cryptographically
+secure use to `RandomNumberGenerator` (static
 `GetBytes`, `GetInt32`, `GetString` over the OS RNG).
 
 ```csharp
@@ -913,7 +905,7 @@ who can observe a few outputs and recover the seed. Use
 `Aes.Create()` defaults: mode CBC, padding PKCS7, key size 256
 bits. Reasonable but CBC without explicit IV management and without
 authenticated encryption is malleable. Historical footguns:
-`RijndaelManaged` (deprecated) often defaulted to ECB in older code;
+`RijndaelManaged` (deprecated; default mode CBC);
 three legacy AES implementations (`AesManaged`, `AesCng`,
 `AesCryptoServiceProvider`) had subtly different defaults — use
 `Aes.Create()`; `MachineKey.Encode/Decode` legacy modes (DES, 3DES
@@ -929,7 +921,7 @@ Per-message random nonce or strict counter; never fixed.
 Replacement `Rfc2898DeriveBytes` (PBKDF2) footguns: default
 constructor uses 1000 iterations (OWASP guidance is 600,000+ for
 PBKDF2-SHA256); default hash algorithm in older constructors is
-SHA-1; constructor accepts 0-byte salt. Verify salt is ≥16 bytes
+SHA-1. Verify salt is ≥16 bytes
 and unique per password. For new code, prefer
 `Microsoft.AspNetCore.Identity` or Argon2 NuGet packages.
 
@@ -1004,17 +996,16 @@ inconsistency.
 ### 11.4 Async exception flow
 
 Exception **after** the first `await` is captured by the state
-machine and placed on the returned Task. Exception **before** the
-first await (argument validation) is thrown synchronously to the
-caller — *not* on a task. The footgun: callers wrapping the call in
-`try { var t = method(arg); await t; } catch` won't catch the
-synchronous throw. Stephen Toub's recommendation: always `await` the
-call directly (no capture-and-use-later) to unify exception delivery.
+machine and placed on the returned Task. In an `async` method, an exception
+**before** the first await (argument validation) is also stored in
+the returned Task, not thrown synchronously. A non-`async`
+Task-returning method can instead throw eagerly (e.g. on a null
+argument) rather than fault the returned task.
 
 ### 11.5 `Environment.Exit` vs `Process.Kill`
 
-`Environment.Exit(code)` runs orderly shutdown — finalizers,
-atexit, buffer flushes. Can take seconds. `Process.GetCurrentProcess().Kill()`
+`Environment.Exit(code)` skips pending `finally` blocks; finalizers
+run at termination on .NET Framework but not on .NET Core / .NET 5+. `Process.GetCurrentProcess().Kill()`
 terminates immediately — no flush. Using `Environment.Exit` from a
 security-critical tamper-detection path gives the attacker a
 finalization window; use kill, after explicitly flushing only
@@ -1056,10 +1047,7 @@ crash in short test runs; they surface under specific load patterns.
 Windows exploit mitigations apply to P/Invoke: DEP prevents
 execution from non-executable pages; CFG validates indirect-call
 targets; CET / Shadow Stack validates return addresses. Native
-function pointers obtained dynamically must respect these mitigations
-— `Marshal.GetDelegateForFunctionPointer` marks targets CFG-valid;
-custom pointer construction does not, and indirect calls through
-such pointers fail with CFG violations on enabled systems.
+function pointers obtained dynamically must respect these mitigations.
 
 ### 12.4 COM interop and threading
 
@@ -1068,8 +1056,7 @@ COM objects from a different apartment triggers cross-apartment
 marshaling that **re-enters the message pump**. A COM call from a
 background thread to an STA-requiring object may run UI message
 handlers in the middle of the call — classic reentrancy where shared
-state is observed mid-mutation. Forshaw's "Exploiting .NET Managed
-DCOM" catalogs the security-relevant reentrancy paths.
+state is observed mid-mutation.
 
 ### 12.5 `HandleRef` vs `SafeHandle`
 
@@ -1136,8 +1123,9 @@ production-ready analyzers for many of the patterns in this document:
 - **CA2321, CA2322** — JavaScriptSerializer with SimpleTypeResolver.
 - **CA2326, CA2327, CA2328, CA2329, CA2330** — Newtonsoft.Json
   TypeNameHandling and JsonSerializerSettings.
-- **CA2350-CA2354** — XML deserialization (XmlSerializer,
-  DataContractSerializer with insecure resolver).
+- **CA2350-CA2354** — `DataTable` / `DataSet` deserialization
+  (`ReadXml` on untrusted input; unsafe `DataSet` / `DataTable` in
+  serializable types or deserialized object graphs).
 - **CA2014** — stackalloc in loops.
 - **CA5350, CA5351** — broken cryptographic algorithms (DES, MD5,
   SHA1 for signing).
@@ -1253,12 +1241,10 @@ with a lightweight `app.MapPost("/route", handler)` syntax. The
 behavioral footguns: model binding semantics differ from MVC (the
 `[FromBody]` / `[FromQuery]` defaults are inferred from parameter
 type, producing runtime-not-compile-time binding ambiguity errors);
-anti-forgery is *not* applied automatically and requires explicit
-`WithMetadata<RequireAntiforgeryToken>()`; authentication is
-per-endpoint and missing-attribute silently exposes the endpoint;
-custom `IResult` implementations run after filters but before
-standard middleware, providing a side-channel audit tools may not
-fully model.
+anti-forgery is validated only for endpoints whose metadata requires
+it (in .NET 8, endpoints binding `IFormFile` / `IFormFileCollection`;
+`DisableAntiforgery()` opts out); authentication is
+per-endpoint and missing-attribute silently exposes the endpoint.
 
 ### 15.2 Blazor (Server and WebAssembly)
 
@@ -1275,16 +1261,11 @@ surface.
 ### 15.3 .NET MAUI
 
 .NET MAUI inherits behavioral footguns from each platform SDK (iOS,
-Android, Windows, macOS). MAUI-specific quirks: hot-reload may produce
-type-resolution ambiguity in tests that depend on `Type.GetType`;
-embedded resources include the full app manifest with all platform
-security-relaxation exceptions visible; `Shell.GoToAsync` route
-parsing follows the .NET `Uri` semantics (§7.3) with the associated
-parsing-inconsistency surface.
+Android, Windows, macOS).
 
 ### 15.4 Native AOT and reflection stripping
 
-Native AOT (stabilized .NET 8) produces self-contained native
+Native AOT (introduced .NET 7) produces self-contained native
 executables with no JIT. Unused code is trimmed; the trimmer cannot
 see through reflection. Reflection-based serializers (Newtonsoft.Json
 by default, XmlSerializer, BinaryFormatter, AutoMapper) may fail at
@@ -1354,7 +1335,7 @@ single control abstraction is suspicious."
   https://devblogs.microsoft.com/dotnet/configureawait-faq/
 - Stephen Toub, "How Async/Await Really Works in C#,"
   https://devblogs.microsoft.com/dotnet/how-async-await-really-works/
-- Stephen Toub, "Async/Await Best Practices," MSDN Magazine 2013,
+- Stephen Cleary, "Async/Await Best Practices," MSDN Magazine 2013,
   https://learn.microsoft.com/en-us/archive/msdn-magazine/2013/march/async-await-best-practices-in-asynchronous-programming
 - Levi Broderick, "Cryptographic Improvements in ASP.NET 4.5,"
   https://devblogs.microsoft.com/dotnet/cryptographic-improvements-in-asp-net-4-5-pt-1/
@@ -1371,8 +1352,6 @@ single control abstraction is suspicious."
 - Soroush Dalili, "Exploiting Deserialisation in ASP.NET via
   ViewState,"
   https://soroush.me/blog/2019/04/exploiting-deserialisation-in-asp-net-via-viewstate/
-- Soroush Dalili, "More research on .NET deserialization,"
-  https://soroush.secproject.com/blog/2018/12/more-research-on-net-deserialization/
 - James Forshaw, "Exploiting .NET Managed DCOM," Project Zero 2017,
   https://googleprojectzero.blogspot.com/2017/04/exploiting-net-managed-dcom.html
 - pwntester/ysoserial.net, https://github.com/pwntester/ysoserial.net
@@ -1380,7 +1359,8 @@ single control abstraction is suspicious."
 - NCC Group / Freddy, https://github.com/nccgroup/freddy
 - Praetorian, "Path.Combine Security Issues in ASP.NET Applications,"
   https://www.praetorian.com/blog/pathcombine-security-issues-in-aspnet-applications/
-- Trend Micro / ZDI, "CVE-2025-53770 / 53771 SharePoint Attacks,"
+- Trend Micro, "Proactive Security Insights for SharePoint Attacks
+  (CVE-2025-53770 and CVE-2025-53771),"
   https://www.trendmicro.com/en_us/research/25/g/cve-2025-53770-and-cve-2025-53771-sharepoint-attacks.html
 - Andrew Lock, "Preventing mass assignment or over-posting in
   ASP.NET Core,"
@@ -1410,7 +1390,7 @@ single control abstraction is suspicious."
 
 ### Academic
 
-- Mohebbi et al., "On the use of C# Unsafe Code Context," ESEM 2020,
+- Firouzi et al., "On the use of C# Unsafe Code Context," ESEM 2020,
   https://dl.acm.org/doi/abs/10.1145/3382494.3422165
 
 ---

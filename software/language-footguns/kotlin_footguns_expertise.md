@@ -16,8 +16,7 @@
 > coroutines model elevated structured concurrency to the dominant Android +
 > Kotlin-server pattern, with its own discipline failures (cancellation swallowing,
 > `Thread.sleep` inside `suspend`, `Dispatchers` confusion). Recent additions: K2
-> compiler GA (Kotlin 2.0, May 2024) shipping a rewritten frontend; KSP2 default in
-> 2.0+; Compose Multiplatform stable for desktop and iOS; Kotlin 2.1 context
+> compiler GA (Kotlin 2.0, May 2024) shipping a rewritten frontend; Compose Multiplatform stable for desktop and iOS; Kotlin 2.4 context
 > parameters (stable replacement for context receivers); Spring Boot 3.4 Kotlin JPA
 > regression with `@Version` annotation; ongoing CVE stream in Android Parcel
 > deserialization (CVE-2023-20963, CVE-2022-20452, EvilParcel CVE-2017-13315) where
@@ -38,32 +37,30 @@
 >   "GlobalScope is delicate API" + structured-concurrency rationale are his
 >   published positions. `elizarov.medium.com`,
 >   `blog.jetbrains.com/kotlin/2020/11/roman-elizarov-is-the-new-project-lead-for-kotlin/`.
-> - **Hadi Hariri** — VP of Developer Advocacy at JetBrains since 2015 (joined
->   2010); host of *Talking Kotlin* podcast; long-running advocate-side voice
+> - **Hadi Hariri** — VP of Program Management at JetBrains, previously VP of
+>   Developer Advocacy; host of *Talking Kotlin* podcast; long-running advocate-side voice
 >   framing Kotlin as "Java's problems, solved." Author of Spek and Wasabi.
 >   `blog.jetbrains.com/team/2019/09/02/help-and-inspire-interview-with-hadi-hariri-...`,
 >   `talkingkotlin.com`.
 > - **Jake Wharton** — Android engineer at Cash App / Square / Google. Kotlin/
 >   Android library author (Retrofit, Picasso, Otto, ButterKnife, Molecule,
->   Mosaic). At Google 2016-2022: Kotlin style guide, KTX libraries, framework
->   nullability annotations, Parcelize, R8, view binding. Canonical practitioner
+>   Mosaic). At Google 2017-2020: Kotlin style guide, KTX libraries, framework
+>   nullability annotations, R8, view binding. Canonical practitioner
 >   voice on Kotlin idioms in production. `jakewharton.com`,
 >   `github.com/JakeWharton`.
 > - **Christina Lee** — Android engineer on the Core UI team at Pinterest;
->   KotlinConf '19 and Google I/O speaker on Kotlin null-safety and FRP; co-host
->   of *Fragmented* podcast. Published positions on null-safety-as-adoption-
+>   KotlinConf and Google I/O speaker on Kotlin null-safety and FRP. Published positions on null-safety-as-adoption-
 >   driver. `talkingkotlin.com/kotlin-at-pinterest-with-christina-lee/`,
 >   `github.com/christinalee`.
-> - **Manuel Vivo** — Staff Mobile Architect; previously Android DevRel engineer
->   at Google 2019-2023; authored canonical Android coroutines guidance
+> - **Manuel Vivo** — Staff Android Engineer at Bumble; previously Android DevRel
+>   engineer at Google; authored canonical Android coroutines guidance
 >   (`viewModelScope`, `lifecycleScope`, `repeatOnLifecycle`, Flow patterns,
 >   `Dispatchers.IO` discipline) on developers.android.com and the Android
 >   Developers Medium publication. `manuelvivo.dev`,
 >   `github.com/manuelvicnt`.
-> - **Vladimir Reshetnikov** — Drafted the formal Kotlin language specification;
->   performed compiler-conformance code reviews; contributed to coroutines and
->   type-aliases (Kotlin 1.1). Acknowledged in the official spec as a primary
->   contributor. `kotlinlang.org/spec/kotlin-spec.html`,
+> - **Vladimir Reshetnikov** — Acknowledged in the official Kotlin language
+>   specification (authored by Marat Akhin and Mikhail Belyaev) for help and
+>   feedback. `kotlinlang.org/spec/kotlin-spec.html`,
 >   `github.com/VladimirReshetnikov`.
 > - **Trail of Bits Android / Kotlin audit corpus** — institutional. The
 >   Testing Handbook (`appsec.guide`) and Claude Code skills plugins
@@ -294,8 +291,7 @@ want to think about it." Every `!!` is a future bug report.
 ### The risks
 
 1. **NPE with no debugging info.** `a!!.b!!.c!!.d` gives one line number for
-   four assertion points. Kotlin 1.4+ adds the variable name but chained `!!`
-   remains ambiguous.
+   four assertion points.
 2. **Strips nullability contract from the type system.** Downstream code treats
    the value as non-null; later refactors that re-introduce a nullable path
    silently break the contract — no compiler warning.
@@ -369,8 +365,7 @@ non-nullable call site. This is the most common Kotlin NPE class.
 ### Annotations that help
 
 Kotlin recognizes nullability annotations from JetBrains, JSpecify, JSR-305,
-Eclipse, Android Support, Findbugs, the JDK's
-`jdk.internal.javac.NullnessUnspecified`, and the Checker Framework. When
+Eclipse, Android Support, Findbugs, and the Checker Framework. When
 present, Kotlin treats the type as the corresponding nullable or non-nullable
 type — no platform type at all. Spring Framework, Jakarta EE, Guava, JDK 9+
 collections, AndroidX ship with annotations; older or internal Java code
@@ -654,7 +649,8 @@ Sources: `kotlinlang.org/docs/exception-handling.html`,
 `SupervisorJob()` isolates failures (one child's failure does not cancel
 siblings). Footgun: developers reach for `SupervisorJob` to "make failures
 less disruptive" without understanding it also requires an explicit
-`CoroutineExceptionHandler`; otherwise child failures silently disappear.
+`CoroutineExceptionHandler`; otherwise child failures go to the thread's
+default uncaught-exception handler.
 
 ### Audit recipe
 
@@ -753,10 +749,11 @@ the concrete type, materializing type info into bytecode.
 ### Restrictions and footguns
 
 1. **`reified` requires `inline`.** Non-inline functions cannot use it.
-2. **Inline functions are not callable from Java.** Java has no inlining
+2. **Reified inline functions are not callable from Java.** Java has no inlining
    primitive; bytecode emits a runtime-error stub.
 3. **Inline bodies replicate at every call site.** Binary size grows; the
-   compiler warns and suggests `noinline` for non-reified lambda params.
+   compiler warns when an inline function has no inlinable function
+   parameters and no reified type parameters.
 4. **`KClass<T>` vs `Class<T>`.** `T::class` is `KClass<T>`; `T::class.java`
    is `Class<T>`. `kotlin-reflect` uses `KClass`; many Java APIs expect
    `Class`. Frequent source of "Kotlin reflection compiles, Java reflection
@@ -811,7 +808,8 @@ on `!precondition` inputs, filter-first is also semantically required.
 ### `Iterable<T>` reuse vs `Iterator<T>` single-use
 
 `Iterable<T>` produces a fresh iterator per `iterator()` call. `Iterator<T>`
-and `sequence { yield ... }` generators are single-use; re-iteration on a
+is single-use; `sequence { yield ... }` creates a fresh iterator per
+iteration, re-running its block; re-iteration on a
 `constrainOnce()` sequence throws `IllegalStateException`. Footgun:
 re-iterating a yield-based generator repeats side effects.
 
@@ -1011,7 +1009,8 @@ supports polymorphism via `@SerialName` / `@JsonClassDiscriminator`. The
 discriminator is attacker-controllable; an `@Polymorphic` sealed hierarchy
 without an explicit allowlist is the polymorphic-deserialization surface
 analog to Jackson's `@JsonTypeInfo` (see `deserialization_expertise.md`
-§3). Restrict to `sealed` with `permits` clauses.
+§3). Restrict to `sealed` hierarchies, whose direct subclasses are fixed by
+package and module.
 
 ### `Random` vs `SecureRandom`
 
@@ -1034,8 +1033,8 @@ configuration of every module.
 Implications:
 
 1. **`./gradlew` on an untrusted repo runs `build.gradle.kts`** — including
-   any malicious code. Gradle documents this: "build scripts and any
-   contributed code should be inspected before running any tasks."
+   any malicious code. Gradle documents this: "Inspect the build scripts and any
+   contributed code before running any tasks or importing a project into the IDE."
 2. **Plugins are arbitrary Kotlin.** `id("com.x.plugin") version "1.0"`
    downloads from plugin portal / Maven Central; the plugin's `apply` runs
    with full Gradle authority at config time.
@@ -1067,8 +1066,7 @@ KSP2 default since 2.0.0; API and trust model unchanged.
 
 ### Semgrep patterns
 
-Kotlin Semgrep coverage is mature (Kotlin grammar in `semgrep/semgrep`
-since 2021). Sketches below; cross-link `semgrep_rule_authoring.md`.
+Kotlin Semgrep coverage is mature. Sketches below; cross-link `semgrep_rule_authoring.md`.
 
 ```yaml
 rules:
@@ -1148,8 +1146,8 @@ rules:
   `GlobalCoroutineUsage`, `SleepInsteadOfDelay`,
   `SuspendFunWithCoroutineScopeReceiver`. Configure as a Gradle
   pre-commit hook; baseline existing issues, gate new at error.
-- **Android Lint**: `ExportedPreferenceActivity`, `WorldReadable`,
-  `HardcodedKey`, `SQLInjection`, `ParcelClassLoader`,
+- **Android Lint**: `ExportedPreferenceActivity`, `WorldReadableFiles`,
+  `ParcelClassLoader`,
   `SetJavaScriptEnabled`. Integrates with Gradle.
 - **SonarKotlin** (`github.com/SonarSource/sonar-kotlin`,
   `rules.sonarsource.com/kotlin/`): org-wide code-quality + security
@@ -1214,7 +1212,7 @@ deep links). Cross-link `mobile_security_expertise.md` §7.
 - `external` declarations bypass the type system, producing platform-
   type-like uncertainty.
 
-**Kotlin/Wasm.** Beta in 2.0+; runtime distinct from JVM and JS. Treat
+**Kotlin/Wasm.** Beta since 2.2.20; runtime distinct from JVM and JS. Treat
 production deployments as research-stage.
 
 **Compose Multiplatform.** Composables shared across Android, desktop,

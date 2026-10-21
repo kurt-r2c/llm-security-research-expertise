@@ -11,7 +11,7 @@
 > Doug Gregor / John McCall multi-year push, completed for the Swift 6.0
 > release); noncopyable types (`~Copyable`) and parameter ownership modifiers
 > (`borrowing` / `consuming`) stabilized through Swift 6 (SE-0377); Embedded
-> Swift landing as a supported target (SE-0405 through SE-0407); Vapor 4.x and
+> Swift landing as a supported target; Vapor 4.x and
 > Hummingbird 2.x stabilizing as server-side Swift web frameworks; Swift
 > Package Manager build plugins maturing as a sandboxed-but-trust-the-package
 > surface (SE-0303); CryptoKit's continued role as the modern cryptographic
@@ -25,7 +25,7 @@
 > **Researchers:**
 > - **Chris Lattner** — original creator of Swift (development started at
 >   Apple 2010, public release WWDC 2014); also creator of LLVM, Clang, and
->   the Mojo language (Modular AI, 2022). Inaugural 2010 ACM SIGPLAN
+>   the Mojo language (Modular AI, 2023). Inaugural 2010 ACM SIGPLAN
 >   Programming Languages Software Award for LLVM. Swift design rationale —
 >   safety by default with carefully named unsafe escapes (`Unsafe*Pointer`,
 >   `unsafeBitCast`, `unowned(unsafe)`, `nonisolated(unsafe)`), value-type-
@@ -38,9 +38,7 @@
 >   ownership model. Review Manager for SE-0377 (parameter ownership
 >   modifiers, Swift 5.9); driving the move toward explicit value ownership
 >   (`borrowing`, `consuming`, noncopyable types).
-> - **Joe Groff** (jckarter) — Apple Swift core team member from the
->   beginning; one of the original five engineers (with Chris Lattner, Doug
->   Gregor, John McCall, and Ted Kremenek) who started Swift in 2010. Major
+> - **Joe Groff** (jckarter) — Apple Swift engineer. Major
 >   contributions to type metadata / runtime reflection, the generics
 >   implementation, and Swift 1.x → 5.x evolution proposals.
 > - **Doug Gregor** (DougGregor) — Apple Distinguished Engineer; founding
@@ -49,7 +47,7 @@
 >   and macros. The douggregor.net "Doug's Compiler Corner" blog is one of
 >   the more candid sources for Apple-internal Swift design conversations.
 > - **Holly Borla** — manages the Swift language team at Apple; primary
->   architect of the Swift 6 strict-concurrency rollout. Co-author on
+>   architect of the Swift 6 strict-concurrency rollout. Review Manager for
 >   SE-0412 (strict concurrency for global variables), SE-0414 (region-based
 >   isolation), and the broader Sendable / actor-isolation surface that
 >   makes Swift 6's compile-time data-race detection work.
@@ -59,14 +57,14 @@
 >   printing). Maintains the Swift Collections package
 >   (`OrderedDictionary`, `Deque`, `Heap`).
 > - **Filip Pizlo** (filpizlo) — formerly Manager of the JavaScriptCore
->   team at Apple (Feb 2017 - Feb 2022); author of JSC's LLInt, FTL JIT,
+>   team at Apple; author of JSC's LLInt, FTL JIT,
 >   B3 compiler backend, Riptide GC, and libpas. While not on the Swift
 >   team, JSC is the *other side* of every `WKWebView.evaluateJavaScript`
 >   call. The Pizlo corpus at webkit.org/blog and filpizlo.com is the
 >   canonical reference for the JS engine that Swift apps host.
-> - **Samuel Groß** (saelo) — Google Project Zero researcher; formerly
+> - **Samuel Groß** (saelo) — leads Google's V8 Security Team (formerly Project Zero); formerly
 >   independent / pwn2own; author of two Phrack articles on JavaScript
->   engine exploitation (CVE-2018-4233, CVE-2016-4622). The OffensiveCon
+>   engine exploitation (CVE-2018-17463, CVE-2016-4622). The OffensiveCon
 >   2022 "Attacking JavaScript Engines in 2022" talk and the saelo.github.io
 >   corpus are the canonical references for what attackers do against the
 >   JS engine that Swift apps host through `WKWebView`. Cross-link
@@ -74,7 +72,7 @@
 >   `browser_js_engine_exploitation_expertise.md`.
 > - **Trail of Bits iOS / Swift audit team** — security research firm;
 >   publications include "Swift Reversing" (Ryan Stortz, 2016) and "Modern
->   iOS Application Security" (Sophia D'Antoine and Dan Guido, 2016).
+>   iOS Application Security" (Dan Guido, 2016).
 >   Maintains the Testing Handbook at appsec.guide; ships
 >   github.com/trailofbits/semgrep-rules with Swift-specific patterns.
 > - **Apple Platform Security team** (institutional) — authors of the Apple
@@ -208,7 +206,7 @@ debugging shortcut that ships to production.
 
 ```swift
 let url = URL(string: someString)!  // crash if not a valid URL
-let data = Data(contentsOf: url)!   // crash if remote fetch fails
+let data = try! Data(contentsOf: url)  // crash if remote fetch fails
 let json = try! JSONSerialization.jsonObject(with: data)
 let dict = json as! [String: Any]   // crash if not a dict
 let name = dict["name"]!            // crash if no "name" key
@@ -373,7 +371,7 @@ pointer parameter is not assigned to anything outliving the closure.
 
 `Unsafe*Pointer<T>` assumes alignment to `MemoryLayout<T>.alignment`.
 The stdlib does not check; misaligned access is UB on most
-architectures (traps on ARM, may corrupt on x86).
+architectures.
 
 ```swift
 data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
@@ -550,7 +548,7 @@ Converting between integer types: choose the constructor carefully.
 - `Int(value)` — traps if doesn't fit
 - `Int(truncatingIfNeeded: value)` — truncates bit pattern
 - `Int(exactly: value)` — returns `Int?`, nil if doesn't fit
-- `numericCast(value)` — uses `init(exactly:)`; traps if doesn't fit
+- `numericCast(value)` — equivalent to the destination type's initializer; traps if doesn't fit
 
 ```swift
 let big: UInt64 = 0xFFFFFFFFFFFFFFFF
@@ -676,13 +674,7 @@ buffer is NUL-terminated. For buffers that aren't, use
 
 `String` `==` is Unicode-normalization-aware but *not locale-aware*
 by default. The "Turkish-I" surprise — `I` and `i` not paired in
-Turkish locale — appears with locale-explicit comparisons:
-
-```swift
-"TURKEY".caseInsensitiveCompare("turkey")  // .orderedSame
-"TURKEY".compare("turkey", options: .caseInsensitive, range: nil,
-                 locale: Locale(identifier: "tr"))  // .orderedDescending
-```
+Turkish locale — appears with locale-explicit comparisons.
 
 Audit: case-insensitive comparison on attacker-controlled input must
 be locale-explicit, or it has a locale-dependent bypass.
@@ -693,8 +685,7 @@ be locale-explicit, or it has a locale-dependent bypass.
 
 ### 8.1 Swift 6 strict concurrency
 
-Swift 6's strict-concurrency mode (`-swift-version 6` or per-file
-`@preconcurrency`) makes data-race detection a compile-time error.
+Swift 6's strict-concurrency mode (`-swift-version 6`) makes data-race detection a compile-time error.
 Any value crossing an isolation boundary (actor-to-actor, async-to-
 sync, `Task.detached`) must conform to `Sendable`. Swift 6 is now an
 aggressive compile-time data-race detector — for codebases that have
@@ -708,7 +699,7 @@ xcodebuild config; adjust threat model accordingly.
 `Sendable` is a marker protocol requiring data-race-safe storage:
 
 - Value types whose stored properties are all Sendable → auto.
-- `final class` with immutable Sendable properties → auto.
+- `final class` with immutable Sendable properties → may conform (explicit `Sendable` declaration required).
 - Actors → auto (isolates own state).
 - Other classes → not Sendable unless `@unchecked Sendable`.
 
@@ -759,9 +750,7 @@ returning to update UI must `await MainActor.run { ... }`.
 
 `Task.detached { ... }` creates an unstructured task that does *not*
 inherit the parent's actor isolation, task-local values, priority,
-or cancellation. Per Apple docs: "Task.detached creates an
-independent task not bound to the current scope — you lose automatic
-cancellation propagation."
+or cancellation.
 
 ```swift
 @MainActor class ViewModel {
@@ -839,8 +828,8 @@ Pitfalls:
   is `avatarURL` (all-caps initialism); decoder looks for `avatarUrl`.
 - *Custom CodingKeys interact*: raw value must be post-conversion, not
   wire form.
-- *Leading/trailing underscores*: `_first_name` → `firstName` (leading
-  underscore dropped); may be `keyNotFound` instead.
+- *Leading/trailing underscores*: `_first_name` → `_firstName` (leading
+  underscore preserved); may be `keyNotFound` instead.
 - *Dictionary keys*: `[String: T]` property — dictionary keys are
   *also* converted, rarely what the developer wants.
 - *Round-tripping*: encode-then-decode not guaranteed to preserve
@@ -890,7 +879,7 @@ attacker can influence becomes a method-call gadget.
 
 ### 10.2 `#selector(method)` references
 
-`#selector(MyClass.foo(_:))` produces a typed `ObjectiveCSelector` at
+`#selector(MyClass.foo(_:))` produces a typed `Selector` at
 compile time. Under the hood the selector is just a string
 (`"foo:"`); a class that adds/removes/replaces methods at runtime can
 change what the selector refers to.
@@ -898,7 +887,7 @@ change what the selector refers to.
 ### 10.3 `performSelector(_:with:)`
 
 `obj.perform(_: SEL, with: id)` invokes a method by selector,
-bypassing static type checking. Arguments are `Any`; return is `Any`.
+bypassing static type checking. Argument is `Any!`; return is `Unmanaged<AnyObject>!`.
 The runtime resolves the selector to an IMP and jumps.
 
 ```swift
@@ -936,13 +925,13 @@ let obj = try NSKeyedUnarchiver.unarchivedObject(
 ```
 
 Even with NSSecureCoding, `_NSDataFileBackedFuture` is reachable; the
-exploit-db CVE-2018-4444 "iMessage NSKeyedUnarchiver Deserialization"
+exploit-db CVE-2019-8646 "iMessage NSKeyedUnarchiver Deserialization"
 demonstrates this attack. Cross-link
 `deserialization_expertise.md` §"Obj-C NSKeyedUnarchiver".
 
 ### 10.6 Key-Value Observing (KVO)
 
-KVO uses runtime method swizzling. Observer-registration lifecycle is
+KVO uses runtime isa-swizzling. Observer-registration lifecycle is
 *manual* — every `addObserver(_:forKeyPath:options:context:)` needs a
 paired `removeObserver` on every code path. Failures:
 
@@ -995,7 +984,7 @@ The compiler doesn't catch the antipattern. Visual review only.
 
 ### 11.4 `UIWebView` deprecated (security risk) vs `WKWebView`
 
-`UIWebView` is deprecated since iOS 12, removed iOS 14, was *never*
+`UIWebView` is deprecated since iOS 12, was *never*
 sandboxed off-process. Any `UIWebView` runs WebKit in the app's own
 process — a JS-engine exploit in the page directly compromises the
 app. `WKWebView` runs WebKit out-of-process in a sandboxed WebContent
@@ -1036,7 +1025,7 @@ attack surface; saelo Phrack corpus for what attackers do inside.
 ### 11.6 Deep-link / Universal-Link routing
 
 iOS deep-link surface (custom URL schemes via
-`LSApplicationQueriesSchemes`, Universal Links via Associated Domains)
+`CFBundleURLTypes`, Universal Links via Associated Domains)
 accepts URLs from external contexts. Footgun: *authorization-by-
 routing*. An app treating the deep-link path as authorization (e.g.,
 `myapp://open-secret/abc123` opens the secret with token abc123)
@@ -1094,17 +1083,9 @@ OWASP MASTG-KNOW-0071 has the canonical iOS ATS audit checklist.
 
 ### 12.3 `FileManager` symlink-following defaults
 
-`FileManager.copyItem(at:to:)`, `removeItem(at:)`, `moveItem(at:to:)`
-follow symbolic links by default. Classic symlink-attack class: if
-the source is in an attacker-writable directory, the attacker can
-replace the source with a symlink at a sensitive file:
-
-```swift
-// BUG: if uploadDir is user-writable, attacker can symlink uploadDir/file
-// to /etc/passwd, and the copy reads /etc/passwd
-let src = uploadDir.appendingPathComponent("file")
-try FileManager.default.copyItem(at: src, to: dst)
-```
+`FileManager.copyItem(at:to:)` and `moveItem(at:to:)` do not follow a
+symbolic link in the last component of the source URL: only the link
+is copied or moved to the new path.
 
 For paths inside attacker-influenced directories, canonicalize first
 (`URL.resolvingSymlinksInPath()`), then verify the canonical path is
@@ -1116,7 +1097,7 @@ verified".
 
 `Data(contentsOf: URL)` is synchronous; for remote URLs (HTTP/HTTPS)
 it's a *blocking network call on the calling thread* with no
-configurable timeout (default 60s). On main thread → 60s UI freeze;
+configurable timeout. On main thread → UI freeze;
 on a worker → tied-up worker. Audit: any `Data(contentsOf:)` with
 `http` or `https` scheme is a finding. Use `URLSession.shared.data(from:)`
 (async, configurable timeout).
@@ -1184,13 +1165,13 @@ let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
 guard status == errSecSuccess else { fatalError() }
 ```
 
-CryptoKit provides `SystemRandomNumberGenerator` as the recommended
+The Swift standard library provides `SystemRandomNumberGenerator` as the recommended
 modern API. Both back onto kernel CSPRNG.
 
 ### 13.4 `arc4random()` — historically misnamed but secure
 
 `arc4random()` is BSD libc. Despite the name (RC4 cipher decades ago),
-modern macOS / iOS implementations back onto ChaCha20 — appropriate
+modern macOS / iOS implementations back onto corecrypto's CSPRNG — appropriate
 for crypto use today. Prefer `arc4random_uniform(_:)` over
 `arc4random() % N` (no modulo bias).
 
@@ -1253,7 +1234,7 @@ let package = Package(
 
 SPM evaluates this in a sandboxed environment (SE-0303), but the
 sandbox is process-level — the script can read filesystem, launch
-subprocesses, make network calls (within sandbox ACLs). Build plugins
+subprocesses. Build plugins
 go further: they produce executable code running as part of the
 build. Cross-link `cicd_supply_chain_expertise.md` §5.
 
@@ -1294,7 +1275,7 @@ pushes a malicious binary and updates the checksum, downstream
 consumers fetch it on next update. Cross-link
 `cicd_supply_chain_expertise.md` §5 (analogous Maven / npm / pip).
 
-### 14.5 Build plugins (SE-0303)
+### 14.5 Build plugins (SE-0303, SE-0332)
 
 Two flavors: *build tool plugin* (`capability: .buildTool`, generates
 code or processes resources at build) and *command plugin*
@@ -1356,8 +1337,8 @@ separate detector. Cross-link `semgrep_rule_authoring.md`.
 ### 15.2 SwiftLint security-adjacent rules
 
 - `force_unwrapping` (opt-in)
-- `force_try` (opt-in)
-- `force_cast` (opt-in)
+- `force_try` (enabled by default)
+- `force_cast` (enabled by default)
 - `implicitly_unwrapped_optional` (opt-in)
 - `weak_delegate` (opt-in; retain-cycle delegate patterns)
 - `unowned_variable_capture` (opt-in)
@@ -1429,10 +1410,9 @@ level controls (ATS, sandbox, code signing) do not.
 
 ### 16.3 Variant analysis: Embedded Swift
 
-Embedded Swift (SE-0405 through 0407) targets microcontrollers. The
-stdlib is subsetted; many runtime features unavailable (no ARC for
-some target configurations, no allocator on bare-metal, no
-Foundation). Footguns depending on Foundation (Codable, URLSession,
+Embedded Swift targets microcontrollers. The
+stdlib is subsetted; many runtime features unavailable (no allocator
+in `-no-allocations` mode, no Foundation). Footguns depending on Foundation (Codable, URLSession,
 FileManager, Date) don't apply; §1-§6 language-level footguns
 (force-unwrap, unsafe-pointer, integer-overflow) all apply with
 stronger consequences — typically no crash-handler to catch the
