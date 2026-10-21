@@ -49,11 +49,11 @@ Conversational multi-agent. Primary abstraction: an `Agent` with a system prompt
 
 ### 3.3 CrewAI
 
-Role-based multi-agent, community-maintained. Primary abstraction: `Crew` containing `Agent`s, each with a `role`, `goal`, and `backstory`, executing `Task`s. Strength: opinionated and fast to onboard — the role/goal/task vocabulary maps cleanly to how non-engineers describe what they want. Weakness: the opinion may not fit your problem. If your task isn't naturally decomposed into roles, CrewAI's abstractions add friction without paying for themselves.
+Role-based multi-agent, developed by CrewAI Inc. and open-source contributors. Primary abstraction: `Crew` containing `Agent`s, each with a `role`, `goal`, and `backstory`, executing `Task`s. Strength: opinionated and fast to onboard — the role/goal/task vocabulary maps cleanly to how non-engineers describe what they want. Weakness: the opinion may not fit your problem. If your task isn't naturally decomposed into roles, CrewAI's abstractions add friction without paying for themselves.
 
 ### 3.4 OpenAI Swarm and OpenAI Agents SDK
 
-Swarm was published as an educational reference in the OpenAI Cookbook — minimalist multi-agent with handoffs. OpenAI's later first-party agent SDK (Agents SDK) supersedes Swarm for production use. Strength: simple enough to read in one sitting. Weakness: Swarm is explicitly marked educational by OpenAI; treating it as production substrate ignores OpenAI's own framing. Reach for Swarm when you want to understand the pattern; reach for the Agents SDK when you want to ship.
+Swarm was published as an educational reference implementation of the OpenAI Cookbook's Orchestrating Agents patterns — minimalist multi-agent with handoffs. OpenAI's later first-party agent SDK (Agents SDK) supersedes Swarm for production use. Strength: simple enough to read in one sitting. Weakness: Swarm is explicitly marked educational by OpenAI; treating it as production substrate ignores OpenAI's own framing. Reach for Swarm when you want to understand the pattern; reach for the Agents SDK when you want to ship.
 
 ### 3.5 Microsoft Magentic-One
 
@@ -61,7 +61,7 @@ Microsoft Research's orchestrator that supervises specialist agents — typicall
 
 ### 3.6 Google ADK (Agent Development Kit)
 
-Google's late-2024 / 2025 entrant, tied to Vertex AI as the deployment substrate. Primary abstraction is agent classes with declarative tool registration. Strength: tight integration with Google Cloud (Vertex Model Garden, Cloud Functions, BigQuery as a context store). Weakness: the integration that is a strength on GCP is a lock-in cost off it. Reach for it when your stack is already on Vertex.
+Google's 2025 entrant (announced at Google Cloud Next, April 2025), optimized for Gemini and Vertex AI. Primary abstraction is agent classes with declarative tool registration. Strength: tight integration with Google Cloud (Vertex Model Garden, Cloud Functions, BigQuery as a context store). Weakness: the integration that is a strength on GCP is a lock-in cost off it. Reach for it when your stack is already on Vertex.
 
 ### 3.7 Claude Agent SDK (Anthropic, 2025)
 
@@ -105,7 +105,7 @@ Debenedetti et al. arXiv:2503.18813 (Google DeepMind). Two LLMs: a privileged LL
 
 ### 4.7 Auditor / target / judge
 
-Three-role evaluation separation. The auditor probes the target through synthetic interactions; a separate judge model scores the resulting transcript. Anthropic's Petri productized this pattern with the further refinement of rotating auditor and judge roles across multiple models to prevent any single model from preferentially scoring a target it shares training data with. Cross-link `[[reference-steelman-doctrine]]` §9.1 for the doctrinal connection — Champion / Foil / Adjudicator is the same role triad applied to reasoning, and the structural reason it works is the same: separation of who-makes-the-claim from who-attacks-it from who-decides.
+Three-role evaluation separation. The auditor probes the target through synthetic interactions; a separate judge model scores the resulting transcript. Anthropic's Petri productized this pattern. Cross-link `[[reference-steelman-doctrine]]` §9.1 for the doctrinal connection — Champion / Foil / Adjudicator is the same role triad applied to reasoning, and the structural reason it works is the same: separation of who-makes-the-claim from who-attacks-it from who-decides.
 
 ### 4.8 Honest framing on composition
 
@@ -139,7 +139,7 @@ The trade-off: isolation costs context. A sub-agent that does not know what the 
 
 ### 5.4 Audit logging
 
-Every tool call, every argument, every result, signed and shipped to an immutable log. OpenTelemetry GenAI semantic conventions (`gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.tool.name`, and the span hierarchy) are the substrate. Cross-link `[[reference-detection-engineering]]` §10 for the runtime-detection framing — the log is the detection surface, not just the audit trail. Without an audit log, you cannot answer "what did the agent do last night" and you cannot answer "did the agent leak this secret"; with one, you can.
+Every tool call, every argument, every result, signed and shipped to an immutable log. OpenTelemetry GenAI semantic conventions (`gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.tool.name`, and the span hierarchy) are the substrate. Cross-link `[[reference-detection-engineering]]` §10 for the runtime-detection framing — the log is the detection surface, not just the audit trail. Without an audit log, you cannot answer "what did the agent do last night" and you cannot answer "did the agent leak this secret"; with one, you can.
 
 Object-lock the storage (S3 Object Lock, equivalent) so the agent (or anything compromising the agent) cannot retroactively delete the log of its own bad behavior.
 
@@ -179,7 +179,7 @@ Most agent failures happen here. The model is capable; the context it is fed is 
 
 **RAG against authoritative source.** Instead of stuffing context, retrieve. Works well when the authoritative source has good metadata and the queries are well-formed. Works poorly when the embedding-similarity surface is noisy or the index drifts behind the source.
 
-**Side-channel-via-files.** Instead of putting state in the conversation, write it to a file the agent reads on the next turn. The pattern Claude Code's `TodoWrite` / `TodoRead` and similar plan-state mechanisms implement. Strength: state is durable across the agent's own context resets and visible to the operator. Weakness: the agent has to remember to read the file.
+**Side-channel-via-files.** Instead of putting state in the conversation, write it to a file the agent reads on the next turn. The pattern Claude Code's `TodoWrite` (now the `TaskCreate` / `TaskUpdate` tools) and similar plan-state mechanisms implement. Strength: state is durable across the agent's own context resets and visible to the operator. Weakness: the agent has to remember to read the file.
 
 ### 6.3 Honest framing
 
@@ -225,8 +225,8 @@ Kurt's second focus area. The agent is weaker here than in the programming-langu
 
 A codebase past 100K lines exceeds any single-context window. The challenge is that the model cannot see it all. Three approaches:
 
-- **Symbolic exploration.** ctags, LSP `workspace/symbols`, `find` + `grep`. The agent navigates by name. Works well when the codebase has consistent naming and the agent knows what to look for.
-- **Embedding-based retrieval.** Sourcegraph Cody, Cursor's codebase context, Aider's repo-map. Embedding similarity surfaces relevant files for a query. Works when the query and the relevant code share vocabulary; fails when the relevant code is the answer in a different vocabulary than the question.
+- **Symbolic exploration.** ctags, LSP `workspace/symbol`, `find` + `grep`, Aider's repo-map. The agent navigates by name. Works well when the codebase has consistent naming and the agent knows what to look for.
+- **Embedding-based retrieval.** Cursor's codebase context. Embedding similarity surfaces relevant files for a query. Works when the query and the relevant code share vocabulary; fails when the relevant code is the answer in a different vocabulary than the question.
 - **Skeleton-plus-drill.** `tree` for the directory structure, selective `Read` for promising files. The agent builds a mental model from the skeleton, then drills. Cheap and surprisingly effective; the canonical pattern Claude Code uses for repo onboarding.
 
 The harness pattern: expose all three as tools, let the agent pick. Do not force one strategy.
@@ -281,7 +281,7 @@ Same shape, different query language. The agent generates a CodeQL query; CodeQL
 
 ### 9.3 False-positive triage agents
 
-Take a tool's findings — Semgrep, CodeQL, Snyk, custom — classify each as true positive, false positive, or defer, and attach evidence. Semgrep Assistant's `/fp` and autotriage flows implement this pattern. The agent's value-add is consistency and thoroughness, not novel bug discovery — a triage agent that classifies a thousand findings with 90% maintainer-agreement is more useful than a research agent that finds one new bug, because the triage agent moves the backlog. The harness pattern: structured output (TP / FP / Defer plus rationale plus evidence pointers), human review on a sampled subset, calibration against the maintainer's later disposition.
+Take a tool's findings — Semgrep, CodeQL, Snyk, custom — classify each as true positive, false positive, or defer, and attach evidence. Semgrep's `/fp` PR-comment triage and Semgrep Assistant's autotriage flows implement this pattern. The agent's value-add is consistency and thoroughness, not novel bug discovery — a triage agent that classifies a thousand findings with 90% maintainer-agreement is more useful than a research agent that finds one new bug, because the triage agent moves the backlog. The harness pattern: structured output (TP / FP / Defer plus rationale plus evidence pointers), human review on a sampled subset, calibration against the maintainer's later disposition.
 
 ### 9.4 Rule-coverage and variant-analysis agents
 

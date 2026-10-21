@@ -17,7 +17,7 @@ Classical DFIR ([[reference-dfir-methodology]]) assumes a finite host (machine /
 **Different forensic surfaces.** The relevant artifacts are not pcap and disk image. They are:
 
 - **Agent session JSONL** (Claude Code: `~/.claude/projects/<encoded-cwd>/<session>.jsonl`; Cursor: per-project conversation logs; Aider: `.aider.chat.history.md`)
-- **OpenTelemetry GenAI spans** (`gen_ai.system`, `gen_ai.request.model`, `gen_ai.tool.name`, `gen_ai.tool.arguments`, `gen_ai.usage.*`)
+- **OpenTelemetry GenAI spans** (`gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.tool.name`, `gen_ai.tool.call.arguments`, `gen_ai.usage.*`)
 - **MCP tool-call audit logs** (per-server JSONL; usually not on by default)
 - **PR comments and commits authored by the agent** — the exfil channel in Comment-and-Control class
 - **Model-provider audit logs** (Anthropic Console, OpenAI dashboard, AWS Bedrock CloudTrail data events) with 15-30 minute ingestion lag
@@ -27,7 +27,7 @@ None of those surfaces exist for classical malware.
 
 **Different recovery questions.** The killer question that has no classical-DFIR analogue: *was customer data sent to the LLM provider?* If yes, is your contract Zero Data Retention (ZDR)? Does ZDR apply retroactively or only prospectively? Is the provider's audit log retained long enough to confirm? Has the data been used for training? GDPR Article 33 starts a 72-hour clock as soon as you answer "yes" to the first question.
 
-**Different recurrence model.** Classical malware persists via filesystem or registry. AI agents persist via MCP-config mutation (MCPoison class — Check Point Research, August 2025, Cursor MCP impersonation), cache poisoning (Cacheract chain in Clinejection — GHSA-9ppg-jx86-fqw7), or settings-file modification (the canonical Claude Code / Cursor write-to-`.claude/settings.json` class). Persistence lives in config you forgot to check.
+**Different recurrence model.** Classical malware persists via filesystem or registry. AI agents persist via MCP-config mutation (MCPoison class — Check Point Research, August 2025, Cursor keeps trusting an approved MCP config after it is modified), cache poisoning (Cacheract chain in Clinejection — GHSA-9ppg-jx86-fqw7), or settings-file modification (the canonical Claude Code / Cursor write-to-`.claude/settings.json` class). Persistence lives in config you forgot to check.
 
 Classical DFIR is necessary but insufficient. This doc covers the AI-specific delta.
 
@@ -35,7 +35,7 @@ Classical DFIR is necessary but insufficient. This doc covers the AI-specific de
 
 ## 2. AI-IR Lifecycle — NIST 800-61 Specialized
 
-NIST SP 800-61r2 (Computer Security Incident Handling Guide) defines six phases. Each requires AI-specific specialization.
+NIST SP 800-61r2 (Computer Security Incident Handling Guide, superseded by SP 800-61r3 in April 2025) defines four phases (Preparation; Detection & Analysis; Containment, Eradication & Recovery; Post-Incident Activity), split into six subsections below. Each requires AI-specific specialization.
 
 ### 2.1 Preparation
 
@@ -43,7 +43,7 @@ Before any incident, ensure these are in place:
 
 - **MCP allowlist** with sha256-pinned tool versions per [[reference-ai-pr-review-platform]] §12 and [[reference-ai-assisted-coding-tool-security]] §13.
 - **OTel GenAI tracing** enabled on every agent runtime; exported to a SIEM or DataDog stream with at least 30-day retention.
-- **Model-provider audit logging** enabled — Anthropic Console workspace audit, OpenAI organization-level audit logs, AWS Bedrock CloudTrail with `bedrock:InvokeModel` data events.
+- **Model-provider audit logging** enabled — Anthropic Console workspace audit, OpenAI organization-level audit logs, AWS Bedrock model invocation logging (CloudWatch Logs / S3; disabled by default) plus CloudTrail, which records `InvokeModel` as a management event.
 - **Vendor IR contact list** populated per §10 of this doc.
 - **Tabletop exercises** within 30 days of any new AI tool rollout. Run at least one Clinejection-class scenario and one Comment-and-Control-class scenario.
 
@@ -52,9 +52,9 @@ Before any incident, ensure these are in place:
 Alerts come from [[reference-detection-engineering]] §10 (Sigma / KQL / SPL rules for agentic-tool behavior). Common signals:
 
 - Unexpected `npm install` from a forked repo via `claude-code-action` or equivalent agentic bot.
-- MCP server configuration file (`~/.cursor/mcp.json`, `~/.claude/mcp.json`, `.vscode/mcp.json`) mutated outside an expected change window.
+- MCP server configuration file (`~/.cursor/mcp.json`, `~/.claude.json`, `.mcp.json`, `.vscode/mcp.json`) mutated outside an expected change window.
 - Agent-authored PR comment containing base64-shaped strings, environment variable names, or URLs to attacker-controlled domains.
-- Model-API spend anomaly (CurXecute-class — CVE-2025-54135 — triggers a request volume spike before the exfil completes).
+- Model-API spend anomaly.
 - Bedrock CloudTrail `InvokeModel` with `gen_ai.request.model` mismatched to organization allowlist.
 
 Triage with §5 decision tree.
@@ -99,14 +99,16 @@ The fastest cut. Per-tool commands:
 ```bash
 # Claude Code
 claude mcp remove <server-name>
-# or, for global cut:
-mv ~/.claude/mcp.json ~/.claude/mcp.json.quarantine
+# or, for user-scope servers (stored in ~/.claude.json):
+claude mcp remove <server-name> --scope user
+# project-scope servers:
+mv .mcp.json .mcp.json.quarantine
 
 # Cursor
 mv ~/.cursor/mcp.json ~/.cursor/mcp.json.quarantine
 
 # Cline (VSCode)
-rm -rf ~/.vscode/extensions/saoudrizwan.claude-dev-*/mcp/
+mv ~/Library/Application\ Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json ~/cline_mcp_settings.json.quarantine  # macOS
 ```
 
 Cuts the agent's tool-call surface immediately. Does NOT kill an in-flight tool call.
@@ -125,11 +127,7 @@ For agentic GitHub Actions: disable the workflow file:
 gh workflow disable <workflow-name> --repo <org/repo>
 ```
 
-For Devin / Cursor BugBot / CodeRabbit hosted runners: disable the GitHub App at the org level:
-
-```bash
-gh api -X DELETE /orgs/<org>/installations/<install-id>
-```
+For Devin / Cursor BugBot / CodeRabbit hosted runners: suspend or uninstall the GitHub App installation at the org level. (`DELETE /app/installations/{installation_id}` must be authenticated with the app's own JWT, so it is not an org-owner command.)
 
 ### 3.3 Rotate the model-API key at issuing authority
 
@@ -156,7 +154,7 @@ Reduce the agent's permission surface even while it remains running (if you cann
 }
 ```
 
-Equivalent for Cursor: `.cursor/rules/emergency.mdc` flipping all tools to ask-mode.
+Equivalent for Cursor: set Auto-Run Mode to "Ask every time" (rules in `.cursor/rules/*.mdc` are prompt guidance, not enforced permissions).
 
 ### 3.5 Disable scheduled agent runs
 
@@ -201,7 +199,7 @@ rm -rf ~/.cargo/registry/cache
 docker buildx prune --all --force
 ```
 
-GitHub's November 2025 LRU cache-eviction policy change is the Cacheract precondition; the prior behavior eventually pushed poisoned entries out. The new policy keeps them indefinitely until you explicitly delete.
+GitHub's November 20, 2025 cache-eviction change is the Cacheract precondition: once a repository's cache exceeds 10 GB, GitHub now evicts least-recently-used entries immediately instead of every 24 hours, so an attacker can flood the cache to evict legitimate entries and claim their keys with poisoned ones.
 
 ### 3.8 Quarantine agent-authored artifacts
 
@@ -236,7 +234,7 @@ cp .aider.chat.history.md /secure/ir/.../
 cp .aider.input.history /secure/ir/.../
 
 # Cline — VSCode workspace state
-cp -r ~/.vscode/extensions/saoudrizwan.claude-dev-*/data/ /secure/ir/.../
+cp -r ~/Library/Application\ Support/Code/User/globalStorage/saoudrizwan.claude-dev/ /secure/ir/.../
 ```
 
 Captures the agent's tool-call sequence, model responses, and (critically) the original prompt that triggered the compromise.
@@ -245,11 +243,11 @@ Captures the agent's tool-call sequence, model responses, and (critically) the o
 
 Query span attributes per the OpenTelemetry GenAI semantic conventions:
 
-- `gen_ai.system` — provider (anthropic, openai, aws.bedrock)
+- `gen_ai.provider.name` (formerly `gen_ai.system`) — provider (anthropic, openai, aws.bedrock)
 - `gen_ai.request.model` — exact model ID
-- `gen_ai.tool.name` and `gen_ai.tool.arguments` — every tool call the agent made
+- `gen_ai.tool.name` and `gen_ai.tool.call.arguments` — every tool call the agent made
 - `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens` — sizing the data sent
-- `gen_ai.prompt` and `gen_ai.completion` — only if your runtime captures these (disabled by default for cost; usually OFF, sometimes ON during incident response)
+- `gen_ai.prompt` and `gen_ai.completion` (deprecated and removed from the conventions; content is now recorded via events) — only if your runtime captures these (disabled by default for cost; usually OFF, sometimes ON during incident response)
 
 Pin the time window from first-suspicious-event minus 30 minutes to containment-complete plus 5 minutes. Export to S3 with object-lock for evidentiary integrity.
 
@@ -262,11 +260,11 @@ If MCP audit logging was enabled (recommended baseline per §2.1):
 cp ~/.mcp-audit/*.jsonl /secure/ir/.../
 ```
 
-Note: MCP audit logging is OFF by default in every MCP server implementation as of May 2026. If you do not have these logs, log this as a gap in §11.
+If you do not have these logs, log this as a gap in §11.
 
 ### 4.4 PR comments and commits authored by the agent (the exfil channel)
 
-Comment-and-Control (Johns Hopkins + Anthropic, October-November 2025, CVSS 9.4 on the Claude Code Security Review variant) uses PR comments as the exfiltration channel. Capture:
+Comment-and-Control (Aonan Guan with Johns Hopkins researchers Zhengyu Liu and Gavin Zhong, disclosed April 2026, CVSS 9.4 on the Claude Code Security Review variant) uses PR comments as the exfiltration channel. Capture:
 
 ```bash
 # All comments by the agent in a window
@@ -288,11 +286,11 @@ For each comment, scan for base64-shaped strings, `https://*` to external domain
 
 ### 4.5 Model-provider audit logs (15-30 min ingestion lag)
 
-Anthropic Console workspace audit log: `console.anthropic.com/settings/audit-log`. Filter by API key, time window, request type. Note: granular `messages` content is NOT logged by Anthropic by default; you get metadata (timestamp, model, token counts) only.
+Anthropic: the Compliance API (Enterprise) covers Console admin activity such as member, role, and workspace changes and API key lifecycle events; standalone Console organizations get the Activity Feed only.
 
-OpenAI organization audit: `platform.openai.com/settings/<org>/audit-logs`. Same metadata-only constraint.
+OpenAI organization audit: `platform.openai.com/settings/<org>/audit-logs`.
 
-AWS Bedrock: CloudTrail data events for `bedrock:InvokeModel`. Requires explicit enablement (off by default; cost-bearing). If enabled, full request/response bodies land in CloudTrail.
+AWS Bedrock: CloudTrail logs `InvokeModel` as a management event. Request/response bodies are captured only by model invocation logging (CloudWatch Logs / S3), which is disabled by default and must be explicitly enabled.
 
 For each, request a vendor data-pull if you suspect exfiltration of customer data — see §6.
 
@@ -330,7 +328,7 @@ Within 5 minutes of alert acknowledgment, walk these questions:
 **Q2. Did the agent have write capability?**
 - Write to filesystem? Write to repo (commit / PR)? Write to MCP config? Write to cache?
 - YES → assume PR comments, commits, config files, and caches are tainted. Quarantine via §3.8.
-- NO → likely read-only exposure (less common; CurXecute and EchoLeak are read-side classes).
+- NO → likely read-only exposure (less common; EchoLeak is a read-side class).
 
 **Q3. Did the agent have external-network capability via MCP or shell?**
 - WebFetch / curl / wget / `npm install <attacker-domain>` / MCP server with network access?
@@ -343,7 +341,7 @@ Within 5 minutes of alert acknowledgment, walk these questions:
 - ISOLATED → rotation can be deferred until forensic capture completes.
 
 **Q5. Did compromise span multiple sessions?**
-- Look for MCP-config mod timestamps (`stat -f %m ~/.claude/mcp.json` on macOS, `stat -c %Y ~/.claude/mcp.json` on Linux).
+- Look for MCP-config mod timestamps (`stat -f %m ~/.claude.json` on macOS, `stat -c %Y ~/.claude.json` on Linux).
 - Look for cache modifications (§4.6 `npm-cache-changes.txt`).
 - MULTI-SESSION → assume persistent compromise. Eradication (§2.4) must include config + cache + scheduled-job audit.
 - SINGLE-SESSION → eradication scope is bounded to the affected developer / runner.
@@ -372,7 +370,7 @@ If your runtime captured full prompts (rare; usually OFF for cost), grep the cap
 
 ### 6.2 Invoke provider IR contact
 
-**Anthropic.** `trust.anthropic.com` → "Contact Security." Request: data-deletion attestation for time window, retention override for forensic preservation, training-confirmation (Anthropic does not train on API inputs by default, but confirm in writing for your account). Anthropic's standard SLA is 1 business day acknowledgment; for active exploitation, mention "active incident response."
+**Anthropic.** `trust.anthropic.com` → "Contact Security." Request: data-deletion attestation for time window, retention override for forensic preservation, training-confirmation (Anthropic does not train on API inputs by default, but confirm in writing for your account). For active exploitation, mention "active incident response."
 
 **OpenAI.** `trust.openai.com` and `security@openai.com`. Request the same three items. Note: OpenAI's training opt-out is per-organization; verify your org-level setting.
 
@@ -417,7 +415,7 @@ The unique AI-IR trade-off: containment discards forensic evidence; observation 
 
 ## 8. Worked Example 1: Clinejection-Class Anatomy
 
-Source: `adnanthekhan.com/posts/clinejection/`, GHSA-9ppg-jx86-fqw7 (published February 19, 2026), `cline.bot/blog/post-mortem-unauthorized-cline-cli-npm`. See [[reference-cicd-supply-chain]] §2.9 for full structural analysis.
+Source: `adnanthekhan.com/posts/clinejection/`, GHSA-9ppg-jx86-fqw7 (published February 17, 2026), `cline.bot/blog/post-mortem-unauthorized-cline-cli-npm`. See [[reference-cicd-supply-chain]] §2.9 for full structural analysis.
 
 ### Timeline
 
@@ -441,7 +439,7 @@ Source: `adnanthekhan.com/posts/clinejection/`, GHSA-9ppg-jx86-fqw7 (published F
 
   → **Containment §3.7** — `gh cache delete --all --repo <repo>` immediately.
 
-**T+next-night.** Nightly publish workflow runs. Reads from poisoned cache. Exfils GitHub publish token via `postinstall`. Publishes `cline@2.3.0` with malicious payload (`postinstall: npm install -g openclaw@latest`).
+**T+next-night.** Nightly publish workflow runs. Reads from poisoned cache. Exposes the npm publish token (`NPM_RELEASE_TOKEN`). Publishes `cline@2.3.0` with an unauthorized `postinstall` (`postinstall: npm install -g openclaw@latest`).
 
   → **Detection rule fires**: `npm_publish_unexpected_token_usage` — anomaly on `pushed_at` against publish-token last-used.
 
@@ -449,17 +447,17 @@ Source: `adnanthekhan.com/posts/clinejection/`, GHSA-9ppg-jx86-fqw7 (published F
 
 ### Real outcome
 
-GHSA-9ppg-jx86-fqw7 published February 19, 2026, severity "low" because the payload was only a postinstall instruction (no active malware in-package). Cline team's post-mortem cited rotation incompleteness as the compounding failure: credential rotated through dashboard but token remained active until February 17 exploitation.
+GHSA-9ppg-jx86-fqw7 published February 17, 2026, severity "low" because the payload was only a postinstall instruction (no active malware in-package). Cline team's post-mortem cited rotation incompleteness as the compounding failure: credential rotated through dashboard but token remained active until February 17 exploitation.
 
-**Right choices Cline made:** disclosed within 10 days, published post-mortem with structural framing.
+**Right choices Cline made:** published post-mortem with structural framing.
 
-**Wrong choices:** did not verify rotation by attempting old credential; did not audit `claude-code-action` `allowed_non_write_users: "*"` default before adopting; assumed the trigger (`issues` event) was incidental rather than structural.
+**Wrong choices:** did not verify rotation by attempting old credential; did not audit the `claude-code-action` `allowed_non_write_users: "*"` setting before adopting; assumed the trigger (`issues` event) was incidental rather than structural.
 
 ---
 
 ## 9. Worked Example 2: Comment-and-Control on Claude Code Security Review
 
-Source: Johns Hopkins + Anthropic collaboration, disclosed October-November 2025. CVSS 9.4 on the Claude Code Security Review variant. Affected: Anthropic Claude Code Security Review, Gemini CLI Action, Copilot Agent. See [[reference-ai-pr-review-platform]] §10 for full anatomy.
+Source: Aonan Guan with Johns Hopkins researchers Zhengyu Liu and Gavin Zhong, disclosed April 2026. CVSS 9.4 on the Claude Code Security Review variant. Affected: Anthropic Claude Code Security Review, Gemini CLI Action, Copilot Agent. See [[reference-ai-pr-review-platform]] §10 for full anatomy.
 
 ### Timeline
 
@@ -492,9 +490,9 @@ Source: Johns Hopkins + Anthropic collaboration, disclosed October-November 2025
 
 ### Real outcome
 
-Anthropic shipped a fix that scopes the Claude Code Security Review reviewer's tool surface, restricts environment-variable read by default, and adds prompt-injection-shape detection on PR title/body before reviewer ingestion. Disclosure handled per Anthropic Security disclosure process (`anthropic.com/security`).
+Anthropic rated it CVSS 9.4 (reported via HackerOne, $100 bounty) and shipped partial mitigations, including disallowing the `ps` tool; the researcher reports the attack still works in principle. Google added guardrail prompts to Gemini CLI Action; GitHub classified the Copilot Agent issue as a known architectural limitation.
 
-**Generalization.** Any AI-PR-review platform with PR-comment write capability and credentialed environment is vulnerable to this class. Not unique to Claude Code Security Review — affected Gemini CLI Action and GitHub Copilot Agent (CVE-2025-53773 in Copilot — disclosed by Johann Rehberger).
+**Generalization.** Any AI-PR-review platform with PR-comment write capability and credentialed environment is vulnerable to this class. Not unique to Claude Code Security Review — affected Gemini CLI Action and GitHub Copilot Agent.
 
 ---
 
@@ -505,18 +503,15 @@ Per-provider contact and disclosure norms.
 ### 10.1 Anthropic
 
 **Trust portal:** `trust.anthropic.com`
-**Security disclosure:** `anthropic.com/security` (HackerOne program)
-**Direct:** `security@anthropic.com`
-**SLA:** 1 business day acknowledgment.
+**Security disclosure:** `anthropic.com/responsible-disclosure-policy` (HackerOne program)
 **What they need:** API key prefix (masked), time window (UTC), model ID, tool names if available, sample of malicious input.
-**Disclosure timing:** 90 days standard; faster for active exploitation.
+**Disclosure timing:** coordinate timing with Anthropic (the policy states no fixed window).
 
 ### 10.2 OpenAI
 
 **Trust portal:** `trust.openai.com`
 **Security disclosure:** `openai.com/security` (Bugcrowd program)
 **Direct:** `security@openai.com`
-**SLA:** 1-2 business days acknowledgment.
 **What they need:** Organization ID, API key prefix, time window, model, sample input.
 **Disclosure timing:** 90 days standard.
 
@@ -524,7 +519,7 @@ Per-provider contact and disclosure norms.
 
 **Direct:** `abuse@aws.amazon.com` and `aws-security@amazon.com`
 **Plus:** your Technical Account Manager (TAM) if you have one.
-**SLA:** depends on Support tier; Enterprise Support is 1 hour for security-critical issues.
+**SLA:** depends on Support tier; Enterprise Support targets 15 minutes for business-critical system down and 1 hour for production system down.
 **What they need:** AWS account ID, region, IAM principal ARN, CloudTrail event IDs if available, time window.
 
 ### 10.4 GitHub
@@ -537,8 +532,7 @@ Per-provider contact and disclosure norms.
 ### 10.5 Microsoft (Copilot for M365, Azure OpenAI)
 
 **MSRC:** `msrc.microsoft.com/report` or `secure@microsoft.com`
-**Bounty:** Microsoft AI Bounty Program covers Copilot for M365 and Azure OpenAI.
-**SLA:** 24 hours acknowledgment for security@; longer via portal.
+**Bounty:** the Microsoft Copilot (AI) Bounty Program covers consumer Copilot; Copilot-related online services such as M365 Copilot fall under the M365 Bounty Program.
 **What they need:** tenant ID, time window, affected service, sample input.
 
 ### 10.6 Coordinated-disclosure norms
@@ -566,16 +560,14 @@ Commit to the detection-rules repo with PR reviewed by AppSec + Detection Engine
 Add the specific MCP server to a deny-list with sha256-pin OR remove the entire server from allowlist:
 
 ```jsonc
-// ~/.claude/mcp.json (org-wide template)
+// .mcp.json (project-scope template)
 {
-  "servers": {
+  "mcpServers": {
     "approved-server-name": {
       "command": "npx",
-      "args": ["@scope/package@1.2.3"],
-      "sha256": "<pinned-tarball-hash>"
+      "args": ["@scope/package@1.2.3"]
     }
-  },
-  "denylist": ["<server-name-from-incident>"]
+  }
 }
 ```
 
@@ -656,12 +648,12 @@ For an active incident, in order. Estimated wallclock to complete each step in p
 - **On-prem and air-gapped deployments not covered.** Ollama, LM Studio, vLLM, and llama.cpp deployments have different forensic surfaces (no provider audit log; no provider IR contact). Future deepening target.
 - **Cyber-insurance angle flagged for future.** Coverage for AI-IR incidents is nascent; policy language varies; claims process for "AI tool exfiltrated customer data" is untested. Cross-link [[reference-game-theory-mechanism-design]] (cyber-insurance adverse selection + moral hazard).
 - **Provider-side detection capabilities are evolving.** Anthropic, OpenAI, and AWS are each shipping internal-side detection for prompt-injection patterns; the customer-side detection in [[reference-detection-engineering]] §10 is the current necessary substrate but may become less critical as provider-side detection matures.
-- **MCP audit logging is OFF by default** in every MCP server as of May 2026. Recommendation to enable is §2.1 baseline; vendor adoption is uneven.
+- **MCP audit logging defaults vary by server.** Recommendation to enable is §2.1 baseline; vendor adoption is uneven.
 
 ### Real-incident anchor index
 
-- **Clinejection** GHSA-9ppg-jx86-fqw7 (Adnan Khan, `adnanthekhan.com/posts/clinejection/`, published February 19, 2026) — §8 worked example.
-- **Comment-and-Control** (Johns Hopkins + Anthropic, October-November 2025, CVSS 9.4 on Claude Code Security Review variant) — §9 worked example.
+- **Clinejection** GHSA-9ppg-jx86-fqw7 (Adnan Khan, `adnanthekhan.com/posts/clinejection/`, published February 9, 2026) — §8 worked example.
+- **Comment-and-Control** (Aonan Guan with Johns Hopkins researchers Zhengyu Liu and Gavin Zhong, disclosed April 2026, CVSS 9.4 on Claude Code Security Review variant) — §9 worked example.
 - **PwnedRabbit** (Kudelski Security Research disclosed January 2025 / published August 2025, CodeRabbit RCE via un-sandboxed Rubocop → GitHub App PEM exfil → write access to 1M repos) — §10.6 disclosure-timeline anchor.
 - **CurXecute** CVE-2025-54135 (Aim Labs disclosure to Cursor, August 2025) — §2.2 token-spend anomaly anchor.
 - **EchoLeak** CVE-2025-32711 (Aim Labs disclosure to Microsoft M365 Copilot, June 2025) — §11.6 tabletop scenario anchor.
