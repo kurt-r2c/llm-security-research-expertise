@@ -11,7 +11,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 **Career arc**: Pentester at Microsoft, Ernst & Young, Google. Co-founded Whitescope LLC (2014) — research consultancy auditing medical devices, infusion pumps, airport baggage systems, and building-automation controllers. Cross-referenced in [[reference-medical-device-security]] and [[reference-ics-ot-security]].
 
-**Core contribution**: With Terry McCorkle, the multi-year audit of the **Tridium Niagara Framework** that produced ICS-ALERT-12-195-01 and ICSA-12-228-01A. Found directory traversal (CVE-2012-4027), weak credential storage in the `config.bog` station configuration file (CVE-2012-4028 — Base64-encoded usernames and passwords), session-cookie weaknesses, and predictable session IDs in Niagara AX. Demonstrated end-to-end exploitation against the building-control system at Google's Sydney office — pulling `config.bog`, recovering the administrator password, and getting remote control of HVAC, elevators, lighting, and CCTV. Shodan dorking identified roughly 21,000 internet-facing Niagara systems including U.S. federal facilities (IRS, U.S. Marshals Service), a British Army training facility, Boeing manufacturing, Changi Airport, and dozens of hotels.
+**Core contribution**: With Terry McCorkle, the multi-year audit of the **Tridium Niagara Framework** that produced ICS-ALERT-12-195-01 and ICSA-12-228-01A. Found directory traversal (CVE-2012-4027), weak credential storage in the `config.bog` station configuration file (CVE-2012-4028 — Base64-encoded usernames and passwords), session-cookie weaknesses, and predictable session IDs in Niagara AX. Demonstrated end-to-end exploitation against the building-control system at Google's Sydney office — pulling `config.bog`, recovering the administrator password, and getting remote control of HVAC, elevators, lighting, and CCTV.
 
 **Frame Rios introduced**: "Device-class security" as the unit of analysis — pumps, controllers, panels — rather than vendor or vertical. The same root causes (hardcoded credentials, plaintext config storage, unauthenticated firmware update) recur across medical, building, and industrial verticals because the same vendors and MCU substrate appear across all of them.
 
@@ -27,7 +27,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 **Career arc**: Pentester since 2004; Head of Research at IBM X-Force Red. Author of **Magical Code Injection Rainbow** and **FeatherDuster**. Frequent Black Hat / DEF CON / ShmooCon speaker.
 
-**Core contribution**: X-Force Red has run a multi-year research arc on building-controls including BACnet-stack implementations and BMS web interfaces. Crowley spoke on smart-building security at Black Hat USA (notably 2018, surfacing several BACnet-device CVEs). Operationally, X-Force Red runs the broadest first-hand BMS-pentesting volume of any commercial team.
+**Core contribution**: X-Force Red has run a multi-year research arc on building-controls including BACnet-stack implementations and BMS web interfaces. Crowley spoke on smart-building security at Black Hat USA (notably 2018, surfacing 17 vulnerabilities in four smart-city systems from Libelium, Echelon, and Battelle). Operationally, X-Force Red runs the broadest first-hand BMS-pentesting volume of any commercial team.
 
 **Frame Crowley introduced**: Building-automation pentesting should treat the **building as a single multi-tenant system** rather than as separate HVAC, access-control, fire-life-safety, and lighting subsystems. Adversary kill chains cross those subsystem boundaries (HVAC vendor remote-access → BMS → access-control → physical entry → POS, the Target-2013 archetype).
 
@@ -35,7 +35,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 **Career arc**: PhD in computer science; Head of Research at Forescout Vedere Labs. Cross-referenced in [[reference-ics-ot-security]].
 
-**Core contribution**: **OT:ICEFALL (2022)** — 56-vulnerability disclosure across ten vendors (Baker Hughes/Bentley Nevada, Emerson, Honeywell, JTEKT, Motorola, Omron, Phoenix Contact, Siemens, Yokogawa, GE). The framing was "insecure by design": these were architectural choices (no authentication on engineering protocols, plaintext credentials, unauthenticated firmware updates) vendors had explicitly defended for decades on the grounds that the trusted-network assumption was load-bearing. ICEFALL hit vendors selling heavily into building automation. Roughly 5,000 affected devices were exposed on Shodan; ~30,000 vulnerable instances in the Forescout Device Cloud. dos Santos also gave the **DEF CON 27 ICS Village "Abusing the IoT in Smart Building"** talk (2019) demonstrating end-to-end BACnet exploitation via JavaScript injection through BACnet read/write property abuse — persistent stored XSS in the BMS web console.
+**Core contribution**: **OT:ICEFALL (2022)** — 56-vulnerability disclosure across ten vendors (Baker Hughes/Bently Nevada, Emerson, Honeywell, JTEKT, Motorola, Omron, Phoenix Contact, Siemens, Yokogawa, plus one initially undisclosed vendor). The framing was "insecure by design": these were architectural choices (no authentication on engineering protocols, plaintext credentials, unauthenticated firmware updates) vendors had explicitly defended for decades on the grounds that the trusted-network assumption was load-bearing. ICEFALL hit vendors selling heavily into building automation. Roughly 5,000 affected devices were exposed on Shodan; ~30,000 vulnerable instances in the Forescout Device Cloud. dos Santos also gave the **DEF CON 27 ICS Village "Abusing the IoT in Smart Buildings"** talk (2019).
 
 **Frame Forescout introduced**: "Insecure by design" must be named as such, distinguished from "insecure by bug." Patch management cannot fix insecure-by-design issues — only compensating controls (network segmentation, protocol-aware monitoring, vendor-access restriction) can.
 
@@ -43,13 +43,13 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 **Career arc**: 20+ year vulnerability researcher; long-time CTO of IOActive Labs; founded the **Securing Smart Cities** nonprofit; ICIT Fellow. Discovered vulnerabilities in Microsoft SQL Server, Oracle, IBM DB2, Twitter. Focused IOActive on smart-city research from ~2014.
 
-**Core contribution**: 2014-2015 work on **smart-city traffic-control sensors** (Sensys Networks devices in Washington DC, NY, Seattle, SF, London, Lyon, Melbourne — ~200,000 vulnerable units) — the first systematic public exposure of smart-city OT attack surface. Subsequent IOActive Smart Cities work covered building management, transportation, traffic lights, parking. *Securing Smart Cities* publishes a recurring threat brief.
+**Core contribution**: 2014-2015 work on **smart-city traffic-control sensors** (Sensys Networks devices in Washington DC, NY, SF, and cities in the UK, France, and Australia — ~200,000 vulnerable units) — the first systematic public exposure of smart-city OT attack surface. Subsequent IOActive Smart Cities work covered building management, transportation, traffic lights, parking. *Securing Smart Cities* publishes a recurring threat brief.
 
 **Frame Cerrudo introduced**: Smart-city and smart-building security must be reasoned about as **urban-scale critical infrastructure** with the same regulatory seriousness as power and water. Current procurement (smart-streetlight, smart-meter, smart-elevator, smart-traffic) with no security baseline is analogous to the pre-NERC-CIP electric-utility era.
 
-### Marc Brandstetter and Peter Panholzer — Limes Security (Austria)
+### Peter Panholzer — Limes Security (Austria)
 
-**Career arcs**: Austrian OT-cybersecurity consultancy. Brandstetter leads KNX research; Panholzer led the KNXlock technical analysis.
+**Career arcs**: Austrian OT-cybersecurity consultancy. Panholzer led the KNXlock technical analysis.
 
 **Core contribution**: The **KNXlock investigation (2021-2023)**. Adversaries with KNX expertise targeted internet-exposed KNX/IP gateways in DACH-region buildings, "unloaded" device application logic, and set the BCU (Bus Coupling Unit) key with an attacker-known password — bricking lighting, HVAC, blinds, motion sensors, and security panels. Recovery required device replacement until Limes recovered a BCU key from memory of a bricked device. ~16,000+ DACH-area KNX systems remain internet-exposed. Mirrored in CISA advisory ICSA-23-236-01.
 
@@ -67,11 +67,11 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 **Career arc**: Schweitzer Engineering Labs → Digital Bond → IOActive → Dragos. Led **Project Basecamp** (2011-2013), the first systematic public PLC audit. Cross-referenced in [[reference-ics-ot-security]] §V.
 
-**Core contribution to building automation**: Project Basecamp's authentication-bypass findings on the **ProConOS / MultiProg** runtime (CVE-2014-2249, CVE-2014-9195) hit dozens of building-controller OEMs licensing the runtime. The same "insecure by design" reality applies to controllers running building HVAC and chiller plants because many share the same firmware substrate.
+**Core contribution to building automation**: Wightman's (Digital Bond) authentication-bypass finding on the **ProConOS / MultiProg** runtime (CVE-2014-9195) hit dozens of building-controller OEMs licensing the runtime. The same "insecure by design" reality applies to controllers running building HVAC and chiller plants because many share the same firmware substrate.
 
 ### Eireann Leverett — Independent / Concinnity Risks / formerly IOActive
 
-**Career arc**: PhD at Cambridge; 2011 thesis "Quantitatively Assessing and Visualising Industrial System Attack Surfaces" was the first systematic public attempt to enumerate internet-exposed ICS via Shodan dorks. Co-author of *Solving Cyber Risk* (Wiley, 2018).
+**Career arc**: MPhil at Cambridge; 2011 thesis "Quantitatively Assessing and Visualising Industrial System Attack Surfaces" was the first systematic public attempt to enumerate internet-exposed ICS via Shodan dorks. Co-author of *Solving Cyber Risk* (Wiley, 2018).
 
 **Core contribution**: 2011 enumeration found over 7,500 internet-facing devices including BMS, HVAC controllers, smart meters. Briefed DHS; presented at S4 2012. The methodology (29 protocol-specific Shodan queries) has been extended by every subsequent measurement effort.
 
@@ -95,15 +95,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 **Career arcs**: Trend Micro's research division runs industrial and IoT honeypots, building-automation exposure, and BACnet implementation work. Hilt is primary author of several factory- and building-honeypot white papers. Cross-referenced in [[reference-ics-ot-security]].
 
-**Core contribution**: Disclosed BACnet implementation vulnerabilities allowing **persistent stored XSS via BACnet object-property writes** in multiple stack-based device families — the same class dos Santos demonstrated at DEF CON 27. Honeypot research surfaced real-world attacker probing of internet-facing BACnet, showing exposure isn't theoretical.
-
-### Brett Tubbs and the Industrial Defender / Trustwave SpiderLabs alumni
-
-**Career arc**: Long-tenure building-controls and ICS penetration tester (Industrial Defender, Trustwave SpiderLabs). Emphasizes physical-access-driven attack paths.
-
-**Core contribution**: Field demonstrations of how building-automation deployments routinely fail basic separation-of-duties. Recurring patterns in his case studies: shared Niagara admin passwords across an integrator's customer base; flat networks where one compromised laptop reaches every BMS controller across multiple buildings; vendor remote-access VPNs with credentials in plaintext PDF documentation; physical bypass of BMS-room locks during business hours.
-
-**Frame Tubbs anchored**: The dominant attack is not novel-protocol research — it is the **vendor remote-access reused credential**. The Target-2013 archetype is the median, not an outlier.
+**Core contribution**: Honeypot research surfaced real-world attacker probing of internet-facing BACnet, showing exposure isn't theoretical.
 
 ### DEF CON ICS Village, IoT Village, and Physical Security Village
 
@@ -185,7 +177,7 @@ Any device that can speak BACnet/IP UDP 47808 to a target controller can enumera
 
 ### BACnet Secure Connect (BACnet/SC)
 
-**Addendum 135-2020bj** retrofit. Transport is **WebSocket over TLS** (typically outbound TCP 443); each device has an **operational certificate** issued by a per-deployment CA; devices connect persistently to a **BACnet/SC Hub** that forwards traffic. Authentication is cert-based; transit is TLS-encrypted.
+**Addendum 135-2016bj** retrofit. Transport is **WebSocket over TLS** (typically outbound TCP 443); each device has an **operational certificate** issued by a per-deployment CA; devices connect persistently to a **BACnet/SC Hub** that forwards traffic. Authentication is cert-based; transit is TLS-encrypted.
 
 Finalized 2019-2020; incorporated into newer Beckhoff, Johnson Controls Metasys, Schneider EcoStruxure, and BACnet-stack vendor products. **Field deployment is rare relative to BACnet/IP.** As of 2026 the installed base is overwhelmingly still BACnet/IP. Reasons mirror DNP3 SAv5: unfamiliar certificate-management lifecycle, legacy endpoint incapability, uneven vendor support, entrenched trusted-network mental model.
 
@@ -196,7 +188,7 @@ Finalized 2019-2020; incorporated into newer Beckhoff, Johnson Controls Metasys,
 - **YABE** (Yet Another BACnet Explorer) — open-source Windows GUI for network exploration; the de facto "Wireshark plus protocol fuzzing" tool.
 - **Nmap NSE scripts** — `bacnet-info.nse`, `fox-info.nse` (Niagara-specific).
 - **Wireshark** — good BACnet dissection.
-- **Metasploit** auxiliary modules — `auxiliary/scanner/bacnet/bacnet_get_info` plus several added since 2020.
+- **Metasploit** auxiliary module — `auxiliary/scanner/scada/bacnet_l3`.
 - **BAC0** — Python higher-level integration testing.
 
 Typical workflow: `nmap -sU -p 47808 <subnet>` → `bacnet-info.nse` → YABE for interactive exploration → BACpypes for automated WriteProperty fuzzing.
@@ -209,7 +201,7 @@ Typical workflow: `nmap -sU -p 47808 <subnet>` → `bacnet-info.nse` → YABE fo
 
 **KNX** (ISO/IEC 14543-3) is the European BACnet counterpart, maintained by the KNX Association. Dominant in European commercial real-estate; common in luxury hotel chains globally. Evolved from EIB, BatiBUS, EHS merged in the late 1990s.
 
-Multi-medium: **KNX TP** (twisted pair, 9600 baud differential, still dominant in-building); **KNX PL** (powerline retrofit); **KNX RF** (ISM-band, 868 MHz EU / 433 MHz other — cross-link [[reference-wireless-rf-satellite]] §4); **KNX IP** (KNXnet/IP over Ethernet).
+Multi-medium: **KNX TP** (twisted pair, 9600 baud differential, still dominant in-building); **KNX PL** (powerline retrofit); **KNX RF** (ISM-band, 868 MHz — cross-link [[reference-wireless-rf-satellite]] §4); **KNX IP** (KNXnet/IP over Ethernet).
 
 ### Object and addressing model
 
@@ -225,7 +217,7 @@ Introduced ~2017 (**KNX Data Secure** for telegrams + **KNX IP Secure** for IP t
 
 ### ETS and the ETS5Password issue
 
-**ETS** (Engineering Tool Software) is the proprietary KNX commissioning environment. ETS files (`.knxproj`) contain the building's complete addressing, device configuration, and (when KNX Secure is used) security keys; they are sometimes shared by integrators via unencrypted email. CISA ICSA-23-236-01 disclosed that ETS6 and earlier used the **hardcoded password "ETS5Password"** with salt "Ivan Medvedev" for project-file encryption — any local user with the file could decrypt the building topology and security keys.
+**ETS** (Engineering Tool Software) is the proprietary KNX commissioning environment. ETS files (`.knxproj`) contain the building's complete addressing, device configuration, and (when KNX Secure is used) security keys; they are sometimes shared by integrators via unencrypted email. CVE-2021-36799 (ETS5 through 5.7.6; CVE-2021-43575, disputed by the vendor, covers ETS6 through 6.0.0) disclosed that ETS used the **hardcoded password "ETS5Password"** with salt "Ivan Medvedev" for project-file encryption — any local user with the file could decrypt the building topology and security keys.
 
 ### The KNXlock attack campaign
 
@@ -347,9 +339,9 @@ Cybersecurity controls cannot substitute for engineered safety; engineered safet
 ### The card-credential ecosystem
 
 - **125 kHz LF prox** (HID ProxCard II, EM4100, Indala) — original, still extremely common in older deployments. **Trivially cloneable** with a $30 Proxmark3 in under 30 seconds; the card number is plaintext.
-- **13.56 MHz HF** (HID iCLASS, MIFARE Classic, MIFARE DESFire) — modern standard. iCLASS legacy uses a proprietary algorithm broken by Henryk Plötz, Milosch Meriac, and Daniel Bailey (2013-2014); now in Proxmark. iCLASS SE/SR are newer secure variants.
+- **13.56 MHz HF** (HID iCLASS, MIFARE Classic, MIFARE DESFire) — modern standard. iCLASS legacy uses a proprietary algorithm broken by Henryk Plötz and Milosch Meriac (27C3, 2010) and Garcia et al. (2011-2012); now in Proxmark. iCLASS SE/SR are newer secure variants.
 - **MIFARE Classic** — broken by Karsten Nohl et al. (2008); still deployed in non-security-critical contexts. **MIFARE DESFire EV1/EV2/EV3** use 3DES/AES.
-- **HID Seos** — newer NXP/HID joint platform; AES-128 mutual authentication.
+- **HID Seos** — newer HID Global platform; AES-128 mutual authentication.
 
 The 125 kHz LF and legacy iCLASS ecosystem is the load-bearing risk in most existing commercial buildings — millions of cards cloneable with consumer-grade equipment. Cross-link [[reference-wireless-rf-satellite]] §8.
 
@@ -363,13 +355,13 @@ Between reader and **access-control panel**, the dominant in-wall protocol is **
 
 A device tapped into the Wiegand line — typically installed in the wall cavity behind a reader unscrewed in seconds — can passively log every card swipe in plaintext, replay captured swipes on demand, or inject arbitrary Wiegand frames (granting access to nonexistent card numbers).
 
-Tooling: **ESPKey** (ESP8266 with WiFi web UI, stores 80,000 bitstreams, replays on demand); **BLEKey** (Eric Evenchick, Black Hat USA 2015 — BLE tap, 60-second installation); **ESP-RFID-Tool / Tastic RFID Thief**.
+Tooling: **ESPKey** (ESP8266 with WiFi web UI, replays on demand); **BLEKey** (Mark Baseggio and Eric Evenchick, Black Hat USA 2015 — BLE tap); **ESP-RFID-Tool / Tastic RFID Thief**.
 
-Mitigation is **OSDP (Open Supervised Device Protocol)** — Mercury Security and SIA's modern Wiegand replacement with AES-128 mutual authentication, encrypted credentials, tamper-detection. **OSDP deployment in 2026 is still minority** — Wiegand remains the field standard.
+Mitigation is **OSDP (Open Supervised Device Protocol)** — HID Global and Mercury Security's modern Wiegand replacement (now an SIA standard) with AES-128 mutual authentication, encrypted credentials, tamper-detection. **OSDP deployment in 2026 is still minority** — Wiegand remains the field standard.
 
 ### Access control panels
 
-**Mercury Security** (now LenelS2 / Carrier / Honeywell) is the dominant OEM panel platform. Mercury MR-series panels (MR52/62/50/16IN) are rebranded by Lenel, Honeywell, RS2, GeoVision, Open Options, Vanderbilt — analogous to Niagara's rebrand-cascade. **Software House (iSTAR)** is Johnson Controls's panel line. **HID Edge/VertX/Aero**, **Lenel OnGuard**, **Genetec Synergis**, **AMAG Symmetry** round out the major-vendor list. Panel CVEs over 2020-2024 follow the same patterns as BMS controllers: hardcoded credentials, plaintext config, unauthenticated firmware updates, web-management-console bugs.
+**Mercury Security** (now HID Global / ASSA ABLOY) is the dominant OEM panel platform. Mercury MR-series panels (MR52/62/50/16IN) are rebranded by Lenel, Honeywell, RS2, GeoVision, Open Options, Vanderbilt — analogous to Niagara's rebrand-cascade. **Software House (iSTAR)** is Johnson Controls's panel line. **HID Edge/VertX/Aero**, **Lenel OnGuard**, **Genetec Synergis**, **AMAG Symmetry** round out the major-vendor list. Panel CVEs over 2020-2024 follow the same patterns as BMS controllers: hardcoded credentials, plaintext config, unauthenticated firmware updates, web-management-console bugs.
 
 ### "Tailgating" — the dominant physical entry vector
 
@@ -377,7 +369,7 @@ Despite all the cyber sophistication, **the dominant entry vector in real commer
 
 ### Smart locks (consumer surface)
 
-Yale, August (Allegion), Schlage Encode, Kwikset Halo appear in commercial-residential mixed-use, multifamily, and short-term-rental contexts. Vulnerability corpus includes BLE relay attacks, mobile-app authentication weaknesses, cloud-provider compromise. Relevance to commercial real-estate is via mixed-use buildings where a residential smart-lock breach can step into the broader BMS network.
+Yale, August, Schlage Encode, Kwikset Halo appear in commercial-residential mixed-use, multifamily, and short-term-rental contexts. Vulnerability corpus includes BLE relay attacks, mobile-app authentication weaknesses, cloud-provider compromise. Relevance to commercial real-estate is via mixed-use buildings where a residential smart-lock breach can step into the broader BMS network.
 
 ### The 2021 Verkada breach
 
@@ -395,7 +387,7 @@ Commercial-building elevator systems have: car controllers (door operation, leve
 
 ### Smart-elevator integration
 
-**Destination dispatch** (Schindler PORT, KONE Polaris, Otis Compass, TK Twin) — passengers indicate destination in the lobby, not the car. **Mobile-app integration** (Schindler myPORT, KONE Resi/Flow, Otis ONE) — smartphone elevator calls and floor unlocks. **Mobile-credential integration** — lobby card swipe simultaneously logs the user in and selects authorized floor. **Cloud predictive maintenance** (KONE 24/7 Connect, Schindler Ahead, Otis Compass 360, TK MAX) — vendor-cloud telemetry streams.
+**Destination dispatch** (Schindler PORT, KONE Polaris, Otis Compass, TK AGILE) — passengers indicate destination in the lobby, not the car. **Mobile-app integration** (Schindler myPORT, KONE Resi/Flow, Otis ONE) — smartphone elevator calls and floor unlocks. **Mobile-credential integration** — lobby card swipe simultaneously logs the user in and selects authorized floor. **Cloud predictive maintenance** (KONE 24/7 Connect, Schindler Ahead, Otis ONE, TK MAX) — vendor-cloud telemetry streams.
 
 ### Attack surface
 
@@ -441,7 +433,7 @@ Repeated false fire-alarm triggers function as denial-of-service against buildin
 
 ### Zigbee and Zigbee Light Link
 
-Widely used in commercial lighting alongside DALI. Default network keys in Zigbee Light Link were broken by Cognosec/SEC Consult (2015) — the touchlink-commissioning weakness allowed remote takeover. Cross-link [[reference-wireless-rf-satellite]] §4.
+Widely used in commercial lighting alongside DALI. Default network keys in Zigbee Light Link were broken by Cognosec (2015) — the touchlink-commissioning weakness allowed remote takeover. Cross-link [[reference-wireless-rf-satellite]] §4.
 
 ### Smart-thermostat ecosystem
 
@@ -453,7 +445,7 @@ Electrochromic glass (**View**, **SageGlass / Saint-Gobain**, **Halio / AGC**). 
 
 ### Lights as covert channels
 
-Building lighting can serve as covert side channels for data exfiltration. Ben-Gurion University's **AirGap** LED-based exfiltration series and academic visible-light covert-channel work document the pattern. A networked lighting fixture in a window is an exfiltration channel to a passive receiver outside the building. Concern is highest for data centers, intelligence facilities, R&D labs.
+Building lighting can serve as covert side channels for data exfiltration. Ben-Gurion University's LED-based air-gap exfiltration series (LED-it-GO, xLED) and academic visible-light covert-channel work document the pattern. A networked lighting fixture in a window is an exfiltration channel to a passive receiver outside the building. Concern is highest for data centers, intelligence facilities, R&D labs.
 
 ---
 
@@ -496,7 +488,7 @@ Covered in §VIII. 150,000 cameras + access-control logs exposed via Super Admin
 
 ### KNXlock 2021-2023
 
-Covered in §IV. Limes Security investigation; hundreds of building owners had BAS systems bricked via attacker-set BCU keys. CISA ICSA-23-236-01. Demonstrates that **opportunistic attacks against internet-exposed building automation are occurring at scale** — not just nation-state targeting of priority sectors.
+Covered in §IV. Limes Security investigation; an attacker wiped hundreds of KNX devices in a German building and locked them with an attacker-set BCU key, with similar attacks reported since. CISA ICSA-23-236-01. Demonstrates that **opportunistic attacks against internet-exposed building automation are occurring at scale** — not just nation-state targeting of priority sectors.
 
 ### Forescout OT:ICEFALL 2022
 
@@ -504,7 +496,7 @@ Covered in §I. 56 vulnerabilities across 10 vendors including Honeywell, Siemen
 
 ### EKANS / Snake ransomware (2020+)
 
-Ransomware family with explicit ICS-stop capabilities — enumerates running processes and terminates known ICS processes before encrypting. Hits in commercial-real-estate (Honda, FreseniusKabi, ENEL Group). Structural risk for any commercial building with a Windows-hosted BMS supervisor (most of them).
+Ransomware family with explicit ICS-stop capabilities — enumerates running processes and terminates known ICS processes before encrypting. 2020 victims include Honda, Fresenius, and Enel Group. Structural risk for any commercial building with a Windows-hosted BMS supervisor (most of them).
 
 ### Hospitality industry incidents
 
@@ -535,7 +527,7 @@ NIST's IoT guidance. More relevant to the smart-device end (BLE access, smart th
 
 ### ASHRAE Standard 135 (BACnet)
 
-The BACnet specification itself. Addenda 135-2020bj and subsequent provide BACnet/SC.
+The BACnet specification itself. Addendum 135-2016bj (incorporated into 135-2020) and subsequent addenda provide BACnet/SC.
 
 ### UL 2900-2-2 — Industrial Control Systems Cybersecurity Standard
 
@@ -636,7 +628,7 @@ DR participation is expanding under FERC Order 2222. BMS receives DR signals; ad
 
 ### Crypto-mining-in-the-HVAC-system
 
-A documented real attack pattern: adversaries compromising Windows-hosted BMS supervisors deploy cryptocurrency miners using supervisor CPU/GPU. Headline indicator: sustained high CPU utilization; secondary: electricity-bill increases. Reported across commercial real-estate 2018-2024.
+Adversaries compromising Windows-hosted BMS supervisors can deploy cryptocurrency miners using supervisor CPU/GPU. Headline indicator: sustained high CPU utilization; secondary: electricity-bill increases.
 
 ### Building-as-data-center (post-COVID hybrid)
 
@@ -679,16 +671,16 @@ Tech-flagship campuses have ubiquitous mobile-credential access, mass-customizat
 - Billy Rios and Terry McCorkle, Tridium Niagara research, CISA Advisory ICS-ALERT-12-195-01 (2012). https://www.cisa.gov/news-events/ics-alerts/ics-alert-12-195-01
 - CISA Tridium Niagara ICSA-12-228-01A. https://www.cisa.gov/news-events/ics-advisories/icsa-12-228-01a
 - Forescout Vedere Labs, "OT:ICEFALL" (2022). https://www.forescout.com/research-labs/ot-icefall/
-- Daniel dos Santos, "Abusing the IoT in Smart Building" — DEF CON 27 ICS Village. https://www.youtube.com/watch?v=c1H-UV1v2W0
+- Daniel dos Santos, "Abusing the IoT in Smart Buildings" — DEF CON 27 ICS Village. https://www.youtube.com/watch?v=c1H-UV1v2W0
 - Eireann Leverett, "Quantitatively Assessing and Visualising Industrial System Attack Surfaces" (Cambridge, 2011). https://www.cl.cam.ac.uk/~fms27/papers/2011-Leverett-industrial.pdf
 - Jesus Molina, "Learn How to Control Every Room at a Luxury Hotel Remotely" — Black Hat USA 2014. https://www.blackhat.com/docs/us-14/materials/us-14-Molina-Learn-How-To-Control-Every-Room-At-A-Luxury-Hotel-Remotely-The-Dangers-Of-Insecure-Home-Automation-Deployment.pdf
-- Limes Security KNXlock series. https://limessecurity.com/en/knxlock/
+- Limes Security KNXlock. https://limessecurity.com/en/knxlock/
 - CISA Advisory ICSA-23-236-01, KNX Protocol. https://www.cisa.gov/news-events/ics-advisories/icsa-23-236-01
 - Cesar Cerrudo / Securing Smart Cities. https://securingsmartcities.org/?page_id=17
 - Brian Krebs, "Target Hackers Broke in Via HVAC Company" (Krebs on Security, 2014). https://krebsonsecurity.com/2014/02/target-hackers-broke-in-via-hvac-company/
 - Digital Bond Project Basecamp. https://github.com/digitalbond/Basecamp
 - Bloomberg coverage of Verkada breach. https://www.bloomberg.com/news/articles/2021-03-09/hackers-expose-tesla-jails-in-breach-of-150-000-security-cams
-- Antonini et al., "A Practical Attack Against a KNX-based Building Automation Malware" (2014). https://maggi.cc/publication/antonini_knxmalware_2014/antonini_knxmalware_2014.pdf
+- Antonini et al., "A Practical Attack Against a KNX-based Building Automation System" (2014). https://maggi.cc/publication/antonini_knxmalware_2014/antonini_knxmalware_2014.pdf
 
 ### Standards and frameworks
 
@@ -746,7 +738,7 @@ Tech-flagship campuses have ubiquitous mobile-credential access, mass-customizat
 
 ### Books and long-form
 
-- Andrew Ginter, *Engineering-Grade OT Security* (Abterra, 2023).
+- Andrew Ginter, *Engineering-Grade OT Security* (2023).
 - Eric D. Knapp, Joel Thomas Langill, *Industrial Network Security* (Syngress, 2014).
 - Andy Greenberg, *Sandworm* (Doubleday, 2019).
 - Kim Zetter, *Countdown to Zero Day* (Crown, 2014).

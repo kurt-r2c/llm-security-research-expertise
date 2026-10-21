@@ -9,7 +9,7 @@ The ICS/OT security field developed largely outside the mainstream offensive-sec
 
 ### Ralph Langner — Langner Group / OTbase
 
-**Career arc**: German control-system security consultant. Founded what became The Langner Group as an ICS-engineering consultancy in the 1990s; the firm shifted toward control-system cybersecurity after Stuxnet. Currently CEO of Langner GmbH and the OTbase asset-inventory product. Non-resident fellow at the Brookings Institution.
+**Career arc**: German control-system security consultant. Founded what became The Langner Group as an ICS-engineering consultancy in 1988; the firm shifted toward control-system cybersecurity after Stuxnet. Currently CEO of Langner, Inc. and the OTbase asset-inventory product. Non-resident fellow at the Brookings Institution.
 
 **Core contribution**: "To Kill A Centrifuge: A Technical Analysis of What Stuxnet's Creators Tried to Achieve" (Langner Group white paper, November 2013). Deconstructed Stuxnet into two distinct attack routines: the widely-discussed centrifuge-rotor-speed routine, and a second, structurally-more-complex routine that manipulated centrifuge pressure (the "forgotten" routine, roughly an order of magnitude more complex). Langner argued the speed-attack was a noisier follow-on after the pressure-attack failed to achieve its objectives. The report remains the most-cited technical analysis of any ICS incident.
 
@@ -17,17 +17,17 @@ The ICS/OT security field developed largely outside the mainstream offensive-sec
 
 ### Eric Byres — Tofino Security (founder), Veracity Industrial Networks
 
-**Career arc**: Co-founder and CTO of Tofino Security (acquired by Belden / Hirschmann). Previously founded the BCIT Critical Infrastructure Security Centre, growing it from 2 to 14 researchers between 2001 and 2006. ISA Fellow (2009); ISA Excellence in Leadership (2013). Joined Veracity Industrial Networks (2019) and the INETCO board (2025). One of two people (the other being Joe Weiss) whose names came up if you searched "SCADA security" in 2001.
+**Career arc**: Co-founder and CTO of Tofino Security (acquired by Belden / Hirschmann). Previously founded the BCIT Critical Infrastructure Security Centre in 2001. ISA Fellow (2009); ISA Excellence in Leadership (2013). Joined Veracity Industrial Networks (2019) and the INETCO board. One of two people (the other being Joe Weiss) whose names came up if you searched "SCADA security" in 2001.
 
-**Core contribution**: The Tofino Security Appliance — an ICS-specific firewall with deep packet inspection for Modbus, OPC, EtherNet/IP, DNP3, and other industrial protocols. First commercially-successful product to inspect ICS protocols at function-code granularity (e.g., allow Modbus function code 3 "read holding registers" but block function code 6 "write single register" between two zones). Licensed by Honeywell, Schneider Electric, and Caterpillar. Predates the OT-aware-firewall category by roughly a decade.
+**Core contribution**: The Tofino Security Appliance — an ICS-specific firewall with deep packet inspection for Modbus, OPC, EtherNet/IP, DNP3, and other industrial protocols. First commercially-successful product to inspect ICS protocols at function-code granularity (e.g., allow Modbus function code 3 "read holding registers" but block function code 6 "write single register" between two zones). Licensed by Honeywell and Schneider Electric. Predates the OT-aware-firewall category by roughly a decade.
 
 **Frame Byres introduced**: ICS firewalls cannot rely on IT firewall mental models because the protocol semantics are different. A Modbus connection is not a "TCP session that should be allowed or denied"; it is a request-response stream where each request encodes a process-control intent, and the firewall must reason at that semantic layer or it adds no security value.
 
 ### Joe Weiss — Applied Control Solutions
 
-**Career arc**: Nuclear engineer; first job at GE Nuclear Power Division working in instrumentation and control systems. Managing partner of Applied Control Solutions. ISA Fellow; IEEE Fellow; ISA Lifetime Achievement (2017). Founded the ICS Cyber Security Conference in 2002 (longest-running event in the space). Author of *Protecting Industrial Control Systems from Electronic Threats* (Momentum Press, 2010). Long-running "Unfettered Blog" at controlglobal.com.
+**Career arc**: Nuclear engineer; first job at GE Nuclear Power Division working in instrumentation and control systems. Managing partner of Applied Control Solutions. ISA Fellow; IEEE Senior Member. Founded the ICS Cyber Security Conference in 2002 (longest-running event in the space). Author of *Protecting Industrial Control Systems from Electronic Threats* (Momentum Press, 2010). Long-running "Unfettered Blog" at controlglobal.com.
 
-**Core contribution**: Long-running advocacy for treating the ICS attack surface as fundamentally different from IT. Particularly associated with publicizing the **Aurora Generator Test** (Idaho National Lab, March 2007) — a DoE demonstration in which a 27-ton diesel generator was physically destroyed via cyber-induced out-of-phase reclosure. Weiss has argued for nearly two decades that Aurora-class attacks remain under-defended in the bulk electric system.
+**Core contribution**: Long-running advocacy for treating the ICS attack surface as fundamentally different from IT. Particularly associated with publicizing the **Aurora Generator Test** (Idaho National Lab, March 2007) — a DHS-sponsored demonstration in which a 27-ton diesel generator was physically destroyed via cyber-induced out-of-phase reclosure. Weiss has argued for nearly two decades that Aurora-class attacks remain under-defended in the bulk electric system.
 
 **Frame Weiss introduced**: ICS security must reason about the physics of the process, not just the cyber attack path. The Aurora attack does not require any malware on the generator; it requires the attacker to open and quickly close a breaker on the upstream grid side of a synchronous generator before re-synchronization, inducing destructive torque. This is a control-action attack with a physics-driven consequence — a layer many ICS-cybersecurity products miss entirely.
 
@@ -35,9 +35,9 @@ The ICS/OT security field developed largely outside the mainstream offensive-sec
 
 **Career arc**: Started as a U.S. Air Force Cyber Warfare Operations Officer tasked to the NSA, where he built a first-of-its-kind mission identifying and analyzing nation-state threats to industrial infrastructure. Co-founded Dragos in 2016 with Jon Lavender and Justin Cavinee (also from the NSA ICS mission). Author of SANS ICS515 (ICS Visibility, Detection, and Response), lead author of SANS FOR578 (Cyber Threat Intelligence), co-author of SANS ICS310. Helped lead the investigation into the 2015 Ukraine power-grid attack. Cross-referenced in [[reference-threat-intel-methodology]].
 
-**Core contribution**: Operationalized ICS threat intelligence as a distinct discipline. The Dragos Activity Group naming taxonomy (XENOTIME, ELECTRUM, CHRYSENE, KAMACITE, COVELLITE, ALLANITE, RASPITE, WASSONITE, PETROVITE, VOLTZITE, etc. — named after minerals to avoid the "Bear / Panda" cliche) and the annual Dragos Year-in-Review reports are the de facto public reference for who-is-targeting-what in ICS. Co-author with Mike Assante and Tim Conway of the SANS analysis of the 2015 and 2016 Ukraine power-grid incidents.
+**Core contribution**: Operationalized ICS threat intelligence as a distinct discipline. The Dragos Activity Group naming taxonomy (XENOTIME, ELECTRUM, CHRYSENE, KAMACITE, COVELLITE, ALLANITE, RASPITE, WASSONITE, PETROVITE, VOLTZITE, etc. — named after minerals to avoid the "Bear / Panda" cliche) and the annual Dragos Year-in-Review reports are the de facto public reference for who-is-targeting-what in ICS. Co-author with Mike Assante and Tim Conway of the SANS/E-ISAC analysis of the 2015 Ukraine power-grid incident.
 
-**Frame Lee introduced**: ICS incident response is a *consequence-driven* discipline. The defender must understand the process, the safety case, and the recovery timeline; the incident isn't over when the malware is removed, it's over when the process is back to safe state. Documented in his book *SCADA and Me* (2012) and his "Industrial Defender" essays on the Dragos blog.
+**Frame Lee introduced**: ICS incident response is a *consequence-driven* discipline. The defender must understand the process, the safety case, and the recovery timeline; the incident isn't over when the malware is removed, it's over when the process is back to safe state. Documented in his book *SCADA and Me* (2013).
 
 ### Sergio Caltagirone — Dragos (VP Threat Intelligence)
 
@@ -45,19 +45,19 @@ The ICS/OT security field developed largely outside the mainstream offensive-sec
 
 **Core contribution**: Brought the Diamond Model — already widely adopted in IT-side threat intel — to ICS. The Diamond Model frames every intrusion via four nodes (adversary, infrastructure, capability, victim) and is particularly well-suited to ICS because ICS-threat tracking lives or dies on *sector* + *vendor* combinations (e.g., XENOTIME → Triconex SIS → Saudi petrochemical → TRISIS along Diamond edges).
 
-### Marina Krotofil — Independent / formerly Mandiant, KPMG
+### Marina Krotofil — formerly Mandiant/FireEye, Honeywell
 
-**Career arc**: Industrial cybersecurity researcher specializing in process-aware attacks. Doctorate from Hamburg University of Technology (TUHH) on rigorous cyber-physical-system risk modeling. Tenures at Honeywell, Mandiant/FireEye (where she did core TRITON/TRISIS analysis), Hamburg Port Authority, and KPMG; currently independent. Co-author of the Mandiant 2017 TRITON technical report. Speaker at S4, Black Hat USA, CS3STHLM, CyberwarCon.
+**Career arc**: Industrial cybersecurity researcher specializing in process-aware attacks. Doctorate from Hamburg University of Technology (TUHH) on rigorous cyber-physical-system risk modeling. Tenures at Honeywell, Mandiant/FireEye (where she did core TRITON/TRISIS analysis), BASF, and the European Network for Cyber Security. Co-author of the Mandiant 2017 TRITON technical report. Speaker at S4, Black Hat USA, CS3STHLM, CyberwarCon.
 
-**Core contribution**: Authored "On the Significance of Process Comprehension for Conducting Targeted ICS Attacks" — the canonical academic treatment of what it costs an attacker to actually cause physical damage. Argument: weaponized ICS exploitation requires *process comprehension* (P&IDs, safety case, historian data, control-loop tuning) that no purely cyber-side attacker can reverse-engineer from network traffic alone. This bounds the realistic attacker population to nation-states or insiders, and frames why TRITON took years of pre-positioning before its (failed) trigger.
+**Core contribution**: Co-authored (with Benjamin Green and Ali Abbasi, 2017) "On the Significance of Process Comprehension for Conducting Targeted ICS Attacks" — the canonical academic treatment of what it costs an attacker to actually cause physical damage. Argument: weaponized ICS exploitation requires *process comprehension* (P&IDs, safety case, historian data, control-loop tuning) that no purely cyber-side attacker can reverse-engineer from network traffic alone. This bounds the realistic attacker population to nation-states or insiders, and frames why TRITON took years of pre-positioning before its (failed) trigger.
 
 **Frame Krotofil introduced**: Cyber-physical attack economics. The full kill chain isn't "implant + lateral + payload"; it's "implant + lateral + payload + process model + physics model + safety bypass." The last three steps are the expensive ones, and the public conversation routinely under-counts them.
 
 ### Reid Wightman — Dragos (Senior Vulnerability Researcher)
 
-**Career arc**: Senior Vulnerability Researcher at Dragos' Intel team. Previously a security consultant at Digital Bond (under Dale Peterson) and IOActive; briefly ran his own firm (Revics Security) in 2016. Lead Project Basecamp researcher and Metasploit-module author.
+**Career arc**: Senior Vulnerability Researcher at Dragos' Intel team. Previously a security consultant at Digital Bond (under Dale Peterson) and IOActive. Lead Project Basecamp researcher and Metasploit-module author.
 
-**Core contribution**: **Project Basecamp** (Digital Bond, 2012) — the first systematic, public vulnerability disclosure on commercial PLCs. Volunteer-led audit found decrepit hardware, buggy software, and pitiful or nonexistent security features made thousands of PLCs vulnerable to trivial attacks (unauthenticated firmware update, plaintext credentials, denial-of-service via malformed packets). Wightman developed Metasploit modules for the affected devices (GE D20ME, Koyo Direct LOGIC, Rockwell ControlLogix L61, Schneider Modicon Quantum, Schweitzer SEL-2032). The thesis embedded in Basecamp — that PLCs are "insecure by design" — became the operating assumption of ICS-vulnerability research thereafter. Continuing arc: co-discovered MultiProg/ProConOs vulnerabilities (CVE-2014-2249, CVE-2014-9195) affecting firmware on dozens of PLC models from KW-Software's licensee ecosystem — a multi-vendor disclosure illustrating that ICS bug-classes propagate up the supply chain via shared firmware components.
+**Core contribution**: **Project Basecamp** (Digital Bond, 2012) — the first systematic, public vulnerability disclosure on commercial PLCs. Volunteer-led audit found decrepit hardware, buggy software, and pitiful or nonexistent security features made thousands of PLCs vulnerable to trivial attacks (unauthenticated firmware update, plaintext credentials, denial-of-service via malformed packets). Wightman developed Metasploit modules for the affected devices (GE D20ME, Koyo Direct LOGIC, Rockwell ControlLogix L61, Schneider Modicon Quantum, Schweitzer SEL-2032). The thesis embedded in Basecamp — that PLCs are "insecure by design" — became the operating assumption of ICS-vulnerability research thereafter. Continuing arc: discovered a MultiProg/ProConOs missing-authentication vulnerability (CVE-2014-9195) affecting firmware on dozens of PLC models from KW-Software's licensee ecosystem — a multi-vendor disclosure illustrating that ICS bug-classes propagate up the supply chain via shared firmware components.
 
 ### Jason Larsen — IOActive
 
@@ -69,25 +69,25 @@ The ICS/OT security field developed largely outside the mainstream offensive-sec
 
 ### Eireann Leverett — Concinnity Risks (founder)
 
-**Career arc**: Founder of Concinnity Risks. Senior researcher on cyber risk at the Cambridge Centre for Risk Studies. Co-author of *Solving Cyber Risk: Protecting Your Company and Society* (Wiley, 2018). Previously researcher at NCC Group.
+**Career arc**: Founder of Concinnity Risks. Senior researcher on cyber risk at the Cambridge Centre for Risk Studies. Co-author of *Solving Cyber Risk: Protecting Your Company and Society* (Wiley, 2018).
 
-**Core contribution**: First public-scale **internet-exposure surveys for ICS**. In a now-canonical Black Hat 2013 presentation ("SHODAN for Penetration Testers"), Leverett demonstrated approximately 10,000 ICS devices directly addressable from the public internet — Modbus, DNP3, EtherNet/IP, BACnet, S7 endpoints, all unauthenticated. The follow-up coordination with national CERTs shaped how the FDIC, CISA, and the UK NCSC handle bulk-disclosure of internet-facing ICS. Subsequent cyber-insurance modeling brought rigor to "what does an aggregate-loss event in OT look like?" — the answer informs the IEC 62443 risk-assessment process today.
+**Core contribution**: First public-scale **internet-exposure surveys for ICS**. In his June 2011 Cambridge MPhil dissertation ("Quantitatively Assessing and Visualising Industrial System Attack Surfaces"), Leverett used Shodan to find approximately 10,000 ICS devices directly addressable from the public internet — Modbus, DNP3, EtherNet/IP, BACnet, S7 endpoints, all unauthenticated. The follow-up notification went through ICS-CERT and approximately 63 other national CERTs. Subsequent cyber-insurance modeling brought rigor to "what does an aggregate-loss event in OT look like?" — the answer informs the IEC 62443 risk-assessment process today.
 
 ### Stephen Hilt — Trend Micro (Senior Threat Researcher)
 
-**Career arc**: Senior Threat Researcher at Trend Micro Forward-Looking Threat Research (FTR). Long arc of ICS-honeypot work going back to **GasPot** (2015, a simulated gas-tank monitoring system) and earlier water-system honeypots (2013).
+**Career arc**: Senior Threat Researcher at Trend Micro Forward-Looking Threat Research (FTR). Long arc of ICS-honeypot work going back to **GasPot** (2015, with Kyle Wilhoit, a simulated gas-tank monitoring system).
 
-**Core contribution**: "Caught in the Act: Running a Realistic Factory Honeypot to Capture Real Threats" (Trend Micro, 2020, with Federico Maggi, Charles Perine, Lord Remorin, Martin Rösler, Rainer Vosseler). The honeypot used real Siemens, Allen-Bradley, and Omron PLCs; virtual machines for HMI, engineering workstation, and robotics workstation; and was indexed by Shodan and Censys. Outcomes: cryptocurrency miners installed, two ransomware infections (Crysis and Phobos), credential-stuffing on the HMI VNC interface, one attacker who manually rebooted the PLC. The empirical finding — that **profit-driven cybercriminals are at least as common as nation-state actors** in the OT-exposed population — undermined the prevailing assumption that ICS attacks are exclusively APT-driven.
+**Core contribution**: "Caught in the Act: Running a Realistic Factory Honeypot to Capture Real Threats" (Trend Micro, 2020, with Federico Maggi, Charles Perine, Lord Remorin, Martin Rösler, Rainer Vosseler). The honeypot used real Siemens, Allen-Bradley, and Omron PLCs; virtual machines for HMI, engineering workstation, and robotics workstation. Outcomes: cryptocurrency miners installed, two ransomware infections (Crysis and Phobos), and intruders who caused system shutdowns. The empirical finding — that **profit-driven cybercriminals are at least as common as nation-state actors** in the OT-exposed population — undermined the prevailing assumption that ICS attacks are exclusively APT-driven.
 
 ### Stuart Madnick — MIT Sloan
 
-**Career arc**: John Norris Maguire (1960) Professor of Information Technology at MIT Sloan; founding director of Cybersecurity at MIT Sloan (CAMS), formerly (IC)³. Ph.D. in computer science, MIT 1972. Author of *Computer Security* (1978) — one of the first textbooks in the field.
+**Career arc**: John Norris Maguire (1960) Professor of Information Technology at MIT Sloan; founding director of Cybersecurity at MIT Sloan (CAMS), formerly (IC)³. Ph.D. in computer science, MIT 1972. Co-author (with David Hsiao and Douglas Kerr) of *Computer Security* (Academic Press, 1979) — one of the first textbooks in the field.
 
-**Core contribution**: Academic-side research on cyber-physical-system attacks and metrics, particularly STPA-Sec (Systems Theoretic Process Analysis for Security) applied to industrial chillers, central utility plants, and variable-frequency drives. The MIT-CAMS work produces papers like "Identifying and Anticipating Cyber Attacks that Could Cause Physical Damage to Industrial Control Systems" — bridging operations-research / safety-engineering literature into ICS security. Complements Krotofil's work by formalizing process-comprehension as a systems-engineering discipline rather than a craft skill.
+**Core contribution**: Academic-side research on cyber-physical-system attacks and metrics, particularly STPA-Sec (Systems Theoretic Process Analysis for Security) applied to industrial chillers, central utility plants, and variable-frequency drives. The MIT-CAMS work produces papers like "Identifying and Mitigating Cyber Attacks that could cause Physical Damage to Industrial Control Systems" — bridging operations-research / safety-engineering literature into ICS security. Complements Krotofil's work by formalizing process-comprehension as a systems-engineering discipline rather than a craft skill.
 
 ### Vladimir Dashchenko — formerly Kaspersky ICS-CERT (Head of Vulnerability Research)
 
-**Career arc**: Headed vulnerability research at Kaspersky Lab ICS CERT. Graduated from Ural State Technical University in information security; first job at the Russian Federal Space Agency as a security engineer. Now at itrainsec. Presents at S4, ZeroNights, BSides, via Kaspersky's annual ICS-CERT reports.
+**Career arc**: Headed vulnerability research at Kaspersky Lab ICS CERT. Graduated from Ural State Technical University in information security; first job at the Russian Federal Space Agency as a security engineer. Presents at S4, ZeroNights, BSides, via Kaspersky's annual ICS-CERT reports.
 
 **Core contribution**: Kaspersky ICS-CERT's annual "Threat Landscape for Industrial Automation Systems" reports — the most consistent public dataset on actual ICS-malware infection rates by country, sector, and threat family. Kaspersky's installed base on engineering workstations and HMIs around the world (particularly in Russia, Eastern Europe, Central Asia, Middle East, and Asia) gives the dataset coverage no other vendor can match. Dashchenko's vulnerability-research arm separately discovered dozens of CVEs in PLCs, RTUs, and HMI software from ABB, Siemens, Rockwell, Schneider, Yokogawa, Honeywell.
 
@@ -97,13 +97,13 @@ The ICS/OT security field developed largely outside the mainstream offensive-sec
 
 ### The Purdue Reference Model
 
-The **Purdue Enterprise Reference Architecture** (Theodore Williams, Purdue University, 1990) is the universally-cited ICS network topology:
+The **Purdue Enterprise Reference Architecture** (Theodore Williams, Purdue University, 1990s) is the universally-cited ICS network topology:
 
 - **Level 0** — Physical process (motors, valves, sensors, actuators). Atoms-and-electrons layer; attacks at L0 are often physical (RF jamming, sensor spoofing, instrument tampering).
 - **Level 1** — Basic control (PLCs, RTUs, IEDs). Microcontroller-class devices running ladder logic or structured text. Execution model is cyclic-scan: read inputs, run program, write outputs, every 10-100ms.
 - **Level 2** — Area supervisory control (HMI, local SCADA, engineering workstation). Windows-or-Linux systems running operator interfaces, alarming, historian writes, programming environments. The single point of greatest attack risk in most plants.
 - **Level 3** — Site operations (plant historian, MES, batch management).
-- **Level 3.5** — The **Industrial DMZ** between IT and OT. Where modern ICS architecture puts data diodes, jump servers, reverse proxies. Added explicitly in IEC 62443.
+- **Level 3.5** — The **Industrial DMZ** between IT and OT. Where modern ICS architecture puts data diodes, jump servers, reverse proxies.
 - **Level 4** — Enterprise / business systems (ERP, email).
 - **Level 5** — Internet / external.
 
@@ -176,7 +176,7 @@ Distributed Network Protocol version 3. Early-1990s vintage. Primarily North Ame
 
 ### EtherNet/IP and CIP
 
-Rockwell-Automation-dominant in North America; standardized by ODVA. Encapsulates the **Common Industrial Protocol (CIP)** over TCP/UDP. ControlLogix, CompactLogix, Micro800, MicroLogix PLCs all speak EtherNet/IP. CIP message routing is hierarchical (path-based) — powerful for cross-plant addressing and a robust target language for attackers. **CIP Security** (since 2018) adds TLS-based authentication and encryption; deployment sparse outside new installations.
+Rockwell-Automation-dominant in North America; standardized by ODVA. Encapsulates the **Common Industrial Protocol (CIP)** over TCP/UDP. ControlLogix, CompactLogix, Micro800, MicroLogix PLCs all speak EtherNet/IP. CIP message routing is hierarchical (path-based) — powerful for cross-plant addressing and a robust target language for attackers. **CIP Security** (announced by ODVA in 2015) adds TLS-based authentication and encryption; deployment sparse outside new installations.
 
 ### PROFINET and PROFIBUS
 
@@ -185,7 +185,7 @@ Siemens-dominant in Europe and large parts of Asia. PROFIBUS is the older serial
 - **PROFINET RT** — soft real-time, deterministic within a few milliseconds.
 - **PROFINET IRT** — hard real-time with sub-millisecond determinism via dedicated switching.
 
-PROFINET Security (2020) layers TLS and certificate-based authentication. Deployment rare. Layer-2 frames are not encrypted; an attacker on the same broadcast domain can inject or modify cyclic data.
+PROFINET Security layers TLS and certificate-based authentication. Deployment rare. Layer-2 frames are not encrypted; an attacker on the same broadcast domain can inject or modify cyclic data.
 
 ### IEC 61850
 
@@ -240,7 +240,7 @@ The incidents below are the load-bearing case studies of the field. Every ICS-IR
 
 **Target**: A 27-ton diesel generator on the INL test range.
 
-**Effect**: Generator physically destroyed. CCTV footage widely circulated. INL released portions publicly in September 2007; the rest remains classified.
+**Effect**: Generator physically destroyed. CCTV footage widely circulated. DHS released the video in September 2007, and roughly 840 pages of experiment documents in July 2014 in response to a FOIA request.
 
 **Technical detail**: No malware on the generator; attacker opens a breaker on the upstream grid side of a synchronous generator, then quickly re-closes it before the generator can re-synchronize. Out-of-phase reclosure induces enormous torque on the rotor — far beyond mechanical structure ratings — and destroys it in seconds. The attack target is the *breaker* between generator and grid, typically operated via remote SCADA in a substation.
 
@@ -250,7 +250,7 @@ The incidents below are the load-bearing case studies of the field. Every ICS-IR
 
 **Target**: Iranian uranium-enrichment centrifuges at Natanz. Specifically, cascades of IR-1 centrifuges controlled by Siemens S7-315 / S7-417 PLCs.
 
-**Effect**: Roughly 1,000 of approximately 9,000 centrifuges destroyed over a multi-year campaign (per IAEA inspection reports). Iranian enrichment slowed by an estimated 1-2 years.
+**Effect**: Roughly 1,000 of approximately 9,000 centrifuges destroyed over a multi-year campaign (per ISIS analysis of IAEA inspection reports). Some analysts estimated the setback to Iran's nuclear program at two to five years.
 
 **Technical detail**: Two distinct attack routines per Langner's "To Kill A Centrifuge" — a speed attack driving rotors through resonance, and a more complex pressure attack closing isolation valves to condense UF6 gas inside the centrifuges. Stuxnet propagated via Windows zero-days (LNK MS10-046, Print Spooler MS10-061, two privilege-escalation 0days), targeted air-gapped networks via USB, and used signed driver certificates stolen from Realtek and JMicron. The PLC payload was Siemens STEP 7 ladder-logic injection — only fired when the PLC was attached to a specific number of Profibus slaves matching the centrifuge cascade topology.
 
@@ -270,13 +270,13 @@ The incidents below are the load-bearing case studies of the field. Every ICS-IR
 
 **Target**: Ukrenergo high-voltage substation north of Kyiv (Pivnichna).
 
-**Effect**: Roughly 200 MW of load (one-fifth of Kyiv) lost power for approximately one hour.
+**Effect**: Roughly one-fifth of Kyiv lost power for approximately one hour.
 
 **Technical detail**: ESET disclosed publicly as Industroyer; Dragos parallel analysis (briefed June 8, 2017 by ESET; public June 12) called it CRASHOVERRIDE. Unlike BlackEnergy/2015, this was a *purpose-built ICS malware framework* with four protocol-specific payload modules: IEC 60870-5-101 (serial), IEC 60870-5-104 (TCP/IP), IEC 61850, OPC Data Access. Plus backdoor, port scanner, DDoS module against Siemens SIPROTEC relays (CVE-2015-5374), wiper. Dragos attribution: ELECTRUM, with direct ties to **Sandworm** (Russian GRU Unit 74455).
 
 **Lesson**: Adversaries can build modular, protocol-specific ICS attack frameworks that work against multiple vendors and substations without per-target development. ICS malware is now a category, not a one-off.
 
-### Triton / TRISIS / HatMan (Saudi Arabia, June-August 2017)
+### Triton / TRISIS / HatMan (Saudi Arabia, 2017)
 
 **Target**: A Saudi Arabian petrochemical plant. Specifically, Schneider Electric **Triconex Tricon** safety-instrumented system controllers (SIS, not BPCS).
 
@@ -290,7 +290,7 @@ The incidents below are the load-bearing case studies of the field. Every ICS-IR
 
 **Target**: M.E.Doc accounting software supply chain in Ukraine; downstream propagation to multinationals.
 
-**Effect**: $10B+ global damages. Maersk lost ~49,000 endpoints and most servers — rebuilt nearly the entire global domain from a single surviving domain controller in Ghana. Merck took ~$1.3B, leading to a long-running insurance dispute that helped clarify the "act of war" exclusion in cyber-insurance policies. Reckitt Benckiser, Mondelez, FedEx (TNT Express), Saint-Gobain all hit. Many manufacturing plants offline for weeks.
+**Effect**: $10B+ global damages. Maersk lost ~49,000 endpoints and most servers — rebuilt nearly the entire global domain from a single surviving domain controller in Ghana. Merck took ~$1.4B, leading to a long-running insurance dispute that helped clarify the "act of war" exclusion in cyber-insurance policies. Reckitt Benckiser, Mondelez, FedEx (TNT Express), Saint-Gobain all hit. Many manufacturing plants offline for weeks.
 
 **Technical detail**: Worm spread via MEDoc auto-update, then via EternalBlue + EternalRomance + Mimikatz lateral movement. Disguised as ransomware but functionally a wiper. Attributed by U.S., UK, Australia to Russian GRU.
 
@@ -332,7 +332,7 @@ The incidents below are the load-bearing case studies of the field. Every ICS-IR
 
 **Effect**: **The attack was thwarted.** ESET and CERT-UA detected and contained Industroyer2 before the destructive action executed. No outage occurred — a major defensive win.
 
-**Technical detail**: ESET assessed with high confidence as an updated Industroyer used by Sandworm. Unlike 2016, Industroyer2 used **only IEC 60870-5-104** and had **detailed, hardcoded configuration** in the binary itself (the original used an .INI file). Each new target requires a recompile — stronger signal of operator-specific tooling. Scheduled for 2022-04-08 17:58 UTC; deployed alongside **CaddyWiper**, **ORCSHRED**, **SOLOSHRED**, **AWFULSHRED** destructive malware on ICS and Linux systems. CERT-UA with ESET support prevented the destructive payload from executing.
+**Technical detail**: ESET assessed with high confidence as an updated Industroyer used by Sandworm. Unlike 2016, Industroyer2 used **only IEC 60870-5-104** and had **detailed, hardcoded configuration** in the binary itself (the original used an .INI file). Each new target requires a recompile — stronger signal of operator-specific tooling. Scheduled for 2022-04-08 16:10 UTC; deployed alongside **CaddyWiper**, **ORCSHRED**, **SOLOSHRED**, **AWFULSHRED** destructive malware on ICS and Linux systems. CERT-UA with ESET support prevented the destructive payload from executing.
 
 **Lesson**: ICS defense can win. OT-aware monitoring, vendor partnership, rapid IR — exactly what the field has advocated since 2015.
 
@@ -381,22 +381,21 @@ The user program is downloaded via a vendor-specific protocol (Siemens S7Comm, R
 
 ### Project Basecamp (Digital Bond, 2012-2013)
 
-Reid Wightman's project — the first systematic public vulnerability research on PLCs. Audited five PLCs:
+Reid Wightman's project — the first systematic public vulnerability research on PLCs. Audited six devices, including:
 
-- **GE D20ME** — unauthenticated firmware download/upload via custom protocol on TCP port 8080.
-- **Koyo Direct LOGIC** — unauthenticated, plaintext access to all program memory.
+- **GE D20ME** — unauthenticated firmware download/upload.
+- **Koyo Direct LOGIC** — password mechanism with no lockout or timeout, so brute force is easy.
 - **Rockwell ControlLogix L61** — unauthenticated EtherNet/IP CIP write; remote-stop, remote-restart, remote-program-modify.
 - **Schneider Modicon Quantum** — multiple unauthenticated services (telnet, FTP, plaintext SCADA protocol).
-- **Schweitzer SEL-2032** — denial-of-service via malformed packets.
 
-Metasploit modules released for each. The "insecure by design" thesis held up: vendors mostly responded that the protocols were designed for trusted-network operation. Project Basecamp directly catalyzed ICS-CERT's vulnerability-disclosure program and ISA/IEC 62443.
+Metasploit modules released. The "insecure by design" thesis held up: vendors mostly responded that the protocols were designed for trusted-network operation.
 
 ### Common PLC bug classes
 
-- **Hardcoded credentials**. Vendor-default usernames and passwords baked into firmware, undocumented, often unchangeable. Siemens S7-1200 had an undocumented hardcoded HTTP credential (2012).
+- **Hardcoded credentials**. Vendor-default usernames and passwords baked into firmware, undocumented, often unchangeable.
 - **Plaintext configuration protocols**. The same protocols used to read/write registers are used to read/write program memory.
 - **Ladder-logic injection**. An attacker who can speak the programming protocol can upload arbitrary ladder logic. Stuxnet's payload was ladder-logic injection.
-- **Unauthenticated firmware update**. Many PLCs accept firmware-update commands without authentication. Wightman's later work on ProConOs/MultiProg (CVE-2014-2249, CVE-2014-9195) showed this was a multi-vendor problem because of shared firmware-runtime licensing.
+- **Unauthenticated firmware update**. Many PLCs accept firmware-update commands without authentication. Wightman's later work on ProConOs/MultiProg (CVE-2014-9195) showed this was a multi-vendor problem because of shared firmware-runtime licensing.
 - **Authentication bypass via protocol downgrade**. Some PLCs support both authenticated and legacy unauthenticated modes; downgrade bypasses auth.
 - **Memory corruption via malformed protocol frames**. The protocol parsers were written in C in the 1990s by control-engineering teams who weren't building under modern fuzz-testing assumptions; crashes and arbitrary-write conditions are widespread. Cross-reference [[reference-firmware-embedded-security]] §III.
 
@@ -404,14 +403,14 @@ Metasploit modules released for each. The "insecure by design" thesis held up: v
 
 **Siemens S7 family** (S7-200/300/400/1200/1500, TIA Portal):
 - S7-300 / S7-400 — the Stuxnet generation. Used STEP 7 v5.x project files; project-file modification on the engineering workstation was the attack path.
-- S7-1200 / S7-1500 — newer generation, programmed via TIA Portal. Hardcoded credential CVE-2012-3040 (S7-1200). Multiple firmware vulnerabilities from IOActive, Positive Technologies, Eclypsium, Kaspersky ICS-CERT over 2015-2024.
-- Ang Cui's 2023 cryo-mechanical RAM extraction (USENIX WOOT / IEEE S&P 2023) was demonstrated on Siemens S7-1500 — full extraction of encrypted firmware from runtime DRAM. Cross-reference [[reference-firmware-embedded-security]] §I.
+- S7-1200 / S7-1500 — newer generation, programmed via TIA Portal. Web-server XSS CVE-2012-3040 (S7-1200). Multiple firmware vulnerabilities from IOActive, Positive Technologies, Eclypsium, Kaspersky ICS-CERT over 2015-2024.
+- Ang Cui's 2023 cryo-mechanical RAM extraction (IEEE WOOT / REcon 2023) was demonstrated on Siemens S7-1500 — full extraction of encrypted firmware from runtime DRAM. Cross-reference [[reference-firmware-embedded-security]] §I.
 
 **Rockwell ControlLogix family** (1756, CompactLogix, MicroLogix, Micro800):
-- Project Basecamp covered 1756-L61. Claroty Team82 research has since found multiple authentication-bypass and code-execution vulnerabilities in newer ControlLogix firmware. CVE-2021-22681 (insufficient session-key randomness) allowed remote PLC code-modification.
+- Project Basecamp covered 1756-L61. Claroty Team82 research has since found multiple authentication-bypass and code-execution vulnerabilities in newer ControlLogix firmware. CVE-2021-22681 (insufficiently protected credentials: the key Studio 5000 Logix Designer uses to verify it is talking to Logix controllers can be bypassed) allowed unauthenticated connection to the controller.
 
 **Schneider Modicon family** (Quantum, M340, M580):
-- Project Basecamp covered Quantum. The UMAS protocol (Unified Modbus Application Service, the Schneider programming protocol on top of Modbus) has been repeatedly attacked; Claroty's M340/M580 research (2022) showed an authentication-bypass enabling remote ladder-logic upload.
+- Project Basecamp covered Quantum. The UMAS protocol (Unified Modbus Application Service, the Schneider programming protocol on top of Modbus) has been repeatedly attacked; Armis's ModiPwn research (2021, CVE-2021-22779) showed an M340/M580 authentication bypass allowing an unauthenticated attacker to take full control of the PLC.
 
 **ABB / Emerson / Yokogawa / Honeywell**: Each has its own DCS corpus with proprietary protocols and engineering tools. Public vulnerability research is less dense than Siemens/Rockwell/Schneider but growing — Dragos and Claroty publish coordinated disclosures for ABB 800xA, Emerson DeltaV, Honeywell Experion. Extends to vendor-specific safety controllers (Triconex for Schneider, ProSafe for Yokogawa, FSC for Honeywell).
 
@@ -443,8 +442,8 @@ Stuxnet's attack path was "compromise the engineering workstation, then push mal
 ### Canonical HMI / SCADA software
 
 - **Wonderware InTouch** (now AVEVA InTouch HMI) — long-running, Windows-native HMI. Multiple memory-corruption vulnerabilities historically.
-- **Rockwell FactoryTalk** suite (View, AssetCentre, Linx) — Windows-native. CVE-2021-27462, CVE-2022-1158, others have allowed authentication bypass and RCE.
-- **Siemens WinCC** — paired with Siemens S7 PLCs. WinCC was Stuxnet's pivot point: a malicious DLL intercepted operator commands and falsified displayed values, hiding the centrifuge sabotage from operators. CVE-2012-2595 (WinCC web SQL injection) and many others.
+- **Rockwell FactoryTalk** suite (View, AssetCentre, Linx) — Windows-native. CVE-2021-27462 (FactoryTalk AssetCentre deserialization RCE) and others have allowed authentication bypass and RCE.
+- **Siemens WinCC** — paired with Siemens S7 PLCs. Stuxnet replaced the STEP 7 communication library (s7otbxdx.dll) to intercept PLC block reads and writes, masking its infected code from WinCC. CVE-2012-2595 (WinCC web XSS) and many others.
 - **Schneider Citect / Vijeo Citect** — long-running SCADA platform. CVE-2008-2639 (one of the earlier publicly-disclosed SCADA buffer overflows).
 - **GE Cimplicity / iFix** — HMI/SCADA in process and discrete industries.
 
@@ -471,7 +470,7 @@ This pattern requires the attacker to understand the project-file format, ladder
 
 ### USB control as primary defense
 
-Most engineering workstations sit in operational areas where USB is physically accessible. Stuxnet propagated via USB; BlackEnergy and Industroyer2 had USB-borne propagation variants. USB-control programs (Microsoft Device Guard, Forescout, vendor-specific USB allowlists) are widely deployed in mature OT environments. Imperfect — the engineer's authorized firmware-update USB is the same USB stick that can be tampered with — but raises the bar significantly.
+Most engineering workstations sit in operational areas where USB is physically accessible. Stuxnet propagated via USB. USB-control programs (Microsoft Device Guard, Forescout, vendor-specific USB allowlists) are widely deployed in mature OT environments. Imperfect — the engineer's authorized firmware-update USB is the same USB stick that can be tampered with — but raises the bar significantly.
 
 ---
 
@@ -485,11 +484,11 @@ If the SIS is compromised, the entire safety case collapses; whatever combinatio
 
 ### Triconex Tricon architecture
 
-The Schneider Electric Triconex Tricon is the dominant SIS in petrochemicals. **Triple Modular Redundant** (TMR) — three independent main processors, each running the same safety program, voting on outputs. Designed for high availability under partial failure. Programmed via a proprietary protocol (**Tri-station** / Trinet), undocumented in any vendor-released form until after TRISIS — the TRISIS attackers reverse-engineered it from the engineering software. Newer Triconex CX adds cryptographic authentication to the engineering protocol, but the installed base of legacy Tricons remains enormous.
+The Schneider Electric Triconex Tricon is the dominant SIS in petrochemicals. **Triple Modular Redundant** (TMR) — three independent main processors, each running the same safety program, voting on outputs. Designed for high availability under partial failure. Programmed via a proprietary protocol (**TriStation**), not publicly documented — the TRISIS attackers reverse-engineered it.
 
 ### Other SIS platforms
 
-- Honeywell SafeCATALYST / FSC (Failsafe Control)
+- Honeywell FSC (Failsafe Control)
 - Emerson DeltaV SIS
 - Yokogawa ProSafe-RS
 - Siemens S7-400 F/FH (failsafe variants)
@@ -566,7 +565,7 @@ MITRE's ICS-specialized ATT&CK matrix. Released 2020. Canonicalizes ICS-specific
 
 ### Activity Group naming
 
-Dragos uses **mineral names** (XENOTIME, ELECTRUM, CHRYSENE, KAMACITE, COVELLITE, ALLANITE, RASPITE, WASSONITE, PETROVITE, BENTONITE, BAUXITE, VOLTZITE) to avoid the "Bear / Panda / Tiger" stylistic clutter. Each activity group is defined by observed tradecraft, victimology, and tooling — not by attribution to a specific government, although attribution assessments are published in customer-facing intelligence. Mandiant tracks ICS actors under FIN6, APT38, APT41, TEMP.*/UNC.* clusters. Microsoft uses element-based names (Volt Typhoon, Mint Sandstorm). CrowdStrike uses bear/panda/jackal. The fragmentation is real — the same actor may be tracked as Sandworm / VOODOO BEAR / APT44 / ELECTRUM / Iridium across vendors. Cross-reference [[reference-threat-intel-methodology]] §1.
+Dragos uses **mineral names** (XENOTIME, ELECTRUM, CHRYSENE, KAMACITE, COVELLITE, ALLANITE, RASPITE, WASSONITE, PETROVITE, BENTONITE, BAUXITE, VOLTZITE) to avoid the "Bear / Panda / Tiger" stylistic clutter. Each activity group is defined by observed tradecraft, victimology, and tooling — not by attribution to a specific government, although attribution assessments are published in customer-facing intelligence. Mandiant tracks ICS actors under TEMP.*/UNC.* clusters. Microsoft uses weather-based names (Volt Typhoon, Mint Sandstorm). CrowdStrike uses bear/panda/jackal. The fragmentation is real — the same actor may be tracked as Sandworm / VOODOO BEAR / APT44 / ELECTRUM / Iridium across vendors. Cross-reference [[reference-threat-intel-methodology]] §1.
 
 ### Common targeting patterns
 
@@ -603,7 +602,7 @@ Network and Information Security Directive 2. Replaces 2016 NIS Directive. Subst
 
 ### EU Cyber Resilience Act (CRA)
 
-Adopted October 2024; enforcement begins in stages 2025-2027. Mandates security requirements for "products with digital elements" — explicitly inclusive of IoT, industrial IoT, ICS components. Requires CE-mark-conformant cybersecurity (vulnerability handling, security-by-design, no known vulnerabilities at point of sale, support window with security updates). Vendors of PLCs, RTUs, HMIs sold into the EU will be in scope; the long device-lifecycle reality of ICS will collide with the CRA's expected support window.
+Adopted October 2024; enforcement begins in stages 2026-2027. Mandates security requirements for "products with digital elements" — explicitly inclusive of IoT, industrial IoT, ICS components. Requires CE-mark-conformant cybersecurity (vulnerability handling, security-by-design, no known vulnerabilities at point of sale, support window with security updates). Vendors of PLCs, RTUs, HMIs sold into the EU will be in scope; the long device-lifecycle reality of ICS will collide with the CRA's expected support window.
 
 ### CISA ICS-CERT advisories
 
@@ -629,7 +628,7 @@ The **zones-and-conduits** architecture (62443-3-2) is the load-bearing concept:
 - **Nuclear (US)**: NRC; 10 CFR 73.54 ("Protection of digital computer and communication systems and networks"). Most stringent cybersecurity requirements in any U.S. regulated sector.
 - **Electric (US)**: FERC for bulk power; state public-utility commissions for distribution.
 - **Water (US)**: EPA; America's Water Infrastructure Act of 2018 mandated cybersecurity vulnerability assessments for community water systems serving >3,300 people. CISA-EPA collaboration accelerated post-CyberAv3ngers.
-- **Chemical (US)**: CFATS program, administered by CISA (in regulatory limbo as of 2026 — Congressional reauthorization is intermittent).
+- **Chemical (US)**: CFATS program, administered by CISA (statutory authority expired in July 2023 pending Congressional reauthorization).
 - **Aviation (US)**: FAA for aircraft systems; TSA for airport/air-cargo cybersecurity.
 
 ### Regulation lags reality
@@ -648,11 +647,11 @@ The single highest-leverage defensive control. A properly-implemented Industrial
 - **Authenticated jump servers** for engineer remote access. MFA on the jump server. Session recording. Time-limited access.
 - **Data-historian replication** unidirectional from OT to DMZ to IT. Historical process data flows out; nothing flows back into OT.
 - **Software-update staging** in the DMZ. AV signatures, vendor firmware patches, Windows updates land in DMZ-hosted repositories; OT endpoints pull from the DMZ, never directly from the internet.
-- **Vendor remote access** terminates in the DMZ via a brokered tunnel (Cyolo / Claroty SRA / Dragos SiteStore) with per-session approval.
+- **Vendor remote access** terminates in the DMZ via a brokered tunnel (Cyolo / Claroty SRA) with per-session approval.
 
 ### Unidirectional gateways (data diodes)
 
-For high-criticality boundaries (Level 3 historian to Level 4 enterprise BI; SIS to its monitoring), a one-way physical data diode is the strongest guarantee available. Vendors: **Waterfall Security Solutions** (original commercial data-diode product, widely deployed in nuclear, electric, pipeline), **Owl Cyber Defense**, **Fox-IT DataDiode**. The diode passes data optically and is *physically* incapable of carrying traffic in reverse. Where the safety case requires it, diodes are the canonical answer.
+For high-criticality boundaries (Level 3 historian to Level 4 enterprise BI; SIS to its monitoring), a one-way physical data diode is the strongest guarantee available. Vendors: **Waterfall Security Solutions** (widely deployed in nuclear, electric, pipeline), **Owl Cyber Defense**, **Fox-IT DataDiode**. The diode passes data optically and is *physically* incapable of carrying traffic in reverse. Where the safety case requires it, diodes are the canonical answer.
 
 ### OT-aware firewalls
 
@@ -738,7 +737,7 @@ Open Charge Point Protocol — de facto standard for communication between EV ch
 
 ### Renewable energy: wind and solar inverters
 
-Modern wind turbines and solar inverters are network-connected ICS devices. Solar inverter standards (IEEE 1547-2018, Rule 21 in California) increasingly require utility-controllable functions (volt-VAR, frequency-watt, anti-islanding) — meaning the utility can remotely command the inverter, meaning the inverter has an attack surface that can be used to destabilize the grid in aggregate. Recent CISA advisories on Solar-Log, SMA, Sungrow inverters reflect maturation. Wind farms are similarly networked; Sandworm has reportedly targeted European wind operators (KA-SAT incident, February 2022 — though via the Viasat satellite-modem segment, not direct turbine compromise).
+Modern wind turbines and solar inverters are network-connected ICS devices. Solar inverter standards (IEEE 1547-2018, Rule 21 in California) increasingly require utility-controllable functions (volt-VAR, frequency-watt, anti-islanding) — meaning the utility can remotely command the inverter, meaning the inverter has an attack surface that can be used to destabilize the grid in aggregate. Recent CISA advisories on Solar-Log, SMA, Sungrow inverters reflect maturation. Wind farms are similarly networked; the Russia-attributed KA-SAT attack (February 2022) cut remote monitoring and control of 5,800 Enercon wind turbines in Germany as spillover — via the Viasat satellite-modem segment, not direct turbine compromise.
 
 ### Maritime ICS
 
@@ -746,7 +745,7 @@ Cargo ships are increasingly automated — bridge systems, engine-room monitorin
 
 ### Aviation Maintenance Operations Management (MOMs)
 
-Aviation's MES-equivalent for aircraft maintenance — parts tracking, inspection scheduling, airworthiness directives. Not flight-critical (flight-critical avionics are a separate world under DO-178C and 14 CFR Part 25), but a MOM compromise can ground fleets via data-integrity failure ("we can no longer verify which aircraft has the required inspection") — which is what happened during the FAA NOTAM outage of January 2023.
+Aviation's MES-equivalent for aircraft maintenance — parts tracking, inspection scheduling, airworthiness directives. Not flight-critical (flight-critical avionics are a separate world under DO-178C and 14 CFR Part 25), but a MOM compromise can ground fleets via data-integrity failure ("we can no longer verify which aircraft has the required inspection").
 
 ### Cross-link summary
 
@@ -771,11 +770,11 @@ Aviation's MES-equivalent for aircraft maintenance — parts tracking, inspectio
 
 - Ralph Langner, "To Kill A Centrifuge: A Technical Analysis of What Stuxnet's Creators Tried to Achieve" (Langner Group, November 2013). https://www.langner.com/wp-content/uploads/2017/03/to-kill-a-centrifuge.pdf
 - Robert M. Lee, Michael J. Assante, Tim Conway, "Analysis of the Cyber Attack on the Ukrainian Power Grid" (SANS / E-ISAC, March 2016). https://www.nerc.com/pa/CI/ESISAC/Documents/E-ISAC_SANS_Ukraine_DUC_18Mar2016.pdf
-- Joe Slowik / Dragos, "CRASHOVERRIDE: Analyzing the Malware that Attacks Power Grids" (Dragos, June 2017). https://www.dragos.com/wp-content/uploads/CrashOverride-01.pdf
+- Dragos, "CRASHOVERRIDE: Analyzing the Malware that Attacks Power Grids" (Dragos, June 2017). https://www.dragos.com/wp-content/uploads/CrashOverride-01.pdf
 - Anton Cherepanov, "Win32/Industroyer: A new threat for industrial control systems" (ESET, June 2017). https://www.welivesecurity.com/wp-content/uploads/2017/06/Win32_Industroyer.pdf
 - ESET research, "Industroyer2: Industroyer reloaded" (April 2022). https://www.welivesecurity.com/2022/04/12/industroyer2-industroyer-reloaded/
-- Mandiant, "TRITON: A Threat to Industrial Safety Systems" (2017). https://cloud.google.com/blog/topics/threat-intelligence/attackers-deploy-new-ics-attack-framework-triton/
-- Marina Krotofil et al., "On the Significance of Process Comprehension for Conducting Targeted ICS Attacks" (CPS-SPC 2017, ACM). https://dl.acm.org/doi/10.1145/3140241.3140254
+- Mandiant, "Attackers Deploy New ICS Attack Framework “TRITON” and Cause Operational Disruption to Critical Infrastructure" (2017). https://cloud.google.com/blog/topics/threat-intelligence/attackers-deploy-new-ics-attack-framework-triton/
+- Benjamin Green, Marina Krotofil, Ali Abbasi, "On the Significance of Process Comprehension for Conducting Targeted ICS Attacks" (CPS-SPC 2017, ACM). https://dl.acm.org/doi/10.1145/3140241.3140254
 - Digital Bond, "Project Basecamp" archive. https://github.com/digitalbond/Basecamp
 - Stephen Hilt et al., "Caught in the Act: Running a Realistic Factory Honeypot to Capture Real Threats" (Trend Micro, 2020). https://documents.trendmicro.com/assets/white_papers/wp-caught-in-the-act-running-a-realistic-factory-honeypot-to-capture-real-threats.pdf
 - INL Aurora Test Report (partial public release; CSO Online summary at https://www.csoonline.com/article/566813/why-america-is-not-prepared-for-a-stuxnet-like-cyber-attack-on-the-energy-grid.html)
@@ -828,7 +827,7 @@ Aviation's MES-equivalent for aircraft maintenance — parts tracking, inspectio
 - Andy Greenberg, *Sandworm: A New Era of Cyberwar and the Hunt for the Kremlin's Most Dangerous Hackers* (Doubleday, 2019).
 - Andrew Ginter, *SCADA Security: What's Broken and How to Fix It* (Abterra Technologies, 2016).
 - Eric D. Knapp, Joel Thomas Langill, *Industrial Network Security* (Syngress, 2nd ed. 2014).
-- Robert M. Lee, *SCADA and Me* (independent, 2012; available via Dragos resources).
+- Robert M. Lee, *SCADA and Me* (IT-Harvest Press, 2013; available via Dragos resources).
 - Joe Weiss, *Protecting Industrial Control Systems from Electronic Threats* (Momentum Press, 2010).
 - Andrew Coburn, Éireann Leverett, Gordon Woo, *Solving Cyber Risk: Protecting Your Company and Society* (Wiley, 2018).
 
