@@ -30,13 +30,13 @@ The category bifurcated in 2023-2024 into "general-purpose AI reviewers" (CodeRa
 Notable platforms (founding year inferred from public source where stated; integration model verified from each vendor's docs):
 
 - **CodeRabbit** — Founded 2023, San Francisco; raised early-stage funding in 2024. GitHub App integration; also GitLab, Azure DevOps, Bitbucket. Pricing: Free tier with PR summarization, Pro at $24/dev/month, free for open source. Runs external linters (Biome, ESLint, Ruff, Pylint, golangci-lint, Clippy, RuboCop, Brakeman, TruffleHog, Trivy) as part of review pipeline. The "run external tooling" choice is load-bearing for the August 2025 disclosure (see §10).
-- **Greptile** — Founded 2023 by Soohoon Choi, Daksh Gupta, Vaishant Kameswaran; Y Combinator W24; $4M seed (Initialized Capital) followed by $25M Series A reported September 2025 (Benchmark). Used by ~250 companies including Stripe and Amazon per public statements. Codebase-context emphasis — "AI code review agent with complete context of your codebase" framing. GitHub App + API. (Sources: TechCrunch July 2025, FinSMEs September 2025, YC profile.)
-- **Bito** — Founded 2022. AI Code Review Agent powered by Anthropic Claude Sonnet. Integrates with GitHub, GitLab, Bitbucket. Pricing ~$15-19/user/month with self-hosted option at $5/user/month. Documentation at docs.bito.ai.
-- **Cursor BugBot** — Cursor (Anysphere) product, launched 2025. GitHub-only (also GitLab, GitHub Enterprise Server v3.8+, self-hosted GitLab). "Reviews more than two million PRs per month" per Cursor's blog. Autofix feature creates a new branch (recommended) or commits to existing branch (max 3 attempts). Custom rules via `.cursor/BUGBOT.md` in repo root. Pricing folded into Cursor plans.
+- **Greptile** — Founded 2023 by Soohoon Choi, Daksh Gupta, Vaishant Kameswaran; Y Combinator W24; $4M seed (Initialized Capital) followed by $25M Series A reported September 2025 (Benchmark). Codebase-context emphasis — "AI code review agent with complete context of your codebase" framing. GitHub App + API. (Sources: TechCrunch July 2025, FinSMEs September 2025, YC profile.)
+- **Bito** — Founded 2021. AI Code Review Agent powered by Anthropic Claude Sonnet. Integrates with GitHub, GitLab, Bitbucket. Pricing $12-25/seat/month with self-hosting as a $5/seat/month add-on. Documentation at docs.bito.ai.
+- **Cursor BugBot** — Cursor (Anysphere) product, launched 2025. Supports GitHub (including GitHub Enterprise Server), GitLab (including self-hosted), Bitbucket, and Azure DevOps. "Reviews more than two million PRs per month" per Cursor's blog. Autofix feature creates a new branch (recommended) or commits to existing branch (max 3 attempts). Custom rules via `.cursor/BUGBOT.md` in repo root. Pricing folded into Cursor plans.
 - **Ellipsis (ellipsis.dev)** — Y Combinator W24. GitHub App. Free for public repos; $20/user/month for private. Confidence-scored comments with adjustable threshold. Stated security model: "doesn't persist source code anywhere; only lives on our servers in a private AWS VPC while processing a job."
-- **Sourcery** — Founded 2019 (originally a Python-refactor tool). 30+ languages. Triggered via `@sourcery-ai review` comment. IDE plugin (VS Code, Cursor, JetBrains) mirrors the PR review.
+- **Sourcery** — Founded 2018 (originally a Python-refactor tool). 30+ languages. Triggered via `@sourcery-ai review` comment. IDE plugin (VS Code, Cursor, JetBrains) mirrors the PR review.
 - **qodo (formerly Codium)** — Rebranded from Codium to qodo. Open-source CLI version (PR-Agent) plus hosted Qodo Merge / Qodo 2.0. Self-hostable, air-gapped deployment supported, can run against self-hosted LLMs. Notable for being the most open-source-friendly option in the category.
-- **Trag (usetrag.com)** — AI-powered code review with natural-language custom rules. GitHub + GitLab; Bitbucket and Azure DevOps stated as roadmap. Free tier for open source; paid commercial plans starting $300/month.
+- **Trag (usetrag.com)** — AI-powered code review with natural-language custom rules. GitHub + GitLab; Bitbucket and Azure DevOps stated as roadmap. Free tier for open source; paid Team plan at $300/repository/month.
 - **Sweep AI (sweep.dev)** — Originally an issue-to-PR-generation product; now positions as AI junior developer with review-and-fix capability. JetBrains plugin for full feature set. Does not train on customer code per public statements.
 - **Semgrep Assistant** — Semgrep's AI layer on top of deterministic static analysis. Distinct architectural position: the "is this a real finding?" question is asked of an AI over Semgrep findings, not the AI generating findings de novo. Posts triage suggestions and remediation guidance as PR/MR comments. Discussed comparatively in §11; vendor-side threat model in §12.
 - **GitHub Copilot Coding Agent / Copilot Autofix** — Microsoft/GitHub. Generally available September 2025 (Coding Agent) and integrated with CodeQL for security-finding autofix. Distinct from the third-party-app shape — runs on GitHub infrastructure with GitHub-issued tokens, but processes the same kind of untrusted PR content and has been part of the Comment-and-Control class (see §10).
@@ -58,7 +58,7 @@ The integration model determines blast radius. Five shapes, ordered roughly by a
 
 **(e) Self-hosted / air-gapped.** Customer deploys the reviewer in their own infrastructure; data and tokens never leave the perimeter. qodo Merge (open-source PR-Agent), Bito (self-hosted enterprise), and Semgrep Assistant (when paired with on-prem Semgrep) all support variants of this. Trade-offs covered in §9.
 
-A subtle gotcha: even GitHub Apps can have *organization-level admin scopes* that exceed what a "code reviewer" reasonably needs. Apps that request `members: read`, `administration: write`, or `actions: write` are red flags — these are not "I want to comment on PRs" permissions. The CodeRabbit PwnedRabbit incident (§10) revealed that the App's full permission set included `contents: read/write`, `metadata: read`, `pull_requests: write`, *and* repository administration capabilities. A reviewer with administration scope can rewrite branch-protection rules.
+A subtle gotcha: even GitHub Apps can have *organization-level admin scopes* that exceed what a "code reviewer" reasonably needs. Apps that request `members: read`, `administration: write`, or `actions: write` are red flags — these are not "I want to comment on PRs" permissions. The CodeRabbit PwnedRabbit incident (§10) revealed that the App's permission set included `contents: write`, `pull_requests: write`, `issues: write`, `statuses: write`, and read access to `members` and `metadata`. A reviewer with administration scope can rewrite branch-protection rules.
 
 Cross-link `[[reference-cicd-supply-chain]]` for adjacent CI/CD primitives the AI-PR-review surface inherits (pwn_request, pull_request_target, workflow_run abuse). The Comment-and-Control class (§10) is the AI-PR-review variant of the long-standing GitHub Actions privilege-escalation class.
 
@@ -79,7 +79,7 @@ Red-flag permissions:
 
 - `contents: write` — a *reviewer* posting commits is suspicious. Some tools (Cursor BugBot's Autofix, Ellipsis's bug-fix mode, Sweep AI's PR-generation) request this for valid product reasons. Decide if you want that capability before consenting to it.
 - `administration: write` — repository administration. Almost never needed for review. Major red flag.
-- `actions: write` — modify workflow files. Major red flag.
+- `actions: write` — manage workflow runs (cancel, re-run, dispatch, enable/disable workflows). Major red flag.
 - `secrets: read` — read repo secrets. Should never be requested.
 - Organization-level admin scopes — `members: write`, `team_discussions: write`, etc.
 
@@ -127,7 +127,7 @@ This is the most dangerous of the four shapes in 2026. Worked anatomy from the E
 3. The reviewer bot reads the PR content (the injection), then because it has `contents: read` it can fetch `src/config/secrets.py` and place it in its review.
 4. The review posts as a PR comment, visible publicly.
 
-Real instance: the "Comment and Control" disclosure (October-November 2025, Johns Hopkins researchers working with Anthropic) showed exactly this pattern against Anthropic Claude Code Security Review GitHub Action, Google Gemini CLI Action, and GitHub Copilot Agent. PR title or body was interpolated into the agent's prompt; the agent executed shell commands (`whoami`, `ps auxeww`, `env`) and posted results back as PR comments. Secrets exfiltrated included `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, `GEMINI_API_KEY`. CVSS 9.4 on the Claude variant. Sources: VentureBeat coverage 2026, Let's Data Science 2025.
+Real instance: the "Comment and Control" disclosure (April 2026, Aonan Guan with Johns Hopkins researchers Zhengyu Liu and Gavin Zhong) showed exactly this pattern against Anthropic Claude Code Security Review GitHub Action, Google Gemini CLI Action, and GitHub Copilot Agent. PR title or body was interpolated into the agent's prompt; the agent executed shell commands (e.g., `env`) and posted results back as PR comments. Secrets exfiltrated included the agents' own API keys. CVSS 9.4 on the Claude variant. Sources: VentureBeat coverage 2026.
 
 The Comment-and-Control pattern generalizes. Any agent that:
 
@@ -166,9 +166,9 @@ The August 2025 Kudelski Security disclosure on CodeRabbit (covered in detail in
 - The CodeRabbit GitHub App PEM file (private key for the App).
 - Anthropic, OpenAI, Langchain, Pinecone API keys.
 - PostgreSQL database credentials.
-- The ability to mint installation tokens for ~1 million repos with `contents: read/write`, `pull_requests: write`, and repository administration.
+- The ability to mint installation tokens for ~1 million repos with `contents: write` and `pull_requests: write`.
 
-The fix in production was hours (Rubocop disabled, secrets rotated, sandbox introduced) but the disclosure exposed the structural risk: a platform with `contents: write` and admin scope across 1M repos is a higher-impact target than nearly any individual customer.
+The fix in production was hours (Rubocop disabled, secrets rotated, Rubocop moved into the existing sandbox) but the disclosure exposed the structural risk: a platform with `contents: write` across 1M repos is a higher-impact target than nearly any individual customer.
 
 Mitigations (vendor-side):
 
@@ -190,7 +190,7 @@ Most AI-PR-review platforms use shared LLM endpoints (OpenAI, Anthropic, Bedrock
 
 Risk vectors:
 
-- **Prompt caching cross-talk.** Provider APIs cache prompts for performance. If a vendor doesn't scope the cache key per-customer (e.g., includes only the prompt content and not a customer ID), one customer's cached prompt content can land in another customer's response window via cache eviction races or shared cache lookups. The provider-side architecture matters: Anthropic prompt caching documentation specifies the cache is scoped per organization API key, so vendor-side discipline is "give each customer its own provider account or its own organization-namespaced key."
+- **Prompt caching cross-talk.** Provider APIs cache prompts for performance. If a vendor doesn't scope the cache key per-customer (e.g., includes only the prompt content and not a customer ID), one customer's cached prompt content can land in another customer's response window via cache eviction races or shared cache lookups. The provider-side architecture matters: Anthropic prompt caching documentation specifies caches are isolated between organizations and, on the Claude API, per workspace, so vendor-side discipline is "give each customer its own provider account or its own organization-namespaced key."
 - **Prompt-pool poisoning.** If the vendor uses a shared "context library" or RAG store across customers (e.g., common-pattern library, learned-rules cache), a malicious customer can poison that pool with content that triggers misbehavior for other customers. Aim Labs' "RAG spraying" technique on the EchoLeak class is the upstream attack pattern.
 - **Per-customer fine-tuning bleed-through.** If the vendor offers customer-specific fine-tuning ("learn from our team's review preferences"), the fine-tuning data is *your* code. Vendor architecture choices matter: per-customer LoRA adapters with strict tenant isolation are safe; shared fine-tuned weights are not.
 - **Logging and observability cross-talk.** Vendor's own logs may contain other customers' PR content; a vendor-side bug in log-scoping or a bug in the customer-facing log export can leak across tenants.
@@ -209,7 +209,7 @@ A useful structural test: ask the vendor "if we were to discover that another cu
 
 Even with strong tenant isolation, prompt-injection-resistant system prompts, sandbox discipline, and verified SOC2 + pentest reports, AI-reviewer output should be treated as advisory not authoritative. The empirical reasons:
 
-- **False-positive class is real.** Reviewers flag patterns that look like vulnerabilities but aren't, or flag style issues as security issues. The CodeRabbit "46% bug hit rate" in their own 2026 marketing is a useful upper bound: even at industry-leading hit rate, less than half of flagged items are real bugs.
+- **False-positive class is real.** Reviewers flag patterns that look like vulnerabilities but aren't, or flag style issues as security issues.
 - **False-negative class is worse for security findings.** A real vulnerability that doesn't trigger the reviewer's pattern-matching gets merged with no flag. A reviewer that didn't see the bug doesn't say "I don't know"; it says nothing. That silence is indistinguishable from "no bugs here."
 - **Adversarial inputs degrade quality.** Prompt-injection-resistant or not, the reviewer's quality degrades on adversarial PRs. An attacker who knows the reviewer's prompt structure (often inferable from observed output) can craft PRs that minimize bot scrutiny.
 - **Reviewer drift.** Vendor updates the model, the prompt, or the linter integration; reviewer quality changes silently. A team that relies on the reviewer as gatekeeper has no signal when the gate loosens.
@@ -239,7 +239,7 @@ What an AppSec team should log and alert on. Aligned to the Pyramid-of-Pain fram
 
 ### 7.2 Platform-level anomalies
 
-- **Unexpected GitHub App permission expansion.** Vendor pushes a permission-update prompt to your org admin. Should be reviewed each time before consenting. Audit-log filter: `integration_installation_request` events.
+- **Unexpected GitHub App permission expansion.** Vendor pushes a permission-update prompt to your org admin. Should be reviewed each time before consenting. Audit-log filter: `integration_installation.version_updated` events.
 - **Token rotation events.** Vendor rotates its App's PEM file or your access token after an incident. Often the first customer-visible signal of a vendor-side compromise.
 - **Auth events from unexpected IPs.** The bot is making API calls from IPs outside the vendor's documented range. GitHub audit log: filter for `oauth_authorization` and `personal_access_token` events.
 - **Workflow-file modifications by the bot.** If the bot has `contents: write`, it should never modify `.github/workflows/*`. An alert on this is high-fidelity.
@@ -281,7 +281,7 @@ Twelve to fifteen questions to ask before deploying an AI-PR-review platform. Pa
 2. **Tenant isolation architecture.** Diagram or written description. Per-customer LLM endpoint? Per-customer vector store? Per-customer log namespace? Per-customer encryption keys?
 3. **Token scope minimization.** What's the minimum GitHub App permission set the platform needs to function? Will the vendor support a "read-only review mode" that drops `pull_requests: write`? (Some will; some structurally won't because their value-prop is auto-approve.)
 4. **Customer-data handling.** Training opt-out for the underlying LLM provider (Anthropic, OpenAI, etc.). Retention policy on vendor-side logs (24 hours, 30 days, indefinite?). Data residency (US-only, EU available, customer choice?). Will customer data be used to improve the model for other customers?
-5. **Incident response track record.** Has the vendor publicly disclosed an incident? How did they handle it? Did they pay a bounty? Did they communicate to customers? CodeRabbit's response to the Kudelski disclosure is a useful comparison point — they published a public blog post acknowledging the issue, named the researcher, and described mitigations.
+5. **Incident response track record.** Has the vendor publicly disclosed an incident? How did they handle it? Did they pay a bounty? Did they communicate to customers? CodeRabbit's response to the Kudelski disclosure is a useful comparison point — they published a public blog post acknowledging the issue, credited Kudelski Security, and described mitigations.
 6. **Open-source vs closed.** Is the platform open-source (qodo PR-Agent) or closed? Open-source allows independent audit; closed requires vendor trust.
 7. **Self-hostable option.** Is there a self-hosted / on-prem version? At what pricing? Air-gapped support (Bito enterprise, qodo)?
 8. **Audit log export.** Can the vendor expose an audit log of bot actions (which PRs reviewed, which approved, what content posted) to your SIEM? Required for the detection patterns in §7.
@@ -299,13 +299,13 @@ A scorecard with these 15 dimensions, scored 1-5 per vendor, gives a useful comp
 
 The self-hosted option is increasingly available and increasingly relevant for regulated industries. As of 2026:
 
-- **qodo PR-Agent.** Open source (Apache 2.0). Most flexible self-host option. Supports self-hosted LLM endpoints (Azure OpenAI, on-prem Bedrock, Ollama for local models). Trade-off: you maintain the operational burden — model upgrades, prompt tuning, integration testing.
+- **qodo PR-Agent.** Open source (MIT). Most flexible self-host option. Supports self-hosted LLM endpoints (Azure OpenAI, on-prem Bedrock, Ollama for local models). Trade-off: you maintain the operational burden — model upgrades, prompt tuning, integration testing.
 - **Bito (Enterprise plan).** Self-hosted deployment supported per public pricing. Requires Bito enterprise contract.
-- **Semgrep Assistant.** When paired with on-prem Semgrep, the Assistant calls a customer-specified LLM endpoint (Bedrock, Azure OpenAI). Customer data stays in customer infrastructure modulo the LLM call.
-- **CodeRabbit.** SaaS-only as of 2026; no public self-hosted option.
-- **Greptile.** SaaS-only; on-prem occasionally negotiated for enterprise contracts per public statements.
+- **Semgrep Assistant.** Can call a customer-specified LLM provider (your own AWS Bedrock account, Azure OpenAI) instead of Semgrep's default keys.
+- **CodeRabbit.** Self-hosted option for Enterprise customers with 500 or more seats; the agent runs as a container in the customer's environment and calls the customer's configured LLM provider.
+- **Greptile.** Self-hosted deployment (Docker Compose or Kubernetes, including air-gapped) documented for enterprise customers; requires a license.
 - **Cursor BugBot.** Cloud-only; runs on Cursor infrastructure.
-- **Ellipsis.** Private AWS VPC processing per their public security statement, but not customer-deployable.
+- **Ellipsis.** Private AWS VPC processing per their public security statement; deployment in the customer's own AWS, GCP, or Azure account available on request.
 
 Trade-offs to weigh:
 
@@ -329,7 +329,7 @@ The realized-incident corpus is small but growing. Each documented case is worth
 
 ### 10.1 PwnedRabbit — CodeRabbit RCE + 1M-repo write access (January 2025 disclosed, August 2025 published)
 
-Researchers: Kudelski Security (Suisse SA), primary publication at research.kudelskisecurity.com.
+Researchers: Kudelski Security, primary publication at research.kudelskisecurity.com.
 
 Attack chain:
 
@@ -338,15 +338,15 @@ Attack chain:
 3. Researcher opened a PR containing a `.rubocop.yml` that required a malicious `ext.rb`.
 4. CodeRabbit's pipeline cloned the PR, ran Rubocop, which executed `ext.rb` with full filesystem and environment access — un-sandboxed.
 5. `ext.rb` exfiltrated environment variables including:
-   - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (LLM provider keys)
+   - `ANTHROPIC_API_KEYS`, `OPENAI_API_KEYS` (LLM provider keys)
    - `LANGCHAIN_API_KEY`, `PINECONE_API_KEY` (RAG infra)
-   - `POSTGRES_*` credentials (CodeRabbit's database)
+   - `POSTGRESQL_*` credentials (CodeRabbit's database)
    - `GITHUB_APP_PEM_FILE` (the App's private key)
-6. With the PEM file, researcher minted installation tokens for ~1 million repos with `contents: read/write`, `metadata: read`, `pull_requests: write`, and repository administration.
+6. With the PEM file, researcher minted installation tokens for ~1 million repos with permissions including `contents: write`, `metadata: read`, `pull_requests: write`, `issues: write`, and `statuses: write`.
 
 Impact: every CodeRabbit customer's source code was exposed; every CodeRabbit-installed repo could have been modified. Realistic worst-case: malicious commits pushed to thousands of repos, supply-chain compromise at platform scale.
 
-Vendor response: CodeRabbit disabled Rubocop, rotated all secrets, sandboxed the external-tool execution, and automated sandbox enforcement going forward. Public response blog at coderabbit.ai/blog/our-response-to-the-january-2025-kudelski-security-vulnerability-disclosure. No evidence of in-the-wild exploitation prior to disclosure per vendor statement.
+Vendor response: CodeRabbit disabled Rubocop, rotated all secrets, sandboxed the external-tool execution, and automated sandbox enforcement going forward. Public response blog at coderabbit.ai/blog/our-response-to-the-january-2025-kudelski-security-vulnerability-disclosure-action-and-continuous-improvement. No evidence of in-the-wild exploitation prior to disclosure per vendor statement.
 
 Doctrinal lessons:
 
@@ -354,9 +354,9 @@ Doctrinal lessons:
 - A GitHub App's PEM file is the single highest-value secret in the platform. Treat it as a HSM-isolated key, not an environment variable.
 - "Customer can configure their repo's linter config" is a feature with attacker-controlled-config implications. Sandbox the tool execution; don't run customer config in your platform's trust boundary.
 
-### 10.2 Comment-and-Control — Multi-vendor PR-bot exfil class (October-November 2025)
+### 10.2 Comment-and-Control — Multi-vendor PR-bot exfil class (reported late 2025, published April 2026)
 
-Researchers: Johns Hopkins University security researchers collaborating with Anthropic; public coverage in VentureBeat and Let's Data Science 2025-2026.
+Researchers: Aonan Guan, with Johns Hopkins University researchers Zhengyu Liu and Gavin Zhong; public coverage in VentureBeat and Let's Data Science 2026.
 
 Attack pattern: PR title or body is interpolated into the agent's prompt context. The agent has runtime access to environment secrets (`ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, `GEMINI_API_KEY`) and shell-execution capability. Attacker crafts a PR with an injection payload in the title; agent executes shell commands (`whoami`, `ps auxeww`, `env`); agent posts results as PR comment.
 
@@ -366,7 +366,7 @@ Affected agents:
 - Google Gemini CLI Action.
 - GitHub Copilot Agent.
 
-Vendor response: bug bounties paid; quiet patches; no broad CVE advisory issued. The structural issue (untrusted PR content interpolated into agent prompts that have shell access) was patched per-vendor, but the *pattern* generalizes and likely affects other agents with similar architecture.
+Vendor response: bug bounties paid; quiet patches; no broad CVE advisory issued. The structural issue (untrusted PR content interpolated into agent prompts that have shell access) was mitigated per-vendor by Anthropic and Google (GitHub classified it as a known architectural limitation), but the *pattern* generalizes and likely affects other agents with similar architecture.
 
 Doctrinal lessons:
 
@@ -493,7 +493,7 @@ What you protect, in rough priority order:
 - **GDPR (EU customers).** Customer source code may contain PII; DPA required. Customer-data-residency requirements may force per-region LLM endpoints.
 - **HIPAA (US healthcare).** If a healthcare customer's source contains PHI references or test data, you're a business associate. BAA required.
 - **FedRAMP (US gov).** Self-hosted / on-prem deployment is likely the only viable shape; SaaS multi-tenant is hard to FedRAMP-certify.
-- **EU AI Act (full enforcement August 2026).** AI-PR-review tools likely fall under "limited risk" or "high risk" depending on use; transparency, logging, and human-oversight requirements apply.
+- **EU AI Act (high-risk obligations deferred to December 2027 by the 2026 Digital Omnibus).** AI-PR-review tools likely fall under "limited risk" or "high risk" depending on use; transparency, logging, and human-oversight requirements apply.
 - **DORA (EU financial services, January 2025).** Vendor-resilience and operational-risk requirements apply if you serve EU FS customers.
 
 Cross-link `[[reference-privacy-engineering]]` for the operational compliance patterns.
@@ -502,7 +502,7 @@ Cross-link `[[reference-privacy-engineering]]` for the operational compliance pa
 
 Speculative — marked accordingly.
 
-**(Speculative)** The category is consolidating. The current count of ~15 viable AI-PR-review vendors is unlikely to be sustained through 2027; expect M&A and shutdowns. Funding-rich players (CodeRabbit at scale, Greptile at $180M+ valuation, Cursor BugBot inside Anysphere) likely consolidate or remain; mid-tier players likely get acquired or pivoted.
+**(Speculative)** The category is consolidating. The current count of ~15 viable AI-PR-review vendors is unlikely to be sustained through 2027; expect M&A and shutdowns. Funding-rich players (CodeRabbit at scale, Greptile at a reported $180M valuation, Cursor BugBot inside Anysphere) likely consolidate or remain; mid-tier players likely get acquired or pivoted.
 
 **(Speculative)** Self-hosted shifts from optional to required for regulated industries. EU AI Act enforcement, DORA, and US gov FedRAMP requirements push the open-source / self-host option (qodo PR-Agent, OSS forks) into prominence. Vendors that don't offer self-host lose regulated-industry deals.
 
@@ -522,12 +522,12 @@ Bios verified via neutral-phrased web search. Where I could not verify a claim, 
 
 - **Johann Rehberger** ("Embrace The Red"). Independent security researcher; long-running blog at embracethered.com. Disclosed GitHub Copilot RCE via prompt injection (CVE-2025-53773), AI-injection primitives in Devin AI, Google Jules, Microsoft Copilot. Organized "The Month of AI Bugs 2025." The primitive catalog at embracethered.com is the central public resource for AI-tool prompt-injection patterns. Verified via multiple cross-references in 2025-2026 security press.
 - **Aim Labs / Aim Security** (aim.security). Disclosed EchoLeak (CVE-2025-32711) in Microsoft 365 Copilot, June 2025. Coined "LLM Scope Violation" and "RAG spraying" as named patterns. Primary publication at the Aim Security research page; CVE record at MITRE. Verified via cross-references in Varonis, Cato Networks, Checkmarx, Dark Reading 2025 coverage.
-- **Kudelski Security Research** (Suisse SA). Disclosed PwnedRabbit / CodeRabbit RCE in January 2025 (publicly published August 2025). Primary article: research.kudelskisecurity.com/2025/08/19/how-we-exploited-coderabbit/. Verified via vendor blog response and multiple security-press summaries.
+- **Kudelski Security Research**. Disclosed PwnedRabbit / CodeRabbit RCE in January 2025 (publicly published August 2025). Primary article: kudelskisecurity.com/research/how-we-exploited-coderabbit-from-a-simple-pr-to-rce-and-write-access-on-1m-repositories. Verified via vendor blog response and multiple security-press summaries.
 - **Ari Marzouk** (MaccariTA). Security researcher; disclosed IDEsaster (30+ AI-IDE vulnerabilities) in December 2025. Primary publication: The Hacker News coverage December 2025; researcher's own write-up via personal blog. Verified via Hacker News coverage cited above.
 - **Birgitta Boeckeler.** Distinguished Engineer / Global Lead for AI-assisted Software Delivery at ThoughtWorks. Twenty years industry experience. Writes on AI-assisted-development practice (code churn analysis, AI-first delivery, agentic AI). Primary venues: ThoughtWorks Insights, QCon London talks, personal blog at birgitta.info. Verified via ThoughtWorks role page and multiple recent talks.
-- **Hillel Wayne.** Independent consultant focusing on formal specification (TLA+); writes on software engineering practice including AI's impact on engineering work. Blog at hillelwayne.com. Has written on AI eliminating "dead time" in engineering and AI's impact on testing roles. Note: Hillel's primary domain is formal methods, not AI-PR-review specifically; cited here for the broader AI-assisted-development context. Verified via personal site and active newsletter.
-- **GitHub Security Lab.** GitHub's security research arm, launched 2019. Maintains CodeQL, hunts vulnerabilities in OSS, and publishes Copilot security research. Recent: Copilot Coding Agent integrates with CodeQL for autofix as of October 2025. Primary venue: github.blog/security and securitylab.github.com. Verified via GitHub blog.
-- **Johns Hopkins / Anthropic collaboration** (Comment-and-Control disclosure). Researchers from Johns Hopkins University working with Anthropic disclosed the multi-vendor PR-bot exfil class in late 2025. Primary venue: VentureBeat coverage 2026. Specific researcher names not publicly attributed in coverage; treating as the institutional pairing rather than naming individuals to avoid fabrication.
+- **Hillel Wayne.** Independent consultant focusing on formal specification (TLA+); writes on software engineering practice including AI's impact on engineering work. Blog at hillelwayne.com. Note: Hillel's primary domain is formal methods, not AI-PR-review specifically; cited here for the broader AI-assisted-development context. Verified via personal site and active newsletter.
+- **GitHub Security Lab.** GitHub's security research arm, launched 2019. Maintains CodeQL, hunts vulnerabilities in OSS, and publishes Copilot security research. Recent: Copilot Coding Agent runs CodeQL-based security validation on its code as of October 2025. Primary venue: github.blog/security and securitylab.github.com. Verified via GitHub blog.
+- **Aonan Guan, with Johns Hopkins University researchers Zhengyu Liu and Gavin Zhong** (Comment-and-Control disclosure). Published the multi-vendor PR-bot exfil class in April 2026. Primary venue: VentureBeat and SecurityWeek coverage 2026.
 
 Dropped from this list (mentioned in scope but not sufficiently verified for an attributed bio):
 

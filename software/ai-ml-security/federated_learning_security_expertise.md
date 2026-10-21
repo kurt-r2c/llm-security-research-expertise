@@ -27,7 +27,7 @@
 > - **Virat Shejwalkar** and **Amir Houmansadr** (UMass Amherst) — "Manipulating the Byzantine:
 >   Optimizing Model Poisoning Attacks and Defenses for Federated Learning" (NDSS 2021). The
 >   adaptive-attack paper. Demonstrated that the then-current robust-aggregation defenses
->   (Krum / Trimmed Mean / Median / Bulyan / FLTrust) all admit attacker-optimized bypass.
+>   (Krum / Multi-krum / Bulyan / Trimmed-mean / Median / AFA) all admit attacker-optimized bypass.
 > - **Peva Blanchard**, **El Mahdi El Mhamdi**, **Rachid Guerraoui**, **Julien Stainer** (EPFL) —
 >   "Machine Learning with Adversaries: Byzantine Tolerant Gradient Descent" (NeurIPS 2017),
 >   the Krum paper. First-order byzantine-robust aggregator.
@@ -49,9 +49,9 @@
 >   (CVPR 2021). Batch-scale gradient inversion.
 > - **Franziska Boenisch**, **Adam Dziedzic**, **Roei Schuster**, **Ali Shahin Shamsabadi**,
 >   **Ilia Shumailov**, **Nicolas Papernot** — "When the Curious Abandon Honesty: Federated Learning
->   Is Not Private" (EuroS&P 2023, arXiv:2112.02918). The "Robbing the Fed" line: a malicious
->   server crafts model architecture to embed *trap layers* that leak individual client data even
->   under SecAgg + DP. The structural lesson: server-side architecture control is itself a privacy
+>   Is Not Private" (EuroS&P 2023, arXiv:2112.02918). A dishonest server modifies the shared
+>   model's weights (*trap weights*) to recover client data exactly from gradients; the follow-up
+>   (arXiv:2301.04017) uses sybil devices to reconstruct data even under distributed DP + SecAgg. The structural lesson: server-side architecture control is itself a privacy
 >   attack vector.
 > - **Mislav Balunović**, **Dimitar I. Dimitrov**, **Nikola Jovanović**, **Martin Vechev** (ETH
 >   Zurich) — "LAMP: Extracting Text from Gradients with Language Model Priors" (NeurIPS 2022,
@@ -276,7 +276,7 @@ DLG is the foundational result. Every subsequent gradient-inversion paper improv
 
 ### 4.3 Robbing the Fed (malicious-server architecture)
 
-Boenisch et al., EuroS&P 2023. The structural-novelty paper.
+Fowl et al., "Robbing the Fed" (ICLR 2022), and Boenisch et al. (EuroS&P 2023). The structural-novelty papers.
 
 Earlier gradient-inversion work assumed an honest model architecture and asked: can the server
 recover training data from the observed gradients? Robbing the Fed inverts the question: if the
@@ -310,7 +310,9 @@ LAMP uses a language-model prior to reconstruct the input text from the gradient
 text-classification model. The honest framing: text-domain gradient inversion is no longer
 a hypothetical. NLP FL deployments have the same gradient-leakage exposure as vision ones.
 
-The earlier "Cocktail Party Attack" naming is informal; the published artifact is LAMP.
+The "Cocktail Party Attack" (Kariyappa et al., ICML 2023) is a separate published attack: it
+treats aggregated fully-connected-layer gradients as a blind source separation problem and uses
+ICA to recover inputs from aggregates over as many as 1024 samples.
 
 ### 4.5 Batch-size as defense parameter
 
@@ -571,9 +573,6 @@ modular arithmetic) or discrete Gaussian.
 - **Google Gboard next-word prediction.** Cross-device FL with FedAvg. Production-scale DP
   has been published in research papers; the operational ε values per release are not
   generally public [unverified specific advisory].
-- **Meta FBLearner Flow** is reported in public documentation to use DP-style mechanisms for
-  some internal aggregation pipelines; specific FL deployment details are not public to the
-  level needed to audit [unverified specific advisory].
 
 ### 7.5 The composition problem
 
@@ -643,10 +642,9 @@ attack against FL plus every attack against SL.
 
 ### 8.4 NoPeek and noise-based defenses
 
-Vepakomma et al., "NoPeek" (ICDM workshops 2020). DP-style noise added to the cut-layer
-activations to reduce mutual information between activations and raw input. Comparable to
-client-side DP for FL: the noise is added by the client, the server sees only noisy
-activations.
+Vepakomma et al., "NoPeek" (ICDM workshops 2020). The client adds a distance-correlation
+term to its training loss, minimizing distance correlation between the cut-layer activations
+and the raw input.
 
 Same tradeoff as DP-FL: utility degrades with noise scale; the privacy guarantee depends on
 honest noise calibration.
@@ -662,11 +660,11 @@ to that bar are marked [unverified specific advisory].
 - **Gboard next-word prediction** (Google). Cross-device FL with FedAvg + DP. Production since
   the FedAvg paper (2017) and progressively extended. The motivating production example for
   most of the field.
-- **iOS QuickType / Siri / Lookup** (Apple). Local DP for federated analytics since 2017;
+- **iOS QuickType / Siri / Lookup** (Apple). Local DP for federated analytics since 2016;
   federated learning expansion to model training documented in subsequent Apple machine
   learning research blog posts.
 - **NVIDIA FLARE** (NVIDIA Federated Learning Application Runtime Environment). Healthcare /
-  cross-silo focus. Used by FeTS and other clinical FL consortia. Ships with SecAgg and DP
+  cross-silo focus. Ships with homomorphic-encryption-based secure aggregation and DP
   modules.
 - **Owkin Substra** (Owkin / open-source via Linux Foundation AI). Cross-silo healthcare FL
   platform. Cancer-research consortia, including the MELLODDY pharmaceutical consortium for
@@ -707,7 +705,7 @@ is actually used. Default examples often skip SecAgg for tutorial readability.
 
 ### 10.2 Flower (flower.ai)
 
-Framework-agnostic FL library. Ships with FedAvg, FedProx, SCAFFOLD, and additional
+Framework-agnostic FL library. Ships with FedAvg, FedProx, and additional
 aggregation strategies. Security is mostly user-configured: the strategy plugin is where
 robust-aggregation and DP get composed.
 
@@ -718,15 +716,13 @@ using a non-default strategy?
 ### 10.3 TensorFlow Federated (TFF)
 
 Google's reference implementation. Production-grade for Google's own use cases (Gboard).
-Externally, TFF has been less battle-tested — third-party deployments are uncommon. The
-public Google production deployments are not running open-source TFF; they are running
-internal Google infrastructure that shares lineage with TFF.
+Externally, TFF has been less battle-tested — third-party deployments are uncommon.
 
 ### 10.4 NVIDIA FLARE
 
-Healthcare-focused cross-silo FL. Ships with SecAgg and DP modules; documentation is oriented
+Healthcare-focused cross-silo FL. Ships with homomorphic-encryption-based secure aggregation and DP modules; documentation is oriented
 toward healthcare-grade deployments. Integration with Confidential Computing (NVIDIA H100 CC,
-Intel SGX) is supported.
+AMD SEV-SNP) is supported.
 
 ### 10.5 FedML (TensorOpera / fedml.ai)
 
@@ -736,7 +732,7 @@ template chosen.
 
 ### 10.6 OpenFL (Intel)
 
-Cross-silo, with first-class Confidential Computing integration. The OpenFL + SGX (or TDX)
+Cross-silo, with first-class Confidential Computing integration. The OpenFL + SGX
 combination is the canonical "TEE-attested aggregator" deployment shape. See §11 and
 [[reference_confidential_computing]].
 
@@ -811,7 +807,7 @@ aggregator with a small TCB and a sound side-channel posture, you do not need Se
 pairwise-mask gymnastics and you can run central-DP with utility costs. The "if" is doing
 work.
 
-For cross-silo healthcare and finance, this composition (OpenFL + SGX / TDX, or NVIDIA FLARE
+For cross-silo healthcare and finance, this composition (OpenFL + SGX, or NVIDIA FLARE
 + H100 CC) is increasingly the production answer. For cross-device FL at Gboard scale, TEE
 on the aggregator is feasible but the client side cannot easily attest its own behavior, so
 client-side malicious-client poisoning (§3) remains the dominant threat.
