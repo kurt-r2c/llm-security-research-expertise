@@ -8,11 +8,11 @@ Register: imperative. The reader has 10M shipped devices and an inbound bug repo
 
 ## 1. Why this playbook is distinct from `[[reference-rtos-embedded-os]]`
 
-`[[reference-rtos-embedded-os]]` is a reference catalog. It enumerates the kernels you might ship on (Zephyr, FreeRTOS, RT-Thread, mbedOS, NuttX, VxWorks, QNX, ThreadX), the TCP/IP-stack vulnerability corpus (Ripple20, URGENT/11, INFRA:HALT, AMNESIA:33, NAME:WRECK, NUMBER:JACK, BadAlloc — collectively Forescout's Project Memoria), and the in-kernel defenses (MPU regions, TrustZone-M, ARMv8-M secure-state partitioning). It answers: "what attacks exist against the OS and stack on this device?"
+`[[reference-rtos-embedded-os]]` is a reference catalog. It enumerates the kernels you might ship on (Zephyr, FreeRTOS, RT-Thread, mbedOS, NuttX, VxWorks, QNX, ThreadX), the TCP/IP-stack vulnerability corpus (Ripple20, URGENT/11, BadAlloc, and Forescout's Project Memoria: AMNESIA:33, NUMBER:JACK, NAME:WRECK, INFRA:HALT), and the in-kernel defenses (MPU regions, TrustZone-M, ARMv8-M secure-state partitioning). It answers: "what attacks exist against the OS and stack on this device?"
 
 This playbook answers a different question: "how does the operations team build resilience around a fleet of devices that ships and stays in the field for five to fifteen years?" It is OS-agnostic. It is supplier-agnostic. It assumes you have already chosen a kernel and a BSP — `[[reference-rtos-embedded-os]]` and `[[reference-firmware-embedded-security]]` cover those choices. Here we cover what the org does once a device is in customer hands.
 
-The distinction is not academic. Mirai (2016) was not an RTOS bug. Mirai was an operations failure: factory-default credentials, no update channel, no telemetry, no decommissioning policy. Krebs's writeup at `krebsonsecurity.com/2016/10/source-code-for-iot-botnet-mirai-released/` and Symantec's October 2016 analysis both attribute the 600 Gbps DDoS — and the subsequent 1.2 Tbps Dyn attack — to operational primitives that this playbook is designed to prevent: default passwords on Telnet ports, no firmware-update mechanism, devices on the public internet without segmentation. The vulnerabilities were ordinary. The operations were absent.
+The distinction is not academic. Mirai (2016) was not an RTOS bug. Mirai was an operations failure: factory-default credentials, no update channel, no telemetry, no decommissioning policy. Krebs's writeup at `krebsonsecurity.com/2016/10/source-code-for-iot-botnet-mirai-released/` and Symantec's October 2016 analysis both attribute the 600 Gbps DDoS — and the subsequent Dyn attack — to operational primitives that this playbook is designed to prevent: default passwords on Telnet ports, no firmware-update mechanism, devices on the public internet without segmentation. The vulnerabilities were ordinary. The operations were absent.
 
 VPNFilter (Cisco Talos, May 2018, `blog.talosintelligence.com/vpnfilter`) tells the same story from the state-actor side. Sandworm achieved persistence on 500,000+ SOHO routers (Linksys, MikroTik, Netgear, TP-Link, QNAP) by exploiting old CVEs against devices that had no update channel and no telemetry-back-to-vendor. The kernel was incidental. The operations gap was the vulnerability.
 
@@ -52,7 +52,7 @@ Frame your operations program around five phases. Each has an owner, a small set
 
 **KPI:** zero devices ship with shared identity material. Provisioning yield is tracked.
 
-**Failure mode:** the vendor ships a single hardcoded device key across a product line. The 2017 ESP32 secure-boot bypass and the 2020 NXP LPC55S69 fault-injection key-leak are reference incidents.
+**Failure mode:** the vendor ships a single hardcoded device key across a product line. The 2019 ESP32 fault-injection secure-boot bypass (CVE-2019-15894) and the 2021 NXP LPC55S69 undocumented ROM-patch-peripheral flaw (CVE-2021-31532) are reference incidents.
 
 ### Phase 3 — Deployment and telemetry-from-the-field
 
@@ -148,7 +148,7 @@ This is the most operationally important section. A shipped device without a wor
 Pick one and standardize:
 - **Mender** (`mender.io`) — A/B partition updates, robust delivery infrastructure, common on industrial Linux.
 - **RAUC** (`rauc.io`) — A/B and rootfs updates, common on automotive Linux and industrial gateways.
-- **swupdate** (`sbabic.github.io/swupdate`) — image and incremental updates, BSD-style packaging.
+- **swupdate** (`sbabic.github.io/swupdate`) — image and incremental updates.
 - **SWUpdate** + **hawkBit** for management plane (the Eclipse Foundation stack).
 - **ESP-IDF OTA** for ESP32 devices; **Zephyr MCUboot** for Zephyr / nRF / STM32 microcontrollers.
 - Vendor proprietary — Tesla, Apple (over the years), most automotive Tier 1s; only justify proprietary if your scale demands it.
@@ -162,7 +162,7 @@ Anti-rollback fuse policy: burn the fuse for a specific version only after telem
 ### 4.3 Update-payload signing
 
 The update is a signed package. Operational requirements:
-- **Algorithm.** Ed25519 for new designs on resource-constrained MCUs (32 bytes signature, fast verify, no parameter footguns). RSA-PSS-2048 if you must interoperate with PKCS#11 HSMs that don't support Ed25519. Avoid RSA-PKCS#1 v1.5 for new designs; the 2023 Bleichenbacher-style attacks on padding-oracle implementations and the 2024 "Marvin attack" (NIST PQC-related disclosures) are sufficient reason.
+- **Algorithm.** Ed25519 for new designs on resource-constrained MCUs (64-byte signature, fast verify, no parameter footguns). RSA-PSS-2048 if you must interoperate with PKCS#11 HSMs that don't support Ed25519. Avoid RSA-PKCS#1 v1.5 for new designs; the 2023 "Marvin attack" (Hubert Kario, Red Hat), a Bleichenbacher-style timing attack on RSA PKCS#1 v1.5 decryption implementations, is sufficient reason.
 - **Root key in HSM** (see §2 Phase 2).
 - **Key rotation plan.** Document the cadence and the rollover procedure. The plan exists before you ship v1.0.
 - **Defense in depth.** The bootloader verifies the bundle signature; the OS verifies individual file hashes after unpack. Independent code paths.
@@ -170,7 +170,7 @@ The update is a signed package. Operational requirements:
 ### 4.4 Delivery infrastructure
 
 - **CDN-fronted** for typical consumer / commercial scale. Sign the bundle; the CDN does not need a trust relationship.
-- **P2P (BitTorrent-style)** for very large fleets or constrained backhaul. Tesla and Mozilla (for Firefox at one point) have used this; the bundle signature is what makes it safe.
+- **P2P (BitTorrent-style)** for very large fleets or constrained backhaul. The bundle signature is what makes it safe.
 - **Local-network propagation** — devices on a LAN can share an update bundle with each other after the first device fetches and verifies. Common in industrial deployments behind constrained uplinks.
 - **Bandwidth shaping** — do not push a 200 MB update to 10M devices in the same minute. Phased rollout (see §4.5) handles this naturally.
 
@@ -191,8 +191,8 @@ The procedure exists in writing before it happens.
 - **Immediate halt** on the rollout (canary or stage gate).
 - **Telemetry triage** — what is the failure signature? Boot-loop? Network detach? Single sub-population (one hardware rev, one regional firmware variant)?
 - **Hot-fix push** — if A/B revert succeeded, the fleet is mostly OK and you push a corrected update. If revert is also failing, you have a deeper problem.
-- **RMA path** — for bricks that revert cannot recover from, document the RMA process before the rollout begins. The Tesla 2023 OTA recall (FMVSS Part 573 notice) is a reference case.
-- **Customer communication** — proactive. Within 48 hours. Acknowledge, describe scope, give an ETA. The 2024 Ring "factory reset" incident (where a buggy update reset device configurations) escalated because Amazon initially under-communicated.
+- **RMA path** — for bricks that revert cannot recover from, document the RMA process before the rollout begins. The Tesla 2023 OTA recall (NHTSA Part 573 report 23V-838) is a reference case.
+- **Customer communication** — proactive. Within 48 hours. Acknowledge, describe scope, give an ETA.
 
 ### 4.7 Update-cadence policy
 
@@ -245,7 +245,7 @@ Threshold: if you publish more than 5-10 CVEs/year in your own products, become 
 
 ### 5.6 OT:ICEFALL and the multi-vendor pattern
 
-Forescout's OT:ICEFALL disclosure (June 2022, `forescout.com/research-labs/icefall/`) covered 56 vulnerabilities across 10 OT vendors (Honeywell, Motorola, Omron, Siemens, Emerson, JTEKT, Bentley Nevada, Yokogawa, Phoenix Contact, Schneider). The category was "insecure-by-design" — protocols that were never designed for authentication. The coordination playbook here is unusual: where there is no fix, there is no embargo. The disclosure was about visibility for asset owners, not a fix. Operations implication: if your supplier disclosure path receives an "insecure by design" report, the answer is a compensating-controls advisory, not a firmware fix.
+Forescout's OT:ICEFALL disclosure (June 2022, `forescout.com/research-labs/icefall/`) covered 56 vulnerabilities across 10 OT vendors (Bently Nevada, Emerson, Honeywell, JTEKT, Motorola, Omron, Phoenix Contact, Siemens, Yokogawa, and one vendor not publicly named). The category was "insecure-by-design" — protocols that were never designed for authentication. The coordination playbook here is unusual: where there is no fix, there is no embargo. The disclosure was about visibility for asset owners, not a fix. Operations implication: if your supplier disclosure path receives an "insecure by design" report, the answer is a compensating-controls advisory, not a firmware fix.
 
 ### 5.7 Anti-patterns
 
@@ -313,7 +313,7 @@ Cross-link `[[reference-supply-chain-provenance]]` for the SLSA / sigstore / in-
 - Sign the SBOM (in-toto attestation or cosign).
 - Publish alongside the firmware (`firmware-1.2.3.bin`, `firmware-1.2.3.cdx.json`, `firmware-1.2.3.cdx.json.sig`).
 
-Tools: `syft` (Anchore), `cyclonedx-cli`, vendor-specific (Yocto's `create-spdx.bbclass`, Buildroot's `BR2_LEGAL_INFO=y`).
+Tools: `syft` (Anchore), `cyclonedx-cli`, vendor-specific (Yocto's `create-spdx.bbclass`, Buildroot's `make legal-info`).
 
 ### 7.2 VEX
 
@@ -344,7 +344,7 @@ GitHub Actions Artifact Attestations and Sigstore's `cosign` give you most of th
 Default policy: disable in production. Mechanisms:
 - ARM Cortex-M: read DBGMCU registers; on STM32 use `RDP Level 2` (irreversible after first deployment).
 - NXP / Microchip: secure-debug authentication where supported.
-- ESP32: efuse `JTAG_DISABLE` and `DOWNLOAD_DIS_TWO_STEP_BOOT`.
+- ESP32: efuse `JTAG_DISABLE` and `UART_DOWNLOAD_DIS` (ESP32 V3 and newer).
 
 If field-debug is required: per-device challenge-response, gated by a server-side authorization, not a master key burned into the silicon vendor's HSM that an internal employee can walk off with.
 
@@ -399,8 +399,8 @@ Blameless. Internal first; published-summary version within 90 days of incident 
 ### 9.1 Supported-lifetime policy
 
 Documented before launch. Minimums:
-- **EU CRA** — "expected product lifetime" with a minimum of 5 years for consumer products entering the EU market after Dec 2027.
-- **FDA medical device** — for the device's intended service life, often 7-15 years. The 2025 FDA Premarket Cybersecurity Guidance (final document, "Cybersecurity in Medical Devices: Quality System Considerations and Content of Premarket Submissions," FDA-2018-D-3443) makes this an explicit pre-market submission requirement.
+- **EU CRA** — "expected product lifetime" with a minimum of 5 years for products with digital elements placed on the EU market from Dec 11, 2027.
+- **FDA medical device** — for the device's intended service life, often 7-15 years. The 2025 FDA Premarket Cybersecurity Guidance (final document, "Cybersecurity in Medical Devices: Quality System Considerations and Content of Premarket Submissions," FDA-2021-D-1158) makes this an explicit pre-market submission requirement.
 - **Automotive** — UNECE R155 and R156 effectively require lifetime updates; OEMs commit to 10-15 years.
 - **Industrial / OT** — often 15-25 years of operational life; the vendor must commit to security maintenance for at least 10 of those.
 
@@ -412,18 +412,18 @@ What does the device do once it is past EOL? Tradeoffs:
 - **Display banner / LED indicator** — Apple's approach on old iPhones; user-visible without bricking.
 - **Reduced-functionality mode** — degrade gracefully (e.g. local-only operation, cloud features off).
 
-Document the policy in the product spec. The 2022 Insteon shutdown (cloud went dark with hours of notice) is a worst-case reference; Sonos's handling of legacy speakers (degraded mode, eventual EOL trade-in program) is a better case.
+Document the policy in the product spec. The 2022 Insteon shutdown (cloud went dark without warning) is a worst-case reference; Sonos's handling of legacy speakers (degraded mode, eventual EOL trade-in program) is a better case.
 
 ### 9.3 Cloud-backend decommissioning
 
 - Certificate chain — when does the backend cert chain expire? Plan rotation past the device fleet's life.
 - Telemetry pipeline — what runs the analytics on a fleet of 100K devices ten years post-launch?
 - Customer data — GDPR and CCPA require deletion on EOL where applicable; document the retention schedule.
-- Open-source contribution — if you EOL the product, consider open-sourcing the firmware so the community can keep it alive. The HP LaserJet community and the Synology DSM jailbreak scene are precedents.
+- Open-source contribution — if you EOL the product, consider open-sourcing the firmware so the community can keep it alive.
 
 ### 9.4 Customer notification
 
-Minimum 12 months pre-EOL for consumer products (FTC fairness guidelines and various state consumer-protection laws). For B2B and industrial, the contract specifies; commonly 24-36 months. The notification:
+Minimum 12 months pre-EOL for consumer products. For B2B and industrial, the contract specifies; commonly 24-36 months. The notification:
 - Names the date.
 - Names what will and will not work post-EOL.
 - Offers a trade-in or migration path if available.
@@ -458,7 +458,7 @@ In force since January 2020. Requires "reasonable security feature(s)" for conne
 
 ### 10.4 NIST IR 8259 / 8259A / 8259B
 
-NIST IR 8259 ("Foundational Cybersecurity Activities for IoT Device Manufacturers"), 8259A ("Core Device Cybersecurity Capability Baseline"), 8259B ("Non-Technical Supporting Capability Core Baseline"). Together they give the operational reference for what an IoT-manufacturer security program looks like. Reference for executive briefings and audit programs.
+NIST IR 8259 ("Foundational Cybersecurity Activities for IoT Device Manufacturers"), 8259A ("IoT Device Cybersecurity Capability Core Baseline"), 8259B ("IoT Non-Technical Supporting Capability Core Baseline"). Together they give the operational reference for what an IoT-manufacturer security program looks like. Reference for executive briefings and audit programs.
 
 ### 10.5 ETSI EN 303 645
 
@@ -466,7 +466,7 @@ European consumer IoT security baseline, published 2020. 13 high-level provision
 
 ### 10.6 FDA Premarket / Postmarket Cybersecurity (medical)
 
-Premarket Cybersecurity Guidance, final 2023 (with 2025 updates) — FDA-2018-D-3443. Postmarket Management of Cybersecurity in Medical Devices, 2016. The "SBOM mandate" — premarket submissions must include a machine-readable SBOM (HHS Section 524B of the FD&C Act). Cross-link `[[reference-medical-device-security]]`.
+Premarket Cybersecurity Guidance, final 2023 (with 2025 updates) — FDA-2021-D-1158. Postmarket Management of Cybersecurity in Medical Devices, 2016. The "SBOM mandate" — premarket submissions must include a machine-readable SBOM (Section 524B of the FD&C Act). Cross-link `[[reference-medical-device-security]]`.
 
 ### 10.7 UNECE R155 / R156 (automotive)
 
@@ -478,7 +478,7 @@ NERC CIP-002 through CIP-013 cover bulk-electric-system OT. CIP-013 specifically
 
 ### 10.9 CISA Secure-by-Design pledge
 
-Voluntary US program launched at RSA 2024. Seven goals: MFA adoption, default passwords reduction, reduction of one or more vulnerability classes, security patches at scale, published VDP, CVE transparency, evidence of intrusions. Signing the pledge is a public commitment with annual progress reporting.
+Voluntary US program launched at RSA 2024. Seven goals: MFA adoption, default passwords reduction, reduction of one or more vulnerability classes, security patches at scale, published VDP, CVE transparency, evidence of intrusions. Signing the pledge is a public commitment to publicly document progress within one year of signing.
 
 ---
 
@@ -529,19 +529,18 @@ In priority order — number one is the first thing to put in writing.
 
 ### Anchor incidents referenced (for searchability)
 
-- **Mirai botnet** (Krebs, October 2016; Symantec analysis) — 600 Gbps OVH and 1.2 Tbps Dyn DDoS via default-credential Telnet on consumer IoT.
+- **Mirai botnet** (Krebs, October 2016; Symantec analysis) — 620 Gbps KrebsOnSecurity, ~1 Tbps OVH and 1.2 Tbps Dyn DDoS via default-credential Telnet on consumer IoT.
 - **VPNFilter** (Cisco Talos, May 2018) — Sandworm-attributed compromise of 500,000+ SOHO routers.
 - **Ring credential-stuffing** (Motherboard, December 2019) — account takeover surfacing as live camera audio.
 - **Ripple20** (JSOF, June 2020, CERT/CC VU#257161) — 19 CVEs in Treck TCP/IP stack across hundreds of millions of devices.
 - **URGENT/11** (Armis, July 2019) — 11 CVEs in VxWorks IPnet.
-- **Verkada** (March 2021; APT-Reporter and Bloomberg coverage) — cloud-backend compromise yielding live access to 150,000 cameras; cross-link `[[reference-building-automation-security]]`.
-- **TP-Link Archer A7 family** — recurring Pwn2Own SOHO category target across 2019-2024.
-- **Hide N Seek (HNS)** botnet (Bitdefender, January 2018) — peer-to-peer IoT botnet, BitTorrent-DHT C2.
-- **Mozi botnet** (360 Netlab, December 2019 onward) — successor to Mirai/Hajime, DHT-based, persistent on many SOHO routers and DVRs until 2023 takedown.
+- **Verkada** (March 2021; Bloomberg coverage) — cloud-backend compromise yielding live access to 150,000 cameras; cross-link `[[reference-building-automation-security]]`.
+- **TP-Link Archer A7 family** — Pwn2Own Tokyo 2019 router target.
+- **Hide N Seek (HNS)** botnet (Bitdefender, January 2018) — peer-to-peer IoT botnet, custom-built P2P C2.
+- **Mozi botnet** (360 Netlab, December 2019 onward) — reuses Gafgyt code, DHT-based like Hajime, persistent on many SOHO routers and DVRs until 2023 takedown.
 - **OT:ICEFALL** (Forescout, June 2022) — 56 vulnerabilities across 10 OT vendors; "insecure-by-design" multi-vendor disclosure.
-- **Tesla 2023 OTA recall** — FMVSS Part 573 notice for Autosteer-related OTA fix; reference for "the recall happens by software push, but it is still a recall."
-- **Ring 2024 reset incident** — buggy update reset device configurations; reference for §4.6 (when an update bricks devices).
-- **Bybit $1.4B Lazarus heist** (February 2025) — out-of-scope here, but the operational lesson on update-pipeline trust transfers; cross-link `[[reference-blockchain-wallet-consensus]]`.
+- **Tesla 2023 OTA recall** — 49 CFR Part 573 recall report for Autosteer-related OTA fix; reference for "the recall happens by software push, but it is still a recall."
+- **Bybit $1.5B Lazarus heist** (February 2025) — out-of-scope here, but the operational lesson on update-pipeline trust transfers; cross-link `[[reference-blockchain-wallet-consensus]]`.
 
 ### Status
 
