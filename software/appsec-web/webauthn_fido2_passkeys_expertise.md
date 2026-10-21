@@ -7,15 +7,15 @@
 >   FIDO U2F protocol and a foundational contributor to the WebAuthn / CTAP2 design. The
 >   asymmetric-crypto-per-origin model — sign a fresh challenge with a domain-bound key, with
 >   no shared secret to phish — descends from his U2F work at Google.
-> - **Vijay Bharadwaj** (Microsoft; W3C WebAuthn co-editor). Editor on WebAuthn Level 1, Level 2,
->   and the Level 3 working drafts. The Microsoft-side Windows Hello + WebAuthn integration
+> - **Vijay Bharadwaj** (Microsoft; former W3C WebAuthn editor). Listed as a former editor on WebAuthn
+>   Level 1, Level 2, and Level 3. The Microsoft-side Windows Hello + WebAuthn integration
 >   reflects his spec work directly.
 > - **Mike Jones** (Self-Issued Consulting; formerly Microsoft Identity Standards Architect).
 >   W3C WebAuthn co-editor; JOSE / JWT / OIDC spec history covered in
 >   [[reference-saml-federation]]. The COSE algorithm registry used by WebAuthn
 >   `pubKeyCredParams` flows from his JOSE work. https://self-issued.info/
-> - **Emil Lundberg** (Yubico, Senior Software Engineer). Maintainer of Yubico's
->   `java-webauthn-server` (webauthn4j) and `python-fido2` libraries; co-editor of WebAuthn
+> - **Emil Lundberg** (Yubico, Software Engineer). Maintainer of Yubico's
+>   `java-webauthn-server` library; co-editor of WebAuthn
 >   Level 2 and Level 3. The practitioner counterweight to the spec-author side: when an RP
 >   library is wrong, it is usually wrong in a way that Lundberg has already documented.
 >   https://github.com/Yubico
@@ -26,29 +26,29 @@
 >   implementation and the corresponding caBLE / hybrid-transport protocol; the imperialviolet.org
 >   blog is the canonical practitioner-side primary source for WebAuthn cryptographic decisions.
 >   https://www.imperialviolet.org/
-> - **Tim Cappalli** (Microsoft, Identity Standards). FIDO Alliance contributor and Passkeys
+> - **Tim Cappalli** (Okta). FIDO Alliance contributor and Passkeys
 >   Working Group member. The cross-vendor passkey UX work (autofill / Conditional UI /
 >   recovery flows) reflects his coordination across Apple, Google, and Microsoft.
-> - **Akshay Kumar** and **Christiaan Brand** (Google, Chrome / Google Identity). Brand is the
+> - **Akshay Kumar** (Microsoft) and **Christiaan Brand** (Google). Brand is the
 >   long-time Google FIDO2 product lead; his presentations are the load-bearing primary source
 >   for the Google Password Manager + Chrome passkey rollout shape.
-> - **Nick Steele** (Trustona, then independent; FIDO Alliance contributor). The
+> - **Nick Steele** (Duo Labs, then 1Password; W3C WebAuthn invited expert). The
 >   webauthn.guide / webauthn.io maintainer; the practitioner-grade introduction documentation
 >   that most RP integrators read first. https://webauthn.guide/
 > - **Matthew Miller** (`MasterKale`; SimpleWebAuthn maintainer). The TypeScript/Node WebAuthn
 >   RP library used by a large fraction of production deployments. The library's documentation
 >   pages cover spec subtleties — signCount semantics, RP ID scoping, attestation verification
 >   — at the level a working RP engineer needs. https://simplewebauthn.dev/
-> - **Yolan Romailler** (formerly Kudelski Security, now Cryptography Engineer at Inversed Tech).
->   The 2017 ROCA disclosure with Matus Nemec, Marek Sys, Petr Svenda, and Vashek Matyas
+> - **Matus Nemec, Marek Sys, Petr Svenda, Dusan Klinec, and Vashek Matyas** (Masaryk
+>   University). The 2017 ROCA disclosure
 >   (CVE-2017-15361): factorable RSA keys from Infineon TPMs, which directly affected hardware
 >   tokens generating RSA keys on Infineon RSALib chips. The canonical anchor for "authenticator
 >   firmware crypto bugs are catastrophic" in the WebAuthn / FIDO2 corpus.
 >   https://crocs.fi.muni.cz/public/papers/rsa_ccs17
 > - **Thomas Roche** (NinjaLab). The EUCLEAK side-channel disclosure (2024) on Infineon
 >   SLE78-class secure elements, affecting YubiKey 5 firmware versions below 5.7. ECDSA-nonce
->   side-channel extraction over the NFC transport; remote-capable under specific physical
->   conditions. The canonical real-world example of an FIDO2-certified roaming key falling to a
+>   side-channel extraction via electromagnetic measurements; requires physical access to the
+>   device and specialized equipment. The canonical real-world example of an FIDO2-certified roaming key falling to a
 >   hardware-level cryptographic side-channel.
 >   https://ninjalab.io/eucleak/
 > - **Kurt Boberg (`kurt-r2c`)** — Semgrep staff researcher. Cross-link to the broader
@@ -74,9 +74,9 @@ CTAP2 is the wire protocol the browser uses to talk to an external authenticator
 NFC, or BLE.
 
 **WebAuthn Level 1** reached W3C Recommendation status in March 2019. **Level 2** followed
-in April 2021, adding large-blob storage, `credentialProtectionPolicy`, and the
-`getClientCapabilities` extensions hook. **Level 3** was a Candidate Recommendation through
-2024 and progressed toward Recommendation in 2025; it adds Conditional UI (autofill), the
+in April 2021, adding large-blob storage and the `credProps` extension. **Level 3** was a Working Draft through
+2025, became a Candidate Recommendation in January 2026, and a W3C Recommendation in
+August 2026; it adds Conditional UI (autofill), the
 `backupEligibility` and `backupState` flags, the `prf` extension, and PRF-based password
 encryption for cross-device use.
 
@@ -191,7 +191,7 @@ attestation statement. The authenticator data is a flat byte string:
 
 ```
 RP ID Hash (32 bytes, SHA-256 of RP ID)
-Flags (1 byte): ED BS BE AT 0 UV 0 UP
+Flags (1 byte): ED AT 0 BS BE UV 0 UP
 Sign Count (4 bytes, big-endian)
 [ AT=1 → attestedCredentialData ]
    AAGUID (16 bytes)
@@ -203,9 +203,9 @@ Sign Count (4 bytes, big-endian)
 
 Flag bits (least to most significant): **UP** (User Presence — the user touched the key /
 authenticator). **UV** (User Verification — the user satisfied a PIN, biometric, or other
-verification). **AT** (Attested credential data present). **ED** (Extension data present).
-**BE** (Backup Eligibility — the credential is permitted to be synced). **BS** (Backed up —
-the credential has already been synced to a cloud account). The `BE` + `BS` flags are the
+verification). **BE** (Backup Eligibility — the credential is permitted to be synced).
+**BS** (Backed up — the credential has already been synced to a cloud account). **AT**
+(Attested credential data present). **ED** (Extension data present). The `BE` + `BS` flags are the
 load-bearing 2024-2026 addition; RPs use them to distinguish hardware-bound from synced
 credentials.
 
@@ -274,7 +274,7 @@ the user sees any prompt.
 ## 4. Attestation chains
 
 Attestation proves to the RP that the authenticator is what it claims to be. The WebAuthn
-spec defines six standard attestation statement formats plus `none`.
+spec defines seven standard attestation statement formats plus `none`.
 
 | Format | Used by | Chain anchor |
 |---|---|---|
@@ -283,7 +283,7 @@ spec defines six standard attestation statement formats plus `none`.
 | `fido-u2f` | Legacy U2F-only roaming keys | Vendor attestation CA (per-batch) |
 | `tpm` | Windows Hello (TPM 2.0) | TPM EK (Endorsement Key) root |
 | `android-key` | Android StrongBox-backed credentials | Google Hardware Attestation Root |
-| `android-safetynet` / `android-play-integrity` | Android software-backed credentials | Google Play Integrity API |
+| `android-safetynet` | Android software-backed credentials | SafetyNet attestation API |
 | `apple` | Touch ID / Face ID platform authenticators | Apple WebAuthn Root CA |
 
 **Packed format** is the generic FIDO2 default. The attestation statement contains a
@@ -324,19 +324,15 @@ vendor-specific.
 Passkeys created on iOS / iPadOS / macOS sync to iCloud Keychain. The sync stream is
 end-to-end encrypted using the iCloud Keychain key hierarchy (a per-user master key derived
 from device-PIN-protected escrow records). Apple's published threat model describes the
-sync layer as end-to-end encrypted with the user's iCloud Recovery Contact as the only
-cloud-side recovery path. The credential is bound to the iCloud account, not to the device.
-
-When a passkey is created on iOS, the authenticator returns `BE=1, BS=0` (eligible for
-backup, not yet backed up). After the next iCloud Keychain sync (typically minutes), the
-flags become `BE=1, BS=1`. The RP sees both states in the wild during the initial sync
-window.
+sync layer as end-to-end encrypted, with recovery through an HSM-protected escrow record
+that requires the iCloud account password, an SMS to a registered phone number, and the
+device passcode. The credential is bound to the iCloud account, not to the device.
 
 ### 5.2 Google Password Manager (Android + Chrome)
 
 Android passkeys (Android 9+ on capable hardware) sync via Google Password Manager. The
-sync stream is end-to-end encrypted; the user's Google account password and a device-side
-PIN-encrypted key are required for sync recovery. Chrome on desktop (Linux/macOS/Windows)
+sync stream is end-to-end encrypted; a new device needs the Google Password Manager PIN or
+the screen lock of an existing Android device to access synced passkeys. Chrome on desktop (Linux/macOS/Windows)
 participates in the same sync via the Google account credential manager.
 
 ### 5.3 Microsoft
@@ -351,7 +347,7 @@ account scenarios.
 1Password, Bitwarden, Dashlane, Proton Pass, and KeePassXC (as of 2024+ releases) all
 implement passkey storage. The integration shape is either a browser extension that
 intercepts the WebAuthn API or a platform credential-provider plugin (iOS 17+ Credential
-Provider Extensions, Android 14+ Credential Manager API, macOS Sequoia Credential Provider
+Provider Extensions, Android 14+ Credential Manager API, macOS Sonoma Credential Provider
 framework). The threat model is: the password manager's vault becomes the holder of
 passkeys, with the same encryption-at-rest and unlock-PIN protections as for passwords.
 
@@ -363,13 +359,12 @@ development. The desktop browser displays a QR code containing an ephemeral hand
 keypair and tunnel coordinates; the user's phone scans the QR with the platform
 authenticator's deep-link handler. The phone establishes BLE proximity to the desktop
 (proving physical co-location) and then opens a Noise-protocol-encrypted tunnel through a
-FIDO-Alliance-operated relay server. The actual CTAP2 GetAssertion flows through the tunnel.
+relay server operated by Google or Apple. The actual CTAP2 GetAssertion flows through the tunnel.
 
 The hybrid transport has three load-bearing properties: the QR contains a fresh handshake
 keypair (the tunnel server cannot read the assertion); BLE proximity proves the phone is
 near the desktop (defeating remote relay over the open internet); the tunnel server is
-operated by the FIDO Alliance and a small number of vendor mirrors (a centralization point,
-but with no plaintext access).
+operated by Google or Apple (a centralization point, but with no plaintext access).
 
 ### 5.6 Honest 2026 framing on passkey sync
 
@@ -409,9 +404,10 @@ defense — pin to known-good AAGUIDs and reject unknown ones at registration. C
 
 The EUCLEAK side-channel disclosure (Roche, NinjaLab, 2024) on Infineon SLE78-class secure
 elements affected the YubiKey 5 firmware family below 5.7. The attack extracts an ECDSA
-private key via NFC-side-channel measurements during the signature operation. The
+private key via electromagnetic side-channel measurements during the signature operation,
+with physical access to the device. The
 disclosure shape — a hardware-side-channel attack on the cryptographic primitive of a
-FIDO2-certified L2 authenticator — anchors the "hardware authenticator firmware is the
+FIDO2-certified authenticator — anchors the "hardware authenticator firmware is the
 load-bearing trusted code path" failure mode catalogued in §13.
 
 ### 6.3 Bluetooth proximity exploits on hybrid transport
@@ -437,10 +433,11 @@ The browser enforces origin binding for WebAuthn. Documented bypass surfaces:
   vendor) can drive WebAuthn ceremonies that the RP's main flow accepts. Defense: use the
   narrowest viable RP ID; do not collapse multiple business units into a single eTLD+1 RP
   ID.
-- **Cross-origin iframe** scenarios. Pre-Level-2, embedded iframes could initiate WebAuthn
-  ceremonies. Level 2 introduced the `publickey-credentials-get` Permissions Policy / Feature
-  Policy directive; Level 3 added `publickey-credentials-create`. RPs that have not opted
-  into restrictive Permissions Policy still permit cross-origin frame ceremonies.
+- **Cross-origin iframe** scenarios. Level 1 rejected ceremonies from cross-origin frames
+  (`sameOriginWithAncestors`). Level 2 introduced the `publickey-credentials-get` Permissions
+  Policy / Feature Policy directive; Level 3 added `publickey-credentials-create`. The default
+  allowlist is `self`, so a cross-origin frame can run a ceremony only when the embedding page
+  delegates it with an `allow` attribute or Permissions-Policy header.
 - **Mixed-content scenarios**. WebAuthn requires a Secure Context (HTTPS / localhost). RPs
   that serve their login flow under HTTPS but have a misconfigured CSP allowing HTTP iframe
   inclusion can break the trust assumption in subtle ways.
@@ -479,17 +476,7 @@ Integrity raised the bar by binding the attestation to hardware-backed key attes
 capable devices. The bypass surface for Play Integrity is narrower but not zero —
 specifically on older devices that still depend on the software-evaluated `BASIC` integrity
 verdict rather than `STRONG`. Enterprise RPs requiring high assurance should pin to
-`STRONG_INTEGRITY` and reject `BASIC` or `MEETS_DEVICE_INTEGRITY` only.
-
-### 6.8 CVE-2024-30040 — Windows MSHTML platform spoofing
-
-Microsoft addressed a Windows MSHTML platform spoofing vulnerability under
-CVE-2024-30040 (May 2024 Patch Tuesday) affecting browser-rendered content paths and
-Mark-of-the-Web bypass on Office documents. The vulnerability surface overlapped with
-Edge / Windows credential-UI rendering paths. The specific WebAuthn-CredUI interaction
-modes affected are documented in the MSRC advisory; treat the WebAuthn-specific impact as
-`[unverified specific advisory]` and consult MSRC directly. Anchor primary source:
-https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-30040.
+`MEETS_STRONG_INTEGRITY` and reject `MEETS_BASIC_INTEGRITY` or `MEETS_DEVICE_INTEGRITY` only.
 
 ### 6.9 Authenticator firmware bugs
 
@@ -509,17 +496,12 @@ unfixable for issued units (you replace the hardware). Cross-link
 The FIDO Alliance runs the FIDO Functional Certification (interoperability) and the FIDO
 Authenticator Certification (security). Authenticator levels:
 
-- **L1** — basic. The authenticator's crypto and key protection are evaluated to FIDO's L1
-  requirements; the implementation is shown to resist software-only attacks.
-- **L2** — software protection plus protections against malware on the host. Most software
-  passkey implementations target L2.
+- **L1** — basic. The authenticator implements the FIDO specifications; protects against
+  phishing and credential abuse.
+- **L2** — software protection plus protections against malware on the host.
 - **L3** / **L3+** — hardware-backed key protection with attestation chain to a hardware
-  root of trust. Roaming keys (YubiKey 5, Google Titan, SoloKey 2) and Secure-Enclave /
-  StrongBox / TPM-backed platform authenticators target L3 or L3+.
+  root of trust.
 
-L3+ adds laboratory-tested resistance to side-channel and fault-injection attacks. The
-EUCLEAK disclosure on Infineon SLE78 specifically pierced the L3+ certification on affected
-parts; the certification is bounded by the labs' attack catalog at the time of evaluation.
 `[unverified specific advisory]` — the FIDO Alliance maintains the list of
 certified-and-still-trusted parts at https://fidoalliance.org/certification/, which an
 enterprise procurement should consult before bulk purchase.
@@ -540,8 +522,8 @@ The NIST 800-63B-4 draft cycle treats synced passkeys as AAL2-eligible but not A
 because the credential portability undermines the "in-the-physical-possession-of" property
 AAL3 requires. The published Federal-government guidance lands the same way: AAL3 contexts
 (e.g., privileged-access management) require hardware-bound keys; AAL2 contexts permit
-passkey sync. The final NIST 800-63B-4 wording was still under public-comment iteration
-in 2025 — consult the latest revision directly.
+passkey sync. NIST published the final SP 800-63B-4 in July 2025 — consult the
+latest revision directly.
 
 ### 7.3 Enterprise allowlist via AAGUID
 
@@ -554,8 +536,6 @@ APPROVED_AAGUIDS = {
     # YubiKey 5 series (FIDO2)
     "ee882879-721c-4913-9775-3dfcce97072a": "YubiKey 5 USB",
     "fa2b99dc-9e39-4257-8f92-4a30d23c4118": "YubiKey 5 NFC",
-    # Google Titan (USB-A / Bluetooth)
-    "ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4": "Titan USB-A",
     # ... and so on, from FIDO MDS
 }
 
@@ -640,20 +620,20 @@ specifying a transport. The browser, knowing the user has no local platform auth
 matching the RP ID, displays a QR code containing:
 
 - A fresh ECDH P-256 public key (the desktop browser's tunnel handshake key).
-- A 16-byte tunnel ID and a tunnel server hint.
-- A handful of bit flags identifying the protocol version.
+- A 16-byte random QR secret and the number of assigned tunnel server domains.
+- Optional fields: the current time, a state-assisted-transaction flag, and a user-flow hint.
 
-The QR is encoded as a `fido://` URI containing the base32url-encoded payload. The user
+The QR is encoded as a `FIDO:/` URI followed by digit-encoded data (seven-byte chunks written as 17-digit base-10 numbers). The user
 scans the QR with the platform authenticator's deep-link handler (iOS Camera app, Android
 Camera app, or the platform credential manager's scan-QR action). The phone:
 
-1. Decodes the `fido://` URI.
+1. Decodes the `FIDO:/` URI.
 2. Generates its own ECDH P-256 keypair.
-3. Connects to the indicated FIDO-Alliance-operated tunnel server, identified by the tunnel
+3. Connects to the indicated tunnel server, identified by the tunnel
    ID, and opens a Noise-protocol-encrypted channel to the desktop side.
 4. Establishes BLE proximity to the desktop — broadcasts an ephemeral BLE advertisement that
-   the desktop scans for. The BLE handshake derives a shared secret with the desktop's
-   ECDH key, proving physical co-location.
+   the desktop scans for. The advert is encrypted and authenticated with keys derived from the
+   QR secret, proving physical co-location.
 5. Performs the CTAP2 GetAssertion over the Noise tunnel.
 6. Returns the assertion to the desktop, which returns it from the WebAuthn API call.
 
@@ -662,8 +642,7 @@ Camera app, or the platform credential manager's scan-QR action). The phone:
 Before caBLE, "I have a passkey on my phone, I'm on a desktop" required either pairing the
 phone as a Bluetooth keyboard, or installing a desktop credential helper, or moving the
 passkey to a roaming USB key. caBLE removes the cross-device passkey friction at the cost
-of two new dependencies: a centralized tunnel server (operated by the FIDO Alliance and
-vendor mirrors) and the BLE proximity binding.
+of two new dependencies: a centralized tunnel server and the BLE proximity binding.
 
 The desktop and phone use the tunnel server only as a relay; the Noise tunnel terminates at
 the two endpoints, so the tunnel server has no plaintext access to the assertion. The BLE
@@ -673,11 +652,11 @@ proxy the QR scan from a legitimate phone to an attacker desktop.
 ### 8.3 Attack surface
 
 - **BLE relay**. The proximity binding is the load-bearing defense. A BLE relay extending
-  the range of the proximity check defeats it. Practical relays in 2024-2026 research
-  literature reach tens of meters with off-the-shelf hardware. The user still has to
+  the range of the proximity check defeats it. Published BLE relay research (WiSec 2022)
+  relayed signals over 90 m with low-cost hardware. The user still has to
   authorize the assertion on the phone (biometric / PIN), so the attack is "trick the user
   into approving a prompt for the wrong site" rather than silent.
-- **QR phishing**. The attacker displays a `fido://` QR generated against an attacker
+- **QR phishing**. The attacker displays a `FIDO:/` QR generated against an attacker
   desktop the user thinks is the legitimate site. The phone authenticates to the
   attacker-controlled tunnel; if the attacker's desktop relays to the real RP, the user's
   authentication completes on the attacker's session. The Noise tunnel and the RP-side
@@ -685,7 +664,7 @@ proxy the QR scan from a legitimate phone to an attacker desktop.
   the attacker desktop is talking to; only that the desktop is requesting authentication
   for some RP ID, which the phone shows on its UI. The user-visible prompt on the phone is
   the load-bearing defense; users skipping past it is the failure mode.
-- **Tunnel server compromise**. The FIDO-Alliance-operated tunnel server is a
+- **Tunnel server compromise**. The tunnel server is a
   centralization point. Compromise does not yield plaintext access (Noise tunnel is
   end-to-end), but does enable traffic analysis (which user is authenticating to which RP,
   inferred from tunnel-coordination metadata) and selective denial of service.
@@ -710,14 +689,14 @@ Chrome implements WebAuthn Level 3, including Conditional UI, hybrid transport, 
 `prf` extension. Chrome's WebAuthn surface is the most-deployed; Chrome on macOS routes
 platform-authenticator requests to Touch ID via the Apple WebAuthn API; Chrome on Windows
 routes to Windows Hello / TPM via the platform WebAuthn API; Chrome on Linux supports
-roaming keys but has no platform authenticator. Chrome on Android binds to the Google
+roaming keys and stores passkeys in Google Password Manager. Chrome on Android binds to the Google
 Password Manager. The Chromium WebAuthn unit tests are public and worth consulting for
 edge-case behavior.
 
 ### 9.2 Firefox (Gecko)
 
-Firefox implements WebAuthn Level 2 plus parts of Level 3. Mozilla's roadmap (as of 2024+
-public discussion) targets Conditional UI and `prf` extension for full Level 3 parity.
+Firefox implements WebAuthn Level 2 plus parts of Level 3, including Conditional UI and the
+`prf` extension (Firefox 135 on Windows / Linux, Firefox 139 on macOS).
 Firefox's platform-authenticator support depends on the host OS's WebAuthn integration;
 Firefox on macOS supports Touch ID via the platform API.
 
@@ -726,8 +705,7 @@ Firefox on macOS supports Touch ID via the platform API.
 Safari implements WebAuthn Level 3 with Apple-specific integration: iCloud Keychain
 passkey storage, Touch ID / Face ID platform authentication, the AutoFill flow that
 includes passkey credentials alongside passwords. Safari's WebAuthn implementation is the
-load-bearing one for iOS passkey UX; the WebKit Web Inspector exposes WebAuthn ceremony
-internals for debugging.
+load-bearing one for iOS passkey UX.
 
 ### 9.4 Edge (Chromium-based)
 
@@ -778,12 +756,12 @@ interoperable as Python packages.
 
 ### 10.3 webauthn4j (Java)
 
-Yubico-maintained Java RP library. `com.webauthn4j:webauthn4j-core`. Spring Security
+Java RP library by Yoshikazu Nojima. `com.webauthn4j:webauthn4j-core`. Spring Security
 integrations are community-maintained. Used widely in enterprise Java back-ends.
 
 ### 10.4 go-webauthn (Go)
 
-Community-maintained at `github.com/go-webauthn/webauthn`. Used by Gitea, Mattermost, and
+Community-maintained at `github.com/go-webauthn/webauthn`. Used by Gitea and
 other Go-stack production deployments.
 
 ### 10.5 Fido2NetLib (.NET)
