@@ -41,7 +41,7 @@ Section I and Section IV for full Cui treatment.
 ### Jos Wetzels — Forescout Vedere Labs
 
 Security researcher at Forescout (formerly SecurityMatters, acquired
-2018). Active in IETF (DNS WG, OPSAWG) — contributed to RFC 9267 ("Common
+2018). Co-author of RFC 9267 ("Common
 Implementation Anti-Patterns Related to DNS RR Processing") codifying
 embedded-DNS lessons from NAME:WRECK. Co-author across all five Project
 Memoria phases.
@@ -65,9 +65,10 @@ Key disclosures (co-authored with dos Santos, Dashevskyi, Amri):
 
 Tools: project-memoria-detector
 (github.com/Forescout/project-memoria-detector) — TCP/IP stack
-fingerprinting with detection signatures for 16+ embedded stacks (Treck,
-IPnet/VxWorks, NicheStack, uIP, lwIP variants, picoTCP, Nucleus NET,
-NetX, FNET, Nut/Net, FreeBSD-derived).
+fingerprinting with detection signatures for 16 embedded stacks (uIP/Contiki,
+picoTCP, Nut/Net, FNET, Nucleus NET, CycloneTCP, NDKTCPIP, uC/TCP-IP,
+MPLAB Harmony Net, NicheStack, FreeBSD, Microsoft ThreadX, CMX TCP/IP,
+emNet, Keil TCP/IP, lwIP).
 
 ### Daniel dos Santos — Forescout Vedere Labs (Head of Research)
 
@@ -80,7 +81,7 @@ OT:ICEFALL (head researcher; quantified that 74% of vulnerable OT
 product families carried some form of security certification) →
 **Sierra:21** (Dec 2023, 21 CVEs in Sierra Wireless AirLink + TinyXML +
 OpenNDS; 86,000+ exposed devices, <10% patched) → solar power
-infrastructure risk (2024) → annual "Riskiest Connected Medical Devices"
+infrastructure risk (2025) → annual "Riskiest Connected Medical Devices"
 report.
 
 ### Stanislav Dashevskyi — Forescout Vedere Labs (Principal Researcher)
@@ -101,18 +102,18 @@ Android Cryptocurrency Miners."
 ### Zachary Cutlip
 
 Worked with NSA since 2003. Senior researcher at Tactical Network
-Solutions (TNS); now independent. GitHub: github.com/zcutlip.
+Solutions (TNS). GitHub: github.com/zcutlip.
 
 Tool: **Bowcaster** — Python exploit-dev framework focused on MIPS (which
-dominates SOHO routers: Broadcom BCM4708, Atheros AR7240, Ralink RT3050,
+dominates SOHO routers: Atheros AR7240, Ralink RT3050,
 Mediatek MT76xx). Payload encoders, connect-back servers, ROP gadgets,
 SQLi-to-MIPS-buffer-overflow bridge.
 
 Key talks: "From SQL Injection to MIPS Overflows: Rooting SOHO Routers"
 (Black Hat USA 2012) — established the SOHO router playbook on Netgear
-gear; "Part Deux" — extended to more router models; D-Link DSP-W215 +
+gear; D-Link DSP-W215 +
 DIR-815 (2014 Rapid7 update integrated Cutlip's modules into Metasploit);
-"Reverse Engineering and Exploiting the BT HomeHub 3.0b" (44Con).
+"Reversing and Exploiting BT CPE Devices" (44CON 2013).
 
 ### Brian Gorenc — Trend Micro Zero Day Initiative (VP, Threat Research)
 
@@ -122,12 +123,9 @@ and adjudicates Pwn2Own.
 **Pwn2Own Miami** (2020+, S4 Conference) — first ICS Pwn2Own track.
 Categories: Control Server (Iconics Genesis64, Ignition), OPC UA Server
 (Unified Automation, Softing, OPC Foundation .NET Standard), DNP3
-Gateway, HMI (Ignition, AVEVA Edge), Engineering Workstation Software
-(AVEVA Edge Studio, Rockwell Connected Components Workbench, Mitsubishi
-MELSOFT GX Works3). Multiple embedded-RTOS PLCs and HMIs compromised.
+Gateway, HMI (AVEVA Edge), Engineering Workstation Software.
 **Pwn2Own Automotive** (2024+, Tokyo) — Tesla, EV charging, IVI, often
-running embedded Linux or QNX. ZDI aggregate disclosure: >11,000
-vulnerabilities over a decade.
+running embedded Linux or QNX.
 
 ZDI is the primary commercial pipeline for 0-days in proprietary
 RTOS-based products (HMIs, PLCs, gateways, medical, infotainment).
@@ -138,12 +136,6 @@ Per-CVE advisory model complements Forescout's blog-plus-CVE-block model.
 Researcher at Enigmatos; previously Checkpoint and Israeli national
 service. Linux internals, low-level vulns, embedded devices. Published
 at PoC||GTFO, CCC, HITCON.
-
-Key publication: "VxWorks: Execute My Packets" (Exodus Intelligence,
-Aug 2016) — three pre-Armis VxWorks vulns (DHCP client/server overflow,
-DNS client stack overflow). The research thread foreshadowed the broader
-VxWorks attack surface that Armis subsequently mined for URGENT/11 —
-demonstrates IPnet stack was known-fragile well before 2019.
 
 ### Ben Seri — Armis Security (VP, Research)
 
@@ -161,8 +153,8 @@ shared-supply-chain disclosure crossing RTOS vendor boundaries.
 
 Section 52 (Azure Defender for IoT research). **BadAlloc** (April 2021)
 catalogued 25+ CVEs across embedded memory allocators. Affected vendors:
-Amazon (FreeRTOS), Apache (Nucleus NET), ARM (mbed OS), BlackBerry (QNX),
-Cesanta (Mongoose OS), Google (Tianocium), Linux Foundation (Zephyr —
+Amazon (FreeRTOS), Apache (NuttX), ARM (mbed OS), BlackBerry (QNX),
+Cesanta (Mongoose OS), Google (Cloud IoT Device SDK), Linux Foundation (Zephyr —
 earlier versions), Micrium, NXP, RedHat, Samsung Tizen RT, Texas
 Instruments, Wind River (VxWorks). Pattern: `malloc(VALUE)` with
 attacker-controlled VALUE; integer overflow during size calculation;
@@ -302,10 +294,10 @@ LwM2M, CoAP, MQTT, OPC UA, EtherCAT subsystems in mainline.
 
 Security posture: active Security Working Group (SWG) and PSIRT (CNA
 status). Embargo period up to 90 days (30-day fix + 60-day downstream).
-Vulnerability-alerts mailing list at silver+ membership tier. Known issue
+Vulnerability-alerts mailing list seeded with a contact from each project member. Known issue
 corpus: Bluetooth LE Mesh OOB writes during provisioning (CVE-2022-1041/1042
 plus 2025 GHSA-8wvr-688x-68vr / GHSA-r3j3-c5v7-2ppf), Synopsys CyRC
-Defensics LE fuzzing (CVE-2021-3434 through CVE-2021-3441, fixed 2.6.0),
+Defensics LE fuzzing (CVE-2021-3430 through CVE-2021-3435, CVE-2021-3454, CVE-2021-3455, fixed 2.6.0),
 multiple IPv6/DHCPv4/DNS parser CVEs. EU CRA workstream documented under
 doc/security/standards/cyber-resilience-act.rst.
 
@@ -348,7 +340,7 @@ including bundled scripts, disable USB-MSC in production.
 
 Apache 2.0 RTOS from Shanghai team. Widely deployed in Chinese consumer
 and industrial IoT. PSA Certified Level 1 (Cortex-M33 baseline). Modular
-like Zephyr; networking, DFS filesystem, LVGL GUI. 2023 hn security
+like Zephyr; networking, DFS filesystem, LVGL GUI. 2024 hn security
 disclosure: CVE-2024-24334/24335 (dfs_v2 heap/buffer overflows),
 CVE-2024-25389 (weak random), CVE-2024-25392/25394/25395 (utility-side
 OOB). Bog-standard C memory corruption; audit posture catching up.
@@ -376,8 +368,8 @@ parsing has had reports on the PX4 side.
 ### VxWorks (Wind River, proprietary, 1987)
 
 Dominant industrial / aerospace / defense RTOS for the previous three
-decades. Mars rover Curiosity, F-35, Boeing 787 avionics partitions,
-NASDAQ trading systems, BMW iDrive (early gens). 2 billion devices at
+decades. Mars rover Curiosity, Boeing 787 avionics partitions,
+BMW iDrive (early gens). 2 billion devices at
 peak per Wind River. Wind River independent since 2018 Intel spinout;
 Aptiv-acquired 2022.
 
@@ -394,8 +386,7 @@ Security history:
 VxWorks 7 (2014+): microkernel option, Real-Time Process (RTP) model with
 true MMU-isolated processes, user-mode networking, separation kernel
 option for IMA. Material architectural improvement; installed base
-dominated by older 6.x where the gain is unavailable. Common Criteria
-EAL4 certified VxWorks 7 variants; DO-178C DAL-A certified Cert
+dominated by older 6.x where the gain is unavailable. DO-178C DAL-A certified Cert
 Platform. Certifications constrain architecture but not implementation
 (URGENT/11 was implementation).
 
@@ -458,7 +449,7 @@ from Berlin Free University; TinyOS mostly historical now. **TI-RTOS**
 (Texas Instruments). **Micrium µC/OS-II/III** (Silicon Labs, open-sourced
 2020 under Apache, industrial controls). **CMSIS-RTOS2 RTX5** (Arm
 reference). **Nucleus RTOS** (Siemens, NUCLEUS:13-vulnerable). **Apache
-Mynewt** (Nordic-flavored Linux Foundation). **Tock** (research RTOS in
+Mynewt** (Apache Software Foundation; originally developed by Runtime). **Tock** (research RTOS in
 Rust; memory-safety story; OpenSK security keys).
 
 ---
@@ -485,8 +476,7 @@ disclosure record:
 
 Common bug classes in this corpus:
 
-- **Heap overflow in DHCP option parsing** — Ripple20 CVE-2020-11896 (CVSS
-  10), URGENT/11 CVE-2019-12257 (DHCP Offer/ACK parsing in Ipdhcpc), Zimperium
+- **Heap overflow in DHCP option parsing** — URGENT/11 CVE-2019-12257 (DHCP Offer/ACK parsing in Ipdhcpc), Zimperium
   FreeRTOS+TCP CVE-2018-16602.
 - **DNS message compression pointer abuse** — NAME:WRECK pattern; the RFC
   1035 compression pointer (offset back into the message) was misimplemented
@@ -505,8 +495,9 @@ For review of any embedded device with a network interface, the TCP/IP
 stack should be the first target of attention. Identifying the stack is
 itself the first step: project-memoria-detector
 (github.com/Forescout/project-memoria-detector) provides fingerprints for
-16+ embedded stacks based on observable behaviors (ICMP timestamp offset,
-TCP options ordering, IP TTL defaults, DHCP option enumeration). If the
+16 embedded stacks based on observable behaviors (malformed ICMP echo
+replies and TTL, TCP options in the SYN-ACK, TCP Urgent flag handling,
+HTTP/SSH/FTP banners). If the
 stack matches a known-vulnerable version, the CVE list is the starting
 point. If the stack is unknown, fuzzing the parser is the productive next
 step (Section IX).
@@ -523,7 +514,7 @@ trackers inherit and rarely patch.
 
 ### USB stack
 
-The most common physical-access surface. Facedancer + USBFuzz (USENIX
+The most common physical-access surface. USBFuzz (USENIX
 Security 2020) found 26 USB-driver bugs across desktop OSes; RTOS-side
 stacks (FreeRTOS USB, Zephyr USB, ThreadX USBX, NuttX usbhost) have
 received less fuzz attention. Treat USB device classes (HID, MSC, CDC, ACM,
@@ -556,7 +547,7 @@ Most embedded devices ship a built-in HTTP server for configuration
 (routers, cameras, IoT hubs, ICS engineering interfaces). Hand-rolled or
 small libraries (boa, goAhead, miniHTTPd, RomPager). RomPager
 "Misfortune Cookie" CVE-2014-9222 affected 12 million home routers across
-~200 ISPs. 2020 F5 BIG-IP TMUI RCE (CVE-2020-5902, exploited by Mirai
+~200 device models. 2020 F5 BIG-IP TMUI RCE (CVE-2020-5902, exploited by Mirai
 variants) is a "server-grade product with embedded-style architecture"
 example.
 
@@ -662,17 +653,13 @@ devices will never be patched in their service lifetime.
 
 ### VxWorks 7 hardening and the certification reality
 
-VxWorks 7 (2014+) introduced microkernel option and Real-Time Process
-(RTP) model with MMU-isolated processes; an RTP-isolated network stack
-cannot corrupt kernel state directly. Most fielded VxWorks 7 deployments
-don't use RTP because retrofitting 6.x apps requires source changes; the
-improvement is mostly available only to fresh-on-7 products.
+VxWorks 7 (2014+) introduced a microkernel option; the Real-Time Process
+(RTP) model with MMU-isolated processes dates to VxWorks 6.x. An
+RTP-isolated network stack cannot corrupt kernel state directly.
 
 INTEGRITY-178B's 2008 EAL6+ High Robustness certification is real
 engineering — separation kernel, strict partitioning, formally-analyzed
-small kernel. Toolchain (Green Hills MULTI + GHS compiler) is part of
-the certification scope, which is why GHS compiler is proprietary and
-not replaceable. Disclosed INTEGRITY/PikeOS vulns are rare-and-publishable;
+small kernel. Disclosed INTEGRITY/PikeOS vulns are rare-and-publishable;
 deployment is mostly military so commercial researchers can't easily
 acquire targets.
 
@@ -702,15 +689,15 @@ freeze kernel at product-development start. Common fielded versions as of
 2026: 2.6.x (historical but real), 3.10/3.18 (Allwinner/Mediatek/Broadcom
 BSPs), 4.4/4.9/4.14 (LTS, often past LTS EOL), 4.19/5.4/5.10 (modern-IoT
 baseline), 5.15/6.1/6.6 (new hardware). Each LTS has 1000+ CVEs over its
-lifetime; SUSE estimates ~4000 kernel CVEs filed per year. Most aren't
+lifetime; SUSE notes the kernel CNA issued 4500+ CVEs across 2024-2025. Most aren't
 reachable on every embedded build (subsystem-dependent) but any 5+-year-
 old embedded Linux device has many open CVEs. Yocto cve-check and
 Buildroot pkg-stats scan but don't deploy fixes.
 
 **BusyBox CVE corpus**: dominant userspace toolbox. 2021 disclosure
 (CVE-2021-42373 through 42386, Claroty + JFrog) added 14 CVEs across
-awk (9), hush (2), ash (1), man/lzma/unlzma (1 each); 10 of 14 enable
-RCE. CVE-2022-48174 (ash stack overflow, fixed 1.35+) extended the
+awk (9), hush (2), ash (1), man (1), lzma/unlzma (1); 10 of 14 possibly
+enable RCE. CVE-2022-48174 (ash stack overflow, fixed 1.35+) extended the
 corpus. Affected versions span 1.16 to 1.33.1. JFrog + Claroty
 estimated 40% of inspected firmware bundles a vulnerable applet.
 BusyBox is rarely updated in fielded devices.
@@ -838,13 +825,12 @@ production binaries, multi-architecture support, peripheral-level
 fuzzing (UART, SPI, I2C, network adapters emulated). Limitations:
 approximate peripheral fidelity, DMA semantics may differ from
 hardware, timing-sensitive bugs may not reproduce, hardware-glitching
-bugs not emulated. Renode supports Zephyr, seL4, FreeRTOS, ThreadX,
-NuttX, FreeBSD, Linux.
+bugs not emulated. Renode supports Zephyr, seL4, ThreadX, NuttX,
+Linux.
 
 **"Fuzz the parser, not the whole device"**: the productive approach
 for TCP/IP stack research. Extract parser code, compile as Linux
-userland with libFuzzer/AFL++ harness, fuzz at native speed. Produced
-Ripple20, NUCLEUS:13, much of AMNESIA:33. Translation requires
+userland with libFuzzer/AFL++ harness, fuzz at native speed. Translation requires
 understanding external dependencies (heap, network buffer API,
 byte-order macros) and stubbing safely. Per-stack effort, linear
 payoff.
@@ -858,8 +844,7 @@ corruption is hard to detect without instrumentation.
 
 **Coverage-guided differential fuzzing**: run identical input against
 two implementations of the same protocol (FreeBSD TCP/IP vs lwIP, or
-IPnet vs Treck); divergences are usually a bug in one. Methodology
-behind several Project-Memoria-class findings.
+IPnet vs Treck); divergences are usually a bug in one.
 
 ---
 
@@ -1031,7 +1016,6 @@ finalized 2024) adapting to RTOS. Resource constraints: Kyber-768
 public key 1184 bytes vs ECDSA-P256 64 bytes — embedded with 32KB
 flash budgets can't accommodate both. SPHINCS+ (stateless hash-based)
 is more RTOS-friendly than Dilithium for some signature use cases.
-liboqs (github.com/open-quantum-safe/liboqs) integrated with mbedTLS.
 
 **WebAssembly on MCUs**: Wasm3, WAMR, WasmEdge target MCU-class
 hardware. WebAssembly provides memory-safe execution sandbox by design
@@ -1046,7 +1030,7 @@ runtime cross from Wasm to host.
 M7+M4, ESP32-S3 LX7+LX7+ULP. AMP — different OS per core, IPC via
 shared memory + interrupts; kernel isolation enforced by core
 separation but shared peripherals (flash, USB, network) need
-coordination. SMP — single OS instance spans cores (FreeRTOS SMP 2022,
+coordination. SMP — single OS instance spans cores (FreeRTOS SMP, mainline V11.0.0 2023,
 Zephyr SMP); shared kernel state across cores creates more
 race-condition surface.
 
