@@ -6,17 +6,17 @@
 > *default behavior* in a specific language ecosystem is unsafe, distinct from
 > cross-language bug-class docs (deserialization, cryptography, race conditions,
 > CI/CD supply chain) that cover attack surface by class rather than by language.
-> The 2024-2026 load-bearing updates: Tree Borrows landed as MIRI's aliasing
-> model after winning PLDI'25, replacing Stacked Borrows for production-grade
-> UB detection; the `static_mut_refs` lint became a hard error in Rust 2024
-> edition, closing one of the oldest unsoundness footguns; the Rust Project's
+> The 2024-2026 load-bearing updates: Tree Borrows won a PLDI'25 distinguished
+> paper award and ships in MIRI as an opt-in alternative to Stacked Borrows
+> (still the default); the `static_mut_refs` lint became deny-by-default in the Rust 2024
+> edition, targeting one of the oldest unsoundness footguns; the Rust Project's
 > Safe Transmute initiative (Project Safe Transmute, RFC 2835) progressed to an
 > experimental compiler-supported analysis; the `zerocopy` and `bytemuck`
 > ecosystems now provide first-class derive-macro-based safe transmutation;
-> `cargo-audit` 0.18+ now performs binary auditing via `cargo auditable`
+> `cargo-audit` 0.17.3+ performs binary auditing via `cargo auditable`
 > embedded SBOM metadata; the supply-chain surface continued to be exercised
-> by `build.rs` install-time code execution incidents and PATH-shadowing
-> CVE-2026-33056. The behavioral footgun surface in Rust differs structurally
+> by `build.rs` install-time code execution incidents and the `tar`-crate
+> extraction-permissions flaw in Cargo, CVE-2026-33056. The behavioral footgun surface in Rust differs structurally
 > from the dynamic-language footgun surface: Rust footguns are concentrated in
 > the **`unsafe` keyword**, in the **soundness contract** between safe and
 > unsafe code, and in **runtime-only failure modes** (panic, overflow,
@@ -28,28 +28,25 @@
 >   `Vec` / `HashMap` internals; authored *TURPL: The Unsafe Rust Programming
 >   Language* (the canonical predecessor of the Rustonomicon) during her
 >   internship at Mozilla; the long-running essay corpus at faultlore.com
->   documents the practical reality of writing sound `unsafe` Rust and the
->   "you can't 'just' use the unsafe escape hatch" argument that ships
->   responsibility for soundness back to the safe-code author
-> - **Ralf Jung** — Professor at MPI-SWS (formerly), now at ETH Zürich
+>   documents the practical reality of writing sound `unsafe` Rust
+> - **Ralf Jung** — PhD at MPI-SWS, now assistant professor at ETH Zürich
 >   Programming Language Foundations Lab; PhD thesis "Understanding and
 >   Evolving the Rust Programming Language" (2020); designed and proved
->   Stacked Borrows (POPL 2019) and Tree Borrows (PLDI 2025) as operational
->   aliasing models for Rust; primary author of MIRI (the Rust UB interpreter)
->   and the POPL 2026 paper "Miri: Practical Undefined Behavior Detection for
+>   Stacked Borrows (POPL 2020) and Tree Borrows (PLDI 2025) as operational
+>   aliasing models for Rust; his group develops MIRI (the Rust UB
+>   interpreter); first author of the POPL 2026 paper "Miri: Practical Undefined Behavior Detection for
 >   Rust"; the canonical academic source for what Rust's unsafe semantics
 >   actually mean
 > - **Niko Matsakis** — Senior Principal Engineer at AWS; co-lead of the Rust
 >   language design team; PhD in programming languages from ETH Zürich (2011);
 >   led the design of the Rust borrow checker (the language's central
->   soundness primitive); current co-lead of the Rust Types Team; Project
+>   soundness primitive); Project
 >   Director at the Rust Foundation (appointed October 2025); the long-running
 >   essay corpus at smallcultfollowing.com documents the borrow-checker
 >   design rationale and the Polonius rewrite
 > - **Felix Klock II** (pnkfelix) — Principal Software Engineer at AWS (formerly
 >   Mozilla Research); Rust Compiler Team Maintainer; PhD in programming
->   languages from Northeastern University; one of the original Mozilla
->   engineers placed on Rust in 2009; primary contributor to the Rust
+>   languages from Northeastern University; primary contributor to the Rust
 >   compiler's borrow-checker implementation, NLL (non-lexical lifetimes),
 >   and the dropck (drop-check) discipline
 > - **Steve Klabnik** — formerly Mozilla and Rust core team; co-author of
@@ -58,7 +55,7 @@
 >   primary author of the official Rust Book including Chapter 20 on
 >   unsafe Rust; the institutional voice for "how Rust is taught"
 > - **Manish Goregaokar** (Manishearth) — Rust Project team member; leads
->   the Clippy team, Devtools team, Localization team, Rustfmt contributors,
+>   the Clippy team, Devtools team, Rustfmt contributors,
 >   and Website team; formerly Mozilla Research engineer on Servo; primary
 >   contributor to ICU4X (Unicode Consortium internationalization in Rust);
 >   the corpus at manishearth.github.io is one of the longest-running
@@ -90,7 +87,7 @@
 >   self-referential-future failure mode, and the cancellation-safety
 >   discipline; co-designed several of the canonical async-trait
 >   stabilization paths
-> - **without.boats** (boats / Carl Lerche / Saoirse Shipwreckt) — formerly
+> - **without.boats** (boats / Saoirse Shipwreckt) — formerly
 >   Rust language team async working group; the blog at without.boats has
 >   been the primary technical voice on Pin's design rationale, the
 >   "Pin is not unsafe" framing, and the async cancellation problem;
@@ -276,10 +273,10 @@ that produced UB for most `T` (since uninitialized bit patterns are
 invalid for `bool`, `&T`, `NonZeroU32`, enums, etc.). Deprecated in
 Rust 1.39 for `MaybeUninit<T>` (§ 5).
 
-### 2.4 "You can't 'just' use the unsafe escape hatch" — Gankra
+### 2.4 "You can't 'just' use the unsafe escape hatch"
 
 Pop mythology: "drop down to `unsafe` when the borrow checker is
-wrong." Gankra's counter (echoed by the Rust language team):
+wrong." The counter:
 **`unsafe` does not give you C semantics**. It authorizes specifically
 the five operations under the constraint that all other Rust
 invariants (provenance, aliasing, validity, layout) still hold.
@@ -329,7 +326,7 @@ the crate's purpose. A TLS or SIMD crate has legitimate reasons; a
 
 `std::mem::transmute<T, U>(x: T) -> U` reinterprets the bits of `x`
 as a value of type `U`. The function is `unsafe` and has two
-compile-time requirements:
+requirements (only the size check is enforced at compile time):
 
 - `size_of::<T>() == size_of::<U>()`.
 - The transmutation must not produce a value with an invalid bit pattern
@@ -337,9 +334,8 @@ compile-time requirements:
   Unicode scalar range, a `&T` that does not point to a valid `T`, a
   `NonZeroU32` containing 0).
 
-The std-lib documentation famously warns: "`transmute` is incredibly
-unsafe. There are a vast number of ways to cause undefined behavior with
-this function. `transmute` should be the absolute last resort." The
+The std-lib documentation warns: "This makes `transmute` incredibly
+unsafe. `transmute` should be the absolute last resort." The
 laundry list of UB classes it can produce: pointer-int casts violating
 provenance, lifetime extension creating dangling references, alignment
 violations on later access, layout mismatches between two structs that
@@ -472,13 +468,13 @@ audit finding.
 ### 5.1 The pre-1.36 `mem::uninitialized<T>()` — "one of the worst mistakes"
 
 Pre-Rust-1.36, `mem::uninitialized<T>()` was a *safe* function returning
-an uninitialized `T`. The Rust team subsequently described this as "one
-of the worst mistakes in Rust's design history" — for most `T`, an
+an uninitialized `T`. The `uninit` crate's documentation calls it one of
+the worst mistakes of the language — for most `T`, an
 uninitialized bit pattern is *not* a valid `T` (`bool` must be 0/1;
 `&T` must point at a valid `T`; `NonZeroU32` must not be 0; enums
 require valid discriminants). Mere existence of such a value is UB.
 
-Deprecated Rust 1.39, body panics since 1.48. Replacement: `MaybeUninit<T>`.
+Deprecated Rust 1.39. Replacement: `MaybeUninit<T>`.
 
 ### 5.2 `MaybeUninit<T>::uninit()` — explicitly uninitialized
 
@@ -671,7 +667,7 @@ ness in a trait object is suspicious; lift to the trait definition.
 
 ### 7.6 Async-Drop — unstable
 
-`AsyncDrop` (RFC 3185+) remains nightly-only as of 2026. Resources
+`AsyncDrop` remains nightly-only as of 2026. Resources
 needing async cleanup (DB connection close RPC, WebSocket close frame,
 async buffer flush) **cannot be cleanly released via RAII** on stable
 Rust. Workaround: explicit `async fn close(&mut self)` plus a
@@ -731,8 +727,8 @@ relevant (does the panic indicate state corruption or not?).
 
 ### 8.3 `Arc<RwLock<T>>` writer starvation
 
-`std::sync::RwLock` is *reader-preferring* on most platforms; steady
-reader streams can starve waiting writers. `parking_lot::RwLock` is
+`std::sync::RwLock`'s priority policy depends on the OS and is not
+guaranteed, so steady reader streams may starve waiting writers. `parking_lot::RwLock` is
 writer-preferring and faster but not in `std`.
 
 Security relevance: token cache (readers) + key rotation (writer) with
@@ -869,7 +865,7 @@ verified by other means.
 
 ```rust
 let big: u64 = 1_000_000_000_000;
-let small: u32 = big as u32;  // silently 727379968
+let small: u32 = big as u32;  // silently 3567587328
 ```
 
 Defined behavior (low-order bits) but silent. Clippy
@@ -921,8 +917,7 @@ pub extern "C" fn rust_compute(x: c_int) -> c_int { /* ... */ }
 mangling. `extern "C"` specifies the C ABI.
 
 Audit hazards: calling-convention mismatch (`extern "system"` /
-`"stdcall"` for Windows); type mismatch (`bool` size implementation-
-defined; use `c_int`/`c_char`); lifetime forging (returning
+`"stdcall"` for Windows); type mismatch (use `c_int`/`c_char`); lifetime forging (returning
 `&'static T` from a locally-constructed `T` is UB).
 
 ### 11.2 `*const c_char` vs `&str`
@@ -942,12 +937,13 @@ local that outlives use.
 
 ### 11.3 Panics across FFI — UB
 
-Unwinding across an FFI boundary in plain `extern "C"` is **UB**.
+A Rust panic escaping a plain `extern "C"` fn aborts the process
+(Rust 1.81+; previously UB).
 Stabilized `extern "C-unwind"` (RFC 2945) allows it explicitly.
 
 Audit pattern: every `#[unsafe(no_mangle)] pub extern "C" fn` should
 wrap its body in `catch_unwind` and translate `Err` to an error code.
-Without it, panics corrupt the C caller's stack frame.
+Without it, a panic aborts the process (Rust 1.81+).
 
 ### 11.4 `bindgen` — "trust your headers"
 
@@ -1022,7 +1018,8 @@ Cross-link `code_review_expertise.md` § auth-homogeneity.
 ### 12.4 `serde_yaml` archived; replacements
 
 `serde_yaml` was archived by its maintainer in 2024. Replacements:
-`serde_yml` (drop-in fork, maintained); `yaml-rust2` (YAML 1.2).
+`serde_yaml_ng` or `serde_norway` (maintained forks); `yaml-rust2` (YAML 1.2).
+`serde_yml` is not a replacement: RUSTSEC-2025-0068 (unsound, unmaintained).
 Archival was maintenance burden, not security — both forks inherit
 YAML's billion-laughs (anchor expansion) and YAML-1.1-implicit-type
 (Norway-problem `"no"` → `false`) footguns.
@@ -1037,8 +1034,7 @@ deserializer must know the schema.
 
 Hazards: schema evolution has no built-in versioning (new field →
 breaks old bytes); untagged enums unsupported
-(`DeserializeAnyNotSupported`); bincode 2.x changed wire format for
-`bool`/`Option` from 1.x.
+(`DeserializeAnyNotSupported`).
 
 Cross-link `deserialization_expertise.md` § binary-versioning.
 
@@ -1113,7 +1109,7 @@ security.
 mapping to CVEs where applicable.
 
 `cargo audit` in CI on every PR + a scheduled daily job (catches
-advisories landing after PR merge). 0.18+ adds `cargo audit bin` —
+advisories landing after PR merge). 0.17.3+ supports `cargo audit bin` —
 audits shipped binaries via `cargo auditable` embedded SBOM metadata.
 
 ### 13.7 Procedural macros — compile-time code execution
@@ -1190,9 +1186,8 @@ Extractors fall in two categories:
   composable.
 - **`FromRequest`** — consumes body; **must be last**; one per handler.
 
-Footgun: `Json<T>` (body extractor) before a parts extractor compiles
-but fails at runtime — body already consumed. No Clippy lint; manual
-review or axum-specific tooling.
+`Json<T>` (body extractor) before a parts extractor is a compile
+error — axum requires the body extractor to be the last argument.
 
 ### 15.2 Rocket request guards
 
@@ -1201,7 +1196,7 @@ other guards.
 
 ### 15.3 `actix-web` `web::Json<T>` size limits
 
-Default 32KB; per-route via `JsonConfig::limit(N)`. Audit: every
+Default 2MB; per-route via `JsonConfig::limit(N)`. Audit: every
 body-accepting route should set the limit explicitly even when it
 matches the default — implicit defaults can change between versions.
 
@@ -1251,7 +1246,7 @@ Clippy groups: `correctness`, `suspicious`, `style`, `complexity`,
 
 For security audits enable `pedantic` plus selected `restriction`
 lints: `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`,
-`clippy::indexing_slicing`, `clippy::integer_arithmetic` (crypto-
+`clippy::indexing_slicing`, `clippy::arithmetic_side_effects` (crypto-
 adjacent), `clippy::float_arithmetic` (consensus-adjacent).
 
 ### 16.4 MIRI — the UB detector
@@ -1333,7 +1328,7 @@ When a Rust bug is found, search the codebase + dependencies for:
 
 ### 17.3 Edition-2024 + native async traits migration
 
-- **Edition 2024** — `static_mut_refs` hard error, `unsafe(attr)` for
+- **Edition 2024** — `static_mut_refs` deny-by-default, `unsafe(attr)` for
   sound-critical attributes, tightened `if let` temporary lifetimes.
   Re-audit `static mut` and macro-generated code on migration.
 - **Native async traits** (Rust 1.75+) — codebases mixing native and
@@ -1376,7 +1371,7 @@ memory model); `firmware_embedded_security.md` (`no_std` / embedded);
 
 ### Academic and operational-semantics work
 
-- Stacked Borrows: An Aliasing Model for Rust (POPL 2019): https://plv.mpi-sws.org/rustbelt/stacked-borrows/paper.pdf
+- Stacked Borrows: An Aliasing Model for Rust (POPL 2020): https://plv.mpi-sws.org/rustbelt/stacked-borrows/paper.pdf
 - Tree Borrows (PLDI 2025): https://iris-project.org/pdfs/2025-pldi-treeborrows.pdf
 - Ralf Jung — From Stacks to Trees: A new aliasing model for Rust: https://www.ralfj.de/blog/2023/06/02/tree-borrows.html
 - Miri: Practical Undefined Behavior Detection for Rust (POPL 2026): https://research.ralfj.de/papers/2026-popl-miri.pdf

@@ -5,9 +5,9 @@
 > in CVE-2024-4577 (Orange Tsai / DEVCORE PHP-CGI argument injection via
 > Windows Best-Fit Mapping), the Synacktiv `php_filter_chains_oracle_exploit`
 > error-based file-read primitive, CVE-2024-28859 / CVE-2024-28861 (Symfony 1
-> Swift_KeyCache chains, contributed to PHPGGC), CVE-2024-55555 (Invoice Ninja
+> Swift_KeyCache and sfNamespacedParameterHolder chains, contributed to PHPGGC), CVE-2024-55555 (Invoice Ninja
 > Laravel `decrypt()`-into-`unserialize()`), CVE-2025-1220 (null-byte
-> allowlist bypass in PHP filesystem extensions), and CVE-2025-54236
+> hostname allowlist bypass in `fsockopen()`), and CVE-2025-54236
 > ("SessionReaper" pre-auth Magento RCE chain disclosed by Blaklis).
 >
 > **Scope:** This is a **behavioral-footgun** doc. It catalogs PHP-internal
@@ -33,12 +33,8 @@
 >   as pre-auth RCE in any application with a user-reachable Phar gadget.
 > - **Charles Fol** (@cfreal_, also @cfreal on GitHub) — Security researcher at
 >   LEXFO / Ambionics. Author of PHPGGC (https://github.com/ambionics/phpggc),
->   the canonical PHP-gadget-chain generator and library. Discovered the PHP
->   filter-chain RCE primitive (Barb'hack 2022) which turns any
->   `include($USER_CONTROLLED)` into RCE by chaining `php://filter/convert.iconv.*`
->   encodings to materialize arbitrary PHP bytecode from a known-content seed
->   file. Disclosed RCE chains against Drupal, Magento, Symfony, Laravel.
-> - **Synacktiv research team** — Extended Charles Fol's filter-chain primitive
+>   the canonical PHP-gadget-chain generator and library. Disclosed RCE chains against Drupal, Magento, Symfony, Laravel.
+> - **Synacktiv research team** — Extended the filter-chain primitive
 >   into the **error-based file-read oracle**
 >   (https://www.synacktiv.com/en/publications/php-filter-chains-file-read-from-error-based-oracle).
 >   First surfaced as a DownUnderCTF 2022 challenge by @hash_kitten; Synacktiv
@@ -49,14 +45,14 @@
 > - **Johannes Dahse** (RIPS Technologies co-founder, then SonarSource research)
 >   — Authored RIPS, the first deep static analyzer for PHP (open-sourced May
 >   2010, commercial rewrite 2016, acquired by SonarSource 2020). Won the
->   Facebook Internet Defense Prize for the RIPS taint-analysis work. The
+>   inaugural Facebook Internet Defense Prize (2014, with Thorsten Holz) for
+>   static detection of second-order vulnerabilities in web applications. The
 >   SonarSource PHP research corpus is the modern continuation: phpBB3 Phar
 >   deserialization, Composer supply-chain disclosures, and CVE-class research
 >   on PHP object injection and file-operation gadgets.
 > - **Anthony Ferrara** (@ircmaxell) — PHP internals contributor; author of the
 >   `password_hash` / `password_verify` RFC (PHP 5.5,
->   https://wiki.php.net/rfc/password_hash), the `hash_equals` RFC
->   (https://wiki.php.net/rfc/timing_attack), and the `password_compat` userland
+>   https://wiki.php.net/rfc/password_hash) and the `password_compat` userland
 >   library. Long-running blog (https://blog.ircmaxell.com/) documenting PHP's
 >   password storage history and timing-safe comparison rationale.
 > - **Orange Tsai** (@orange_8361, DEVCORE) — Disclosed CVE-2024-4577
@@ -73,18 +69,16 @@
 >   version-vulnerability scanner). Long history of PHP / web-stack security
 >   writeups for golem.de and his own blog; contributor to TLS robustness
 >   research (ROBOT, AES-GCM analyses) adjacent to PHP deployments.
-> - **Daniel "Blaklis" Le Gall** (Bug Bounty Switzerland) — Magento / Adobe
->   Commerce specialist. Co-discovered CVE-2025-54236 ("SessionReaper"), a
->   pre-auth RCE chain in Magento 2 / Adobe Commerce. Maintains the public
->   Pentest-Tools writeup that walks through PHP-object-injection into
->   Magento's `Webapi/Rest/Request` deserialization.
+> - **Blaklis** — Magento / Adobe
+>   Commerce specialist. Discovered CVE-2025-54236 ("SessionReaper"), a
+>   pre-auth RCE chain in Magento 2 / Adobe Commerce.
 >
 > **Modern-era contributors (2022-2026):** Quarkslab research (Laravel
 > deserialization gadget chain corpus); darkpills (Symfony 1 / Swift Mailer
 > chain research; contributed to PHPGGC); watchTowr Labs (CVE-2024-4577 PoC and
 > field exploitation telemetry); @hash_kitten / WhiteCat (DownUnderCTF 2022 PHP
 > filter-chain oracle challenge); Hadrian.io (CVE-2025-1220 null-byte allowlist
-> bypass in `parse_url`).
+> bypass in `fsockopen()`).
 >
 > Sources: SektionEins.de archive; suhosin.org; Black Hat USA 2018 paper
 > archive; Synacktiv publications; Ambionics blog / PHPGGC GitHub; SonarSource
@@ -152,8 +146,8 @@ The PHP team has spent the last fifteen years walking back the worst defaults:
 | PHP 5.3 (2009) | `register_globals` / `safe_mode` deprecation | https://www.php.net/manual/en/security.globals.php |
 | PHP 5.4 (2012) | `register_globals`, `safe_mode`, `magic_quotes_gpc` removed | https://www.php.net/manual/en/migration54.deprecated.php |
 | PHP 5.5 (2013) | `preg_replace` `/e` deprecated | https://wiki.php.net/rfc/remove_preg_replace_eval_modifier |
-| PHP 7.0 (2015) | `preg_replace` `/e` removed; `create_function` deprecated | same |
-| PHP 7.2 (2017) | `each()` deprecated; `assert()` string-eval deprecated | https://wiki.php.net/rfc/deprecations_php_7_2 |
+| PHP 7.0 (2015) | `preg_replace` `/e` removed | same |
+| PHP 7.2 (2017) | `create_function`, `each()` deprecated; `assert()` string-eval deprecated | https://wiki.php.net/rfc/deprecations_php_7_2 |
 | PHP 7.4 (2019) | `__serialize` / `__unserialize` added | https://wiki.php.net/rfc/custom_object_serialization |
 | PHP 8.0 (2020) | Phar metadata auto-`unserialize` removed; "saner" type juggling | https://wiki.php.net/rfc/phar_stop_autoloading_metadata + https://wiki.php.net/rfc/string_to_number_comparison |
 | PHP 8.1 (2021) | `htmlspecialchars` default `ENT_QUOTES \| ENT_SUBSTITUTE` | https://php.watch/versions/8.1/htmlspecialchars-default-flags |
@@ -227,21 +221,21 @@ If the attacker can find any input whose md5 begins with `0e` and contains
 only digits afterward, the comparison succeeds. The brute-force cost is low:
 roughly 1 in 10^N where N is the digit-count required after `0e`. Public
 catalogs (https://github.com/spaze/hashes) document known magic-hash inputs
-for md5, sha1, sha256, md4, ripemd128, ripemd160, gost, crc32, fnv132,
-fnv1a32, fnv164, fnv1a64, joaat, haval128, haval256, several BLAKE and
-BCRYPT variants — letting an attacker pick the right input in O(1).
+for md5, sha1, sha256, md4, ripemd128, ripemd160, crc32, fnv132,
+fnv1a32, fnv164, fnv1a64, joaat, haval128, haval160, and Tiger, xxHash
+and MurmurHash3 variants — letting an attacker pick the right input in O(1).
 
 The OWASP "PHP Magic Tricks: Type Juggling" slide deck
 (https://owasp.org/www-pdf-archive/PHPMagicTricks-TypeJuggling.pdf) covers
-the historical examples in SimpleSAMLphp authentication bypasses, Magento
-secret-token verification, and assorted CMSes.
+the historical examples in Laravel CSRF-token and encryption-MAC checks
+and WordPress auth-cookie verification.
 
 ### `in_array`, `array_search`, and `switch` are loose by default
 
 ```php
-in_array("abc", [0, 1, 2])      // true — "abc" coerces to 0
+in_array("abc", [0, 1, 2])      // true pre-PHP-8 — "abc" coerces to 0
 in_array("0", [false, true])    // true — "0" coerces to false
-array_search(0, ["admin", "x"]) // 0 — "admin" coerces to 0, matches at index 0
+array_search(0, ["admin", "x"]) // 0 pre-PHP-8 — "admin" coerces to 0, matches at index 0
 ```
 
 Both `in_array` and `array_search` accept a `$strict = true` parameter that
@@ -255,13 +249,8 @@ no `strict switch`. Workaround: use `if/elseif` chains with `===` or the PHP
 
 ### Real-world examples
 
-- **SimpleSAMLphp** SAML signature verification bypass (pre-CVE-2017-18121
-  era) — computed-signature comparison used `==`, allowing magic-hash bypass
-  when both fell into the `0e\d+` shape.
-- **Magento secret-token verification** — historical writeup documented in
-  OWASP's PHP-Magic-Tricks PDF showed token comparison using `==`.
-- **WordPress plugin authentication bypasses** — various plugins compare
-  nonces with `==`; magic-hash forgery has been demonstrated.
+- **WordPress auth-cookie forgery** (MWR, 2014) — core compared the
+  cookie HMAC with `!=`; magic-hash forgery was demonstrated.
 - The type-juggling lab in swisskyrepo/PayloadsAllTheThings catalogs ~30 CMS
   and forum packages that historically shipped `==` token checks.
 
@@ -302,7 +291,7 @@ patterns:
 ```
 
 Static analyzers `psalm` and `phpstan` at level 9 will flag `==` on
-mixed-type operands; SonarPHP's `php:S1764` catches a subset.
+mixed-type operands.
 
 ---
 
@@ -460,12 +449,14 @@ The technique reclassified an enormous class of bugs:
 - **Path-traversal LFI** that previously only enabled file read now enabled
   RCE.
 - **WordPress author-account-to-RCE** (Thomas's demo on stage) — WP authors
-  upload images; the image-processing pipeline calls `getimagesize` on
-  uploads; a Phar disguised as a JPEG triggered the unserialize.
+  could point an attachment's thumbnail path
+  (`wp_get_attachment_thumb_file`) at a previously uploaded Phar, triggering
+  the unserialize.
 
-Phar archives can be **disguised as other file types**. Only the first 100
-bytes of a JPEG, GIF, or PDF need to be intact; the rest can be a Phar
-archive. The `phar://` stream wrapper does not check the file extension; it
+Phar archives can be **disguised as other file types**. Data inserted into
+the stub (or, in the tar format, the 100-byte filename field) can fake the
+leading bytes of most formats such as JPEG; the attacker must control the
+end of the file. The `phar://` stream wrapper does not check the file extension; it
 parses the file format.
 
 The "Don't automatically unserialize Phar metadata" RFC
@@ -488,11 +479,11 @@ process from *creating* Phar archives; it does **not** prevent reading them.
 
 Charles Fol's PHPGGC (https://github.com/ambionics/phpggc) is the canonical
 PHP gadget-chain library. It includes ready-made RCE chains for: CodeIgniter
-(1.x, 4.x), CakePHP, Doctrine (ORM + Common + Lexer), Drupal (7, 8),
+(4.x), CakePHP, Doctrine (ORM + Common + Lexer), Drupal (7, 8),
 **Guzzle** (the `FnStream` `__destruct` is the most reused gadget in the PHP
 corpus), Laravel (5.x through 11.x — multiple chains per major version),
-Magento (1, 2 — including CVE-2025-54236), Monolog (`SyslogUdpHandler`),
-Phalcon, Slim, SwiftMailer (CVE-2024-28859, CVE-2024-28861 Symfony 1 chains
+Magento (1, 2), Monolog (`SyslogUdpHandler`),
+Phalcon, Slim, SwiftMailer (CVE-2024-28859 Symfony 1 chain
 via `Swift_KeyCache_DiskKeyCache::__destruct`), Symfony (1 through 5),
 Twig, WordPress (`WP_Hook` and PHP-meta gadgets), Yii (1, 2), Zend Framework
 (1, 2).
@@ -502,21 +493,22 @@ that wraps a Doctrine inner-inner.
 
 ### Real-world examples
 
-- **WordPress < 5.0.1** — author-to-RCE via TIFF metadata Phar smuggling
-  (Thomas 2018 demo).
-- **TYPO3 < 9.5.5** (CVE-2019-12747) — backend file-abstraction-layer Phar
-  deserialization.
+- **WordPress < 5.0.1** (CVE-2018-20148) — author-to-RCE via Phar
+  deserialization of attachment thumbnail paths (Thomas 2018).
+- **TYPO3 < 9.5.8** (CVE-2019-12747) — authenticated backend
+  deserialization in FormEngine / DataHandler.
 - **phpBB 3.2.3** (Sonar disclosure,
   https://blog.sonarsource.com/phpbb3-phar-deserialization-to-remote-code-execution/)
   — admin-CP-to-RCE via `phar://` in an image-resize call.
 - **SuiteCRM** (Snyk disclosure) — Phar deserialization via document upload.
 - **CVE-2024-28859 / CVE-2024-28861** (darkpills) — Symfony 1
-  Swift_KeyCache gadget chain; contributed to PHPGGC.
+  Swift_KeyCache and `sfNamespacedParameterHolder` gadget chains; contributed to PHPGGC.
 - **CVE-2024-55555** (Invoice Ninja) — Laravel `decrypt()` auto-`unserialize`-s
   decrypted data; an attacker who recovers `APP_KEY` can mint encrypted
   gadget payloads.
 - **CVE-2025-54236** ("SessionReaper" Magento 2 / Adobe Commerce) — pre-auth
-  PHP object injection through `Webapi/Rest/Request`.
+  improper input validation in the Web API `ServiceInputProcessor`, which
+  deserializes nested input types.
 
 ### Defensive counter-patterns
 
@@ -557,7 +549,7 @@ patterns:
 ```
 
 Heuristic: any hardcoded `phar://` literal in production code is a
-review-worthy signal. Psalm `TaintedDeserialize` rule catches direct cases.
+review-worthy signal. Psalm `TaintedUnserialize` rule catches direct cases.
 
 ---
 
@@ -591,7 +583,7 @@ filter-chain RCE depending on whether `$path` is `/etc/passwd`,
 `http://attacker/`, `phar://upload.jpg/`, or
 `php://filter/.../resource=/etc/passwd`.
 
-### `php://filter/...` — the Charles Fol filter-chain RCE primitive
+### `php://filter/...` — the filter-chain RCE primitive
 
 The most consequential PHP-specific file-inclusion finding of the last five
 years. The `php://filter/` wrapper applies a chain of encoding
@@ -604,16 +596,17 @@ a "filter": `convert.base64-encode`, `convert.base64-decode`,
 Full URI grammar:
 `php://filter/[read|write]=filter1|filter2|.../resource=...`
 
-Charles Fol's discovery (Barb'hack 2022,
+The technique (credited to a 2021 CTF write-up by loknop; walked through in
+Wavestone's Barb'hack 2022 CTF write-up,
 https://www.riskinsight-wavestone.com/en/2022/09/barbhack-2022-leveraging-php-local-file-inclusion-to-achieve-universal-rce/)
-is that **`include()` on a fully-attacker-controlled `php://filter/` URI is
+shows that **`include()` on a fully-attacker-controlled `php://filter/` URI is
 universal RCE** — independent of any application logic, file content on
 disk, or existing gadget. The trick exploits a property of the
 `convert.iconv.UTF8.CSISO2022KR` filter: it prepends the output with a
 specific four-byte ANSI escape sequence (`\x1b$)C`). By chaining base64
 decode/encode filters around the iconv, the attacker shifts the prepended
 bytes through the base64 alphabet, producing arbitrary characters at the
-start of the output. By chaining ~16,000 filters end-to-end, the attacker
+start of the output. By chaining such filter sequences end-to-end, the attacker
 synthesizes arbitrary PHP source code in the output stream — which
 `include()` then parses and executes.
 
@@ -636,8 +629,8 @@ First surfaced by @hash_kitten at DownUnderCTF 2022; Synacktiv productized
 it (https://www.synacktiv.com/en/publications/php-filter-chains-file-read-from-error-based-oracle).
 
 The trick: chained `convert.iconv.*` filters can exponentially expand the
-target file's content (a 1KB file blown to 256MB through repeated
-charset-doubling), triggering PHP's memory-limit exception. The first
+target file's content (repeated `UCS-4`
+conversions), triggering PHP's memory-limit exception. The first
 character of the file determines whether the memory-blow happens — making
 the memory error a 1-bit oracle on a chosen character position. By varying
 the filter chain, the attacker reads the file one character at a time.
@@ -645,7 +638,8 @@ the filter chain, the attacker reads the file one character at a time.
 Applicability: any code path that performs **any** file operation on a
 fully-attacker-controlled URI is a file-read sink. The Synacktiv CLI
 (https://github.com/synacktiv/php_filter_chains_oracle_exploit) exfiltrates
-entire files at ~1 character per HTTP request.
+entire files one character at a time (Synacktiv's demo leaked a
+746-character file in around 14k requests).
 
 ### `data://`, `expect://`, `file://`
 
@@ -677,9 +671,6 @@ entire files at ~1 character per HTTP request.
 
 ### Real-world examples
 
-- **CVE-2024-32651** (changedetection.io) — Jinja2 SSTI → filter-chain RCE.
-- **CVE-2023-3960** (Bricks Builder WordPress) — RCE via filter chain.
-- **Drupal SA-CORE-2022-014** — filter-chain RCE in a CMS LFI.
 - **MISP arbitrary file read** (Synacktiv advisory) — filter-chain oracle.
 - Multiple Symfony / Laravel debug-endpoint LFIs chained to filter-chain RCE
   through 2023-2024.
@@ -755,7 +746,7 @@ deprecated in 7.2 and removed in 8.0. The two-argument form
 
 ### `register_globals` — historical context
 
-PHP 4.x and 5.0 shipped with `register_globals = On`. The runtime auto-
+PHP versions before 4.2.0 shipped with `register_globals = On`. The runtime auto-
 imported `$_GET`, `$_POST`, `$_COOKIE`, `$_SERVER`, `$_ENV` into the
 top-level scope. A request to `page.php?admin=1` set `$admin = "1"`.
 Disabled by default in 4.2 (2002), deprecated in 5.3 (2009), removed in
@@ -832,7 +823,7 @@ intval("abc 42")   // 0 — no leading digits
 intval("0x1A")     // 0 — without base 0, "0x" is not parsed as hex prefix
 intval("0x1A", 0)  // 26 — base 0 auto-detects "0x" prefix
 intval("0123", 0)  // 83 — base 0 auto-detects leading-zero octal
-intval("1e10")     // 1 — scientific notation NOT parsed by intval
+intval("1e10")     // 10000000000 — scientific notation parsed (PHP 7.1+)
 intval(true)       // 1
 intval([1, 2])     // 1 — non-empty array
 ```
@@ -842,8 +833,9 @@ Common confusion: `intval($s) > 0` passes for "42 abc" but fails for "abc 42"
 
 #### `floatval` and locale sensitivity
 
-`floatval` is sensitive to the current C-locale's decimal separator. Code
-that depends on `floatval` correctness across locales is locale-fragile.
+`floatval` does not recognise a locale's comma decimal separator, and
+before PHP 8.0 float-to-string casts used the locale's separator, so a
+float → string → `floatval` round trip under such a locale loses the fraction.
 
 ### `password_verify` vs `==`
 
@@ -876,8 +868,8 @@ $received = $_POST['signature'];
 `hash_equals` (PHP 5.6+) is constant-time. Both arguments must be strings;
 the `$known_string` should be the first argument per the manual.
 
-The Anthony Ferrara timing-attack RFC (https://wiki.php.net/rfc/timing_attack)
-and his blog post "It's All About Time"
+Rouven Weßling's timing-attack RFC (https://wiki.php.net/rfc/timing_attack)
+and Anthony Ferrara's blog post "It's All About Time"
 (https://blog.ircmaxell.com/2014/11/its-all-about-time.html) walk through
 the primitive: with statistical sampling (O(million) for a remote target,
 O(thousand) for local), a secret can be recovered byte-by-byte.
@@ -988,7 +980,7 @@ Legacy codebases still ship it; treat all extant calls as `eval`.
 2. **Allowlist callable names** when dispatch is unavoidable.
 3. **Avoid `eval`, `assert($string)`, `create_function`.** No exceptions.
 4. **Prefer first-class callable syntax** (PHP 8.1+): `strlen(...)`,
-   `Foo::bar(...)` — type-checked at compile time.
+   `Foo::bar(...)` — same semantics as `Closure::fromCallable()`.
 
 ### Detection
 
@@ -1049,8 +1041,8 @@ PHP's PCRE is recursive-backtracking and vulnerable to **catastrophic
 backtracking** — exponential time growth. Full treatment in
 `redos_algorithmic_dos_expertise.md`; PHP-specific:
 
-- `pcre.backtrack_limit` and `pcre.recursion_limit` default to **1,000,000**
-  — permissive enough that pathological patterns consume seconds per request.
+- `pcre.backtrack_limit` defaults to **1,000,000** and `pcre.recursion_limit`
+  to **100,000** — permissive enough that pathological patterns consume seconds per request.
 - PCRE JIT (`pcre.jit = 1`, default-on since PHP 7.0) accelerates the *fast*
   path but does not change worst-case complexity.
 
@@ -1097,10 +1089,10 @@ patterns:
 | PHP version | Default flags |
 |-------------|---------------|
 | < 5.4 | `ENT_COMPAT \| ENT_HTML401` (double quotes only) |
-| 5.4 - 8.0 | `ENT_QUOTES \| ENT_HTML401` |
+| 5.4 - 8.0 | `ENT_COMPAT \| ENT_HTML401` |
 | 8.1+ | `ENT_QUOTES \| ENT_SUBSTITUTE \| ENT_HTML401` |
 
-The pre-5.4 default did not encode single quotes, so output emitted into a
+The pre-8.1 default did not encode single quotes, so output emitted into a
 single-quoted attribute (`<input value='$x'>`) was XSS-vulnerable even with
 `htmlspecialchars` applied. **Modern usage should always be explicit**:
 
@@ -1109,7 +1101,7 @@ htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 ```
 
 `ENT_SUBSTITUTE` replaces invalid UTF-8 sequences with U+FFFD rather than
-returning an empty string (the pre-5.4 default for invalid encodings).
+returning an empty string (the default before 8.1).
 Without it, an attacker-supplied invalid UTF-8 sequence can produce empty
 escape output, bypassing the encoder.
 
@@ -1138,7 +1130,7 @@ For URL path segments, use `rawurlencode`. For query-string values,
 
 | Engine | Default auto-escape | Notes |
 |--------|---------------------|-------|
-| Twig | `html` (since 1.8) | Symfony default; opt out via `\|raw` |
+| Twig | `html` | Symfony default; opt out via `\|raw` |
 | Blade | `html` | Laravel default; `{!! $x !!}` for raw |
 | Smarty 3+ | configurable | `$smarty->escape_html = true` |
 | Smarty 2 | off | Legacy; needs explicit `\|escape` everywhere |
@@ -1157,7 +1149,8 @@ user-controlled `$source` is template-injection RCE.
    `mysqli_real_escape_string` as deprecated for SQL.
 3. **Configure template engines for HTML auto-escape**; audit for `|raw` /
    `{!! !!}` markers.
-4. **OWASP's laminas-escaper** provides context-specific escapers:
+4. **laminas-escaper** (rules follow OWASP recommendations) provides
+   context-specific escapers:
    `escapeHtml`, `escapeHtmlAttr`, `escapeJs`, `escapeUrl`, `escapeCss`.
 
 ### Detection
@@ -1185,7 +1178,7 @@ patterns:
 | `disable_functions` | (empty) | Defense in depth; many public bypasses. |
 | `open_basedir` | (empty) | Defense in depth; PHP team says "not a security feature." |
 | `expose_php` | On | Emits `X-Powered-By: PHP/8.x` header. Set Off. |
-| `display_errors` | On for CLI, Off for SAPI | Must be Off in production. |
+| `display_errors` | On | Must be Off in production. |
 | `session.cookie_httponly` | Off | Set 1. |
 | `session.cookie_secure` | Off | Set 1. |
 | `session.cookie_samesite` | (empty) | Set `Lax` or `Strict`. |
@@ -1198,8 +1191,8 @@ injection, putenv+dl in older PHP, PHP-FPM Unix-socket abuse. Treat as
 defense in depth.
 
 `open_basedir` bypasses (https://www.bencteux.fr/posts/open_basedir/) are
-many; PHP maintainers have stated "open_basedir bypasses are not security
-issues" (https://flagbot.ch/posts/phuck3/). Useful for accident-avoidance,
+many; PHP's security classification does not treat open_basedir bypasses
+as security issues (https://bugs.php.net/bug.php?id=81715). Useful for accident-avoidance,
 not adversarial isolation.
 
 Recommended production session config:
@@ -1297,9 +1290,8 @@ default. Race conditions where a file is replaced with a symlink between
 two operations are a canonical privilege-escalation pattern (cross-link to
 `shell_injection_expertise.md` for the TOCTTOU framing).
 
-`tempnam($dir, $prefix)` creates a temp file with name
-`{$prefix}{6-hex-digits}`. Older PHP versions used `rand()` seeded
-predictably. `tmpfile()` (returns a file handle on a temp file with no path
+`tempnam($dir, $prefix)` creates a temp file with a unique name built
+from `$prefix`. `tmpfile()` (returns a file handle on a temp file with no path
 exposed) is preferred for security-sensitive work.
 
 ### Defensive counter-patterns
@@ -1356,7 +1348,8 @@ PHP-FPM-specific surface:
   `$_SERVER['HTTP_X_FORWARDED_FOR']`. Custom headers are auto-imported;
   nothing filters them.
 - **`PHP_ADMIN_VALUE` / `PHP_VALUE` FastCGI parameters**. Override `php.ini`
-  per-request. CVE-2019-11043 (PHP-FPM nginx `env_path_info` regex bypass)
+  per-request. CVE-2019-11043 (PHP-FPM `env_path_info` underflow under an
+  nginx `fastcgi_split_path_info` config)
   showed an attacker could smuggle FastCGI parameters via nginx
   misconfiguration.
 
@@ -1371,7 +1364,7 @@ file path and mtime. Security-relevant:
   persistence after RCE.
 - **`opcache.file_cache` mode** writes bytecode to disk. If the cache
   directory is attacker-writable, cached `.bin` files can be replaced — and
-  on next load, PHP executes attacker bytecode (CVE-2017-7272-class).
+  on next load, PHP executes attacker bytecode.
 
 ### Composer + autoload + supply chain
 
@@ -1390,8 +1383,10 @@ Supply-chain concerns specific to PHP (cross-link
 - **`vendor/` directory committed to source**. Backdoor-injection PR
   becomes a 200-file diff nobody reads.
 - **Post-install scripts**. `composer.json` `scripts` keys declare hooks
-  that run arbitrary PHP. Equivalent to npm `postinstall` for supply-chain
-  RCE during developer installs and CI.
+  that run arbitrary PHP, but only the root package's scripts execute —
+  unlike npm `postinstall`, a dependency's `scripts` do not run on install.
+  Dependency code-exec during installs and CI comes through Composer
+  plugins (hence `allow-plugins` below).
 - **Toran Proxy / Private Packagist**. Org-internal mirror — single
   compromise point.
 
@@ -1425,8 +1420,7 @@ Each adds its own attack surface:
   pools must be coroutine-safe. Failing to clear request-scoped state
   between coroutines is a session-bleed primitive.
 - **Long-lived workers**. Memory leaks, connection-pool exhaustion, and
-  stale autoloader-cached state don't exist in PHP-FPM (fresh worker per
-  request).
+  stale autoloader-cached state don't exist in PHP-FPM.
 
 ---
 
@@ -1537,12 +1531,11 @@ metavariable-pattern constraints for user-controlled input.
 - **PHPStan** (https://phpstan.org/) at level 9; `phpstan-strict-rules` bans
   loose comparisons.
 - **Psalm** (https://psalm.dev/) — `@psalm-taint-sink` /
-  `@psalm-taint-source` docblock taint tracking; built-in security-rule set
-  via `securityAnalysis=true`.
-- **Rector** (https://getrector.com/) — refactoring tool;
-  `RemovedDangerousFunctionRules`.
-- **SonarPHP / SonarQube** — `php:S2068` credentials in source, `php:S5042`
-  XXE, `php:S5547` weak cryptography, `php:S5736` unrestricted XSS, etc.
+  `@psalm-taint-source` docblock taint tracking; enabled via
+  `--taint-analysis` or `runTaintAnalysis="true"`.
+- **Rector** (https://getrector.com/) — refactoring tool.
+- **SonarPHP / SonarQube** — `php:S2068` credentials in source,
+  `php:S5547` weak cryptography, etc.
 
 The pattern-construction discipline is covered in
 the [Semgrep rule-writing docs](https://semgrep.dev/docs/writing-rules/overview). Avoid duplicating the methodology here; treat
@@ -1608,7 +1601,7 @@ Not a SQL escape function. Replace with prepared statements.
 
 #### 11. Grep for `htmlspecialchars(` without `ENT_QUOTES`
 
-Pre-5.4 default didn't encode single quotes; pre-8.1 default didn't include
+Pre-8.1 default (`ENT_COMPAT`) didn't encode single quotes or include
 `ENT_SUBSTITUTE`. Always:
 `htmlspecialchars($x, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`.
 
@@ -1725,8 +1718,7 @@ Cooperative-scheduling green threads with explicit `Fiber::suspend()` /
   bug where a fiber's state leaks into a subsequent request is a session-
   bleed primitive.
 - **Exception propagation across fiber boundaries.** Uncaught exceptions
-  propagate to the resumer; the message is `__toString`-coerced, a
-  potential late gadget primitive if built from user input.
+  propagate to the resumer.
 
 ### Asynchronous PHP — Amp and ReactPHP
 
@@ -1739,23 +1731,22 @@ per-process, not per-connection.
 ### JIT (PHP 8.0+)
 
 PHP 8.0 added an opcode JIT. Security-relevant only at extreme cases:
-JIT-specific bugs (CVE-2021-21703 PHP-FPM-adjacent), performance side
+JIT-specific bugs, performance side
 channels for hot paths in cryptographic code (where you'd use a non-PHP
 language anyway).
 
 ### Readonly classes (PHP 8.2+)
 
 `readonly class Foo` makes all properties write-once. Reduces gadget
-surface — readonly properties can be set only in the constructor.
-Caveat: `__unserialize` can still bypass readonly when explicitly allowed;
-the runtime invokes `__unserialize` after instantiation but before the
-readonly check. For security-critical immutability, combine `readonly` with
+surface — readonly properties can be initialized only once, from the declaring class's scope.
+Caveat: `__unserialize` runs in the declaring class's scope and can
+initialize readonly properties during unserialization. For security-critical immutability, combine `readonly` with
 a custom `__unserialize` that validates allowed state.
 
 ### Asymmetric visibility (PHP 8.4+)
 
 PHP 8.4 (November 2024) added asymmetric visibility:
-`public(set: private) string $name;`. Allows finer-grained property
+`public private(set) string $name;`. Allows finer-grained property
 visibility — an immutability / auditability primitive that lets the
 developer prove which code paths can write a sensitive property.
 
@@ -1766,7 +1757,7 @@ developer prove which code paths can write a sensitive property.
 ### Primary research and writeups (chronological)
 
 - Stefan Esser — Hardened-PHP / Suhosin (https://suhosin.org/,
-  https://github.com/sektioneins/suhosin); 2004-present.
+  https://github.com/sektioneins/suhosin).
 - "Month of PHP Bugs" (Stefan Esser, March 2007).
 - "Month of PHP Security" (Stefan Esser, May 2010) — included Johannes
   Dahse's RIPS launch.
@@ -1777,14 +1768,15 @@ developer prove which code paths can write a sensitive property.
 - Anthony Ferrara — "It's All About Time"
   (https://blog.ircmaxell.com/2014/11/its-all-about-time.html).
 - Anthony Ferrara — `password_hash` RFC
-  (https://wiki.php.net/rfc/password_hash); `hash_equals` /
+  (https://wiki.php.net/rfc/password_hash).
+- Rouven Weßling — `hash_equals` /
   timing-attack-safe comparison (https://wiki.php.net/rfc/timing_attack).
 - Sam Thomas — "It's a PHP Unserialization Vulnerability Jim, but not as we
   know it" (Black Hat USA 2018,
   https://i.blackhat.com/us-18/Thu-August-9/us-18-Thomas-Its-A-PHP-Unserialization-Vulnerability-Jim-But-Not-As-We-Know-It.pdf).
-- Charles Fol — "Leveraging PHP Local File Inclusion to achieve universal
-  RCE" (Barb'hack 2022,
-  https://www.riskinsight-wavestone.com/en/2022/09/barbhack-2022-leveraging-php-local-file-inclusion-to-achieve-universal-rce/).
+- Jean Marsault (Wavestone) — "Barb'hack 2022: Leveraging PHP Local File
+  Inclusion to achieve universal RCE"
+  (https://www.riskinsight-wavestone.com/en/2022/09/barbhack-2022-leveraging-php-local-file-inclusion-to-achieve-universal-rce/).
 - Synacktiv — "PHP filter chains: What is it and how to use it"
   (https://www.synacktiv.com/en/publications/php-filters-chain-what-is-it-and-how-to-use-it).
 - Synacktiv — "PHP filter chains: file read from error-based oracle"
@@ -1885,10 +1877,10 @@ developer prove which code paths can write a sensitive property.
 
 - Sam Thomas — Black Hat USA 2018 ("It's a PHP Unserialization Vulnerability
   Jim").
-- Charles Fol — Barb'hack 2022 (PHP filter-chain RCE); OffensiveCon 2024
+- Charles Fol — OffensiveCon 2024
   (https://www.offensivecon.org/speakers/2024/charles-fol.html).
 - Orange Tsai — DEVCORE blog (CVE-2024-4577); HITBSecConf; Black Hat USA.
-- Stefan Esser — HITB 2011, 2016, 2017, 2019; Black Hat USA 2012.
+- Stefan Esser — HITB 2011, 2016, 2019; Black Hat USA 2012.
 - Anthony Ferrara — PHP Benelux 2013 ("Password Storage").
 
 ### CVE catalog (cited inline)
@@ -1897,15 +1889,14 @@ developer prove which code paths can write a sensitive property.
 - CVE-2018-* (Phar deserialization CVEs post-Thomas disclosure)
 - CVE-2019-12747 (TYPO3 Phar)
 - CVE-2019-11043 (PHP-FPM nginx env_path_info)
-- CVE-2021-21703 (PHP-FPM JIT)
+- CVE-2021-21703 (PHP-FPM local privilege escalation)
 - CVE-2022-24828 (Composer command injection)
 - CVE-2023-3824 (PHP Phar buffer overflow)
-- CVE-2023-3960 (Bricks Builder WordPress filter-chain RCE)
 - CVE-2024-4577 (PHP-CGI argument injection, Best-Fit bypass)
 - CVE-2024-28859, CVE-2024-28861 (Symfony 1 / Swift_KeyCache)
-- CVE-2024-32651 (changedetection.io filter-chain RCE)
+- CVE-2024-32651 (changedetection.io Jinja2 SSTI RCE)
 - CVE-2024-55555 (Invoice Ninja Laravel deserialization)
-- CVE-2025-1220 (PHP null-byte parse_url bypass)
+- CVE-2025-1220 (PHP null-byte hostname bypass in fsockopen)
 - CVE-2025-54236 (Magento SessionReaper)
 
 ---
@@ -1943,13 +1934,13 @@ session/auth pivot.
 
 ## Appendix B: PHP gadget-chain availability matrix
 
-Drawn from PHPGGC v0.7+ as of 2026-05-14. Yes = at least one chain exists
+Drawn from PHPGGC as of 2026-05-14. Yes = at least one chain exists
 in PHPGGC for at least one version.
 
 | Library / Framework | Public chain | Recent CVE |
 |---------------------|:------------:|------------|
 | CakePHP | Yes | — |
-| CodeIgniter (1.x, 4.x) | Yes | — |
+| CodeIgniter 4 | Yes | — |
 | Doctrine | Yes (essential gadget) | — |
 | Drupal 7, 8 | Yes | SA-CORE-2018-002 et al. |
 | Guzzle (`FnStream` chain — most reused) | Yes | — |
@@ -1960,7 +1951,6 @@ in PHPGGC for at least one version.
 | Slim | Yes | — |
 | SwiftMailer | Yes | CVE-2024-28859, CVE-2024-28861 |
 | Symfony 1, 2, 3, 4, 5 | Yes (many) | — |
-| Twig | Yes | — |
 | WordPress | Yes (`WP_Hook` + meta) | — |
 | Yii 1, 2 | Yes | — |
 | Zend Framework 1, 2 | Yes | — |

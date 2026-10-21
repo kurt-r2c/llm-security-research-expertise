@@ -38,16 +38,14 @@
 >   Google's V8 JavaScript engine, Sawzall, the Java HotSpot virtual
 >   machine, and Strongtalk; remains a principal engineer at Google on
 >   Go language evolution
-> - **Russ Cox** — Go technical lead from inception through 2024;
+> - **Russ Cox** — Go technical lead from 2012 through 2024;
 >   architect of the Go module system (vgo / Go modules), the
 >   `go.sum` checksum-database transparency log, the `proxy.golang.org`
 >   module proxy, and the perfectly-reproducible Go 1.21 toolchain
 >   bootstrap (the multi-release effort that closed the trusted-builder
 >   gap); maintains the `research!rsc` blog at `research.swtch.com`
 >   with deep-dive posts on supply-chain security, reproducible builds,
->   and the Go ecosystem's design rationale; subsequently advocated
->   publicly for the broader supply-chain-security agenda after
->   stepping back from the tech-lead role
+>   and the Go ecosystem's design rationale
 > - **Filippo Valsorda** — founder of Geomys (the professional
 >   maintenance firm for Go cryptography); maintainer of the Go
 >   cryptography standard library since 2018, first at Google (where
@@ -59,7 +57,7 @@
 >   `words.filippo.io` covering Go-cryptography internals, the Geomys
 >   "standard of care" maintenance model, and the Go-supply-chain
 >   advocacy that runs alongside Cox's work
-> - **Dmitry Vyukov** — Principal Software Engineer at Google;
+> - **Dmitry Vyukov** — Software engineer at Google;
 >   architect of ThreadSanitizer (the LLVM-instrumented data-race
 >   detector that powers Go's `-race` build flag), `syzkaller` (the
 >   coverage-guided system-call fuzzer that has found 5000+ Linux
@@ -69,29 +67,27 @@
 >   the canonical "Slaughtering Data Races" / TSan corpus is the
 >   source for understanding what Go's race-detector actually does
 >   and does not catch
-> - **Kris Nóva** (1985-2022) — Engineer at GitHub and prior Open
+> - **Kris Nóva** (d. 2023) — Engineer at GitHub and prior Open
 >   Source Lead at Sysdig (Falco), Heptio, and Microsoft Azure; co-author
 >   of *Cloud Native Infrastructure* (O'Reilly 2017), author of
 >   *Hacking Capitalism* (2022); co-founder of the Cluster API project,
 >   creator of Kubicorn and `naml`; long-running Go-and-Linux-kernel
->   security writing and conference talks; passed away in 2022 but
+>   security writing and conference talks; passed away in 2023 but
 >   the body of work on Kubernetes-Go security, `eBPF`, and the
 >   container runtime surface remains a foundational reference
 > - **Eli Bendersky** — Senior software engineer at Google; long-running
 >   technical writer at `eli.thegreenplace.net` covering Go, compilers,
 >   and systems programming; the canonical "Beware of copying mutexes
->   in Go," "Better HTTP server routing in Go 1.22," and "Reading and
->   writing JSON with concurrent goroutines" posts that establish the
+>   in Go" and "Better HTTP server routing in Go 1.22" posts that establish the
 >   field's vocabulary for Go-specific footguns
 > - **Dave Cheney** — long-running independent Go contributor and
 >   technical writer at `dave.cheney.net`; the canonical "Typed nils
 >   in Go 2," "Don't just check errors, handle them gracefully," and
->   "Channel axioms" posts; co-organizer of GopherCon AU; reference
+>   "Channel axioms" posts; GopherCon organiser since 2014; reference
 >   for the nil-interface-vs-nil-pointer distinction and for the
 >   `errors.Is` / `errors.As` / `%w` discipline
 > - **Trail of Bits Go team** — security research firm with a long
->   corpus of Go audits (Cosmos / Tendermint, Ethereum-Go clients,
->   the Hyperledger Fabric chaincode runtime); authors of the
+>   corpus of Go audits (Cosmos / Tendermint, Ethereum-Go clients); authors of the
 >   "Security assessment techniques for Go projects" blog series;
 >   contributors to `go-fuzz` improvements; the `Testing Handbook`
 >   at `appsec.guide` consolidates the Go-audit doctrine; the
@@ -103,8 +99,8 @@
 >   by the curated Go vulnerability database at `vuln.go.dev`,
 >   announced September 2022, v1.0.0 July 2023); coordinates Go-core
 >   CVE response; publishes Go-security advisories with reachability
->   analysis rather than dependency-tree heuristics; co-author with
->   Russ Cox of the "Vulnerability Management for Go" announcement
+>   analysis rather than dependency-tree heuristics; author of the
+>   "Vulnerability Management for Go" announcement
 >   that established the Go-ecosystem CVE-coordination model
 >
 > **Institutional contributors:** Google Go team (the canonical
@@ -233,9 +229,8 @@ coding antipattern.
 An interface value in Go is laid out as a pair of pointers (in the
 runtime, `(*itab, unsafe.Pointer)`): the first word identifies the
 *concrete type* and method set; the second word points to the
-concrete value (or, for value types fitting in a word, may hold the
-value directly). An interface is `nil` if and only if both words
-are zero. The Go spec is explicit on this point: a nil-pointer
+concrete value (since Go 1.4, always a pointer). An interface is `nil` if and only if both words
+are zero. The Go FAQ is explicit on this point: a nil-pointer
 value, when assigned to an interface variable, fills in the type
 word — and the interface is no longer nil.
 
@@ -315,8 +310,8 @@ will exhaust memory in hours-to-days. Detection is hard because
 that started the leaked goroutine, which may be far from the
 symptom.
 
-Go 1.24 added the `testing/synctest` package for deterministic
-goroutine-leak detection in tests. Go 1.26 added a built-in
+Go 1.24 added the experimental `testing/synctest` package for
+testing concurrent code. Go 1.26 added a built-in
 goroutine-leak profile to `runtime/pprof`. Before those, the
 detection state of the art was `uber-go/goleak`.
 
@@ -355,8 +350,8 @@ closes the channel, never the receiver, and the sender closes the
 channel exactly once." Composite shapes (multiple senders fanning
 into one channel) require external coordination — typically a
 `sync.Once` to serialize the close, or a separate "done" channel
-that signals no more sends. Tony Bai's "Channel axioms" and Dave
-Cheney's blog formalize this discipline.
+that signals no more sends. Dave Cheney's "Channel axioms" post
+formalizes this discipline.
 
 ### 3.4 The for-range over closed-channel pattern
 
@@ -436,8 +431,8 @@ once.Do(func() { panic("first call panics") })
 once.Do(func() { /* NEVER CALLED — Once marks itself done even on panic */ })
 ```
 
-`sync.Once` marks itself complete *before* invoking the function.
-If the function panics, the `Once` refuses to invoke any future
+If the function panics, `Do` considers it to have returned and
+the `Once` refuses to invoke any future
 `Do(f)`. The defensive shape is to make the function infallible
 or use a guarded `init` flag with explicit error checking.
 
@@ -548,8 +543,8 @@ is "I am returning a logically-distinct slice," use
 
 ### 6.3 `append()` reallocates non-deterministically
 
-Current Go runtimes double capacity until ~1024 elements then grow
-by ~25%. The exact algorithm is subject to tuning. Two slices that
+Since Go 1.18, runtimes double capacity below 256 elements, then
+taper smoothly toward ~1.25x growth. The exact algorithm is subject to tuning. Two slices that
 share a backing array *may* desync after an `append` or *may not* —
 don't depend on either outcome.
 
@@ -564,8 +559,8 @@ m["foo"] = 1          // panic: assignment to entry in nil map
 Reads from a nil map return the zero value (same as empty map);
 writes panic. A struct field that is a map, not explicitly
 initialized, is nil and panics on first write. Fix: initialize at
-construction time with `make(map[K]V)`. The `go vet` `nilness`
-analyzer flags some cases.
+construction time with `make(map[K]V)`. The `nilness`
+analyzer (in `golang.org/x/tools`, not part of `go vet`) flags some cases.
 
 ### 6.5 nil slices vs empty slices
 
@@ -650,7 +645,7 @@ func safe() (err error) {
 
 `recover()` works only within the same goroutine. A panic in a
 spawned goroutine cannot be caught by a deferred recover in the
-parent — the panic propagates to `runtime.Goexit()` and terminates
+parent — an unrecovered panic terminates
 the entire program. Long-running services that spawn workers need
 each worker to install its own `defer recover` if panic-safety is
 required.
@@ -775,8 +770,8 @@ Cross-link to `cryptography_expertise.md`.
 
 ### 10.1 `crypto/rand` is the only cryptographic PRNG
 
-`math/rand` is *not* cryptographic — deterministic LFSR seeded from
-the system clock (pre-Go-1.20: constant seed in some contexts).
+`math/rand` is *not* cryptographic — deterministic LFSR (pre-Go-1.20,
+the global generator behaved as if seeded with 1).
 Any security-relevant token must come from `crypto/rand.Reader`:
 
 ```go
@@ -788,10 +783,10 @@ token := hex.EncodeToString(buf)
 Audit pattern: any use of `math/rand` to generate session tokens,
 CSRF tokens, password reset tokens, or cryptographic nonces is a
 critical bug. Go 1.20 made `math/rand`'s global generator
-auto-seeded from `crypto/rand` (eliminating the "everyone gets the
+auto-seeded with a random value (eliminating the "everyone gets the
 same sequence" footgun), but the output remains non-cryptographic.
-The new `math/rand/v2` (Go 1.22+) clarifies the non-crypto status
-in its package name.
+The new `math/rand/v2` (Go 1.22+) drops `Read`; use `crypto/rand`'s
+`Read` instead.
 
 ### 10.2 `rsa.GenerateKey` size choice
 
@@ -817,7 +812,8 @@ use the constant-time primitive — never `==`.
 
 ### 10.5 Password hashing — `bcrypt` / `scrypt` / `argon2`
 
-Go has no password hashing in the standard library; use
+Go's standard library offers only `crypto/pbkdf2` (Go 1.24+) for
+password hashing; otherwise use
 `golang.org/x/crypto/bcrypt`, `scrypt`, or `argon2`. SHA-256 of a
 password is *not* password hashing — rainbow tables exist for fast
 hash functions. Audit pattern: any password storage using
@@ -856,11 +852,12 @@ first positional argument as a flag. The canonical example is
 
 ```go
 exec.Command("find", userInput, "-name", "*.log").Run()
-// userInput = "/etc -exec rm {} ;" triggers -exec
+// userInput = "-delete" is parsed as an expression, not a path
 ```
 
 The defensive primitive is the `--` separator where supported
-(`git`, `ssh`, `rsync`, `find`, `xargs`). Audit pattern: any binary
+(`git`, `ssh`, `rsync`, `xargs`); for `find`, `--` is not reliable,
+so prefix starting points with `./` or `/`. Audit pattern: any binary
 invocation with user-controlled positional arguments needs either
 `--` or an explicit allow-list. Cross-link to
 `shell_injection_expertise.md` §"Argv injection via flag positions."
@@ -984,7 +981,7 @@ a symlink between the existence check and the open. The defense is
 ### 13.1 `unsafe.Pointer` — type-system escape
 
 `unsafe.Pointer` converts to/from any pointer type and to/from
-`uintptr`. The `unsafe` package documents four valid patterns;
+`uintptr`. The `unsafe` package documents six valid patterns;
 anything else is undefined behavior. The canonical footgun:
 
 ```go
@@ -1019,10 +1016,11 @@ pointer.
 
 ### 13.3 `runtime.SetFinalizer` — finalizer surprises
 
-Finalizers run on GC'd objects with caveats: order is
-non-deterministic; finalizers may not run if no GC fires; a
-finalizer referencing its own object resurrects it; cyclic
-finalizers (two objects finalizing each other) never run. The Go
+Finalizers run on GC'd objects with caveats: they run in
+dependency order; finalizers may not run if no GC fires; a
+finalizer referencing its own object resurrects it; a cycle
+containing a finalized object is not guaranteed to be collected,
+so its finalizer may never run. The Go
 docs explicitly state finalizers are not a reliable cleanup
 mechanism. Use `defer` and explicit `Close()` methods. Cross-link
 to `firmware_embedded_security.md`.
@@ -1081,7 +1079,7 @@ the public log entry. The footgun: setting `GOSUMDB=off` disables
 the check; `GOPRIVATE=*` disables both the proxy *and* the
 checksum log for matching paths.
 
-Audit pattern: `GOSUMDB=off` or `GONOSUMCHECK=*` in any CI
+Audit pattern: `GOSUMDB=off` or `GONOSUMDB=*` in any CI
 environment is a critical configuration bug.
 
 ### 14.4 The `go.sum` guarantee and its limits
@@ -1148,31 +1146,26 @@ integer, and array fields. The defense is to use the explicit
 form: `c.BindJSON(&v)` if you mean JSON, `c.BindQuery(&v)` for
 query params, `c.BindUri(&v)` for path params.
 
-Gin also defaults to *not* failing on extra fields; the
-`gin.EnsureBodyClosed` middleware and explicit
-`json.Decoder.DisallowUnknownFields` are required for strict
+Gin also defaults to *not* failing on extra fields; explicit
+`json.Decoder.DisallowUnknownFields` is required for strict
 parsing.
 
 ### 15.2 Echo: middleware ordering
 
-Echo's middleware is registered in order; later registrations
-wrap earlier ones. The footgun: authentication middleware
-registered *after* a route-specific handler does not apply to that
-handler. The defensive shape is to register security middleware
+Echo's middleware is registered in order; the first registration
+is the outermost wrapper and runs first. The defensive shape is to register security middleware
 first, then routes, and to verify the registration order in tests.
 
 ### 15.3 chi: route-pattern semantics
 
 chi uses a radix-tree router with `{param}` and `{param:regex}`
-patterns. The footgun: the regex form allows arbitrary regex,
-which can be a source of ReDoS if the pattern is complex.
-Constraining patterns to simple forms (alphanumeric, integer,
+patterns. Constraining patterns to simple forms (alphanumeric, integer,
 UUID) and validating in the handler is the safer shape.
 
 ### 15.4 fiber: fasthttp underpinning
 
-Fiber sits on top of `fasthttp`, which is a fork-of-`net/http`
-implementation. fasthttp's request and response objects are *not*
+Fiber sits on top of `fasthttp`, an HTTP implementation separate
+from `net/http`. fasthttp's request and response objects are *not*
 goroutine-safe and are *reused* across requests via a pool. The
 footgun: storing a reference to the request object (or any of its
 fields, including headers and body) across goroutines, or after
@@ -1299,15 +1292,14 @@ on reachable findings.
 ### 16.3 `staticcheck` / `golangci-lint` security cops
 
 `staticcheck` is the de-facto static analyzer for Go; it ships
-many security-relevant checks including SA1019 (deprecated APIs,
-which includes `math/rand` in security contexts when migrated),
+many security-relevant checks including SA1019 (deprecated APIs),
 SA4006 (unused variable that may indicate a missed error), and
 SA9003 (empty branch). `golangci-lint` aggregates `staticcheck`,
 `gosec`, `errcheck`, `ineffassign`, and others into a single
 runner with shared config.
 
-The Trail of Bits Go-audit doctrine recommends the floor
-configuration:
+Trail of Bits recommends `gosec`, `go vet`, and `staticcheck` at a
+minimum; a floor configuration:
 
 ```yaml
 linters:
@@ -1384,7 +1376,7 @@ footguns in three ways:
   audit pattern is to verify every iterator handles early
   termination correctly and doesn't leak goroutines if the consumer
   stops iterating.
-- **The `go-stratus-red-team` corpus.** The Datadog-published
+- **The Stratus Red Team corpus.** The Datadog-published
   Stratus Red Team adversary-emulation framework includes Go-based
   attacks against cloud provider APIs. Reviewing the corpus
   surfaces patterns where Go libraries are used to drive
@@ -1418,7 +1410,7 @@ each by reachability and trust boundary, then triage by severity.
 - Russ Cox — research!rsc blog: https://research.swtch.com/
 - Russ Cox — "Reproducible, Verifiable, Verified Builds": https://research.swtch.com/vgo-repro
 - Go 1.21 reproducible toolchain announcement: https://go.dev/blog/rebuild
-- Russ Cox / Slashdot supply-chain interview: https://developers.slashdot.org/story/25/09/21/0650219/secure-software-supply-chains-urges-former-go-lead-russ-cox
+- Russ Cox / Slashdot summary of CACM supply-chain article: https://developers.slashdot.org/story/25/09/21/0650219/secure-software-supply-chains-urges-former-go-lead-russ-cox
 
 ### Go cryptography and Geomys
 - Filippo Valsorda — words.filippo.io: https://words.filippo.io/
@@ -1445,7 +1437,7 @@ each by reachability and trust boundary, then triage by severity.
 - Go proposal #30294 — explicit nil-receiver cast: https://github.com/golang/go/issues/30294
 
 ### Concurrency and channels
-- Tony Bai / Eli Bendersky — "Beware of copying mutexes in Go": https://eli.thegreenplace.net/2018/beware-of-copying-mutexes-in-go/
+- Eli Bendersky — "Beware of copying mutexes in Go": https://eli.thegreenplace.net/2018/beware-of-copying-mutexes-in-go/
 - Ardan Labs — "Goroutine Leaks: The Forgotten Sender": https://www.ardanlabs.com/blog/2018/11/goroutine-leaks-the-forgotten-sender.html
 - Go 1.26 goroutine-leak profile: https://dev.to/gabrielanhaia/goroutine-leaks-in-go-the-4-patterns-and-the-new-profile-in-go-126-5e73
 - antonz.org — "Detecting goroutine leaks": https://antonz.org/detecting-goroutine-leaks/

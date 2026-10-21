@@ -7,8 +7,7 @@
 > series intentionally: they have more behavioral surface than the higher-level
 > languages combined, and the bulk of that surface is *load-bearing* (the
 > language is used precisely because the default is "the compiler will not save
-> you"). The 2024-2026 load-bearing updates are: signed-integer-overflow
-> sanitizer adoption shifting from opt-in to default in major distros, the
+> you"). The 2024-2026 load-bearing updates are: the
 > arrival of `-fbounds-safety` for C and the C++ Safety Profiles work,
 > Microsoft's CHERIoT and Arm's Morello reaching production-adjacent maturity,
 > Apple's Memory Integrity Enforcement (MIE) shipping on iPhone 17 Pro, and the
@@ -16,13 +15,14 @@
 > liability in critical infrastructure (rather than a per-bug problem).
 >
 > **Researchers:**
-> - **Robert C. Seacord** — Technical Director, NCC Group (formerly CERT/SEI);
+> - **Robert C. Seacord** — Standardization Lead, Woven by Toyota (formerly
+>   Technical Director, NCC Group, and CERT/SEI);
 >   author of "Secure Coding in C and C++" (Addison-Wesley, 2nd ed. 2013) and
 >   "The CERT C Coding Standard" (2nd ed., 2014, 98 rules); ISO/IEC JTC1/SC22/WG14
 >   C-standards-committee participant; teaches secure-coding training at Black
 >   Hat. The canonical institutional voice on memory-safety, integer-overflow,
 >   and string-handling defects in C/C++
-> - **John Regehr** — Professor, University of Utah; co-founder TrustInSoft;
+> - **John Regehr** — Professor, University of Utah;
 >   author of the "A Guide to Undefined Behavior in C and C++" three-part blog
 >   series (2010) that became the field-defining tutorial on UB; principal
 >   investigator on the CSmith random C-program generator that found hundreds
@@ -30,23 +30,22 @@
 >   Exploiting Undefined Behavior" (2012)
 > - **Pascal Cuoq** — Co-founder and Chief Scientist, TrustInSoft; principal
 >   author of the TIS Interpreter and Frama-C plug-ins for sound static
->   analysis of C; co-authored the "Defining the Undefinedness of C" line of
->   work with Regehr; the canonical reference on formal C semantics applied
+>   analysis of C; the canonical reference on formal C semantics applied
 >   to real codebases
 > - **Mark Dowd, Justin Schuh, John McDonald** — co-authors of *The Art of
 >   Software Security Assessment* (Addison-Wesley, 2006), the canonical
->   manual on candidate-point auditing of C/C++ codebases; chapters 6-8
->   (memory corruption), 9 (UNIX I/O), 10 (Windows APIs), and 13 (synchronization)
+>   manual on candidate-point auditing of C/C++ codebases; chapters 5
+>   (memory corruption), 9-10 (UNIX), 11-12 (Windows), and 13 (synchronization)
 >   remain the field reference on auditor-side reasoning about C/C++ defects.
->   Dowd is now founder of Aleph Research / former Azimuth Security; Schuh
->   led Chrome Security at Google; McDonald is at Hyatt Information Security
-> - **Bjarne Stroustrup** — Designer of C++ and Managing Director, Technology
->   Division, Morgan Stanley; co-editor of the **C++ Core Guidelines** with
+>   Dowd and McDonald are founders of Azimuth Security; Schuh
+>   led Chrome Security at Google
+> - **Bjarne Stroustrup** — Designer of C++ and Professor of Computer Science,
+>   Columbia University (Managing Director, Morgan Stanley, until 2022); co-editor of the **C++ Core Guidelines** with
 >   Herb Sutter, the canonical "use C++ well" document; author of "The Design
 >   and Evolution of C++" (1994) which documents the rationale (and explicit
 >   constraints) behind each design decision that produces a present-day
 >   footgun
-> - **Herb Sutter** — Chair, ISO C++ Standards Committee; co-editor of the
+> - **Herb Sutter** — Chair emeritus, ISO C++ Standards Committee; co-editor of the
 >   C++ Core Guidelines; author of "Exceptional C++" series (Addison-Wesley)
 >   that codified the strong vs. basic vs. nothrow exception-safety taxonomy;
 >   2023-onward author of the C++ Safety Profiles / "Carbon-adjacent" successor
@@ -65,17 +64,15 @@
 > - **Trail of Bits** (Dan Guido, Stefan Edwards, Peter Goodman, Artem Dinaburg)
 >   — practitioners who maintain the empirical-grade C/C++ audit corpus
 >   underlying many of the toolchain pieces (manticore, cb-multios, the McSema
->   binary lifter); Goodman's work on Souffle-based program analysis is the
->   academic-to-industrial bridge for many of the static-analysis primitives
->   discussed in §15
+>   binary lifter)
 > - **Saar Amar, Tony Chen, Robert Watson** (Microsoft Azure Silicon / Cambridge)
 >   — CHERIoT and Morello industrial-grade CHERI implementations; the
 >   load-bearing institutional voices on "what would memory-safe C/C++
 >   actually look like in deployed silicon"
-> - **Damien Miller, Todd C. Miller** — OpenBSD project; original `strlcpy` /
->   `strlcat` authors (1998 USENIX paper); the canonical "what the standard
+> - **Todd C. Miller, Theo de Raadt** — OpenBSD project; original `strlcpy` /
+>   `strlcat` authors (1999 USENIX paper); the canonical "what the standard
 >   C library should have looked like but didn't" reference
-> - **Konstantin Serebryany, Kostya Yashinsky, Alexander Potapenko** (Google) —
+> - **Konstantin Serebryany, Alexander Potapenko** (Google) —
 >   AddressSanitizer, ThreadSanitizer, MemorySanitizer, LeakSanitizer, and
 >   UndefinedBehaviorSanitizer authors; the institutional voices on what
 >   *can* be caught dynamically and at what overhead cost
@@ -224,11 +221,11 @@ how easily it can be caught. The footguns split roughly into:
 
 Microsoft Security Response Center (MSRC) retrospectives have
 consistently reported that ~70% of MSRC-tracked CVEs each year are
-memory-safety defects (BlueHat IL 2019, Trent Jaeger's BlueHat 2022
-retrospective). Google's Chrome and Android teams report the same
-~70% figure. The CHERI University-of-Cambridge "70% of security
-vulnerabilities" figure (referenced in [the CHERI memory safety
-paper][cheri-memory-safety]) is the canonical institutional summary.
+memory-safety defects (BlueHat IL 2019). Google's Chrome and Android teams report the same
+~70% figure. [The CHERI memory safety paper][cheri-memory-safety]
+(University of Cambridge et al., 2024) describes memory-unsafety bugs as
+"the majority of critical security vulnerabilities in Android, iOS,
+Windows, and numerous other contemporary software systems."
 This figure is the principal motivator for the NSA's 2022
 "Software Memory Safety" cybersecurity advisory and CISA's 2024
 "Product Security Bad Practices" guidance flagging memory-unsafe
@@ -249,11 +246,11 @@ optimizes assuming you didn't, producing a security-relevant gap."
 
 ISO C99 and later define UB as "behavior, upon use of a nonportable
 or erroneous program construct or of erroneous data, for which this
-International Standard imposes no requirements." Permissible
-behaviors include: "ignoring the situation completely with
-unpredictable results, behaving during translation or program
+International Standard imposes no requirements." A note adds:
+"Possible undefined behavior ranges from ignoring the situation completely with
+unpredictable results, to behaving during translation or program
 execution in a documented manner characteristic of the environment
-(with or without the issuance of a diagnostic message), terminating a
+(with or without the issuance of a diagnostic message), to terminating a
 translation or execution (with the issuance of a diagnostic
 message)." ISO C++ uses the same form of words.
 
@@ -298,9 +295,9 @@ because they are themselves UB on the overflowing input.
 [Linux kernel CVE-2009-1897][linux-tun-bug] (the `tun` driver
 null-pointer-deref) is the canonical institutional example of an
 optimizer eliding a safety check on UB grounds. The kernel had
-checked `tun->sk == NULL` *after* dereferencing `tun->sk->...`; the
-optimizer reasoned that if `tun->sk` were null the deref would have
-been UB, therefore `tun->sk` was non-null, therefore the subsequent
+checked `tun == NULL` *after* dereferencing `tun->sk`; the
+optimizer reasoned that if `tun` were null the deref would have
+been UB, therefore `tun` was non-null, therefore the subsequent
 null check was dead, therefore the check was elided. An attacker
 could trigger the null pointer and bypass the (now elided) check.
 
@@ -342,15 +339,16 @@ The C++ standard adds (selected):
 
 - Recursion that exceeds the implementation's stack budget
 - Throwing across an `extern "C"` boundary
-- Throwing from a destructor during stack unwinding (§10)
-- Calling a virtual function from a constructor or destructor of an
+- Throwing from a destructor during stack unwinding (calls
+  `std::terminate`, not UB; §10)
+- Calling a pure virtual function from a constructor or destructor of an
   abstract base class (UB), or expecting dynamic dispatch in such a
   call (well-defined, but does *not* dispatch to the derived class)
 - Use of a moved-from object in a way that violates the type's
   documented post-move contract (well-defined for std types, UB or
   unspecified for user types depending on the type)
 - Accessing a `std::variant` or `std::optional` via the wrong
-  alternative (`std::variant::get<T>` throws `std::bad_variant_access`;
+  alternative (`std::get<T>` on a `std::variant` throws `std::bad_variant_access`;
   `std::optional::value()` on empty throws `std::bad_optional_access`;
   `*opt` on empty `optional` is UB; `std::get_if` is the
   null-returning safe accessor)
@@ -461,16 +459,12 @@ unsigned types.
 ### 3.4 Sanitizer coverage
 
 `-fsanitize=signed-integer-overflow` (UBSan): traps at runtime on
-overflow. Adoption is increasing — many distros now build with it
-on for testing, and Apple's `-fbounds-safety` includes integer-
-overflow trapping in the production-build subset.
+overflow.
 
 ### 3.5 The CVE corpus
 
 CVE-2009-1897 (Linux `tun` driver) is the canonical optimization-
-elided-check case. CVE-2017-15924 (Linux KEYS subsystem), CVE-2024-1086
-(Linux nf_tables, a different bug-class but with an overflow component),
-and a large slice of the Chrome / V8 / WebKit corpora include signed-
+elided-check case. A large slice of the Chrome / V8 / WebKit corpora include signed-
 overflow primitives at the candidate-point level.
 
 ---
@@ -549,9 +543,9 @@ two types have the same size and are trivially copyable.
 ### 4.4 The `-fno-strict-aliasing` escape
 
 GCC and Clang offer `-fno-strict-aliasing`, which disables the
-compiler's strict-aliasing-based optimizations. The Linux kernel,
-some BSDs, and large parts of the FFmpeg codebase build with this
-flag. The tradeoff is a measurable (~5-15%) optimization loss on
+compiler's strict-aliasing-based optimizations. The Linux kernel and
+some BSDs build with this
+flag. The tradeoff is an optimization loss on
 some workloads.
 
 For a new codebase, this is not the recommended path: use
@@ -836,9 +830,8 @@ stack. This is the **stack clash** family of vulnerabilities
 
 C99 variable-length arrays (`int arr[n]` where `n` is a runtime
 expression) have the same problem. C11 made VLAs optional, and the
-C++ standard never adopted them. CERT MEM05-C and the C++ Core
-Guidelines both prohibit `alloca` and VLAs in security-relevant
-code.
+C++ standard never adopted them. CERT MEM05-C advises against both `alloca` and VLAs, and C++
+Core Guidelines ES.27 flags VLAs as a security risk.
 
 The safe form: `malloc` + `free`, or a fixed maximum size with
 explicit rejection of larger inputs.
@@ -925,7 +918,8 @@ the canonical Mark Dowd candidate-point.
 ### 8.4 `%n` mitigations
 
 glibc's `FORTIFY_SOURCE` mode rejects `%n` in writable format
-strings. Microsoft's CRT (`/Fortify`) does the same. Modern
+strings. Microsoft's CRT disables `%n` by default in all
+`printf` variants (re-enabled only via `_set_printf_count_output`). Modern
 distros default to this. An attacker who can write the format
 string to a read-only mapping (e.g. via a separate vulnerability)
 can still exploit, but the common case is mitigated.
@@ -970,9 +964,8 @@ This produces three footgun classes:
    embedded `'\0'` will appear to `str*` functions as if it
    ended there. If the buffer is supposed to contain
    user-supplied binary data, the embedded NUL silently
-   truncates. The Microsoft `\\?\` path-prefix bypass family
-   (and the Java / .NET string-vs-bytes encoding-confusion
-   family) often hinges on embedded NULs.
+   truncates. The Java / .NET string-vs-bytes
+   encoding-confusion family often hinges on embedded NULs.
 3. **Length-prefixed vs. NUL-terminated mismatch**. When a C
    string is converted to or from a length-prefixed
    representation (Pascal-style, network protocol, language
@@ -1025,8 +1018,7 @@ The integer parsing functions have multiple footgun layers:
 - The locale-dependent variants (`strtod` in particular)
   respect `LC_NUMERIC`, meaning a locale that uses `,` as the
   decimal separator will parse `"1.5"` as `1` and leave `.5`
-  in the unparsed tail. CVE-2019-12290 / GNU libidn2 hits
-  this class.
+  in the unparsed tail.
 - `strtoull` returns an *unsigned* result even when given a
   negative input: it parses `-1` as `ULLONG_MAX`. Always
   validate the sign separately before calling.
@@ -1035,7 +1027,7 @@ The integer parsing functions have multiple footgun layers:
 
 `setlocale` is **not** thread-safe — calling it from one thread
 while another thread is in a locale-dependent function is UB.
-The C11 `uselocale` + `freelocale` family is thread-local and
+The POSIX.1-2008 `uselocale` + `freelocale` family is thread-local and
 safe; library code should prefer it.
 
 ### 9.6 Auditor's checklist
@@ -1122,8 +1114,8 @@ canonical reference.
 
 ### 10.3 The Rule of Three / Five / Zero
 
-Coined by Marshall Cline (Rule of Three, 1991) and extended by
-Howard Hinnant et al. (Rule of Five, ~2010) and R. Martinho
+Coined by Marshall Cline (Rule of Three, 1991), extended to the
+Rule of Five with C++11 move semantics, and reframed by R. Martinho
 Fernandes (Rule of Zero, ~2012):
 
 - **Rule of Three**: if you define any of {copy constructor,
@@ -1159,8 +1151,7 @@ of `x`. After the move, `x` is in a **valid but unspecified
 state**. For std types, this means:
 
 - `std::vector` after move: empty, capacity 0 (typically). Safe
-  to assign, destruct, or `resize`. Reading
-  individual elements is fine (the container *says* it's empty).
+  to assign, destruct, or `resize`.
 - `std::unique_ptr` after move: `nullptr`. Safe.
 - `std::string` after move: implementation-defined but typically
   empty.
@@ -1288,7 +1279,7 @@ Variants:
   dangling `this`. C++17 added `[*this]` to capture the
   pointed-to object by value.
 
-The Core Guidelines F.52-F.55 cover lambda captures.
+The Core Guidelines F.52-F.54 cover lambda captures.
 
 ### 11.2 `std::string_view` and `std::span`
 
@@ -1346,11 +1337,12 @@ exact rules differ per container:
 - `std::vector`: any insertion that triggers a reallocation
   invalidates **all** iterators, pointers, and references.
   Insertion that does not reallocate invalidates iterators
-  past the insertion point. Erasure invalidates iterators at
+  at or after the insertion point. Erasure invalidates iterators at
   and after the erased element.
-- `std::deque`: any insertion or erasure at either end
-  invalidates **all** iterators (but pointers and references
-  to other elements remain valid).
+- `std::deque`: any insertion at either end invalidates
+  **all** iterators (but pointers and references to elements
+  remain valid); erasure at either end invalidates only
+  iterators to the erased elements and `end()`.
 - `std::list`: only the iterator to the erased element is
   invalidated.
 - `std::map` / `std::set` / `std::unordered_map`: insertion
@@ -1552,7 +1544,8 @@ from a signal handler is UB.
 
 The async-signal-safe set is narrow: `_exit`, `write`,
 `sigaction`, and a few others. **`malloc`, `free`, `printf`,
-`fprintf`, `pthread_*` are all unsafe.**
+`fprintf`, and all `pthread_*` functions except `pthread_kill`,
+`pthread_self` and `pthread_sigmask` are unsafe.**
 
 The fix: signal handlers should set a `sig_atomic_t volatile`
 flag and return. The main loop checks the flag.
@@ -1579,8 +1572,8 @@ The ODR says: every non-inline function, variable, type, and
 template has **exactly one** definition across the entire
 program. Multiple definitions are UB and the compiler is **not
 required to diagnose**. Linkers may diagnose duplicate
-definitions of external-linkage functions (gold and lld do;
-older `ld` may not).
+definitions of external-linkage functions (GNU `ld` reports a
+fatal error by default).
 
 The footgun: a header defines an `inline` function (or a
 template), and two translation units include the header with
@@ -1644,8 +1637,7 @@ A program that statically links two libraries that themselves
 embed the same dependency (e.g. zlib) gets two copies of zlib
 in the binary. Symbol resolution picks one; the other is dead
 code. If the two copies have different versions, the one
-picked may be wrong for one of the call paths. CVE-2022-23218
-(glibc `svcunix_create`) had a related shape.
+picked may be wrong for one of the call paths.
 
 ### 13.6 Auditor's checklist (build)
 
@@ -1679,8 +1671,9 @@ Effective against fixed-address exploitation primitives (ROP
 gadgets at known addresses). Bypassed by **information
 leaks** that reveal a single address from any randomized
 region — once one address is known, the rest of that region's
-layout is determined relative to it. Linux defaults to ASLR+PIE
-since the early 2010s; Windows defaults to ASLR via `/DYNAMICBASE`
+layout is determined relative to it. Linux has enabled ASLR by
+default since 2005, and major distributions made PIE the default
+later (e.g. Debian 9 in 2017); Windows defaults to ASLR via `/DYNAMICBASE`
 and `/HIGHENTROPYVA`.
 
 ### 14.2 DEP / W^X
@@ -1754,9 +1747,10 @@ collision per random pointer). MTE is most useful as a
 **probabilistic** defense: an attacker needing multiple
 successful exploits has compounded probability of detection.
 
-Apple's iPhone 17 Pro (2025, A19 Pro and onward) shipped
-Memory Integrity Enforcement (MIE), which combines MTE with
-PAC and other primitives.
+Apple's iPhone 17 and iPhone Air (2025, A19 / A19 Pro) shipped
+Memory Integrity Enforcement (MIE), which combines Enhanced MTE
+(EMTE) with secure typed allocators and Tag Confidentiality
+Enforcement.
 
 ### 14.7 Intel CET
 
@@ -1767,8 +1761,9 @@ indirect-branch tracking (CALL targets must have an `ENDBR`
 instruction; non-`ENDBR` targets fault).
 
 Effective against return-address corruption and ROP. Shipping
-in Intel Tiger Lake (2020) and onward; Windows 10 21H1+ and
-Linux 5.18+ support it.
+in Intel Tiger Lake (2020) and onward; Windows 10 20H1+ (user-mode
+shadow stack) and Linux 5.18+ (kernel IBT; user-space shadow
+stack since 6.6) support it.
 
 ### 14.8 The reality
 
@@ -1869,12 +1864,12 @@ is greater than the cost of annotation.
 ### 15.4 Hardware-assisted detection
 
 - **ASan + HWASan**: software tagging.
-- **MTE**: hardware tagging on ARM (production on Pixel 8+,
-  iPhone 15 Pro+).
+- **MTE**: hardware tagging on ARM (production on Pixel 8+;
+  EMTE on iPhone 17 / iPhone Air).
 - **CHERI**: capability-based; full spatial and temporal memory
   safety with source-level near-compatibility (Morello,
   CHERIoT).
-- **Intel MPX** (deprecated 2018): bounds-checking; ineffective
+- **Intel MPX** (removed from GCC 9 in 2019 and Linux 5.6 in 2020): bounds-checking; ineffective
   in practice.
 
 ### 15.5 Compiler warnings
@@ -1957,7 +1952,7 @@ candidate-point patterns:
 
 ### 16.2 Variant analysis
 
-Variant analysis (Mark Dowd, TAOSSA chapter 4) is the
+Variant analysis is the
 practice of: given a known bug, search the codebase for the
 same primitive used in the same way, anticipating that the
 same defect class will recur. For C/C++ specifically:
@@ -1985,8 +1980,9 @@ to a memory-safe language for new code:
 
 - **Rust** for systems code (kernel, OS, drivers, network stacks,
   parsers). The Linux kernel admits Rust modules; the Android
-  platform team has documented zero memory-safety CVEs in new
-  Rust code despite millions of lines shipped.
+  platform team reports roughly 1000x lower memory-safety
+  vulnerability density in its Rust code than in its C/C++ code
+  (2025).
 - **Go** for application services, network daemons, CLI tools.
 - **Swift** for Apple-platform applications.
 - **C#** / **Kotlin** / **TypeScript** for application-layer
@@ -2134,7 +2130,7 @@ weigh the marginal cost against the alternatives.
 - CHERI project home,
   https://www.cl.cam.ac.uk/research/security/ctsrd/cheri/
 - CHERIoT (Microsoft),
-  https://www.microsoft.com/en-us/research/project/cheriot/
+  https://cheriot.org/
 
 ### Memory-safe-language pressure
 
@@ -2150,8 +2146,8 @@ weigh the marginal cost against the alternatives.
 ### Audit corpora and exploit research
 
 - Project Zero blog, https://googleprojectzero.blogspot.com/
-- Trail of Bits "Awesome CodeQL,"
-  https://github.com/trailofbits/awesome-codeql
+- advanced-security "Awesome CodeQL,"
+  https://github.com/advanced-security/awesome-codeql
 
 ### Tooling
 
@@ -2159,7 +2155,6 @@ weigh the marginal cost against the alternatives.
 - CodeQL, https://codeql.github.com/
 - Cppcheck, https://cppcheck.sourceforge.io/
 - Frama-C, https://www.frama-c.com/
-- TIS-Interpreter, https://trust-in-soft.com/tis-interpreter/
 - PVS-Studio, https://pvs-studio.com/
 - libFuzzer, https://llvm.org/docs/LibFuzzer.html
 - AFL++, https://aflplus.plus/
