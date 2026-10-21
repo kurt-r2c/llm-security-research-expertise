@@ -11,8 +11,8 @@
 >   primary author of the pySigma library and sigma-cli; long-time SIEM and detection
 >   engineer who first presented Sigma publicly at Hack.lu 2017. Owns much of the
 >   conversion-pipeline machinery that turns vendor-neutral Sigma into native SIEM queries.
-> - **John Lambert** — Corporate Vice President and Distinguished Engineer at Microsoft
->   Threat Intelligence Center (MSTIC); author of the canonical Defenders-Mindset essay
+> - **John Lambert** — Corporate Vice President and Security Fellow at Microsoft; founder of the
+>   Microsoft Threat Intelligence Center (MSTIC); author of the canonical Defenders-Mindset essay
 >   "Defenders think in lists. Attackers think in graphs. As long as this is true, attackers
 >   win." His framing of network defense as graph problem rather than asset inventory has
 >   become a load-bearing idea across the modern detection literature.
@@ -32,12 +32,11 @@
 > - **Olaf Hartong** — Defensive specialist at FalconForce; author of the sysmon-modular
 >   project; long-running researcher on Microsoft Defender for Endpoint internals; runs
 >   one of the most-used public Sysmon configs in production environments.
-> - **Matt Graeber** — Researcher at Microsoft (formerly SpecterOps and Veris Group);
->   long-time PowerShell and Windows internals researcher; published the canonical
+> - **Matt Graeber** — Long-time PowerShell and Windows internals researcher; published the canonical
 >   one-line AMSI bypass (`amsiInitFailed = $true`) in 2016 and the script-block-logging
 >   evasion analyses that taught a generation of defenders how AMSI and Script Block
 >   Logging actually work under the hood.
-> - **Casey Smith** — Threat researcher who originated and led Atomic Red Team at Red
+> - **Casey Smith** — Threat researcher who co-created Atomic Red Team with Michael Haag at Red
 >   Canary; long-running offensive-research handle "subTee"; pioneered the per-technique
 >   atomic-test idiom that turned ATT&CK technique IDs into executable detection-validation
 >   probes.
@@ -478,7 +477,7 @@ foundation of many small-org and open-source programs.
 
 ### AMSI hooks — the script-engine inspection interface
 
-**AMSI** (Antimalware Scan Interface; Windows 10+) is the kernel-and-user-mode
+**AMSI** (Antimalware Scan Interface; Windows 10+) is the user-mode
 interface through which script engines (PowerShell, JScript, VBScript, Office VBA,
 Excel 4.0 macros, .NET's `Assembly.Load`) submit their buffer-about-to-be-executed
 to a registered AV/EDR for inspection. The script engine calls `AmsiScanBuffer`;
@@ -536,7 +535,7 @@ Bypass primitives the detection engineer should know:
   EDR's user-mode visibility goes blind; detection requires kernel-side callbacks
   or ETW.
 - **BYOVD** (Bring Your Own Vulnerable Driver) — load a signed-but-vulnerable
-  driver (RTCore64, GMER, AppCheck) and use its kernel primitives to disable EDR
+  driver (RTCore64, gdrv, mhyprot2) and use its kernel primitives to disable EDR
   callbacks. Microsoft's HVCI / MDAC vulnerable-driver blocklist addresses this;
   the detection angle is "vulnerable signed driver loaded" as a rule.
 - **Custom unhooked loaders** that avoid known patterns (no `0x4D5A` reflective
@@ -779,7 +778,7 @@ include quality scoring beat coverage maps that don't.
 
 **D3FEND** (NSA + MITRE NSEC, 2021+) is the defensive-countermeasure taxonomy
 counterpart to ATT&CK. Tactics: Model, Harden, Detect, Isolate, Deceive, Evict,
-Restore. Techniques: 267 as of v1.3.0 (December 2025).
+Restore.
 
 D3FEND is younger and less battle-tested than ATT&CK, and it overlaps with
 NIST CSF, OWASP ASVS, and CIS Controls in ways that are still being
@@ -790,7 +789,7 @@ can use to label their rule's *method* alongside ATT&CK's labeling of the
 *adversary behavior*.
 
 The cross-walk: "this rule detects T1059.001 (PowerShell) via D3FEND's
-'Anomalous System Call Detection' (D3-ASCD) technique." Less mature than
+'System Call Analysis' (D3-SCA) technique." Less mature than
 ATT&CK adoption but converging.
 
 ---
@@ -816,7 +815,7 @@ cousin of the candidate-point methodology in
 Roberto Rodriguez's **ThreatHunter-Playbook** (OTRF) is the canonical public
 hunt-as-notebook library. Each hunt is a Jupyter notebook with: markdown
 description, ATT&CK linkage, required data sources, hunt logic
-(KQL/SPL/EQL against Mordor / Security-Datasets), validation queries, and
+(against Mordor / Security-Datasets), validation queries, and
 references to corroborating detection rules. The notebook format preserves
 the hunt's *reasoning* — not just the conclusion.
 
@@ -946,7 +945,7 @@ invocations, and tool-call execution; it is the OCSF-equivalent of the AI
 runtime — vendor-neutral schema that detection can be authored against once
 and consumed across vendors. Status as of May 2026 is "in development" but
 the field names are stable enough to write rules against, and most major
-observability vendors (Langfuse, Phoenix, Helicone) have shipped GenAI semconv
+observability vendors (Langfuse, Phoenix) have shipped GenAI semconv
 support.
 
 The load-bearing span types ([OpenTelemetry GenAI agent spans](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans/)):
@@ -988,7 +987,7 @@ span depends on the local instrumentation library.
 structured events (`{"type": "tool_use", "id": "...", "name": "...",
 "input": {...}}`); responses include `usage` blocks (input/output tokens,
 cache hit/miss) and `stop_reason`. The platform's audit logs as of 2026
-cover ~30 typed events spanning identity, organization configuration,
+cover events spanning identity, organization configuration,
 project lifecycle, conversation lifecycle, and file uploads ([Anthropic Compliance API](https://support.claude.com/en/articles/13015708-access-the-compliance-api)).
 Notable gap: standard audit logs do *not* record what tools Claude called
 or what those tools returned; tool-content visibility requires
@@ -1001,10 +1000,8 @@ are opt-in.
 
 **OpenAI Responses / Assistants API.** Tool calls surface as `function_call`
 items in the response stream; the Responses API exposes them as typed
-output items. The OpenAI tracing platform (Workbench) shows per-turn token
-counts, tool calls, and reasoning traces; OpenAI does not yet offer a
-first-party customer-facing event-stream audit log of the same fidelity
-Anthropic's Compliance API provides. Bridging via OpenTelemetry GenAI semconv
+output items. The OpenAI tracing platform shows per-turn token
+counts, tool calls, and reasoning traces. Bridging via OpenTelemetry GenAI semconv
 in the application layer is the standard path.
 
 **Bedrock / Vertex AI / Azure OpenAI.** Cloud-hosted inference exposes the
@@ -1012,7 +1009,7 @@ control-plane events at the cloud provider's audit-log fidelity (CloudTrail
 for Bedrock, Cloud Audit Logs for Vertex, Activity Log for Azure OpenAI).
 The data plane — actual prompts and completions — is captured via cloud-
 native trace integrations (Bedrock Model Invocation Logging,
-Vertex AI Logs) but is *opt-in* and *separately retained*. This is the same
+Vertex AI request-response logging) but is *opt-in* and *separately retained*. This is the same
 pattern as S3 data-plane logging.
 
 ### 10.3 The AI-observability vendor landscape
@@ -1067,12 +1064,9 @@ detection approach to its Pyramid of Pain tier:
    most durable.
 
 The EchoLeak paper ([arxiv 2509.10540](https://arxiv.org/html/2509.10540v1))
-codifies the defensive telemetry signals that bridge tiers 2 and 3:
-**unusual output entropy or length relative to query complexity**, *external
-URLs or network calls from internal-only operations*, *reference-style
-links and embedded images in model outputs*, *cross-domain requests through
-allowed proxy services*, and *anomalous data access patterns tied to
-external content ingestion*. These are runtime detections, not input
+recommends defensive signals that bridge tiers 2 and 3:
+**unusually long responses to short prompts and bursts of high-entropy
+strings**, and *flags on unusual external requests*. These are runtime detections, not input
 filters; they fire on what the agent *did*, not what was *said to* the agent.
 
 ### 10.5 Tool-call audit and rate / sequence anomaly
@@ -1089,8 +1083,7 @@ Detection patterns that consume the tool-call audit:
 - **Per-(user × tool × time-window) rate anomaly.** Statistical baseline
   on tool-call frequency per identity. Simple z-score thresholds at
   3 standard deviations are a reasonable entry point; mature shops layer
-  EWMA or seasonal-decomposition models on top
-  ([ARMO baseline / drift writeup](https://www.armosec.io/blog/ai-workload-baseline-drift-detection/)).
+  EWMA or seasonal-decomposition models on top.
   The classic positive case: a code-generation agent's normal pattern is
   2-3 search queries and 1-2 code-execution attempts per task; 15 searches
   with no execution suggests confusion or goal drift (or adversarial
@@ -1160,7 +1153,7 @@ image auto-fetch to non-allowlisted hosts).
 
 **AgentFlayer (ChatGPT Connectors).** Disclosed at Black Hat 2025 by
 Zenity Labs. Zero-click exfiltration from Google Drive / SharePoint /
-GitHub / Microsoft 365 connectors via a poisoned document containing
+GitHub connectors via a poisoned document containing
 invisible-text indirect-injection payload. The agent embeds stolen data
 into image URLs; the URLs make automatic fetches to attacker-controlled
 infrastructure when rendered
@@ -1190,7 +1183,7 @@ URL-prompt-poisoning attempts originated from 31 companies across
 parameters in "Summarize with AI" buttons
 ([Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2026/02/10/ai-recommendation-poisoning/),
 [Help Net Security summary](https://www.helpnetsecurity.com/2026/02/11/ai-recommendation-memory-poisoning-attacks/)).
-Formally classified by MITRE ATLAS as **AML.T0080 Memory Poisoning**.
+Formally classified by MITRE ATLAS as **AML.T0080.000 AI Agent Context Poisoning: Memory**.
 Detection signals encoded in three Advanced Hunting queries for Office
 365 (email, Teams, Safe Links). The advisory is the first public
 incident-detection corpus tying AI-runtime telemetry to MITRE ATLAS, in
@@ -1263,8 +1256,7 @@ Two architectural caveats the detection engineer should plant deeply:
    (stdio / unix socket) has no network footprint and is invisible to
    any network-layer collector. Local-MCP detection requires
    *in-agent* instrumentation via OpenTelemetry GenAI semconv (§10.1)
-   or vendor-specific hooks (Anthropic's compliance API tool-content
-   events, Claude Code's OTEL exporter).
+   or vendor-specific hooks (Claude Code's OTEL exporter).
 
 Work list for an MCP-aware detection program: (a) inventory of MCP
 servers and their tools via captured `initialize` responses; (b) per-tool
@@ -1293,8 +1285,7 @@ instance) with two new wrinkles:
   code-gen agent inherits the median baseline of comparable code-gen
   agents in the tenant) and tighten with personal data over 14-30 days.
 
-The three classic dimensions for an agent baseline
-([ARMO behavioral monitoring writeup](https://www.armosec.io/blog/detecting-intent-drift-in-ai-agents-with-runtime-behavioral-data/)):
+The three classic dimensions for an agent baseline:
 
 1. **Tool-call distribution.** Which tools, at what frequencies, in what
    sequence. Statistical drift on the distribution is the first-order
@@ -1348,10 +1339,10 @@ involvement. Major entrants ([Radiant Security 2026 roundup](https://radiantsecu
 |---|---|
 | **Dropzone AI** | Autonomous AI SOC analyst; integrates with 60+ security tools; investigation latency claim of <10 min/alert; per-investigation pricing |
 | **Prophet Security** | Agentic AI SOC platform; alert triage + investigation + threat-hunting agents |
-| **Radiant Security** | Adaptive AI SOC; agentic analyst with transparent-reasoning UX; ~90% claimed FP reduction |
+| **Radiant Security** | Adaptive AI SOC; agentic analyst with transparent-reasoning UX; up to 90% claimed analyst-workload reduction |
 | **Microsoft Security Copilot** | Embedded in Defender XDR / Sentinel; native pivot to Microsoft telemetry |
 | **CrowdStrike Charlotte AI** | Embedded in Falcon; conversational hunt / triage |
-| **Qevlar AI** | Triage / investigation agent (Google partner) |
+| **Qevlar AI** | Triage / investigation agent |
 
 The detection-engineering implication is structural, not cosmetic.
 *Detection rules are now consumed by AI agents as well as humans.* The
@@ -1395,9 +1386,9 @@ to ~1M repositories); **Clinejection / GHSA-9ppg-jx86-fqw7** (Adnan Khan,
 disclosed January 2026, public February 2026 — issue-event prompt injection
 into `claude-code-action` → npm install of attacker-fork → Cacheract cache
 poisoning → token exfil → malicious `cline@2.3.0` published);
-**Comment-and-Control class** (Johns Hopkins + Anthropic, October-November
-2025 — PR-title prompt-injection → shell exec → secrets exfil via PR
-comment, CVSS 9.4 on Claude Code Security Review, Gemini CLI Action,
+**Comment-and-Control class** (Aonan Guan with Johns Hopkins researchers, April
+2026 — PR-title prompt-injection → shell exec → secrets exfil via PR
+comment, CVSS 9.4 on Claude Code Security Review; also Gemini CLI Action,
 Copilot Agent); **CurXecute / CVE-2025-54135** (Aim Labs / Cursor, August
 2025); **EchoLeak / CVE-2025-32711** (Aim Labs / Microsoft 365 Copilot,
 June 2025) — that the detection-engineering shop can ship rules against
@@ -1420,9 +1411,9 @@ use or indirectly via shell. This is the Comment-and-Control class
 signature: the agent grants itself new capabilities while running, which
 bypasses static-pre-run capability allowlisting entirely.
 
-**Primary incident anchor.** Comment-and-Control class (Johns Hopkins +
-Anthropic, October-November 2025, CVSS 9.4 on Claude Code Security Review
-/ Gemini CLI Action / Copilot Agent); MCPoison (Check Point Research,
+**Primary incident anchor.** Comment-and-Control class (Aonan Guan with
+Johns Hopkins researchers, April 2026, CVSS 9.4 on Claude Code Security Review;
+also Gemini CLI Action / Copilot Agent); MCPoison (Check Point Research,
 August 2025).
 
 **Sigma.**
@@ -1438,9 +1429,9 @@ description: |
   Comment-and-Control class where an injected prompt grants the agent new
   capabilities at runtime.
 references:
-  - https://github.blog/security/vulnerability-research/   # Comment-and-Control class
-  - https://research.checkpoint.com/2025/mcpoison-cursor-mcp/
-  - https://www.aim.security/blog/echoleak-cve-2025-32711
+  - https://oddguan.com/blog/comment-and-control-prompt-injection-credential-theft-claude-code-gemini-cli-github-copilot/   # Comment-and-Control class
+  - https://research.checkpoint.com/2025/cursor-vulnerability-mcpoison/
+  - https://www.aim.security/lp/aim-labs-echoleak-blogpost
 author: detection-engineering
 date: 2026/05/15
 logsource:
@@ -1553,7 +1544,7 @@ falsepositives:
   - Agent following a documented setup README on a user-trusted repo
 level: critical
 tags:
-  - attack.t1195.002  # Supply Chain Compromise: Software Dependencies
+  - attack.t1195.002  # Supply Chain Compromise: Compromise Software Supply Chain
   - attack.t1059      # Command and Scripting Interpreter
   - atlas.aml.t0051   # LLM Prompt Injection
 ```
@@ -1624,8 +1615,8 @@ or URLs whose query-parameters carry sensitive-name path components
 exfil channel — PR comments are an attacker-readable broadcast surface
 across the public internet for any public-repo bot.
 
-**Primary incident anchor.** Comment-and-Control class (Johns Hopkins +
-Anthropic, October-November 2025); ShadowLeak (Radware / OpenAI ChatGPT
+**Primary incident anchor.** Comment-and-Control class (Aonan Guan with
+Johns Hopkins researchers, April 2026); ShadowLeak (Radware / OpenAI ChatGPT
 Deep Research, September 2025) for the exfil-via-bot-output pattern.
 
 **Splunk SPL.**
@@ -1686,7 +1677,7 @@ description: |
   indirect-prompt-injection payload reached the model and was reflected,
   regardless of whether downstream exploitation succeeded.
 references:
-  - https://www.aim.security/blog/echoleak-cve-2025-32711
+  - https://www.aim.security/lp/aim-labs-echoleak-blogpost
   - https://embracethered.com/blog/                       # Rehberger canary patterns
   - https://atlas.mitre.org/techniques/AML.T0051
 author: detection-engineering
@@ -1754,7 +1745,7 @@ description: |
 references:
   - https://github.com/advisories/GHSA-9ppg-jx86-fqw7
   - https://adnanthekhan.com/posts/clinejection/
-  - https://github.blog/changelog/2025-11-cache-eviction-policy/   # placeholder for the GHA LRU policy doc
+  - https://github.blog/changelog/2025-09-29-new-date-for-enforcement-of-cache-eviction-policy/   # GHA cache eviction policy
 author: detection-engineering
 date: 2026/05/15
 logsource:
@@ -1952,7 +1943,7 @@ architecture is wrong.
   <https://specterops.io/blog/2020/02/06/capability-abstraction/>
 - Atkinson. *Detection Spectrum.*
   <https://specterops.io/blog/2020/02/21/detection-spectrum/>
-- Atkinson. *Detection in Depth.*
+- Prager. *Detection in Depth.*
   <https://specterops.io/blog/2020/05/08/detection-in-depth/>
 - Robbins. *The Attack Path Management Manifesto.*
   <https://posts.specterops.io/the-attack-path-management-manifesto-3a3b117f5e5>
@@ -2042,7 +2033,7 @@ architecture is wrong.
 - Anthropic Claude Code monitoring (OTel exporter, tool-content events).
   <https://docs.anthropic.com/en/docs/claude-code/monitoring-usage>
 - MITRE ATLAS knowledge base. <https://atlas.mitre.org/>
-- MITRE ATLAS — AML.T0080 Memory Poisoning.
+- MITRE ATLAS — AML.T0080 AI Agent Context Poisoning (sub-technique AML.T0080.000 Memory).
   <https://atlas.mitre.org/techniques/AML.T0080>
 
 ### AI-runtime observability vendor landscape
@@ -2130,13 +2121,13 @@ architecture is wrong.
 
 ## Document Cross-Links Updated 2026-05-15
 
-- Added §10.10 — six concrete Sigma/KQL/SPL detection rules for AI-PR-review compromise patterns, anchored on PwnedRabbit, Clinejection (GHSA-9ppg-jx86-fqw7), Comment-and-Control (CVSS 9.4), CurXecute (CVE-2025-54135), and EchoLeak (CVE-2025-32711) incidents.
+- Added §10.10 — six concrete Sigma/KQL/SPL detection rules for AI-PR-review compromise patterns, anchored on Clinejection (GHSA-9ppg-jx86-fqw7), Comment-and-Control (CVSS 9.4), CurXecute (CVE-2025-54135), and EchoLeak (CVE-2025-32711) incidents.
 - New cross-references added to `ai_pr_review_platform_expertise.md` and `ai_assisted_coding_tool_security_expertise.md`; rules anchored on the OpenTelemetry GenAI semconv (`gen_ai.*`) substrate documented in §10.1.
 
 ---
 
 *Last reviewed: 2026-05-14. Maintained against MITRE ATT&CK v14, MITRE ATLAS
-(AML.T0080 Memory Poisoning), SigmaHQ rule corpus, OCSF v1.x, OpenTelemetry
+(AML.T0080 AI Agent Context Poisoning), SigmaHQ rule corpus, OCSF v1.x, OpenTelemetry
 Semantic Conventions for Generative AI Systems (in-development as of May
 2026), the AI-runtime incident corpus through May 2026 (EchoLeak,
 AgentFlayer, ShadowLeak, AI Recommendation Poisoning), and Sysmon
