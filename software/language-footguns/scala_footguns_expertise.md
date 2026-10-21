@@ -269,7 +269,7 @@ Scala 3.0 introduced `-Yexplicit-nulls`. With the flag:
 - Union types replace `Option` at the Java boundary in some codebases.
 
 Opt-in because rewrites at every Java-interop boundary are required. Source:
-`docs.scala-lang.org/scala3/reference/other-new-features/explicit-nulls.html`. Contrast with
+`docs.scala-lang.org/scala3/reference/experimental/explicit-nulls.html`. Contrast with
 `kotlin_footguns_expertise.md` §3: Kotlin made null-safety the default with opt-in unsafe
 via `!!`; Scala 3 made null-safety opt-in with opt-out unsafe via `null`.
 
@@ -632,7 +632,7 @@ actor missing). Developers who want a reply use `?` (ask) → `Future[Any]` plus
 Default `UnboundedMailbox` (backed by `ConcurrentLinkedQueue`) has no message limit. Akka
 documentation explicitly: "in a scenario where messages are added to the mailbox faster than
 the actor can process them, this can lead to the application running out of memory." Source:
-`doc.akka.io/libraries/akka-core/current/mailboxes.html`.
+`doc.akka.io/libraries/akka-core/current/typed/mailboxes.html`.
 
 **DoS vector**: an attacker flooding an actor (directly via Akka Remoting, or via HTTP →
 actor message translation) exhausts JVM heap. Mitigation: `BoundedMailbox` with explicit
