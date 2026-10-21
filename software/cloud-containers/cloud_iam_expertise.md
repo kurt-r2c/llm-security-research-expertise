@@ -9,20 +9,18 @@
 >   AWS-specific corpus on IAM trust-policy abuse — including the 2024 AWS Amplify Cognito
 >   identity-pool takeover (CVE-2024-28056) co-disclosed with AWS — is the practitioner reference
 >   for "what does the trust-policy attack surface actually look like in 2024-2026."
-> - **Spencer Gietzen** — co-creator of **Pacu** (RhinoSecurityLabs / now Plerion), the
+> - **Spencer Gietzen** — co-creator of **Pacu** (RhinoSecurityLabs), the
 >   "Metasploit for AWS" exploitation framework, and primary author of the
 >   `RhinoSecurityLabs/AWS-IAM-Privilege-Escalation` enumeration of 21 documented privesc paths
 >   (`iam:CreatePolicyVersion`, `iam:PassRole` + `lambda:CreateFunction`, etc.) that became the
->   community baseline for IAM privesc detection. Cloud security researcher in Seattle.
-> - **Scott Piper** (`@0xdabbad00`) — proprietor of **Summit Route**, formerly Director of Cloud
->   Security at Salesforce. Created **flaws.cloud** and **flaws2.cloud** — the two CTF corpora
+>   community baseline for IAM privesc detection.
+> - **Scott Piper** (`@0xdabbad00`) — proprietor of **Summit Route**. Created **flaws.cloud** and **flaws2.cloud** — the two CTF corpora
 >   that introduced a generation of practitioners to IAM-misconfiguration attack patterns. Wiz
 >   research partner on **cloudvulndb.org**.
 > - **Aidan Steele** (`@__steele`) — independent AWS researcher; **awsteele.com** is the
 >   reference blog for IAM/STS internals. Reverse-engineered the AKIA/ASIA access-key-ID
->   account-ID encoding; documented CloudShell credential plumbing; documented the
->   principal-tag SCP/RCP locking pattern (Feb 2026). AWS Hero.
-> - **Daniel Bohannon** (`@danielhbohannon`) — Principal Security Researcher at **Permiso
+>   account-ID encoding; documented CloudShell credential plumbing. AWS Hero.
+> - **Daniel Bohannon** (`@danielhbohannon`) — Principal Threat Researcher at **Permiso
 >   Security** (CDR — Cloud Detection & Response); formerly Microsoft and Mandiant. Co-author of
 >   the AWS abuse-detection corpus that informs much of the CloudTrail anomaly-detection
 >   tradecraft cited in §9. (Note: Bohannon is at Permiso, not SpecterOps — corrected from the
@@ -32,25 +30,24 @@
 >   **roadtx**, the primary Entra-ID enumeration and PRT-abuse frameworks. His blog
 >   (https://dirkjanm.io) documents Primary Refresh Token theft, device-registration abuse, and
 >   conditional-access bypass with the depth that no vendor doc reaches.
-> - **Beau Bullock** (`@dafthack`) — Director of Emerging Threats and Advanced Testing at
->   **Black Hills Information Security**; author of **MSOLSpray**, **TokenTactics**, and the
+> - **Beau Bullock** (`@dafthack`) — Senior Security Analyst at
+>   **Black Hills Information Security**; author of **MSOLSpray** and the
 >   **Breaching the Cloud** training. His Azure / Entra ID red-team corpus (password-spray
 >   tradecraft, OAuth consent phishing, Exchange Online ATO via add-ins) is the practitioner
 >   reference for "what does Entra ID look like to a red team."
 > - **Andy Robbins** (`@_wald0`) — Principal Security Researcher at **SpecterOps**; co-creator
->   of **BloodHound** and **AzureHound**. Architect of the BloodHound 4.0 Azure refactor (with
+>   of **BloodHound** and **AzureHound**. Architect of the BloodHound 4.0 Azure Update (with
 >   Rohan Vazarkar and Ryan Hausknecht) that unified on-prem AD and Entra-ID attack-path
->   discovery. The Microsoft 2024 Midnight Blizzard breach analysis ("How Can I See This In
->   BloodHound?") is canonical.
+>   discovery. His Microsoft 2024 Midnight Blizzard breach analysis ("Microsoft Breach — What Happened?
+>   What Should Azure Admins Do?") is canonical.
 > - **Will Schroeder** (`@harmj0y`) — Principal Security Researcher at **SpecterOps**;
 >   co-creator of BloodHound, PowerSploit, Empire, GhostPack, and the **Certified Pre-Owned**
 >   AD CS research. Authority on the on-prem-AD ↔ cloud-IAM bridge — the same attack-graph
 >   discipline that unmasked ESC1-ESC8 also unmasks hybrid AD trust paths into Entra.
-> - **Shir Tamari** (`@shirtamari`) — Head of Research at **Wiz**; previously Salt Security.
+> - **Shir Tamari** (`@shirtamari`) — Head of Research at **Wiz**.
 >   Discoverer of **ChaosDB** (Azure Cosmos DB cross-tenant leak, Aug 2021), **OMIGOD**
 >   (silently-deployed Azure OMI agent), and **ExtraReplica** (cross-account Azure
->   PostgreSQL). Co-founder of **cloudvulndb.org** (with Scott Piper) — the industry's call to
->   action for a cloud vulnerability database.
+>   PostgreSQL).
 > - **Christophe Tafani-Dereeper** (`@christophetd`) — Senior Cloud Security Researcher at
 >   Datadog; core maintainer of **Stratus Red Team** (https://stratus-red-team.cloud), the
 >   open-source cloud adversary-emulation framework. Stratus codifies AWS / Azure / GCP /
@@ -138,8 +135,8 @@ model below is what an offensive practitioner brings to a new AWS account.
 
 **IAM Users** are long-lived identities with up to two long-lived access-key pairs (AKIA-
 prefixed). They are the source of most credential-leakage incidents (committed to GitHub,
-leaked in CI logs). Aidan Steele's "there's no need for AWS IAM users today" is the modern
-consensus.
+leaked in CI logs). AWS's own guidance is that IAM users are generally not the best choice
+for managing access.
 
 **IAM Roles** have no long-lived credentials; they are assumed via STS, producing temporary
 ASIA-prefixed credentials with a session token. Roles are the right primitive for workloads
@@ -191,7 +188,7 @@ recent trust-policy abuse: Amplify-created roles permitted
 `cognito-identity.amazonaws.com:amr = "unauthenticated"` without binding to a specific
 identity-pool ID. An attacker could create a Cognito identity pool in their own account, mint
 a Web Identity token, and `sts:AssumeRoleWithWebIdentity` against the victim's role. AWS
-patched in two stages (Feb / Apr 2024); the trust-policy fix binds to a specific `:aud` claim.
+patched in two stages (Feb / Apr 2024); STS now rejects cross-account assumption of roles with these trust policies.
 Reference: https://securitylabs.datadoghq.com/articles/amplified-exposure-how-aws-flaws-made-amplify-iam-roles-vulnerable-to-takeover/
 
 ### STS — the token issuance API
@@ -201,7 +198,7 @@ STS issues temporary credentials. Five primary calls: `AssumeRole` (any principa
 MFA-bound), `GetFederationToken` (IAM user, federated principal). The "cannot call
 GetFederationToken from an assumed-role session" constraint is a **detection primitive** —
 if CloudTrail shows it being invoked by AssumeRole-issued credentials, it is anomalous.
-Aidan Steele's STS-region research underscores using regional STS endpoints, never global.
+AWS recommends using regional STS endpoints.
 
 ### IMDS — the Instance Metadata Service
 
@@ -216,8 +213,8 @@ a PUT issues a token, subsequent GETs must present it (SSRF that forges only GET
 complete); (2) IP-hop-limit-of-1 — the response packet's TTL is 1, so it cannot route off the
 instance; (3) `HttpTokens=required` refuses IMDSv1 at the instance level. IMDSv2 is necessary
 but not sufficient: a real SSRF originating *on* the instance still works (hop 0 inside, 1
-out). Scott Piper's 2022 "I am at war with IMDSv1" campaign drove adoption; AWS defaults new
-instances to IMDSv2-required.
+out). Since March 2024, AWS lets accounts set IMDSv2 as the default for all new
+instance launches.
 
 ### Service Control Policies and Permission Boundaries
 
@@ -282,24 +279,24 @@ https://www.praetorian.com/blog/privilege-escalation-in-aws-with-passrole-attack
   accounts. Treat as org-admin equivalent.
 - **`ssm:SendCommand`** — shell as root / SYSTEM on every SSM-managed instance, and IMDS
   from there. Second most-overlooked privesc after `iam:PassRole`. Stratus Red Team's
-  `aws.execution.ec2-launch-unusual-instances` exercises the pattern.
+  `aws.execution.ssm-send-command` exercises the pattern.
 - **`sts:GetFederationToken`** — anti-forensics pivot: federated-principal session breaks
   audit trail back to the IAM User. Alert on use outside a known federation broker.
 
 ### The Capital One breach (2019) anatomy
 
 Paige Thompson exploited an SSRF in a ModSecurity WAF on EC2 to reach IMDSv1, retrieving the
-`ISRM-WAF-Role` credentials. The role had `s3:ListAllMyBuckets` + `s3:GetObject` on
+WAF role's credentials. The role had `s3:ListAllMyBuckets` + `s3:GetObject` on
 customer-data buckets. `aws s3 sync` exfiltrated 106M records. Root causes: SSRF + IMDSv1 +
 overpermissive role (WAFs don't need to read customer data). Defenses that would have
 prevented: IMDSv2 required, role scope reduced to logging-bucket writes, SCP denying broad
 `s3:GetObject` on customer-data prefixes for non-data-plane roles, GuardDuty
-`UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration` (added post-breach).
+`UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration`.
 
 ### The Code Spaces destruction (2014)
 
-Attacker compromised the AWS root account (no MFA, daily-driver root use). Demanded ransom;
-during recovery, attacker used pre-staged backup IAM Users to delete all EBS snapshots, S3
+Attacker gained access to Code Spaces' AWS control panel. Demanded ransom;
+during recovery, attacker used backdoor logins to delete all EBS snapshots, S3
 buckets, EC2 instances, AMIs. No off-AWS backups. Company ceased operations next day. The
 canonical control-plane-destruction breach. Modern defense: locked-MFA root, off-cloud
 backups, SCP-denied `cloudtrail:StopLogging`.
@@ -309,10 +306,9 @@ backups, SCP-denied `cloudtrail:StopLogging`.
 Mandiant tracked UNC5537 compromising ~165 Snowflake customer instances (AT&T,
 Ticketmaster, Santander, LendingTree, Neiman Marcus). Root cause: stolen credentials from
 infostealer malware (Vidar / Lumma / Risepro) dating to 2020-2022 dev-laptop infections,
-combined with **no MFA**, no IP allow-list, no rotation (many credentials 2-4 years old).
-UNC5537 exploited no vulnerability — just valid creds and no MFA. Mandiant: "MFA would have
-prevented compromise." Snowflake made MFA mandatory October 2024; password-only login
-terminated November 2025. Lesson: the IdP layer is part of cloud IAM; federation to a
+combined with **no MFA**, no IP allow-list, no rotation (some credentials unrotated for as long as four years).
+UNC5537 exploited no vulnerability — just valid creds and no MFA. Snowflake made MFA the default for password sign-ins on new accounts
+after October 2024 and is phasing out single-factor password sign-ins through 2026. Lesson: the IdP layer is part of cloud IAM; federation to a
 central IdP with universal MFA is the structural fix. Reference:
 https://cloud.google.com/blog/topics/threat-intelligence/unc5537-snowflake-data-theft-extortion
 
@@ -373,8 +369,8 @@ victim clicks **Accept**, the attacker's SP in the victim's tenant gets a refres
 those scopes. Indefinite access via tokens, not passwords. Why it bypasses defenses: real
 Microsoft domain, real password + real MFA, no malware. Password reset does **not** revoke;
 remediation requires deleting the SP's `oauth2PermissionGrants` and refresh tokens via Graph.
-Microsoft tightened defaults July 2025: users cannot consent to non-verified third-party
-apps accessing files / mail by default. Reference:
+Microsoft tightened defaults July 2025: users cannot consent to third-party
+apps accessing files and sites by default. Reference:
 https://learn.microsoft.com/en-us/defender-office-365/detect-and-remediate-illicit-consent-grants
 
 ### Pass-the-PRT (Primary Refresh Token)
@@ -393,8 +389,8 @@ https://dirkjanm.io/abusing-azure-ad-sso-with-the-primary-refresh-token/
 `Application.ReadWrite.All` Graph permission lets an SP create new SPs, assign credentials
 to any existing SP, and add itself to high-privilege Directory Roles. Effectively
 "make me Global Administrator." Same for `RoleManagement.ReadWrite.Directory`. These
-permissions are never granted to application SPs without JIT access + strong audit. Beau
-Bullock's **TokenTactics** corpus covers SP-token abuse end-to-end.
+permissions are never granted to application SPs without JIT access + strong audit. Steve
+Borosh's (`rvrsh3ll`) **TokenTactics** corpus covers SP-token abuse end-to-end.
 
 ### Cross-tenant access — B2B Collaboration
 
@@ -406,12 +402,13 @@ allowlist trusted partner tenants only.
 ### The Midnight Blizzard breach (January 2024)
 
 Russian APT29 compromised Microsoft's corporate tenant. Chain: (1) password spray against a
-legacy non-prod test tenant (no MFA, no CA) — single account compromised Nov 2023; (2)
-inside the test tenant, attacker discovered a legacy test OAuth Application object granted
-`full_access_as_app` to Exchange Online in the **production tenant** — never cleaned up;
-(3) attacker added credentials to that app's SP in production; (4) minted tokens; (5) read
-mail of senior leadership, legal, and security. CSRB (April 2024) found the breach
-preventable and faulted Microsoft's security culture. Root causes: legacy test tenant
+legacy non-prod test tenant account (no MFA) — compromised Nov 2023; (2) attacker
+compromised a legacy test OAuth application with elevated access to the Microsoft corporate
+environment; (3) attacker created malicious OAuth applications and a new user account to
+grant them consent, then used the legacy test app to grant them the Exchange Online
+`full_access_as_app` role; (4) read mail of senior leadership, legal, and security. The CSRB's April 2024 Storm-0558 review
+cited it as evidence Microsoft had not yet implemented the necessary governance or
+prioritization of security. Root causes: legacy test tenant
 without MFA, OAuth app with cross-tenant production scope that audit missed, no anomaly
 detection on rare-app token use. Defenses: mandatory CA in every tenant (no exceptions),
 quarterly OAuth app inventory, detection on `MicrosoftGraph.Auth.Token` from rarely-used
@@ -624,14 +621,14 @@ The cloud IAM tooling ecosystem is dense. Categorized by purpose:
 
 ### Offensive enumeration / exploitation
 
-- **Pacu** (Rhino / Plerion) — "Metasploit for AWS"; 50+ modules covering enumeration,
+- **Pacu** (Rhino) — "Metasploit for AWS"; 50+ modules covering enumeration,
   privesc, persistence, exfil, anti-forensics. https://github.com/RhinoSecurityLabs/pacu
 - **CloudGoat** (Rhino) — intentionally-vulnerable AWS labs for IAM-privesc training;
   `cloud_breach_s3` reproduces Capital One.
 - **ROADtools / roadtx** (Mollema) — Entra enumeration, PRT extraction, device-registration
   abuse. https://github.com/dirkjanm/ROADtools
 - **AzureHound** (SpecterOps) — Entra-ID-aware BloodHound collector.
-- **TokenTactics** (Bullock) — Microsoft Graph + Azure ARM token manipulation, PRT-cookie
+- **TokenTactics** (Borosh / Cooke) — Microsoft Graph + Azure ARM token manipulation, PRT-cookie
   abuse.
 - **MSOLSpray** (Bullock) — Entra password spray.
 
@@ -650,7 +647,7 @@ The cloud IAM tooling ecosystem is dense. Categorized by purpose:
 - **AWS IAM Access Analyzer** — automated reasoning for external-access detection;
   least-privilege generation from CloudTrail; pre-deployment policy validation. Free.
 - **AWS GuardDuty** — managed threat detection;
-  `UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration` is the canonical
+  `UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS` is the canonical
   off-instance-credential detector.
 - **Microsoft Defender for Cloud** — multi-cloud CSPM aggregation.
 - **GCP Security Command Center** + IAM Recommender — least-privilege recommendations.
@@ -787,8 +784,8 @@ ARNs, not generic role); human-in-loop approval for elevated operations. Cross-l
 
 ### Cross-cloud workload identity
 
-Workload that needs both AWS and GCP: chain the federation. EKS Pod Identity (AWS-rooted)
-exchanges its identity token to GCP via WIF pointing at the EKS OIDC issuer; GCP→AWS
+Workload that needs both AWS and GCP: chain the federation. An EKS workload
+exchanges its Kubernetes service-account token to GCP via WIF pointing at the EKS OIDC issuer; GCP→AWS
 mirrors via AWS trust policy accepting `accounts.google.com` as OIDC issuer. No long-lived
 secret crosses cloud boundaries.
 
@@ -873,15 +870,13 @@ multi-org views.
 
 ### Breach reports
 
-- Capital One Senate inquiry —
-  https://www.banking.senate.gov/imo/media/doc/Schwartz%20Testimony%2010-17-19.pdf
 - Code Spaces (2014) — https://www.breaches.cloud/incidents/codespaces/
 - ChaosDB —
   https://www.wiz.io/blog/how-we-broke-the-cloud-with-two-lines-of-code-the-full-story-of-chaosdb
 - ExtraReplica —
   https://www.wiz.io/blog/wiz-research-discovers-extrareplica-cross-account-database-vulnerability-in-azure-postgresql
 - Storm-0558 CSRB (Apr 2024) —
-  https://www.cisa.gov/sites/default/files/2024-04/CSRB_Review_of_the_Summer_2023_Microsoft_Exchange_Online_Intrusion_Final_508c.pdf
+  https://www.cisa.gov/sites/default/files/2024-04/CSRB_Review_of_the_Summer_2023_MEO_Intrusion_Final_508c.pdf
 - Midnight Blizzard —
   https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/
 - UNC5537 (Mandiant, Jun 2024) —
@@ -912,8 +907,8 @@ multi-org views.
 1. **Identity is the perimeter.** Most cloud breaches trace to IAM, not RCE. The first
    defense is IAM; everything else is defense-in-depth on top of it.
 
-2. **The five-policy evaluation order in AWS is non-negotiable** — SCP → resource policy →
-   permission boundary → session policy → identity policy, with explicit deny winning
+2. **The policy evaluation order in AWS is non-negotiable** — RCP → SCP → resource policy →
+   identity policy → permission boundary → session policy, with explicit deny winning
    everywhere. Knowing it is the difference between auditing and guessing.
 
 3. **Trust policies are the most-frequently-misconfigured surface.** Every trust policy
@@ -949,7 +944,7 @@ multi-org views.
     multi-cloud-fatal. UNC5537 / Snowflake is the proof: IdP MFA enforcement is the
     load-bearing control across all downstream cloud + SaaS auth.
 
-12. **Modern (2024-2026) breaches are not RCE breaches.** Midnight Blizzard, UNC5537,
+12. **Modern (2023-2026) breaches are not RCE breaches.** Midnight Blizzard, UNC5537,
     Amplify CVE-2024-28056, Storm-0558 — all IAM / federation / token-issuance breaches.
     Defense must match the threat shape.
 

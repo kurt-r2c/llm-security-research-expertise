@@ -12,7 +12,7 @@ This doc is for: AI agents deciding whether a Cilium-native cluster mesh or Isti
 
 ## 2. Cilium architectural primer
 
-**Cilium** is an eBPF-based CNI plugin, service mesh, and cluster mesh. Started inside Covalent (later Isovalent) by **Thomas Graf** and **Daniel Borkmann** around 2016, both long-standing Linux kernel maintainers in the netfilter and eBPF subsystems. Donated to CNCF in 2021; **CNCF Graduated October 2023** `[unverified specific graduation date]`. **Cisco announced acquisition of Isovalent on December 21, 2023** `[unverified specific date]`; transaction closed approximately April 2024 `[unverified specific close date]`.
+**Cilium** is an eBPF-based CNI plugin, service mesh, and cluster mesh. Created by **Thomas Graf**, **Daniel Borkmann**, André Martins and Madhusudan Challa around 2015; Graf and Borkmann are long-standing Linux kernel maintainers in the netfilter and eBPF subsystems. Donated to CNCF in 2021; **CNCF Graduated October 2023** `[unverified specific graduation date]`. **Cisco announced acquisition of Isovalent on December 21, 2023** `[unverified specific date]`; transaction closed approximately April 2024 `[unverified specific close date]`.
 
 **Maintainer roster** (incomplete, recall-based — `[unverified specific roles]`): Thomas Graf (co-founder, Isovalent CTO → Cisco), Daniel Borkmann (eBPF kernel maintainer + Isovalent), **John Fastabend** (Cilium core, eBPF maintainer), **Joe Stringer** (Cilium maintainer, Open vSwitch background), **Liz Rice** (former Isovalent Chief Open Source Officer → Cisco; author of "Container Security", O'Reilly 2020 and "Learning eBPF", O'Reilly 2023). Additional maintainers active in 2024-2026 include `[unverified roster]` — the canonical source is `cilium/cilium` `OWNERS` and `MAINTAINERS.md`.
 
@@ -25,13 +25,13 @@ This doc is for: AI agents deciding whether a Cilium-native cluster mesh or Isti
 
 **eBPF maps as data-plane state.** Cilium's per-node state lives in eBPF maps — hash tables, LPM tries, LRU caches — accessible from kernel-space eBPF programs and from user-space via `bpf(2)` syscalls. Identity-to-endpoint mappings, policy-decision caches, NAT tables, and connection-tracking state all live in maps. The user-space Cilium agent reads and writes maps; the kernel-space eBPF programs read and (in some cases) write them on every packet. Map size budgets are a tunable that affects scale — a too-small connection-tracking map causes connection drops under load.
 
-**Cilium identity model.** Each pod is assigned a numeric **identity** (a `uint32`) computed from a deterministic hash of its security-relevant labels (namespace + the subset of labels Cilium considers identity-relevant, defaulting to `k8s:io.kubernetes.pod.namespace` and the pod's labels matched by `--label-prefixes`). Identity is the unit of policy; CiliumNetworkPolicy references identities, not pod IPs.
+**Cilium identity model.** Each pod is assigned a numeric **identity** (a `uint32`) allocated (via the CRD or kvstore identity allocator) for its set of security-relevant labels (namespace + the subset of labels Cilium considers identity-relevant). Identity is the unit of policy; CiliumNetworkPolicy references identities, not pod IPs.
 
 Identities are distributed via a **KVStore** — historically `etcd`, now also via Kubernetes CRDs (`CiliumIdentity`). Each node's Cilium agent watches the identity store and programs eBPF maps so that packet processing knows the source/destination identity on every packet.
 
-**Hubble.** Cilium's observability sibling. Network-flow telemetry (L3/L4) plus L7 protocol awareness (HTTP, gRPC, Kafka, DNS) via in-kernel L7 parsing where available and via embedded Envoy where not. Exposes flow events, metrics, and a UI. Aggregated cross-cluster via Hubble Relay.
+**Hubble.** Cilium's observability sibling. Network-flow telemetry (L3/L4) plus L7 protocol awareness (HTTP, gRPC, Kafka, DNS) via the node-local Envoy proxy for traffic matched by L7 policy rules. Exposes flow events, metrics, and a UI. Aggregated cross-cluster via Hubble Relay.
 
-**Cilium service load-balancing.** Cilium replaces `kube-proxy` (the default Kubernetes service load-balancer) with its own eBPF-based LB. Implementation lives in the socket-LB cgroup hook for in-cluster traffic and in the tc/XDP hooks for external traffic. The replacement is more efficient (no `iptables` rule cascade) and is a prerequisite for cluster-mesh features — peer-cluster service backends can be programmed into the LB pool the same way local backends are.
+**Cilium service load-balancing.** Cilium replaces `kube-proxy` (the default Kubernetes service load-balancer) with its own eBPF-based LB. Implementation lives in the socket-LB cgroup hook for in-cluster traffic and in the tc/XDP hooks for external traffic. The replacement is more efficient (no `iptables` rule cascade).
 
 ## 3. Cilium Cluster Mesh — the multi-cluster pattern
 
@@ -41,7 +41,7 @@ Identities are distributed via a **KVStore** — historically `etcd`, now also v
 
 1. **Identities.** Cluster A's identity space is visible to cluster B (with cluster-id prefixing — see §5 below to avoid numeric collision).
 2. **Services.** A service annotated `service.cilium.io/global: "true"` is discoverable in peer clusters. Backends from peer clusters appear in the local cluster's service-IP load-balancing pool.
-3. **Pod CIDRs (optionally) routable.** If cluster pod CIDRs are non-overlapping and L3 reachable (typical in same-VPC or VPC-peered deployments), Cilium routes pod-to-pod directly. If overlapping or non-reachable, Cilium tunnels via VXLAN or Geneve.
+3. **Pod CIDRs (optionally) routable.** If cluster pod CIDRs are non-overlapping and L3 reachable (typical in same-VPC or VPC-peered deployments), Cilium routes pod-to-pod directly. If not directly reachable, Cilium tunnels via VXLAN or Geneve; PodCIDRs must be non-overlapping in either case.
 
 **What is NOT federated by default:**
 
@@ -57,7 +57,7 @@ Identities are distributed via a **KVStore** — historically `etcd`, now also v
 
 **Three topology shapes.** In practice three patterns are observable in production:
 
-1. **Tunnel mode (VXLAN/Geneve) across all clusters.** Cross-cluster pod-to-pod traffic is encapsulated; the underlying network only needs L3 reachability between Cilium node IPs. Works regardless of pod-CIDR overlap. Highest overhead.
+1. **Tunnel mode (VXLAN/Geneve) across all clusters.** Cross-cluster pod-to-pod traffic is encapsulated; the underlying network only needs L3 reachability between Cilium node IPs. Pod CIDRs must still be non-overlapping. Highest overhead.
 2. **Native routing with non-overlapping pod CIDRs.** Cross-cluster pod-to-pod traffic is routed directly via the underlying network. Requires pod CIDR planning across clusters + L3 reachability. Lowest overhead.
 3. **Hybrid: native within-cloud, tunnel across-cloud.** Common in multi-cloud where in-cloud clusters share a VPC and cross-cloud pairs need tunneling.
 
@@ -76,7 +76,7 @@ cilium clustermesh status --context <cluster-A>
 
 `cilium clustermesh enable` does two things: (a) deploys the ClusterMesh API server (a per-cluster control-plane component, typically as a Deployment exposed via a Service of type LoadBalancer or NodePort), and (b) generates the CA + server certs for the mesh-internal mTLS.
 
-**`cluster-name` + `cluster-id`** are per-cluster Cilium configuration values, set at Cilium install time (`--set cluster.name=cluster-a --set cluster.id=1`). Both must be **globally unique within the mesh**. `cluster-id` is a `uint8` (range 1–255 `[unverified specific range]`) used as a prefix in the cross-cluster identity numbering scheme (see §5). Conflicting cluster-ids will cause undefined behavior; Cilium does not enforce uniqueness at mesh-join time `[unverified specific enforcement state]`.
+**`cluster-name` + `cluster-id`** are per-cluster Cilium configuration values, set at Cilium install time (`--set cluster.name=cluster-a --set cluster.id=1`). Both must be **globally unique within the mesh**. `cluster-id` is a `uint8` (range 1–255 `[unverified specific range]`) used as a prefix in the cross-cluster identity numbering scheme (see §5). Conflicting cluster-ids will cause undefined behavior.
 
 **ClusterMesh API server exposure.** The ClusterMesh API server is a per-cluster service that peers connect to over the network. Exposure modes:
 
@@ -90,7 +90,7 @@ Whichever mode, the API server endpoint authenticates peers via mTLS. Misconfigu
 
 **Helm-based install.** Most production deployments install Cilium via Helm rather than the `cilium` CLI; the Helm chart exposes the same configuration as `--set cluster.name=...`, `--set cluster.id=...`, `--set clustermesh.useAPIServer=true`. GitOps-friendly. The `cilium clustermesh connect` step still uses the CLI because it touches Secrets on both clusters; some operators script this with `kubectl` + manual CA exchange.
 
-**No service mesh proxy by default.** Cilium since 1.13 has in-kernel L7 parsing for HTTP and gRPC for *policy* purposes. For advanced L7 (mTLS termination + routing + retries + traffic shifting) Cilium embeds Envoy, but as a per-node DaemonSet, not a per-pod sidecar. This is the major efficiency claim over Istio's classic sidecar mode (though Istio's ambient mode with `ztunnel` is comparable — see §9).
+**No service mesh proxy by default.** Cilium enforces L7 policy by proxying matched traffic through a node-local Envoy instance, deployed as a DaemonSet or embedded in the agent pod, not a per-pod sidecar. This is the major efficiency claim over Istio's classic sidecar mode (though Istio's ambient mode with `ztunnel` is comparable — see §9).
 
 **Service annotations that matter.** Cross-cluster service behavior is controlled by Service annotations:
 
@@ -121,29 +121,29 @@ egress:
 
 The policy enforcer in cluster A resolves this to the set of identity-IDs in cluster B matching the label set, then programs the eBPF policy map to allow egress from cluster-A workloads to those remote identities.
 
-**KVStore backend choice.** Cilium supports two identity backends: external `etcd` (the classic option, recommended for larger meshes) and Kubernetes CRDs (the simpler default, used in smaller deployments). The KVStore choice affects scalability — `etcd` scales better for large identity spaces and high-churn workloads; CRDs scale with the Kubernetes API server, which has its own limits. For cluster mesh deployments the external `etcd` option was historically required `[unverified specific deprecation timeline]`; recent versions support CRD-mode cluster mesh with caveats.
+**KVStore backend choice.** Cilium supports two identity backends: external `etcd` (the classic option, recommended for larger meshes) and Kubernetes CRDs (the simpler default, used in smaller deployments). The KVStore choice affects scalability — `etcd` scales better for large identity spaces and high-churn workloads; CRDs scale with the Kubernetes API server, which has its own limits.
 
 **Identity garbage collection.** Identities are reference-counted; when no pod matches a label set, the identity is eligible for GC. The Cilium operator runs the GC. In a cluster mesh, identity GC must coordinate across clusters — a cluster-A identity referenced by a cluster-B policy must not be GC'd. The coordination is implicit (peer ClusterMesh API server watches don't release the reference). Identity churn in one cluster can produce policy-reconciliation latency in peers; this is rarely an operational problem but is observable under load.
 
-**Cross-link to `[[reference-zero-trust-workload-identity]]` §6.** Cilium identities are NOT SPIFFE IDs. They are numeric, cluster-mesh-scoped, and lack the cryptographic-trust-document property of SPIFFE SVIDs. A SPIFFE-to-Cilium identity bridge exists (`cilium/cilium#21946` and successors `[unverified specific PR refs]`) but as of mid-2026 is research-grade rather than production-default. Cross-cluster identity composition with SPIFFE/SPIRE ecosystems requires custom integration; the `spiffe-helper` sidecar pattern is the most common workaround.
+**Cross-link to `[[reference-zero-trust-workload-identity]]` §6.** Cilium identities are NOT SPIFFE IDs. They are numeric, cluster-mesh-scoped, and lack the cryptographic-trust-document property of SPIFFE SVIDs. A SPIFFE-to-Cilium identity bridge exists but as of mid-2026 is research-grade rather than production-default. Cross-cluster identity composition with SPIFFE/SPIRE ecosystems requires custom integration; the `spiffe-helper` sidecar pattern is the most common workaround.
 
 **Trust transitivity.** A mesh of N clusters has N(N-1)/2 pair-wise trust relationships in the default topology — each cluster pairs explicitly with each peer. Cilium does not propagate trust transitively; if cluster A trusts B and B trusts C, A does not implicitly trust C. This is a deliberate design choice and aligns with the SPIRE federation model (cross-link `[[reference-spiffe-spire-federation-operations]]`). The operational consequence: large meshes have a quadratic peering matrix. Beyond ~10 clusters, hub-and-spoke topologies (one designated hub cluster peering with all spokes) become common but reduce resilience.
 
 ## 6. mTLS in Cilium Cluster Mesh
 
-**Cilium mTLS** as a kernel-level data-plane feature shipped in **Cilium 1.14** in 2023 `[unverified specific version + GA-vs-beta state]`. Distinct from sidecar-based mTLS (Istio classic) and ambient-mode L4 mTLS (Istio `ztunnel`): Cilium's mTLS uses eBPF + a small user-space helper (TLS handshake is done in user-space; bulk cipher operations stay in kernel via `kTLS` socket offload).
+**Cilium mTLS** as a kernel-level data-plane feature shipped as a beta feature in **Cilium 1.14** in 2023 and is still marked beta in current docs. Distinct from sidecar-based mTLS (Istio classic) and ambient-mode L4 mTLS (Istio `ztunnel`): Cilium's mutual authentication performs the handshake out-of-band from regular connections and does not itself encrypt traffic; encryption requires enabling WireGuard or IPsec transparent encryption.
 
-**Cross-cluster mTLS.** Identities propagate across the mesh (§5); certs issued per identity by a Cilium-controlled CA or, increasingly, by an external SPIFFE-compatible CA (SPIRE integration). The handshake happens between the eBPF-managed sockets on each side; the kernel sees only the encrypted payload after handshake completion.
+**Cross-cluster mTLS.** Identities propagate across the mesh (§5); certs issued per identity by a Cilium-controlled CA or, increasingly, by an external SPIFFE-compatible CA (SPIRE integration).
 
 **Comparison to Istio.** Istio sidecar mTLS is well-trodden — production deployments date to 2018+. Cilium mTLS is younger and operationally less battle-tested. As of mid-2026, the strong recommendation is: if you need production-grade mTLS for compliance (PCI-DSS, FedRAMP), Istio's `ztunnel`-based ambient mTLS (Linkerd2-proxy is comparable — see `[[reference-service-mesh-security]]` §4) is the more conservative choice. Cilium mTLS suits greenfield deployments with kernel + eBPF expertise on staff.
 
 **Honest framing.** Cilium mTLS removes one of the historic objections to Cilium-as-service-mesh (no encryption between pods). It does not yet remove the broader objection that the Cilium mesh's policy + observability features are less mature than Istio's. Several large operators run Cilium for CNI + cluster mesh and Istio for service-mesh L7 — a coexistence pattern complicated to operate but common.
 
-**WireGuard transparent encryption.** Cilium has supported WireGuard-based transparent transport encryption since 1.10 `[unverified specific version]`. This is a coarser mode than per-identity mTLS — every packet between two Cilium nodes is WireGuard-encrypted regardless of identity. Suitable for compliance regimes that require "all traffic encrypted in transit" but don't require per-workload identity in the encrypted channel. Operates at the node-to-node level, not the workload-to-workload level. Cross-cluster WireGuard encryption is supported when Cluster Mesh is in tunnel mode.
+**WireGuard transparent encryption.** Cilium has supported WireGuard-based transparent transport encryption since 1.10 `[unverified specific version]`. This is a coarser mode than per-identity mTLS — every packet between two Cilium nodes is WireGuard-encrypted regardless of identity. Suitable for compliance regimes that require "all traffic encrypted in transit" but don't require per-workload identity in the encrypted channel. Operates at the node-to-node level, not the workload-to-workload level. Cross-cluster WireGuard encryption is supported with Cluster Mesh; all connected clusters must have WireGuard enabled.
 
 **IPsec transparent encryption.** Cilium also supports IPsec (XFRM-based) transport encryption as an alternative to WireGuard. Higher overhead historically; the WireGuard option is the more commonly chosen path in 2024+. Both encrypt node-to-node traffic without per-identity granularity.
 
-**Cert rotation.** Cilium mTLS certs are short-lived (hours, by default `[unverified specific TTL]`). Rotation is automatic — the Cilium agent requests a new cert from the local CA before expiry, updates the eBPF/kTLS state, and old certs are aged out. In a healthy cluster mesh, cert rotation is invisible. In an unhealthy one (CA unavailable, agent OOMed), workloads start failing mTLS handshakes on the rotation boundary — diagnose via `cilium status` and CA pod health.
+**Cert rotation.** Rotation is automatic — the Cilium agent requests a new cert from the local CA before expiry, and old certs are aged out. In a healthy cluster mesh, cert rotation is invisible. In an unhealthy one (CA unavailable, agent OOMed), workloads start failing mTLS handshakes on the rotation boundary — diagnose via `cilium status` and CA pod health.
 
 ## 7. Network policy across clusters
 
@@ -157,11 +157,11 @@ The policy enforcer in cluster A resolves this to the set of identity-IDs in clu
 
 **Audit-only mode.** Cilium supports running policy in audit-only mode — drops are logged but not enforced. The recommended migration to default-deny is: (a) start with default-allow, (b) author CNP/CCNP for known traffic in audit-only mode, (c) review logs, (d) refine policy until clean, (e) flip to enforce. Most operators stop at step (b) or (c); the discipline to complete (e) is the hard part.
 
-**L7 policy.** Cilium parses HTTP/1, gRPC, DNS, Kafka, and Cassandra in-kernel (via eBPF) for policy purposes. More complex L7 features (HTTP/2 multiplexing details, retries, traffic-shifting) route to an embedded Envoy DaemonSet. The dividing line shifts each release; the canonical state is `cilium/cilium` docs at the matching version. As of Cilium 1.16 the in-kernel parser covers HTTP/1.1 method + path + headers, gRPC service + method, DNS query name + type, Kafka topic + API key, and Cassandra query verb `[unverified specific Cilium 1.16 L7 coverage matrix]`.
+**L7 policy.** Cilium enforces HTTP and other L7 policy by proxying matched traffic through a node-local Envoy instance, deployed as a DaemonSet or embedded in the agent pod. The canonical state is `cilium/cilium` docs at the matching version.
 
-**FQDN policy.** Cilium supports egress policy against fully-qualified domain names — `toFQDNs` selectors resolved via DNS interception in the data path. The interception is implemented via in-kernel DNS parsing plus a user-space DNS proxy in the Cilium agent that learns name → IP mappings and programs eBPF maps. This is operationally significant for cross-cluster egress to external SaaS providers; it's also a notable additional attack surface (DNS proxy as a user-space component within the privileged DaemonSet).
+**FQDN policy.** Cilium supports egress policy against fully-qualified domain names — `toFQDNs` selectors resolved via DNS interception in the data path. The interception is implemented via a user-space DNS proxy in the Cilium agent that learns name → IP mappings and programs eBPF maps. This is operationally significant for cross-cluster egress to external SaaS providers; it's also a notable additional attack surface (DNS proxy as a user-space component within the privileged DaemonSet).
 
-**Policy precedence + ordering.** Cilium evaluates policies as a union: a packet is allowed if *any* policy allows it (subject to default-deny vs default-allow). There's no explicit ordering or priority field on CNP/CCNP. The implication: removing a permissive policy is the only way to revoke a permission; you cannot add a "deny" rule to override an "allow" rule. The Cilium policy model is positive-only, which matches the eBPF map-based enforcement substrate.
+**Policy precedence + ordering.** Cilium evaluates policies as a union: a packet is allowed if *any* policy allows it (subject to default-deny vs default-allow). There's no explicit ordering or priority field on CNP/CCNP. Deny policies (`ingressDeny`/`egressDeny`, enabled by default since Cilium 1.9) take precedence over allow rules from any policy type, including Kubernetes NetworkPolicy.
 
 **Identity-aware vs IP-aware policy.** Cilium policies typically reference identities (label selectors); they can also reference CIDRs for external endpoints. The identity-based path is the fast path (eBPF lookup); the CIDR-based path requires LPM trie lookup in eBPF, which is slower but works for IP-only references. Cross-cluster policy should reference identities, not CIDRs.
 
@@ -207,7 +207,7 @@ Both Cilium Cluster Mesh and Istio multi-primary solve the same operational prob
 |---|---|---|
 | Data-plane substrate | eBPF in kernel | Envoy sidecar OR `ztunnel` ambient |
 | Per-pod overhead | None (kernel) | ~50–200 MB per sidecar; ~minimal for ztunnel |
-| Cross-cluster gateway | Optional (tunnel mode) | Required (east-west gateway) |
+| Cross-cluster gateway | Optional (tunnel mode) | Required on multi-network meshes (east-west gateway) |
 | Identity model | Numeric, cluster-id-prefixed | SPIFFE-compatible (workload SVID) |
 | L7 maturity | HTTP/1, gRPC, DNS, Kafka, Cassandra (subset) | Full Envoy L7 |
 | Cross-cluster failover | Service `affinity: local` annotation | DestinationRule + locality-LB |
@@ -234,10 +234,10 @@ The table is recall-grounded and approximate; treat as orientation, not benchmar
 
 ## 10. 2024–2026 currency
 
-- **CNCF Graduation, October 2023** `[unverified specific date]`. Cilium became the second CNI to graduate after Calico (or roughly contemporary `[unverified specific ordering]`).
+- **CNCF Graduation, October 2023** `[unverified specific date]`. Cilium became the first CNI to graduate.
 - **Cisco acquired Isovalent, announced December 2023, closed approximately April 2024** `[unverified specific dates]`. Roadmap implications are unclear in 2026 — Cisco has publicly committed to open-source continuity, but strategic-direction shifts toward Cisco-product integration (Cisco Hypershield, Panoptica) are observable.
-- **Cilium 1.15 (early 2024) and 1.16 (mid-2024)** `[unverified specific release dates]` brought Service Mesh and Cluster Mesh maturity. Gateway API support reached GA in Cilium 1.16 aligning with Kubernetes 1.29 Gateway API GA.
-- **Cilium mTLS GA late 2023** `[unverified specific GA status]`. Adoption rates in production are not well-documented; anecdotally significant but still trailing Istio mTLS by a factor of several.
+- **Cilium 1.15 (early 2024) and 1.16 (mid-2024)** `[unverified specific release dates]` brought Service Mesh and Cluster Mesh maturity. Cilium 1.15 added Gateway API 1.0 support.
+- **Cilium mutual authentication (mTLS) remains beta** in current docs. Adoption rates in production are not well-documented; anecdotally significant but still trailing Istio mTLS by a factor of several.
 - **Tetragon GA 2023; 1.0 release 2023** `[unverified specific GA date]`. Tetragon and Cilium share Isovalent provenance and eBPF substrate but are separately deployable. Cross-link to `[[reference-falco-tetragon-runtime-detection]]` §4.
 - **eBPF for Windows** ports the eBPF execution environment to the Windows kernel; Cilium does not yet target Windows clusters in production as of 2026 `[unverified specific Cilium-on-Windows status]`. The Linux + Windows interop story for Cluster Mesh is open.
 - **AI-workload cluster mesh.** Multi-cluster AI agent deployments using SPIFFE + Cilium identity bridges are emerging in 2025–2026. The use case: distributed model-serving across regional clusters with strong workload identity. Composition with the agent-runtime patterns in `[[reference-llm-agent-security]]` is unclear.
@@ -256,7 +256,7 @@ This is the section to read if you're auditing a Cilium Cluster Mesh deployment.
 
 **Default-allow CiliumNetworkPolicy is operationally common.** Production fleets default-allow because default-deny breaks legitimate traffic during rollout, and maintaining default-deny across hundreds of services through ongoing migration is high-effort. This is a real security-posture gap. The mitigation is staged rollout — default-deny + audit-log mode first, then enforce. Most operators stop at audit-log.
 
-**Kernel-version requirements gate features.** Cilium features depend on kernel version and BTF availability (BTF — BPF Type Format — is required for CO-RE eBPF programs). Older kernels (pre-5.4) lose major Cilium features; pre-5.10 loses BTF-based programs. Cloud-vendor managed kubernetes pins kernel versions, and EOL kernels are common. Verify kernel version + BTF availability before assuming feature parity.
+**Kernel-version requirements gate features.** Cilium features depend on kernel version and BTF availability (BTF — BPF Type Format — is required for CO-RE eBPF programs). Current Cilium releases require Linux kernel >= 5.10 or equivalent (e.g. 4.18 on RHEL 8.10). Cloud-vendor managed kubernetes pins kernel versions, and EOL kernels are common. Verify kernel version + BTF availability before assuming feature parity.
 
 **eBPF verifier escapes erode the kernel-isolation property.** CVE-2022-23222 (Linux kernel eBPF verifier bug allowing unprivileged-bypass and kernel-memory-write) and several successors demonstrate that the eBPF verifier — Cilium's main isolation between its programs and the kernel — has historically had vulnerabilities. Cilium runs as privileged (CAP_BPF + CAP_SYS_ADMIN), so the verifier-bypass class is more an upstream-kernel concern than a Cilium-specific concern, but the runtime impact is amplified by Cilium's broad packet visibility.
 
@@ -264,7 +264,7 @@ This is the section to read if you're auditing a Cilium Cluster Mesh deployment.
 
 **Vendor consolidation risk.** Isovalent → Cisco (April 2024). Cilium's roadmap is now Cisco-controlled. The OSS license + CNCF governance limit the worst outcomes, but strategic direction (feature prioritization, support tier availability, integration with Cisco proprietary products like Hypershield and Panoptica) may diverge from purely-open-source-user interests. Anchor strategic decisions on the CNCF governance reality, not on Cisco's roadmap statements.
 
-**Multi-vendor CNI interop varies.** Cilium-only cluster meshes are the cleanest case. Cilium + Calico + Antrea + cloud-CNI heterogeneous fleets are common in practice; interop with Cilium Cluster Mesh requires that all clusters run Cilium. Migration paths from Calico to Cilium (Cilium Replace mode) exist but are non-trivial. Pragmatic recommendation: Cilium Cluster Mesh is a fleet-wide commitment, not a per-cluster opt-in.
+**Multi-vendor CNI interop varies.** Cilium-only cluster meshes are the cleanest case. Cilium + Calico + Antrea + cloud-CNI heterogeneous fleets are common in practice; interop with Cilium Cluster Mesh requires that all clusters run Cilium. Migration paths from Calico to Cilium (node-by-node migration using a hybrid dual-overlay mode) exist but are non-trivial. Pragmatic recommendation: Cilium Cluster Mesh is a fleet-wide commitment, not a per-cluster opt-in.
 
 **Identity ID space limits.** With `cluster-id` as 8-bit and per-cluster identity as 16-bit `[unverified specific bit layouts]`, the mesh supports up to 255 clusters and 65,535 identities per cluster. For most operators these are comfortable; for hyperscalers running thousands of micro-namespaces with high-cardinality labels, the per-cluster identity ceiling is approachable.
 
@@ -274,7 +274,7 @@ This is the section to read if you're auditing a Cilium Cluster Mesh deployment.
 
 **Cross-cluster DNS gotcha.** When pods in cluster A resolve a global service `foo.bar.svc.cluster.local`, the DNS response depends on cluster A's CoreDNS — which knows the service IP but not which backends exist in peer clusters. Cilium fixes this at the data-plane layer: the ClusterIP is unchanged, but eBPF socket-LB rewrites the connection to a backend that may live in cluster B. The DNS-layer view shows only the local cluster, which surprises operators debugging connectivity. Use `cilium service list` + `cilium endpoint list` for the actual data-plane view, not `nslookup`.
 
-**Cluster Mesh CA rotation.** The bootstrap mTLS CA used at `cilium clustermesh connect` time has a TTL (typically 1 year `[unverified specific TTL]`). Rotation is a multi-cluster operation: rotate one cluster, re-exchange CAs with each peer, repeat. The procedure is documented but operationally painful; many operators forget until the cert is days from expiry. Schedule the rotation; don't surprise yourself.
+**Cluster Mesh CA rotation.** The bootstrap mTLS CA used at `cilium clustermesh connect` time has a TTL (Helm defaults: 1095 days for the auto-generated CA, 365 days for clustermesh-apiserver certificates). Rotation is a multi-cluster operation: rotate one cluster, re-exchange CAs with each peer, repeat. The procedure is documented but operationally painful; many operators forget until the cert is days from expiry. Schedule the rotation; don't surprise yourself.
 
 **Cilium DaemonSet pod-disruption-budget gap.** The Cilium DaemonSet runs as a privileged DaemonSet on every node. During node upgrades or rolling cluster operations, pods on a node lose network connectivity for the brief window while Cilium restarts. Most workloads tolerate this; latency-sensitive workloads do not. Configure a PodDisruptionBudget on the Cilium DaemonSet and stagger upgrades.
 
