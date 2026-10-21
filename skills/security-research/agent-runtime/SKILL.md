@@ -276,7 +276,8 @@ finding without completing the full evidence chain:
   the confirmation response.
 - **"Sandboxed"** does not mean safe if the sandbox mode is `danger-full-access`,
   the allowed-tool list includes `Bash(*)`, or `--dangerously-skip-permissions`
-  is set — these settings disable all guards regardless of other controls.
+  is set — these settings remove the sandbox boundary or skip the permission
+  prompts that gate shell commands.
 - **"The injected content comes from a trusted source"** requires confirming the
   trust chain end-to-end — a knowledge-base entry, database row, or web page
   writable by any user is an untrusted source even if retrieved over a trusted

@@ -154,8 +154,8 @@ legitimately needs the credential.
 configured to auto-merge pull requests to the default branch without requiring
 human review. Look for:
 
-- Dependabot: `auto-merge: true` or a companion GitHub Actions workflow that
-  calls the GitHub auto-merge API on Dependabot PRs
+- Dependabot: a companion GitHub Actions workflow that calls the GitHub
+  auto-merge API on Dependabot PRs
 - Renovate: `"automerge": true` at the global or per-package level
 - Branch protection rules that have zero required reviewers on the default
   branch (making any PR mergeable without review)
@@ -220,7 +220,7 @@ Examine five vectors:
   at execution time bypasses the intended restriction, leaking secrets or enabling
   command injection despite the apparent allowlist.
 - **Vector H — Dangerous sandbox settings:** The agent workflow sets
-  `claude_env: danger-full-access`, uses `Bash(*)` as an allowed tool (which
+  `sandbox: danger-full-access` (Codex), uses `Bash(*)` as an allowed tool (which
   disables all command guards), or runs with `--dangerously-skip-permissions`.
   These settings remove all safety controls and must be flagged regardless of
   other mitigations.

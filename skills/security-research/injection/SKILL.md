@@ -75,8 +75,9 @@ Also audit NoSQL query construction:
 
 **Evaluate:** Confirm user input reaches the query without passing through a
 strict field-name allowlist or a schema-validation step that rejects operator keys
-(`$where`, `$ne`, `$gt`, `$regex`). Mongoose schema validation rejects unknown
-top-level fields but not nested operator injection unless `strict` mode is verified.
+(`$where`, `$ne`, `$gt`, `$regex`). Mongoose `strict` mode drops unknown
+document fields, and `strictQuery` (default `false` in Mongoose 7+) governs unknown filter paths; neither
+blocks operator injection — `sanitizeFilter` wraps object values in `$eq`.
 
 **Severity:** HIGH if operator injection enables authentication bypass
 (`{password: {$gt: ""}}` bypasses equality check) or cross-user data access;
@@ -199,7 +200,7 @@ Sinks by language:
 - Rust: `TinyTemplate::add_template(name, var)`, `Tera::render_str(var, ctx)`
 
 Also check: template engine sandbox configuration. Flag `jinja2.Environment` without
-`SandboxedEnvironment`; Twig `$env->enableStrictVariables()` absent; FreeMarker
+`SandboxedEnvironment`; Twig `\Twig\Extension\SandboxExtension` absent; FreeMarker
 `new DefaultObjectWrapperBuilder(VERSION).build()` with `expose_all` set to true.
 
 **Evaluate:** Trace the template source variable back to its origin. Flag if it
@@ -221,7 +222,7 @@ sandboxing; MEDIUM if the user controls only render-context data (not the templa
 source) but the engine auto-evaluates expression syntax (e.g., `{{7*7}}` in input
 fields reflected into a page); MEDIUM if the template source comes from a
 partially-trusted store (e.g., admin-editable config); LOW if only a sandboxed engine
-(Liquid, Nunjucks autoescape) is used with user-supplied template source and no
+(Liquid) is used with user-supplied template source and no
 sandbox-escape gadget is present.
 
 For stored SSTI where the template source is fetched from a database row writable by
@@ -236,7 +237,7 @@ downgrade to MEDIUM.
 context; `ejs.renderFile(path, data)` — file-based.
 **Auto-escaping frameworks (do not flag for data-in-context rendering):**
 Django templates auto-escape all context variables by default; only `|safe`,
-`mark_safe()`, and `Markup()` bypass escaping and are sinks. React JSX `{variable}`
+`mark_safe()`, and `{% autoescape off %}` bypass escaping and are sinks. React JSX `{variable}`
 auto-escapes; only `dangerouslySetInnerHTML` is a sink.
 `pug.renderFile(path, opts)` —
 file-based; any call where the first argument is demonstrably a string literal.
@@ -275,7 +276,7 @@ without context-appropriate encoding. Cover all four XSS surfaces:
 **Framework escape hatches to flag unconditionally:**
 - React: `dangerouslySetInnerHTML={{ __html: userVar }}`
 - Vue: `v-html="userVar"`
-- Angular: `[innerHTML]="userVar"` without DomSanitizer
+- Angular: `[innerHTML]` bound to `bypassSecurityTrustHtml(userVar)`
 - Svelte: `{@html userVar}`
 
 **Evaluate:**
