@@ -178,7 +178,7 @@ Cross-link: [[reference-windows-kernel-exploitation]] §6 BYOVD doctrine. Detect
 
 ### 8.2 Safe-Mode reboot for encryption
 
-Both Cybereason and Group-IB confirm the safe-mode reboot mechanism. **Exact command** (Cybereason):
+Group-IB and Trend Micro (2022) confirm the safe-mode reboot mechanism. Standard Windows command for Safe Mode with Networking:
 
 ```cmd
 BCDEdit.exe /set {current} safeboot network
@@ -198,8 +198,6 @@ Registry path: `HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet` (`[unverified e
 
 ### 8.4 Volume Shadow Copy / snapshot deletion
 
-Cybereason documented (verbatim where provided):
-- `Dismount-DiskImage -ImagePath` — used to dismount mounted disk images (likely targeting snapshot images)
 - Group-IB documented the malware starting the VSS service and deleting shadow copies with `vssadmin.exe Delete Shadows /all /quiet`
 
 ### 8.5 Event-log clearing (Cybereason verbatim)
@@ -252,10 +250,10 @@ Cross-link: [[reference-active-directory-windows-security]] for Mimikatz / DCSyn
 
 Observed exfil tooling:
 - **`s5cmd`** (Huntress — *"In only one incident did analysts observe the use of s5cmd for data exfiltration"*) — high-performance S3 client; used to push exfiltrated data to attacker-controlled S3-compatible storage
-- **FTP** (Cybereason) — direct FTP push to operator-controlled servers: `185.208.156.157` and `185.196.10.19`
+- **FTP** — direct FTP push to operator-controlled servers
 - **Rclone** — `[unverified specific to Qilin in the URLs fetched, but standard RaaS exfil tooling and likely used by affiliates who don't use s5cmd]`
 
-**WikiLeaks V2** instance hosted at `80.64.16.87` (Cybereason; OPTIMA LLC hosting) — Qilin's operator runs a "WikiLeaks V2" project to publish exfiltrated data for publicity / pressure beyond just the standard DLS (Dark Leak Site) Tor hidden-service.
+**WikiLeaks V2** — Qilin's operator runs a "WikiLeaks V2" project to publish exfiltrated data for publicity / pressure beyond just the standard DLS (Dark Leak Site) Tor hidden-service.
 
 **Triple/quadruple extortion (2025-06+):** the affiliate-panel adds (Call Lawyer + journalist team + DDoS + corporate email/phone spam) extend pressure beyond data publication into reputation + legal-process + service-disruption + harassment.
 
@@ -293,18 +291,6 @@ The **Synnovis incident is load-bearing** for any briefing — it is the single 
 ## 14. Hash IOCs + infrastructure
 
 **Caveat (load-bearing):** Qilin's per-victim binary customization (§4) means **hash IOCs decay fast**. They are useful for forensic confirmation ("yes this was Qilin") but cannot drive ahead-of-time blocking. Behavior is the durable detection surface (§16).
-
-### Windows-variant SHA-256 (Cybereason)
-```
-31c3574456573c89d444478772597db40f075e25c67b8de39926d2faa63ca1d8
-C9707a3bc0f177e1d1a5587c61699975b1153406962d187c9a732f97d8f867c5
-```
-
-### Linux-variant SHA-256 (Cybereason)
-```
-13cda19a9bf493f168d0eb6e8b2300828017b0ef437f75548a6c50bfb4a42a09
-a7f2a21c0cd5681eab30265432367cf4b649d2b340963a977e70a16738e955ac
-```
 
 ### Huntress-investigation hashes
 ```
@@ -349,7 +335,7 @@ Specific Qilin DLS .onion URL not enumerated in any URL fetched this pass `[unve
 
 2. **Affiliate vs operator behavior is conflated in most reporting.** Group-IB's panel-infiltration work cleanly separates operator-developed primitives (the encryptor, the panel, the legal-coercion infrastructure) from affiliate-driven tradecraft (initial access, dwell-time decisions, exfil tooling choices). Most other vendor reports observe an incident and attribute the entire chain to "Qilin," obscuring that the affiliate may have used Mimikatz / Rclone / Cobalt Strike that another Qilin affiliate would not have used. This matters because **detections that key off affiliate-variable tooling are fragile**.
 
-3. **The Synnovis "$50M" demand figure is not independently confirmed.** Group-IB Revisited cites it; The Record's contemporaneous coverage does not. Either it is from operator boast or unsourced reporting. Treat as `[unverified]` until independently corroborated.
+3. **The Synnovis "$50M" demand figure traces to the operator.** Bloomberg reported Qilin's $50 million demand with a 120-hour deadline; Synnovis did not pay, and Qilin published the stolen data on 2024-06-20.
 
 4. **The BYOVD chain (msimg32.dll + rwdrv.sys + hlpdrv.sys) is shared across at least three ransomware families.** Detection rules anchored on these specific files will trigger on Akira and Makop too — high TP for "this is one of three serious ransomware families" but not for "this is Qilin specifically." This is fine for prevention (you want to block all three) but matters for attribution and IR.
 

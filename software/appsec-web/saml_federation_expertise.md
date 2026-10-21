@@ -315,8 +315,7 @@ canonicalization pipeline rewritten so verified element = processed element;
 processor walks only the validated subtree) and 2018 (CVE-2018-0489
 comment-injection fix). Defensive pattern: **after `Signature.verify()`, hand
 the caller a reference to the verified subtree only.** Never let app code
-re-traverse the original document for "the Assertion." Codified in `xmlsec-c`,
-`xml-security-java`, and modern SAML libraries.
+re-traverse the original document for "the Assertion."
 
 ### CVE-2022-39353 as a SAML-relevant primitive
 

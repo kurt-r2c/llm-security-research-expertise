@@ -23,9 +23,9 @@ Audience: AI agents + safety-critical systems engineers (aviation, automotive, m
 - **Nancy Leveson**, *Engineering a Safer World: Systems Thinking Applied to Safety* (MIT Press 2011). Foundational text introducing STAMP and STPA. Reframes accidents from chain-of-events causation to control-structure inadequacy. Free-PDF release from MIT Press is the standard distribution.
 - **William Young + Nancy Leveson**, "An integrated approach to safety and security based on systems theory," *Communications of the ACM* 57(2), February 2014. The CACM paper that introduces STPA-Sec as a security extension to STPA. Argues that strategic security analysis should start from "what must not happen" rather than "what could attack us."
 - **Nancy Leveson + John Thomas**, *STPA Handbook* (MIT, March 2018). Operational manual for STPA practitioners. The four-UCA-type catalog (providing, not-providing, wrong-timing, wrong-duration) and the loss-scenario causal-factor taxonomy are codified here.
-- **MIT SafeWare laboratory** (Leveson, Thomas, Young, and collaborators). Ongoing research output through MIT's Department of Aeronautics and Astronautics. Annual STAMP/STPA Workshop has run since 2012.
+- **MIT PSASS group** (Leveson, Thomas, Young, and collaborators). Ongoing research output through MIT's Department of Aeronautics and Astronautics. Annual STAMP/STPA Workshop has run since 2012.
 - **RTCA DO-326A** *Airworthiness Security Process Specification* (2014) + **DO-356A** *Airworthiness Security Methods and Considerations* (2018) + **DO-355A** *Information Security Guidance for Continuing Airworthiness* (2020) `[unverified specific publication year]`. The FAA/EASA-recognized cybersecurity framework for commercial aircraft. Reference STPA-Sec-compatible hazard-analysis methods without prescribing STPA-Sec by name.
-- **ISO/SAE 21434:2021** *Road vehicles — Cybersecurity engineering*. Mandates TARA (Threat Analysis and Risk Assessment) and uses systems-theoretic vocabulary throughout. UNECE R155 + R156 reference 21434 for vehicle type approval.
+- **ISO/SAE 21434:2021** *Road vehicles — Cybersecurity engineering*. Mandates TARA (Threat Analysis and Risk Assessment) and uses systems-theoretic vocabulary throughout. UNECE R155 uses 21434 as its reference standard for vehicle type approval (R156's counterpart is ISO 24089).
 - **FDA Premarket Cybersecurity Guidance** (2014, 2018 draft, 2023 final update `[unverified exact date]`). Compatible with STPA-Sec hazard framing; pre-market submission expects a hazard analysis covering cybersecurity.
 - **NIST SP 800-160 Vol. 1** *Systems Security Engineering* (Ron Ross et al., 2016 with 2018 update).
 - **IAEA Nuclear Security Series 17-T** *Computer Security at Nuclear Facilities* (2011; Rev. 1 published 2021) — compatible framing for nuclear-cyber.
@@ -254,13 +254,13 @@ Scenario 5 is the CrashOverride / Industroyer pattern. Scenario 4 maps to the Tr
 | **LINDDUN** | Privacy threats (Link/Identify/Non-repudiate/Detect/Disclose/Unawareness/Non-compliance) | Privacy harms per data flow | LINDDUN for privacy; STPA-Sec can incorporate privacy hazards |
 | **Misuse cases** | Adversarial user stories | Narrative scenarios | Misuse cases for stakeholder communication; STPA-Sec for engineering analysis |
 | **Attack trees** | Adversarial-goal decomposition | Tree with leaf-cost annotation | Attack trees for "how to attack" enumeration; STPA-Sec for "how could this fail under any cause" |
-| **HAZOP** | Process-deviation keywords (NO/MORE/LESS/AS WELL AS/PART OF/REVERSE/OTHER) | Deviation tables | HAZOP works for chemical-process plants; STPA-Sec better for software-intensive systems |
+| **HAZOP** | Process-deviation keywords (NO/MORE/LESS/AS WELL AS/PART OF/REVERSE/OTHER THAN) | Deviation tables | HAZOP works for chemical-process plants; STPA-Sec better for software-intensive systems |
 | **FMEA** | Bottom-up component failure modes | Failure-mode tables | FMEA for hardware reliability; STPA-Sec for software/control system safety |
 | **FTA** (fault-tree) | Top-down event causation | Boolean fault trees | FTA when failure pathways are well-known; STPA-Sec when emergent behaviors dominate |
 
 The deepest sibling-vs-STPA-Sec contrast is with FTA. Both are top-down. FTA decomposes an **undesired event** into Boolean combinations of contributing failures (gate logic: AND/OR). STPA-Sec decomposes an **unsafe control action** into causal-factor categories that include adversarial induction. FTA assumes you can enumerate failures; STPA-Sec assumes you cannot enumerate causes but can enumerate control-structure inadequacies. For modern software-intensive systems STPA-Sec is more productive; for well-understood hardware systems FTA remains more tractable.
 
-Mature programs run multiple methodologies in parallel. ISO/SAE 21434 explicitly accommodates STPA-Sec, STRIDE-style asset analysis, and attack-tree TARA artifacts simultaneously.
+Mature programs run multiple methodologies in parallel. ISO/SAE 21434 does not prescribe a specific technique, so STPA-Sec, STRIDE-style asset analysis, and attack-tree TARA artifacts can coexist.
 
 **8.1 When to choose which.** Heuristic:
 - High-consequence cyber-physical system (aircraft, vehicle, medical device, ICS) → STPA-Sec, paired with STRIDE for protocol-flow detail.
@@ -275,7 +275,7 @@ Mature programs run multiple methodologies in parallel. ISO/SAE 21434 explicitly
 
 ## 9. STPA-Sec adoption in regulated industries
 
-**Aviation.** RTCA DO-326A *Airworthiness Security Process Specification* (2014) defines a security-airworthiness process compatible with STPA-Sec hazard framing. DO-356A (2018) provides methods and considerations. DO-355A (2020 `[unverified date]`) covers continuing airworthiness. The FAA Special Conditions process for Boeing 787 and Airbus A350 explicitly required hazard-based cybersecurity analysis. MITRE supported method development.
+**Aviation.** RTCA DO-326A *Airworthiness Security Process Specification* (2014) defines a security-airworthiness process compatible with STPA-Sec hazard framing. DO-356A (2018) provides methods and considerations. DO-355A (2020 `[unverified date]`) covers continuing airworthiness. The FAA Special Conditions process for Boeing 787 and Airbus A350 explicitly required hazard-based cybersecurity analysis.
 
 **Automotive.** ISO/SAE 21434:2021 *Road vehicles — Cybersecurity engineering* uses systems-theoretic vocabulary throughout. The TARA (Threat Analysis and Risk Assessment) process in 21434 admits STPA-Sec-style analysis as one of several compatible methods. UNECE Regulation 155 (CSMS — Cyber Security Management System) and R156 (SUMS — Software Update Management System) mandate cybersecurity engineering practices for vehicle type approval in Europe, UK, Japan, Korea, and other UNECE adopters. ISO/SAE 21434 became the de facto reference standard. Philip Koopman at CMU has written extensively on embedded-systems safety methodology compatible with STPA-Sec `[unverified specific STPA-Sec endorsement]`.
 

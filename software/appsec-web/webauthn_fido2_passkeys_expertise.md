@@ -77,8 +77,7 @@ NFC, or BLE.
 in April 2021, adding large-blob storage and the `credProps` extension. **Level 3** was a Working Draft through
 2025, became a Candidate Recommendation in January 2026, and a W3C Recommendation in
 August 2026; it adds Conditional UI (autofill), the
-`backupEligibility` and `backupState` flags, the `prf` extension, and PRF-based password
-encryption for cross-device use.
+`backupEligibility` and `backupState` flags, and the `prf` extension.
 
 **Passkeys** are not a separate spec. The word names a deployment shape: FIDO2 credentials
 that are **discoverable** (the authenticator stores the credential ID and the RP can request
@@ -390,9 +389,9 @@ The most common WebAuthn bypass is structural: the RP supports WebAuthn **and** 
 **and** SMS-OTP, **and** TOTP. The attacker drives the user toward the weakest path. WebAuthn
 provides no protocol-layer defense against the RP's own fallback flow.
 
-Defense: WebAuthn-only authentication for sensitive paths. The "phishing-resistant MFA"
-guidance from NIST SP 800-63B and CISA explicitly requires that no weaker method bypass
-the phishing-resistant factor. Practical patterns: passkey-only login with account recovery
+Defense: WebAuthn-only authentication for sensitive paths. NIST SP 800-63B-4
+requires a phishing-resistant authenticator at AAL3; at AAL2 it only requires that a
+phishing-resistant option be offered. Practical patterns: passkey-only login with account recovery
 gated on identity proofing, not on a back-channel weaker factor.
 
 ### 6.2 Hardware key supply-chain attacks

@@ -297,7 +297,7 @@ Commercial EDRs (SentinelOne, CrowdStrike, Jamf Protect) consume ESF for all pro
   HIDDriverKit, IOSCSIParallelFamily → SCSIControllerDriverKit, IOPCIFamily → PCIDriverKit.
 - Third-party KEXTs on Apple Silicon require Reduced Security mode + user reboot + per-KEXT approval.
   In practice no enterprise EDR ships KEXTs in 2025; EDR vendors who held out (e.g., legacy
-  CrowdStrike Falcon prior to 6.31) migrated to ESF System Extensions.
+  CrowdStrike Falcon prior to 6.11) migrated to ESF System Extensions.
 - ESF event coverage now includes Gatekeeper-bypass observability: starting macOS 15 Sequoia,
   `ES_EVENT_TYPE_NOTIFY_GATEKEEPER_USER_OVERRIDE` fires when a user opens an unverified app via System
   Settings > Privacy & Security (the new mandatory bypass path). EDRs can centrally log every user
@@ -763,7 +763,7 @@ reported by Palo Alto Unit 42.
 
 | Family | First documented | Key traits | Source |
 |---|---|---|---|
-| AMOS / Atomic Stealer | mid-2023; mature 2024 | Malvertising via Google Ads + counterfeit Photoshop/Office/Tor; AppleScript password dialog → Keychain dump via Chainbreaker; XOR-obfuscated payload (key `0x91`); Telegram-marketed MaaS at ~$1k/month. Late-2024 variant added persistent backdoor. | [SpyCloud reverse-engineering writeup](https://spycloud.com/blog/reverse-engineering-atomic-macos-stealer/), [Picus dissection](https://www.picussecurity.com/resource/blog/atomic-stealer-amos-macos-threat-analysis) |
+| AMOS / Atomic Stealer | mid-2023; mature 2024 | Malvertising via Google Ads + counterfeit Photoshop/Office/Tor; AppleScript password dialog → Keychain dump via Chainbreaker; XOR-obfuscated payload (key `0x91`); Telegram-marketed MaaS at ~$1k/month. July 2025 variant added persistent backdoor. | [SpyCloud reverse-engineering writeup](https://spycloud.com/blog/reverse-engineering-atomic-macos-stealer/), [Picus dissection](https://www.picussecurity.com/resource/blog/atomic-stealer-amos-macos-threat-analysis) |
 | Poseidon | 2024 | AMOS-derived (former AMOS developer "Rodrigo4") with crypto-wallet, Notes, and Bitwarden module additions | Wardle 2024 review |
 | Cthulhu | 2024 | Go-based stealer; targets KeyChain, MetaMask, Wasabi wallets | Cado Security |
 | Banshee | 2024 | Russian-marketed MaaS; bypassed XProtect for months via string-encryption mirroring Apple's own AV codebase | Check Point Research |

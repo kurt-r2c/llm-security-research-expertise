@@ -29,7 +29,7 @@
 >   dialect); executive director of the Scala Center; LAMP lecturer at EPFL; Ph.D. on
 >   cross-platform language design under Odersky. Sources: `lampwww.epfl.ch/~doeraene/`,
 >   `scala.epfl.ch`.
-> - **Travis Brown** (@travisbrown) — Author/maintainer of `circe` (JSON for Scala); top
+> - **Travis Brown** (@travisbrown) — Creator and former maintainer of `circe` (JSON for Scala); top
 >   contributor to Typelevel `cats`. Source: `github.com/travisbrown`, `index.scala-lang.org/circe`.
 > - **Jamie Allen** — Author of *Effective Akka* (O'Reilly, 2013); former Director of Consulting
 >   at Typesafe; long-time Akka practitioner since 2009; the canonical English-language
@@ -38,11 +38,6 @@
 > - **John A. De Goes** (@jdegoes) — Founder of Ziverge; creator of the ZIO functional effect
 >   system; vocal critic of `scala.concurrent.Future` cancellation gaps; ZIO 2.x evolution
 >   lead. Source: `github.com/jdegoes`, `degoes.net/articles/zio-history`.
-> - **Trail of Bits Scala / Akka audit corpus** — Institutional JVM-audit tradition (sbt
->   maintainership rests on the Scala Center, but supply-chain and tooling reviews appear in
->   the published canon); referenced together with the Lightbend / Akka advisory record at
->   `akka.io/security` and ASF's `LEGAL-714` BSL → Apache reversion clause. Sources:
->   `github.com/trailofbits/publications`, `blog.trailofbits.com/categories/audits/`.
 > - **Snyk Scala / Akka CVE corpus** — Maintains the canonical public record of Scala-language
 >   and Akka-toolkit CVEs (including CVE-2022-36944 LazyList RCE, CVE-2026-32948 sbt source-
 >   dependency command injection). Source:
@@ -184,8 +179,8 @@ prioritization spec tightens some rules but does not eliminate the surface.
 - `using` on a parameter list (`def f(x: A)(using ctx: Context)`) replaces `implicit`
   parameters; more visible at call sites.
 - `extension (s: String) def doubled = s + s` replaces implicit classes; clearer in errors.
-- Implicit conversions require per-file `import scala.language.implicitConversions` and a
-  `given Conversion[S, T]`; bare `implicit def` view form is deprecated.
+- Implicit conversions are a `given Conversion[S, T]` (or an `implicit def`); defining one
+  warns unless `import scala.language.implicitConversions` is in scope.
 
 A real improvement: operator overrides are harder, conversions require explicit opt-in,
 `using` is visually distinguishable. But scope-based resolution is the same, and the
@@ -422,7 +417,7 @@ cannot verify the predicates.
 enum Permission { case Read, Write, Admin }
 ```
 
-Desugars to sealed trait + case-objects with synthesized JVM enum methods. Structural
+Desugars to a `sealed` class extending `scala.reflect.Enum`, with cases as companion values. Structural
 improvement: language-enforced exhaustiveness bounds, consistent tooling (`enum.values`).
 Source: `docs.scala-lang.org/scala3/reference/enums/enums.html`. Footgun lens: `enum` does
 NOT eliminate the `case _ =>` anti-pattern; still legal, still silences exhaustiveness.
@@ -641,8 +636,7 @@ capacity — opt-in, per-actor.
 ### Footgun C: `become` / `unbecome` ordering
 
 Akka Classic's `context.become(newBehavior)` applies to *subsequent* messages.
-Already-mailboxed messages at the time of `become` are processed by the *new* behavior, not
-the old. Akka Typed replaces this with returning a new `Behavior[T]`, structurally clearer.
+Akka Typed replaces this with returning a new `Behavior[T]`, structurally clearer.
 
 ### Footgun D: `stash` / `unstash` discipline
 

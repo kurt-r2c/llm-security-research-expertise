@@ -47,7 +47,7 @@ Out of scope:
 
 The market is dominated by a handful of vendors with deep PKI / payment / government history. Every production HSM speaks PKCS#11 (RSA Labs → OASIS); many also speak JCE, KSP/CNG (Windows), KMIP, and vendor-proprietary APIs.
 
-**Thales (formerly Gemalto + SafeNet).** Luna Network HSM 7 / Luna PCIe / Luna USB / Luna Cloud HSM. payShield 10K is the banking-specific module (PIN translation, card data encryption, PCI HSM L3). Thales acquired Gemalto in 2019; the Luna product line descends from SafeNet (acquired by Gemalto in 2015); payShield predates the Gemalto deal (Thales announced payShield 9000 in 2009). Long history in WebPKI, DNSSEC root-zone signing, and EMV payment processing.
+**Thales (formerly Gemalto + SafeNet).** Luna Network HSM 7 / Luna PCIe / Luna USB / Luna Cloud HSM. payShield 10K is the banking-specific module (PIN translation, card data encryption, PCI HSM L3). Thales acquired Gemalto in 2019; the Luna product line descends from SafeNet (acquired by Gemalto in 2015); payShield predates the Gemalto deal (Thales announced payShield 9000 in 2009). Long history in WebPKI and EMV payment processing; selected in 2024–2025 to replace the Keyper HSMs used for DNSSEC root-zone KSK (IANA) and ZSK (Verisign) signing.
 
 **Entrust (formerly nCipher).** nShield Connect (network appliance), nShield Solo XC (PCIe), nShield as a Service. Entrust acquired nCipher from Thales in 2019 as a divestiture forced by the Gemalto deal. nShield has a strong presence in code-signing, document-signing, and PKI.
 
@@ -98,7 +98,7 @@ Four levels, ascending in physical and logical assurance:
 
 Seven Evaluation Assurance Levels (EAL 1-7). EAL 4 is typical for commercial HSMs. EAL 4+ AVA_VAN.5 + ALC_DVS.2 add vulnerability assessment (AVA_VAN.5 = "advanced methodical vulnerability analysis") and developer-environment security (ALC_DVS.2). The +AVA_VAN.5 augmentation is the hard one — it requires the evaluator to perform penetration testing against documented attack potentials.
 
-**Protection Profiles.** PP for HSMs published by BSI (Germany), ANSSI (France), and NIAP (US). PP-Configuration documents define the security target template that vendors evaluate against. EU-CC harmonization (under the EU Cybersecurity Act) is ongoing.
+**Protection Profiles.** PP for HSMs published by BSI (Germany) and ANSSI (France). PP-Configuration documents define the security target template that vendors evaluate against. EU-CC harmonization (under the EU Cybersecurity Act) is ongoing.
 
 ### PCI HSM
 
@@ -266,7 +266,7 @@ EdDSA (Ed25519, Ed448), SHA3, AES-XTS. Post-quantum mechanisms (ML-KEM, ML-DSA) 
 - **p11tool** — GnuTLS CLI for PKCS#11 administration.
 - **pkcs11-tool** — OpenSC CLI; the operator's swiss-army knife for poking at HSMs.
 - **AWS CloudHSM CLI / Client SDK** — vendor-specific tools for AWS CloudHSM.
-- **Azure Key Vault / Managed HSM REST API** — Azure does not expose PKCS#11; it exposes a REST API. The operational model is different.
+- **Azure Key Vault / Managed HSM REST API** — Key Vault and Managed HSM expose a REST API; Managed HSM's only PKCS#11 surface is a limited TLS Offload library (PKCS#11 v2.40 subset, F5 and Nginx only). Azure Cloud HSM, a separate service, does expose PKCS#11. The operational model is different.
 
 ---
 
@@ -531,7 +531,7 @@ The HSM operational corpus is anchored on practitioner / standards primary sourc
 - **Phillip Hallam-Baker** — PKI veteran (VeriSign); historical context on the certificate authority + HSM operational model.
 - **Josh Aas** — Let's Encrypt / ISRG executive director; published ceremony posts.
 - **NIST CMVP / CAVP** — validation lists, IG documents, transition guidance.
-- **PCI Security Standards Council** — PCI HSM v3 spec, key block standards (TR-31).
+- **PCI Security Standards Council** — PCI HSM v3 spec, key block mandates (ASC X9 TR-31).
 - **OASIS PKCS#11 TC** — PKCS#11 spec v2.40, v3.0, v3.1.
 - **Vendor primary sources** — Thales Luna documentation, Entrust nShield documentation, AWS CloudHSM Developer Guide, Azure Managed HSM documentation, GCP Cloud HSM documentation.
 

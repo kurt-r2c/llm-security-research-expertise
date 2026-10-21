@@ -71,7 +71,7 @@ Race conditions have produced:
 - **Double-spend** — banking duplicate-credit races.
 - **Filesystem permission bypass** — decades of OpenSSH, sudo, setuid TOCTOU CVEs.
 - **Distributed data loss** — MongoDB w=majority writes lost under partition; Redis Sentinel split-brain; Cassandra/etcd linearizability violations across the Jepsen corpus.
-- **Container/VM escape** — runc CVE-2019-5736 had a TOCTOU component; CRIU/namespace races.
+- **Container/VM escape** — CRIU/namespace races.
 - **Web logic violation** — vote-counting, voucher redemption, MFA-bypass via parallel-codepath enrollment.
 
 Blast radius is bounded by the operation made non-atomic — and the operations composed via shared state are often the most security-sensitive: authorization, financial transactions, identity proofs, capability checks.
@@ -236,7 +236,7 @@ SSI provides true serializability under MVCC. Cost: occasional `40001 serializat
 
 ### MongoDB find-and-modify
 
-MongoDB's `find()` followed by `update()` is not atomic — another writer can modify between. The fix is `findAndModify`/`findOneAndUpdate`. Applications predating this API often have races that survive migration if the developer doesn't realize the find-update pair was supposed to become one operation. Jepsen's MongoDB analyses repeatedly found that even `w=majority` writes could be lost during partition recovery — driving MongoDB's adoption of Raft-based replication.
+MongoDB's `find()` followed by `update()` is not atomic — another writer can modify between. The fix is `findAndModify`/`findOneAndUpdate`. Applications predating this API often have races that survive migration if the developer doesn't realize the find-update pair was supposed to become one operation. Jepsen's MongoDB analyses repeatedly found that even `w=majority` writes could be lost during partition recovery.
 
 ### 2-phase commit pitfalls
 
@@ -315,7 +315,7 @@ Without explicit synchronization, the C/C++ memory model permits arbitrary inter
 
 ### TOCTOU in reference counting
 
-The classic refcount race: `if (atomic_load(&refcount) == 1) { free(obj); } else { atomic_dec(&refcount); }`. Between the load and the decision, two threads both load 1 → double-free, or one thread frees while another increments → UAF. Fix: `atomic_dec_and_test()` (or `__atomic_sub_fetch` returning the new value) atomically decrements and tests, eliminating the window. Linux's `kref` and `refcount_t` encapsulate this; misuse of plain `atomic_t` for refcounts has produced dozens of CVEs.
+The classic refcount race: `if (atomic_load(&refcount) == 1) { free(obj); } else { atomic_dec(&refcount); }`. Between the load and the decision, two threads both load 1 → double-free, or one thread frees while another increments → UAF. Fix: `atomic_dec_and_test()` (or `__atomic_sub_fetch` returning the new value) atomically decrements and tests, eliminating the window. Linux's `kref` and `refcount_t` encapsulate this; misuse of plain `atomic_t` for refcounts has produced CVEs (e.g., CVE-2014-2851, CVE-2016-0728).
 
 ### iOS XNU and Linux kernel concurrency
 
@@ -553,7 +553,7 @@ Extensions split execution between content scripts (page context, limited privil
 
 ### WebAssembly threading
 
-`SharedArrayBuffer` and atomics expose the same race conditions as native C/C++ in a sandboxed context. Browser defenses (cross-origin isolation, Spectre mitigations) limit some attacks; application-level races (UAF in wasm heap, refcount races) remain. Wasm fuzzing is an active research area (Wasmtime continuous fuzzing, Mozilla Wasm-sandbox audits).
+`SharedArrayBuffer` and atomics expose the same race conditions as native C/C++ in a sandboxed context. Browser defenses (cross-origin isolation, Spectre mitigations) limit some attacks; application-level races (UAF in wasm heap, refcount races) remain. Wasm fuzzing is an active research area (Wasmtime continuous fuzzing).
 
 ### iOS / Android intent-handling
 

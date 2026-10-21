@@ -149,7 +149,7 @@ spec:
             - action: Sigkill
 ```
 
-The CRD attaches to specific pods/namespaces via selectors. The `matchActions` field supports `Post` (emit event), `Sigkill` (kill process), `Override` (return arbitrary value from syscall), `FollowFD` / `UnfollowFD` (track file descriptors).
+The CRD attaches to specific pods/namespaces via selectors. The `matchActions` field supports `Post` (emit event), `Sigkill` (kill process), `Signal` (send a signal), `Override` (return arbitrary value from syscall), among others.
 
 **Cilium integration.** Tetragon ships as part of Cilium's runtime-security capability. Service-mesh observability (Hubble) + network policy (Cilium NetworkPolicy + CiliumClusterwideNetworkPolicy) + runtime detection (Tetragon) all share the same eBPF substrate and management plane. In a Cilium-everything cluster this is the natural answer to "where do we put runtime detection." Cross-link [[reference-service-mesh-security]] for the broader integration story.
 
@@ -211,7 +211,7 @@ The architectural axis distinguishing Tetragon from Falco. Pick the hook based o
 - JIT compiler invocations (probe V8/JSC functions for malicious-JS detection)
 - Database query execution (probe libpq's `PQexec` to log SQL at the application boundary)
 
-uprobes carry high overhead (uretprobe in particular triggers known performance pathology on heavily-used functions — overhead 10-100x kernel-side). Use sparingly.
+uprobes carry high overhead (uretprobe in particular triggers known performance pathology on heavily-used functions — kprobes and tracepoints are generally up to an order of magnitude cheaper). Use sparingly.
 
 **The enforcement-vs-observability split is the architectural axis distinguishing Tetragon from Falco.** Tetragon-via-BPF-LSM enforces; Falco-via-tracepoints observes. Each has its place.
 
@@ -427,7 +427,7 @@ The defender-pessimist view.
 
 **Sigstore + signed rule corpora.** Falco rules are starting to ship signed via sigstore (`cosign verify` of rule bundles). Falcoctl tooling supports OCI artifacts for rule distribution. The supply chain on detection rules themselves matters — a tampered rule that disables critical detections is the inside-the-defender attack. Cross-link [[reference-supply-chain-provenance]] for the SLSA + sigstore discipline.
 
-**Performance-isolation work.** 2024-2026 kernel work on per-cgroup BPF program scheduling + ring buffer per-cgroup partitioning aims to address multi-tenant noisy-neighbor problems. Status `[unverified specific kernel version]`; production deployments still treat noisy-neighbor as a tuning problem.
+**Performance-isolation work.** Production deployments still treat noisy-neighbor as a tuning problem.
 
 **Detection-as-code tooling maturity.** Falco rule unit testing (rule replay against captured events), CI integration (rule-changes-trigger-replay-suite) — the tooling stack for rules-as-code parity with application-code-CI is filling in. Treat the rule corpus like a software project with versioning, peer review, and regression tests.
 

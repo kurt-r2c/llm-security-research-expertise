@@ -710,7 +710,7 @@ For code interacting with PLCs, RTUs, HMIs, or industrial protocols. Cross-refer
 Cross-reference [[reference-firmware-embedded-security]] §IX (cloud IoT). The convergence trend is moving OT data into AWS IoT SiteWise, Azure Industrial IoT, Google Cloud Industrial Solutions, MES-as-a-Service platforms. New attack surfaces:
 
 - **Cloud-to-OT control loops**. Some vendors offer "cloud-driven" setpoint optimization (predictive maintenance, energy optimization, yield maximization). The control signal originates in the cloud and flows back to the PLC. Compromise of the cloud account = compromise of the plant.
-- **Vendor management consoles**. The PLC vendor's cloud console (AWS-hosted Siemens Insights Hub) is often the single administrative reach into thousands of customer plants. A vendor-console compromise has the blast radius of a small nation-state.
+- **Vendor management consoles**. The PLC vendor's cloud console (Siemens Insights Hub, hosted on AWS and Azure) is often the single administrative reach into thousands of customer plants. A vendor-console compromise has the blast radius of a small nation-state.
 - **OAuth / SSO ties to corporate identity**. Cloud-OT consoles increasingly federate to corporate IdP (Okta, Entra ID). Cross-reference [[reference-saml-federation]] — the same federation-misconfiguration risks apply with OT consequence.
 
 ### AI-driven process optimization

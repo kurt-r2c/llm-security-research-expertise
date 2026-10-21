@@ -24,8 +24,8 @@
 >   differentiation by response delta.
 > - **Gareth Heyes** (@garethheyes, PortSwigger Research) — Long-standing PortSwigger
 >   research contributor; follow-on SSTI primers and detection techniques after Kettle's
->   2015 work. Notable for the "expression-language injection" generalisation that links
->   SSTI to AngularJS sandbox-bypass and JS prototype pollution detection. Active on the
+>   2015 work. Notable for AngularJS sandbox-escape research and server-side prototype
+>   pollution detection. Active on the
 >   PortSwigger Research blog and Web Security Academy SSTI labs.
 > - **Olivier Beg / EdOverflow** (@EdOverflow) — Web developer and bug-bounty researcher;
 >   maintains `bugbounty-cheatsheet` whose `cheatsheets/template-injection.md` is one of

@@ -48,7 +48,7 @@
 > - **Herb Sutter** — Chair emeritus, ISO C++ Standards Committee; co-editor of the
 >   C++ Core Guidelines; author of "Exceptional C++" series (Addison-Wesley)
 >   that codified the strong vs. basic vs. nothrow exception-safety taxonomy;
->   2023-onward author of the C++ Safety Profiles / "Carbon-adjacent" successor
+>   2024-onward author of the C++ Safety Profiles / "Carbon-adjacent" successor
 >   proposals
 > - **Chris Lattner** — Founder of LLVM, Clang, Swift, and Mojo; the canonical
 >   "what does the optimizer assume about UB" voice; the 2011 LLVM blog series
@@ -77,8 +77,8 @@
 >   UndefinedBehaviorSanitizer authors; the institutional voices on what
 >   *can* be caught dynamically and at what overhead cost
 >
-> **Institutional contributors:** MITRE CWE (the entire CWE Top 25 is C/C++-
-> dominant: CWE-787 OOB Write, CWE-79 XSS, CWE-89 SQLi, CWE-416 UAF, CWE-78
+> **Institutional contributors:** MITRE CWE (the 2023 CWE Top 25 top ten:
+> CWE-787 OOB Write, CWE-79 XSS, CWE-89 SQLi, CWE-416 UAF, CWE-78
 > OS Cmd Inj, CWE-20 Improper Input, CWE-125 OOB Read, CWE-22 Path Traversal,
 > CWE-352 CSRF, CWE-434 Unrestricted Upload — at least five of those have C/C++
 > as their dominant ecosystem); CERT C and C++ Secure Coding Standards (SEI/CMU);
@@ -761,8 +761,8 @@ bug; see §10.5).
 ### 7.1 The banned primitives
 
 The following C-library functions have **no safe usage in any
-modern codebase**. CERT, OpenBSD, Microsoft SDL, and essentially
-every secure-coding standard prohibit them:
+modern codebase**. Microsoft SDL bans them, and OpenBSD's linker
+warns on `strcpy`, `strcat`, `sprintf`, and `vsprintf`:
 
 - `gets(buf)` — reads from stdin into `buf` with no length limit.
   Removed from C11. The function is universally cited as the
@@ -1828,7 +1828,7 @@ authoring discipline.
 | Sanitizer | What it catches | Overhead | Mode |
 |---|---|---|---|
 | ASan | OOB read/write, UAF, double-free, mismatched new/delete | ~2x runtime, ~3x memory | Build-time |
-| UBSan | Most undefined behaviors enumerated in the standard | ~10-50% | Build-time |
+| UBSan | Most undefined behaviors enumerated in the standard | Varies by enabled checks (~59% avg with all checks, SPEC CPU) | Build-time |
 | MSan | Reads of uninitialized memory | ~3x runtime | Build-time (Clang only) |
 | TSan | Data races | ~5-15x runtime | Build-time |
 | LSan | Memory leaks | Low (ASan-integrated) | Build-time |

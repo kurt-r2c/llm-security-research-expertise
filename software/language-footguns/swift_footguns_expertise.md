@@ -1104,7 +1104,7 @@ on a worker → tied-up worker. Audit: any `Data(contentsOf:)` with
 
 ### 12.5 `URLComponents` parsing surprises
 
-Swift's `URL` / `URLComponents` conform to RFC 3986 (20+ years old)
+Swift's `URLComponents` (and `URL`, for apps linked on or after iOS 17) parse per RFC 3986 (20+ years old)
 and do not match how modern browsers process URLs (WHATWG URL spec).
 Parsing surprises:
 
@@ -1398,7 +1398,8 @@ Different threat model from iOS:
 - **No Interface Builder, no IUO outlets** — `@IBOutlet` / `T!`
   antipattern doesn't exist.
 - **SQL surface** — Vapor's Fluent ORM uses parameterized queries by
-  default; raw `SQLDatabase.raw` bypasses. Cross-link
+  default; raw `SQLDatabase.raw` is safe only if user input uses
+  `\(bind:)` interpolation. Cross-link
   `code_review_expertise.md` §"SQL injection".
 - **Auth surface** — Vapor `Authenticator` / Hummingbird middleware;
   same threshold as any web framework.

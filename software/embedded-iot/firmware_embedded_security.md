@@ -14,7 +14,7 @@
 **Tools**:
 - **FRAK (Firmware Reverse Analysis Konsole)**: original internal framework for unpacking, analyzing, modifying, and repacking proprietary embedded firmware. Demonstrated at DEF CON 20 (2012) on Cisco IOS, Cisco IP phones, HP LaserJets.
 - **OFRAK (Open Firmware Reverse Analysis Konsole)**: FRAK's source-available successor (August 2022, DARPA/DoD funding). Source-available under OFRAK Community License. Key capabilities: recursive identification, unpacking, and repacking of nested firmware structures (ELF inside XZ-compressed CPIO inside ISO); Python API for reproducible scripting; integrated with angr, Binary Ninja, Ghidra, IDA Pro; web GUI with navigable resource tree, entropy/byteclass/magnitude minimap. Supports: UEFI, Linux kernel images, squashfs, ext2/3/4, JFFS2, LZMA/XZ, gzip, zlib, ZIP, CPIO, ELF, PE, Mach-O.
-- **Symbiote**: binary host-based IDS injected into firmware at runtime without device source code or manufacturer cooperation. Uses Software Fault Isolation (SFI) to sandbox injected code within the target firmware's address space. Checks integrity of static code and data continuously. Works at binary level on MIPS and ARM. Commercially licensed to HP for use in HP printers.
+- **Symbiote**: binary host-based IDS injected into firmware at runtime without device source code or manufacturer cooperation. Checks integrity of static code and data continuously. Works at binary level on MIPS and ARM. Commercially licensed to HP for use in HP printers.
 - **badFET**: low-cost programmable EM fault injection (EMFI) pulse generator.
 
 **Key publications**:
@@ -317,7 +317,7 @@ Key insight: fully-patched Windows 11 was vulnerable because revocation list (db
 
 ### LogoFAIL (BRLY-2023-006, disclosed January 2024) — Detailed Analysis
 
-**Researchers**: Binarly REsearch team (Alex Matrosov et al.). Public disclosure December 6, 2023 at Black Hat Europe; full BRLY-2023-006 advisory January 23, 2024.
+**Researchers**: Binarly REsearch team (Alex Matrosov et al.). Public disclosure December 6, 2023 at Black Hat Europe.
 
 **Root cause**: the BIOS/UEFI boot-time logo splash screen ("Press F2 for setup...") is rendered by an in-firmware image parser running in DXE phase, well before any OS or Secure Boot exit. Each IBV (Independent BIOS Vendor) ships its own image decoder for BMP/GIF/JPEG/PCX/PNG/TGA — decades-old C parsers carried into modern UEFI without modern memory safety. Binarly found 29 distinct issues across the three major IBVs; 15 yielded arbitrary code execution.
 
@@ -346,7 +346,7 @@ Key insight: fully-patched Windows 11 was vulnerable because revocation list (db
 
 **Detection**: search the platform's enrolled PK certificate subject/issuer for the literal strings `DO NOT TRUST` or `DO NOT SHIP`. Binarly published the `BRLY-2024-005` advisory with the full untrusted-key fingerprint list; firmware analysts use `chipsec_util uefi var-list | grep -i 'do not'` (CHIPSEC) or `efivar -l | xargs -I{} efivar -p -n {}` (efivar) for runtime detection.
 
-**Remediation**: cannot be fixed by software-only update — the PK must be re-keyed, which requires OEM firmware action (`SetVariable` to install a fresh, OEM-controlled PK signed by the new private key chain). For deployed fleets, Microsoft Defender for Endpoint and Eclypsium platform check for PKfail signatures; mitigation is firmware-update-or-replace. Sources: [Binarly PKfail blog](https://www.binarly.io/blog/pkfail-untrusted-platform-keys-undermine-secure-boot-on-uefi-ecosystem), [CERT/CC VU#455367](https://kb.cert.org/vuls/id/455367), [Binarly research PDF](https://22222483.fs1.hubspotusercontent-na1.net/hubfs/22222483/Reports/PKfail%20-%20Binarly%20Research%20Report%20July%2025%202024.pdf), [BleepingComputer follow-up](https://www.bleepingcomputer.com/news/security/pkfail-secure-boot-bypass-remains-a-significant-risk-two-months-later/).
+**Remediation**: cannot be fixed by software-only update — the PK must be re-keyed, which requires OEM firmware action (`SetVariable` to install a fresh, OEM-controlled PK signed by the new private key chain). For deployed fleets, mitigation is firmware-update-or-replace. Sources: [Binarly PKfail blog](https://www.binarly.io/blog/pkfail-untrusted-platform-keys-undermine-secure-boot-on-uefi-ecosystem), [CERT/CC VU#455367](https://kb.cert.org/vuls/id/455367), [Binarly research PDF](https://22222483.fs1.hubspotusercontent-na1.net/hubfs/22222483/Reports/PKfail%20-%20Binarly%20Research%20Report%20July%2025%202024.pdf), [BleepingComputer follow-up](https://www.bleepingcomputer.com/news/security/pkfail-secure-boot-bypass-remains-a-significant-risk-two-months-later/).
 
 ### Thrangrycat (CVE-2019-1649) — Detailed Analysis
 
@@ -416,7 +416,7 @@ Cross-link: [rtos_embedded_os_expertise.md](rtos_embedded_os_expertise.md) for T
 
 ### Apple Secure Enclave Processor (SEP) and Apple Silicon — 2024–2026 research currency
 
-**SEP architectural primer**: a separate ARMv8 core (typically a single small Apple-designed core) sharing the SoC die with the AP (Application Processor) but isolated by hardware boundary. Owns key storage, biometric template matching (Touch ID / Face ID), iCloud Keychain key material, FileVault/data-at-rest keys. Communicates with AP through a strictly-defined mailbox protocol. Boots from immutable mask ROM ("SecureROM"), then signed `sepOS` firmware. `sepOS` source is closed but Apple released `iBoot` source for some platforms (and `sepOS` symbol-bearing binaries for the PCC platform — see below). The SEP is the canonical "trust anchor that survives full AP compromise" on Apple devices and is the primary blocker to checkm8-style extraction of cryptographic key material.
+**SEP architectural primer**: a separate ARMv8 core (typically a single small Apple-designed core) sharing the SoC die with the AP (Application Processor) but isolated by hardware boundary. Owns key storage, biometric template matching (Touch ID / Face ID), iCloud Keychain key material, FileVault/data-at-rest keys. Communicates with AP through a strictly-defined mailbox protocol. Boots from immutable mask ROM ("SecureROM"), then signed `sepOS` firmware. `sepOS` source is closed, but PCC software images include the `sepOS` firmware and the `iBoot` bootloader in plaintext (a first for Apple platforms — see below). The SEP is the canonical "trust anchor that survives full AP compromise" on Apple devices and is the primary blocker to checkm8-style extraction of cryptographic key material.
 
 **PACMAN (MIT CSAIL, ISCA 2022) follow-on research**:
 - **"Demystifying Pointer Authentication on Apple M1" (USENIX Security 2023, Cai Zechao et al.)**: documents the 9 distinct PAC modifier types used by XNU, the customized key-management scheme Apple layered on top of stock ARMv8.3-A PAC. Source: [USENIX paper](https://www.usenix.org/system/files/usenixsecurity23-cai-zechao.pdf).
@@ -438,7 +438,7 @@ Cross-link: [confidential_computing_expertise.md](confidential_computing_experti
 
 ### Google Titan / Ti50 + OpenTitan (2024 status)
 
-OpenTitan (opentitan.org) reached its first **commercial silicon ("Earl Grey", made by Nuvoton)**, shipping in Chromebooks from March 2026, after years of being a pure RTL project. OpenTitan is the canonical open-source silicon root-of-trust design, used by Google's internal Ti50 (security chip in Chromebooks since 2023) and as the reference for partner silicon. Architecture: 32-bit Ibex RISC-V core, hardware-accelerated AES / SHA / KMAC / Keccak, OTP key storage, true random number generator (TRNG with entropy-source health monitoring), formally-verified ROM bootloader. Tock OS runs in the AP-firmware role on Ti50, sharing the same memory-safety story as Pluton.
+OpenTitan (opentitan.org) reached its first **commercial silicon ("Earl Grey", made by Nuvoton)**, shipping in Chromebooks from March 2026, after years of being a pure RTL project. OpenTitan is the canonical open-source silicon root-of-trust design, used as the reference for partner silicon. Architecture: 32-bit Ibex RISC-V core, hardware-accelerated AES / SHA / KMAC / Keccak, OTP key storage, true random number generator (TRNG with entropy-source health monitoring). Tock OS runs in the AP-firmware role on Ti50, sharing the same memory-safety story as Pluton.
 
 The OpenTitan + Tock + Pluton + Apple SEP convergence is the structurally important trend for 2024–2026: every major platform vendor now has a dedicated security microcontroller running memory-safe firmware (Rust on Pluton, Tock on Ti50/Pluton, custom on SEP) on a separate die domain. The "TPM-as-discrete-chip" era is ending; the "security processor in the SoC with formally-verified ROM + memory-safe firmware" era is here. Cross-link [supply_chain_provenance_expertise.md](supply_chain_provenance_expertise.md) for SLSA-for-firmware artifacts these chips emit (attested firmware boot reports → CT-style transparency).
 
@@ -477,7 +477,7 @@ The OpenTitan + Tock + Pluton + Apple SEP convergence is the structurally import
 |----------|----------------|-------|
 | RTL-SDR | 24–1766 MHz | $25 receive-only DVB-T dongle (RTL2832U); adequate for ISM band monitoring |
 | HackRF One (Michael Ossmann) | 1 MHz–6 GHz | Half-duplex TX/RX; 20 MSps; 8-bit ADC/DAC; ~$350 |
-| USRP (Ettus Research) | Various w/RF daughters | Research-grade; 16-bit ADC; GPS-disciplined oscillator option |
+| USRP (Ettus Research) | Various w/RF daughters | Research-grade; 12-bit (B200/B210) to 14-bit (X300/X310) ADC; GPS-disciplined oscillator option |
 | LimeSDR | 100 kHz–3.8 GHz | Full-duplex; 12-bit; $300 |
 
 **GNU Radio**: flowgraph-based SDR framework; blocks connected by data streams. Key blocks: `osmosdr.source`, `freq_xlating_fir_filter`, `correlate_access_code_bb`.
@@ -601,7 +601,7 @@ Trend Micro ZDI's consumer-edition Pwn2Own (renamed from "Toronto" → "Ireland"
 2. **Re-implement algorithm**: seed-search tool that given a Unix timestamp generates the identical password RoboForm would have generated (matching length and character set)
 3. **Constrain time window**: forensic investigation of client's computer and account creation metadata → narrowed to month/year in 2013; RoboForm version determined from software version history cross-referenced with client backup records
 4. **Brute-force search**: iterate all Unix timestamps in target window, generate corresponding RoboForm password per timestamp, test against encrypted wallet
-5. **Recovery**: correct password found; total elapsed time ~14 months (forensic investigation of creation date was the bottleneck, not compute)
+5. **Recovery**: correct password found
 
 **Post-patch note**: RoboForm 7.9.14 added entropy sources beyond system time. Users who created passwords with older versions are not notified — those passwords remain as generated and continue to be vulnerable if approximate creation date is known.
 
@@ -664,8 +664,6 @@ The 2023–2026 attack-surface shift: firmware-update mechanisms (LVFS, Dell Sup
 
 **SBOM tooling**: Trivy (CVE scanning from SBOM + container images), syft (SBOM generation), grype (CVE matching). SBOM + NVD API = automated known-vuln tracking as new CVEs publish.
 
-**IoT patch cycle reality**: most home IoT devices receive no patches after Year 2 of product life; no auto-update mechanism; end-of-life devices deployed for 5–15 years (industrial, medical). Regulatory pressure is the primary forcing function for improvement.
-
 ---
 
 ## IX. Staff-Level Distinguishing Expertise
@@ -701,7 +699,7 @@ The 2023–2026 attack-surface shift: firmware-update mechanisms (LVFS, Dell Sup
 | binwalk | Firmware identification and extraction | github.com/ReFirmLabs/binwalk |
 | OFRAK | Firmware unpack/modify/repack (Python API + GUI) | github.com/redballoonsecurity/ofrak |
 | FACT | Firmware Analysis and Comparison Tool | github.com/fkie-cad/FACT_core |
-| Ghidra | NSA RE tool, 200+ ISAs | github.com/NationalSecurityAgency/ghidra |
+| Ghidra | NSA RE tool | github.com/NationalSecurityAgency/ghidra |
 | CHIPSEC | UEFI/BIOS security assessment | github.com/chipsec/chipsec |
 | OpenOCD | JTAG/SWD protocol execution | openocd.org |
 | GoodFET | Open-source bus adapter/multitool | github.com/travisgoodspeed/goodfet |

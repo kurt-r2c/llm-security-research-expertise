@@ -47,7 +47,7 @@ Each `→` is a transition with a verifiable attestation: issuer, subject, predi
 The incident corpus that reframes the discussion:
 
 - **SUNBURST / SolarWinds (Dec 2020)** — Build-environment compromise (SUNSPOT) injected a backdoor into signed `SolarWinds.Orion.Core.BusinessLayer.dll`. Signature real; source-to-build link broken. SLSA L3 would have invalidated the resulting provenance.
-- **Codecov bash uploader (Apr 2021)** — Credential exfiltrated from Codecov's Docker build env; thousands of CI environments leaked secrets.
+- **Codecov bash uploader (Apr 2021)** — Credential exfiltrated from Codecov's Docker build env.
 - **ua-parser-js (Oct 2021)** — Maintainer npm-account hijack; provenance from build to publish would have flagged the divergence.
 - **xz-utils CVE-2024-3094 (Mar 2024)** — Multi-year social engineering; backdoor hidden in the release tarball's m4 build script (not the git tree). Reproducible builds against the git tree would have caught the discrepancy.
 - **tj-actions/changed-files CVE-2025-30066 (Mar 2025)** — PAT compromise + mutable-tag rewrite hit ~23,000 repos; Coinbase was the targeted endpoint. Sigstore-signed Action releases + consumer SHA pinning would have localized damage.
@@ -641,7 +641,7 @@ Decentralized provenance (blockchain-anchored attestations) is research-stage; R
 - Go sumdb proposal: https://go.googlesource.com/proposal/+/master/design/25530-sumdb.md
 - Russ Cox, "Surviving Software Dependencies": https://research.swtch.com/deps
 - SOURCE_DATE_EPOCH spec: https://reproducible-builds.org/specs/source-date-epoch/
-- LWN "Reproducible builds, the first ten years": https://lwn.net/Articles/985739/
+- LWN "The history, status, and plans for reproducible builds": https://lwn.net/Articles/985739/
 
 ### GitHub Artifact Attestations
 

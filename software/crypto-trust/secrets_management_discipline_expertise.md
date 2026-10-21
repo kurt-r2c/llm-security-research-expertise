@@ -156,7 +156,7 @@ Operational consequence: a compromised application cannot exfiltrate the KEK. Th
 
 **BYOK (Bring Your Own Key).** Customer generates the KEK off-cloud, imports it into the cloud KMS. The KEK is now in the cloud HSM but the customer controls the lifecycle (can re-import, can delete). Operational reality: most BYOK deployments are *compliance theater*. The KEK is in the cloud-provider's HSM the moment after import; the cloud provider has the same access they would have to a vendor-generated KEK. BYOK is meaningful when you have a robust import-deletion-cycle process that proves the cloud provider cannot persist the KEK; in practice few customers operate it that way.
 
-**HYOK (Hold Your Own Key).** Customer holds the KEK entirely outside the cloud. The cloud service makes a call out to a customer-operated keystore (HSM, external KMS) for every wrap/unwrap. Operationally rare: high latency, high availability burden on the customer-operated keystore, mostly used for sovereign-cloud compliance scenarios. The Microsoft Double Key Encryption pattern is the highest-profile HYOK deployment `[unverified specific product status]`.
+**HYOK (Hold Your Own Key).** Customer holds the KEK entirely outside the cloud. The cloud service makes a call out to a customer-operated keystore (HSM, external KMS) for every wrap/unwrap. Operationally rare: high latency, high availability burden on the customer-operated keystore, mostly used for sovereign-cloud compliance scenarios. Microsoft distinguishes its Double Key Encryption (two keys: one in customer control, one stored in Azure) from its HYOK solution (one key, always on premises).
 
 Choose the right tier for the threat model. Most teams do not need HSM-backed keys; they need to stop checking AWS access keys into GitHub.
 
@@ -170,7 +170,7 @@ The single largest operational improvement in the 2024-2026 period is the shift 
 
 **Production deployments.**
 
-- **GitHub Actions OIDC → AWS IAM.** `sts:AssumeRoleWithWebIdentity` against an IAM role with a trust policy validating `token.actions.githubusercontent.com` as the issuer and `repo:org/repo:ref:refs/heads/main` (or similar) as the `sub`. Generally available since late 2021 `[unverified exact GA date]`. The reference pattern for cloud OIDC.
+- **GitHub Actions OIDC → AWS IAM.** `sts:AssumeRoleWithWebIdentity` against an IAM role with a trust policy validating `token.actions.githubusercontent.com` as the issuer and `repo:org/repo:ref:refs/heads/main` (or similar) as the `sub`. Generally available since November 23, 2021. The reference pattern for cloud OIDC.
 - **GitHub Actions OIDC → npm Trusted Publishing.** Generally available July 31, 2025. npm publishes the package with provenance attestation tied to the GitHub Actions workflow run. Eliminates the long-lived NPM_TOKEN that was the entry vector for Shai-Hulud and Mini-Shai-Hulud (`cicd_supply_chain_expertise.md` §2.9).
 - **GitHub Actions OIDC → PyPI Trusted Publishing.** Launched April 2023. PEP 740 attestations layer cryptographic attestation onto the OIDC-bound publication.
 - **HashiCorp Vault JWT auth via OIDC discovery.** Vault validates an external OIDC token (from GitHub Actions, Kubernetes, Auth0, Okta) and issues a Vault token bound to a policy. Eliminates AppRole bootstrapping for OIDC-aware workloads.

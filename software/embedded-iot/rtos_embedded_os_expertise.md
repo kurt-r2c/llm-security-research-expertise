@@ -290,7 +290,7 @@ Modern modular RTOS. Subsystem model: kernel + drivers + subsystems
 (Bluetooth, networking, sensor, USB) + boards. Build system: CMake + west +
 devicetree (inherited from Linux). Architectures: ARM Cortex-M/A/R, ARC,
 RISC-V, Xtensa (ESP32), x86, NIOS-II, SPARC. Strong Bluetooth LE stack,
-LwM2M, CoAP, MQTT, OPC UA, EtherCAT subsystems in mainline.
+LwM2M, CoAP, MQTT subsystems in mainline.
 
 Security posture: active Security Working Group (SWG) and PSIRT (CNA
 status). Embargo period up to 90 days (30-day fix + 60-day downstream).
@@ -589,7 +589,7 @@ parser bugs (malformed broker messages crash device).
 
 **Version-freeze deployment pathology**: identifying FreeRTOS version in
 a target firmware image is the first review step. Look for
-`tskKERNEL_VERSION_NUMBER` string (preserved by default) or infer from
+`tskKERNEL_VERSION_NUMBER` string or infer from
 idle-task structure layout. AWS IoT LTS branches (LTS 202012, 202210,
 202406) provide security backports but require active OEM tracking.
 
@@ -732,8 +732,7 @@ in style. Memory-corruption bugs dominate the disclosed CVE corpus:
 buffer overflows, integer overflows in size computations, NULL
 dereferences, use-after-free in allocator-recycled buffers, double-free
 in error paths. Stack-cookie / canaries are available on Cortex-M GCC
-(`-fstack-protector-strong`) and increasingly on by default in modern
-toolchains, but legacy builds often disable them for code-size reasons.
+(`-fstack-protector-strong`), but legacy builds often disable them for code-size reasons.
 W^X via MPU XN is similarly available-but-often-not-enabled.
 
 ### Unauthenticated firmware update
@@ -948,7 +947,9 @@ ICS/OT embedded device vulnerabilities. Researchers submit to vendor +
 CISA simultaneously (or CISA first if vendor unresponsive). CISA
 coordinates multi-vendor disclosure for shared-component bugs (e.g.,
 AMNESIA:33 across many downstream vendors), publishes ICSA-YY-NNN-NN
-advisories. Embargo typically 90+ days.
+advisories. Timeline depends on impact and mitigation availability;
+CISA may disclose as early as 45 days after the first vendor-contact
+attempt if the vendor is unresponsive.
 
 **Forescout multi-vendor model** (Project Memoria template): identify
 shared component → research the upstream → coordinate patches with
@@ -1085,7 +1086,7 @@ public research. Productive area for 2026-2030.
 - Zephyr vulnerability reporting: https://docs.zephyrproject.org/latest/security/reporting.html
 - Zephyr GitHub Security Advisories: https://github.com/zephyrproject-rtos/zephyr/security/advisories
 - FreeRTOS MPU support: https://www.freertos.org/Security/04-FreeRTOS-MPU-memory-protection-unit
-- FreeRTOS security: https://www.freertos.org/Documentation/04-Demos/02-Security
+- FreeRTOS security: https://www.freertos.org/Security/01-Security-overview
 - NuttX (Apache project): https://nuttx.apache.org/
 - PX4 / NuttX: https://github.com/PX4/NuttX
 - Eclipse ThreadX: https://threadx.io/

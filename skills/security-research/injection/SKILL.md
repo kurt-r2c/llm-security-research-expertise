@@ -201,7 +201,7 @@ Sinks by language:
 
 Also check: template engine sandbox configuration. Flag `jinja2.Environment` without
 `SandboxedEnvironment`; Twig `\Twig\Extension\SandboxExtension` absent; FreeMarker
-`new DefaultObjectWrapperBuilder(VERSION).build()` with `expose_all` set to true.
+`new DefaultObjectWrapperBuilder(VERSION)` with `setExposureLevel(BeansWrapper.EXPOSE_ALL)`.
 
 **Evaluate:** Trace the template source variable back to its origin. Flag if it
 derives from request parameters, database rows written by users, configuration editable

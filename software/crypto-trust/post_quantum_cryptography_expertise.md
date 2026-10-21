@@ -147,7 +147,7 @@ substantial reshuffling along the way.
 | Jul 2022 | Round 3 selections announced: **Kyber** (KEM), **Dilithium** (signature), **Falcon** (signature), **SPHINCS+** (signature) |
 | Jul 2022 | Round 4 KEM candidates: BIKE, Classic McEliece, HQC, SIKE |
 | Jul 2022 | **SIDH/SIKE broken** by Castryck-Decru attack (eprint 2022/975) — see §6 |
-| 2022-2023 | Draft FIPS 203/204/205 released for public comment |
+| Aug 2023 | Draft FIPS 203/204/205 released for public comment |
 | Aug 14, 2024 | **FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA) finalized and effective** |
 | Oct 2024 | "Additional Digital Signatures" Round 1 → Round 2 announcement: 14 candidates (HAWK, MAYO, UOV, SQIsign, SNOVA, LESS, CROSS, FAEST, MQOM, PERK, Mirath, QR-UOV, RYDE, SDitH) |
 | Mar 2025 | **HQC announced as 4th-round selection** — to become second standardized PQC KEM |
@@ -310,9 +310,9 @@ subsequent work.
 
 ### Performance
 
-On x86_64 AVX2 (pq-crystals.org benchmarks): ML-KEM-768 keygen ~30 µs, encaps ~40 µs,
-decaps ~30 µs. Competitive with — often faster than — ECC. ML-DSA signing ~100 µs, verify
-~50 µs vs Ed25519 ~30 µs / ~70 µs. Real-time-budget acceptable. Bandwidth (1-2 KB extra per
+On x86_64 AVX2 (pq-crystals.org benchmarks, in cycles): ML-KEM-768 keygen ~53K, encaps ~68K,
+decaps ~53K (Haswell). Competitive with — often faster than — ECC. ML-DSA-65 (Dilithium3)
+signing ~529K, verify ~179K (Skylake). Real-time-budget acceptable. Bandwidth (1-2 KB extra per
 handshake) is the real cost, not CPU.
 
 Cross-link: [`cryptography_expertise.md`](cryptography_expertise.md) §5 (ECC baseline being
@@ -350,7 +350,7 @@ strong: factory firmware-signing, audited HSM-backed code signing, bounded signi
 ### SPHINCS+ → SLH-DSA (FIPS 205)
 
 Authors: Bernstein (UIC), Hülsing (TU Eindhoven), Kölbl, Niederhagen, Rijneveld, Schwabe,
-Hopwood, et al. Lineage: SPHINCS (Eurocrypt 2015) → SPHINCS+ (NIST submission) → SLH-DSA.
+et al. Lineage: SPHINCS (Eurocrypt 2015) → SPHINCS+ (NIST submission) → SLH-DSA.
 
 **Construction:** hypertree of XMSS+ trees + FORS (few-time signature) at leaves. The signer
 pseudorandomly derives the leaf-signing key from a seed + message hash — no state to track.
@@ -358,12 +358,12 @@ Statelessness is the headline property.
 
 **Cost:** signatures 8-50 KB; signing 1-50 ms; verify ≤ 10 ms.
 
-| Parameter set | Pubkey | Signature | Sign (ms) | Verify (ms) |
-|---|---:|---:|---:|---:|
-| SLH-DSA-SHA2-128f | 32 B | 17,088 B | ~7 | ~5 |
-| SLH-DSA-SHA2-128s | 32 B | 7,856 B | ~250 | ~3 |
-| SLH-DSA-SHA2-192f | 48 B | 35,664 B | ~12 | ~7 |
-| SLH-DSA-SHA2-256s | 64 B | 29,792 B | ~750 | ~7 |
+| Parameter set | Pubkey | Signature |
+|---|---:|---:|
+| SLH-DSA-SHA2-128f | 32 B | 17,088 B |
+| SLH-DSA-SHA2-128s | 32 B | 7,856 B |
+| SLH-DSA-SHA2-192f | 48 B | 35,664 B |
+| SLH-DSA-SHA2-256s | 64 B | 29,792 B |
 
 `f`/`s` = fast-signing vs small-signature.
 
@@ -399,9 +399,9 @@ scrambling appears hard in average case.
 **The 48-year-old objection:** ~1 MB public key at NIST security level 5 (mceliece6688128).
 Incompatible with TLS handshakes, X.509 certificates, anything bandwidth-sensitive.
 Cryptanalytic status essentially unchanged in 48 years — Bernstein-Lange-Peters (2008)
-polynomial-factor speedups still leave 2^{128}+ operations at recommended parameters. Tanja
-Lange has been publicly hopeful NIST would standardize Classic McEliece for its unparalleled
-security record; NIST has declined, citing key size. Authors include Bernstein, Chou, Lange,
+polynomial-factor speedups still leave 2^{128}+ operations at recommended parameters. NIST has
+declined to standardize it for now, citing skepticism that it will see widespread use given its
+large public key (NIST IR 8545). Authors include Bernstein, Chou, Lange,
 Misoczki, Niederhagen, Persichetti, Peters, Schwabe, Sendrier, Szefer, Wang.
 
 ### HQC (Hamming Quasi-Cyclic) — selected March 2025
@@ -511,7 +511,7 @@ ss_hybrid = KDF(ss_classical || ss_PQC || context)
 
 The order matters less than that both inputs are present and the KDF is collision-resistant.
 **ChemPath:** TLS 1.3 derives the handshake_secret from the concatenated ECDHE+PQC output via
-HKDF-Extract (RFC 9180 HPKE-style construction).
+HKDF-Extract, in place of the (EC)DHE secret (draft-ietf-tls-hybrid-design).
 
 **Hybrid signatures** are more contested:
 - **Composite signatures** — sign with both, verify both must validate. Bandwidth-heavy
@@ -615,7 +615,7 @@ PQXDH-equivalent; timeline opaque.
 | Edge | Inherits Chromium | X25519MLKEM768 |
 | Apple (URLSession / Network framework) | Default since iOS 26 / iPadOS 26 | X25519MLKEM768 |
 | AWS s2n | Available since 2019 | Multiple hybrids |
-| Google ALTS | Internal hybrid deployment 2024+ | X25519+Kyber/ML-KEM |
+| Google ALTS | Internal hybrid deployment since 2022 | NTRU-HRSS+X25519; later ML-KEM |
 | OpenSSL 3.5+ | Native ML-KEM hybrid support | X25519MLKEM768 |
 | BoringSSL | Native; production at Google scale | X25519MLKEM768 |
 | Microsoft SymCrypt | ML-KEM, ML-DSA, XMSS (SLH-DSA being added) | FIPS 203/204 |
@@ -628,7 +628,7 @@ non-PQC server is the bottleneck for most enterprise deployments.
 
 NIST SP 800-208 (Oct 2020) approves XMSS and LMS for firmware signing; CNSA 2.0 mandates them
 for NSS firmware. Linux kernel ML-DSA module-signing patches posted (2025-2026).
-Microsoft code signing (SymCrypt) supports all FIPS 203/204/205. Sigstore/cosign in-flight,
+Microsoft SymCrypt supports ML-KEM, ML-DSA, LMS, and XMSS (no SLH-DSA in its changelog). Sigstore/cosign in-flight,
 bounded by OCI image-signing spec updates.
 
 Cross-link: [`supply_chain_provenance_expertise.md`](supply_chain_provenance_expertise.md)
@@ -656,7 +656,7 @@ via PQClean.
   C code proved memory- and type-safe with CBMC; AArch64/x86_64 assembly proved functionally
   correct and constant-time with HOL-Light.
 - `libcrux` (Cryspen) — verified ML-KEM, Ed25519, others.
-- HACL\* (INRIA / Microsoft) — verified C; ML-KEM and ML-DSA in progress.
+- HACL\* (INRIA / Microsoft) — verified C.
 
 **Other production libraries:**
 - Cloudflare CIRCL (Go) — ML-KEM, ML-DSA, SLH-DSA; production at Cloudflare.
@@ -943,7 +943,6 @@ Cross-link: [`agentic_web_capabilities_expertise.md`](agentic_web_capabilities_e
 - Classic McEliece NIST submission: https://classic.mceliece.org/
 
 ### Migration timelines and policy
-- NSA CNSA 2.0 specification: https://media.defense.gov/2025/May/30/2003728741/-1/-1/0/CSA_CNSA_2.0_ALGORITHMS.PDF
 - White House NSM-10 (May 2022): https://www.whitehouse.gov/briefing-room/statements-releases/2022/05/04/national-security-memorandum-on-promoting-united-states-leadership-in-quantum-computing-while-mitigating-risks-to-vulnerable-cryptographic-systems/
 - NIST NCCoE Migration to PQC project: https://www.nccoe.nist.gov/projects/migration-post-quantum-cryptography
 

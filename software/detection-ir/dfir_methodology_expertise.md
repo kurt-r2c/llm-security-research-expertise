@@ -345,10 +345,7 @@ Linux on Apple Silicon. The
 [Volatility 3 macOS tutorial](https://volatility3.readthedocs.io/en/latest/getting-started-mac-tutorial.html)
 states that "As of the Volatility 3 parity release, macOS analysis support is no
 longer actively maintained";
-practical analysis tops out at older macOS versions on Intel hardware. Apple
-Silicon — M1 (2020) through M4 (2024) — uses System Coprocessor and System
-Integrity Protection memory isolation primitives that block userland DMA paths
-the historical osxpmem / Intel-Mac kext approaches relied on. The Volatility
+practical analysis tops out at older macOS versions on Intel hardware. The Volatility
 Foundation's
 [Official Parity Release announcement](https://volatilityfoundation.org/announcing-the-official-parity-release-of-volatility-3/)
 covered Windows and Linux; it states that "Volatility 3 does not support macOS."
@@ -465,7 +462,7 @@ content, metadata, file name, application) remain the analytical scaffold.
 | exFAT       | Removable, SD | FAT-derived; explicit metadata, no journaling |
 | HFS+        | macOS legacy | catalog file, extents overflow, attributes file |
 | APFS        | macOS / iOS | object map, snapshot trees, encrypted volumes; copy-on-write |
-| ReFS        | Windows Server | Merkle-tree integrity streams; copy-on-write |
+| ReFS        | Windows Server | integrity streams; copy-on-write |
 | ZFS / Btrfs | Linux / BSD | copy-on-write; snapshot history; pool-level structures |
 
 For NTFS the `$MFT` is the forensic centerpiece: every file has an entry, deleted
@@ -716,7 +713,9 @@ Cloud Threat Intelligence integrates JA4
 ([GCTI deep dive](https://security.googlecloudcommunity.com/community-blog-42/ja4-fingerprinting-in-gti-deep-dive-6043));
 TheHive integrates JA4+ via observable enrichment
 ([StrangeBee blog](https://strangebee.com/blog/ja4-fingerprinting-now-available-in-thehive/)).
-Suricata and Zeek upstream support is mature; JA4+ is broadly available in
+Suricata ships upstream JA4 for TLS and QUIC (since 7.0.6, off by default), but
+FoxIO lists its JA4+ support as under development; Zeek support comes from
+FoxIO's own JA4+ package. JA4+ is broadly available in
 commercial NDR / NSM products. License caveat: FoxIO License 1.1 is permissive
 for academic and internal-business use; not permissive for monetization without
 license.

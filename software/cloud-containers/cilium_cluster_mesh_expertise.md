@@ -175,7 +175,7 @@ The policy enforcer in cluster A resolves this to the set of identity-IDs in clu
 
 **Cross-cluster aggregation.** Hubble Relay supports peering across clusters via the same trust mechanism as Cluster Mesh (mTLS, shared CA). A single Hubble Relay endpoint can serve flow data from N clusters; this is the common observability pattern for fleet-wide debugging.
 
-**OTel integration.** Emerging; Hubble exports OTLP flow logs and metrics. Span correlation (trace IDs from application telemetry joined with Hubble flow IDs) is operationally fragile — application telemetry rarely carries the Cilium identity, so the join is on `(timestamp, src/dst IP, port)` and lossy. Cross-link to `[[reference-detection-engineering]]` §10 for OTel.
+**OTel integration.** Experimental; the `hubble-otel` project integrating Hubble with OpenTelemetry was archived in June 2024. Span correlation (trace IDs from application telemetry joined with Hubble flow IDs) is operationally fragile — application telemetry rarely carries the Cilium identity, so the join is on `(timestamp, src/dst IP, port)` and lossy. Cross-link to `[[reference-detection-engineering]]` §10 for OTel.
 
 **Retention discipline.** Flow data accumulates rapidly — a busy cluster emits millions of flow events per minute. Long-retention storage is expensive; short retention reduces forensic value. Most operators keep 24–72 hours of high-resolution flow logs plus aggregated metrics for longer. The choice has direct cost + IR consequences.
 
@@ -252,7 +252,7 @@ This is the section to read if you're auditing a Cilium Cluster Mesh deployment.
 
 **Cluster Mesh API server is the cross-cluster trust seam.** Compromise of one cluster's ClusterMesh API server enables identity forgery into peer clusters. The CA exchange step at `cilium clustermesh connect` time is when peer trust is established; anyone with `Secret` write access in the Cilium namespace on either cluster at connect time can compromise the mesh. Audit `Secret` access in Cilium namespaces. Mesh peering is high-blast-radius — treat it like federation in `[[reference-spiffe-spire-federation-operations]]`.
 
-**Hubble observability data accumulates fast.** A busy cluster emits millions of flow events per minute. Long-retention storage is expensive; short retention reduces forensic value. Operators commonly settle on 24–72 hours of high-resolution flow logs + longer-retention aggregated metrics. The choice has direct IR + cost consequences. Cross-link to `[[reference-detection-engineering]]` §10–11.
+**Hubble observability data accumulates fast.** A busy cluster emits millions of flow events per minute. Long-retention storage is expensive; short retention reduces forensic value. The choice has direct IR + cost consequences. Cross-link to `[[reference-detection-engineering]]` §10–11.
 
 **Default-allow CiliumNetworkPolicy is operationally common.** Production fleets default-allow because default-deny breaks legitimate traffic during rollout, and maintaining default-deny across hundreds of services through ongoing migration is high-effort. This is a real security-posture gap. The mitigation is staged rollout — default-deny + audit-log mode first, then enforce. Most operators stop at audit-log.
 

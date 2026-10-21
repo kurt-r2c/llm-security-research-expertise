@@ -214,10 +214,10 @@ Practical reference. Treat any row marked `[unverified specific advisory]` as "t
 | Azure Front Door | Any-origin | H2.CL, H2.TE | `[unverified specific advisory]` | Check Azure security advisories |
 | Google Cloud Load Balancer | Any-origin | CL.TE, H2.CL | `[unverified specific advisory]` | Check Google Cloud load balancing documentation |
 | nginx (1.x) | Apache | CL.TE | `[unverified specific advisory]` | nginx 1.21.1+ always rejects requests with both Content-Length and Transfer-Encoding; check Apache version |
-| nginx | uWSGI | CL.TE, CL.0 | Various GitHub issues against specific uWSGI versions; specific CVE `[unverified specific advisory]` | uWSGI versions post-2.0.20 reject ambiguous CL+TE; check version |
+| nginx | uWSGI | CL.TE, CL.0 | Various GitHub issues against specific uWSGI versions; specific CVE `[unverified specific advisory]` | Check version |
 | HAProxy | Backend | TE.CL, integer-overflow CL parsing | CVE-2021-40346 (HTX header parser integer overflow → HRS, fixed in 2.0.25 / 2.2.17 / 2.3.14 / 2.4.4) | Patched in stated versions; older HAProxy 2.0-2.3 vulnerable |
 | Akamai | Any-origin | Various; Kettle 2019 demos | Kettle BHUSA 2019 against Akamai-fronted properties; specific public CVE attribution `[unverified specific advisory]` | Akamai deployed a fix about 48 hours after Kettle's 2019 publication |
-| Fastly | Any-origin | CL.TE, H2.CL pre-2021 | `[unverified specific advisory]` | Fastly hardened progressively 2019-2022 per their security blog |
+| Fastly | Any-origin | CL.TE, H2.CL pre-2021 | `[unverified specific advisory]` | Fastly's blog attributes its resistance to a single HTTP parsing implementation across its stack |
 | Imperva | Any | TE.TE obfuscation bypass class | `[unverified specific advisory]` | WAF parser-differential risk; treat WAF as compensating control |
 | F5 BIG-IP | Any | CL.TE, TE.TE | F5 K-series advisories; specific CVE attribution `[unverified specific advisory]` | Check F5 security advisories feed for current version's status |
 | Varnish | Any | CL.TE, TE.TE | VSV00007 / CVE-2021-36740 (HTTP/2, fixed 6.0.8 / 6.5.2 / 6.6.1); VSV00008 / CVE-2022-23959 (HTTP/1, fixed 6.0.10 / 7.0.2) | Later smuggling advisories also affect 6.x and 7.x; check Varnish security advisories for current version |
@@ -551,7 +551,7 @@ Source: Jake Miller's September 2020 h2cSmuggler blog post and tool release (htt
 
 ### 12.7. PortSwigger BHUSA 2022 demo: browser-powered desync
 
-Kettle's "Browser Powered Desync Attacks: A New Frontier in HTTP Request Smuggling" (https://portswigger.net/research/browser-powered-desync-attacks) demonstrated CL.0 against amazon.com plus several other targets. The class change here is structural: HRS no longer requires attacker control of a TLS-terminating proxy; the attacker's website is sufficient. Specific bounty attributions for the demonstrated targets are in the PortSwigger disclosure-acknowledgment archive.
+Kettle's "Browser Powered Desync Attacks: A New Frontier in HTTP Request Smuggling" (https://portswigger.net/research/browser-powered-desync-attacks) demonstrated CL.0 against amazon.com plus several other targets. The class change here is structural: HRS no longer requires attacker control of a TLS-terminating proxy; the attacker's website is sufficient.
 
 ### 12.8. GitLab HRS series 2020-2022
 

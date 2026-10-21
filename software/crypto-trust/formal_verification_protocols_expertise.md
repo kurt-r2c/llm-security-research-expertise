@@ -102,7 +102,7 @@ man-in-the-middle attack using FDR
 omits the responder's identity, letting an intruder interleave two
 sessions and convince B it shares a key with A. The fix
 (Needham-Schroeder-Lowe) adds B's identity. 17 years of human review
-missed it; an automated refinement checker found it in minutes. Founding
+missed it; an automated refinement checker found it. Founding
 parable of automated protocol verification.
 
 **Kerberos v4** had ticket-replay and timestamp-only freshness flaws;
@@ -208,8 +208,8 @@ both.
 
 ### Soundness theorems — bridging
 
-Abadi-Rogaway 2000 (*Reconciling Two Views of Cryptography*, J.
-Cryptology) showed that under certain conditions, symbolic equivalence
+Abadi-Rogaway (*Reconciling Two Views of Cryptography*, IFIP TCS 2000;
+J. Cryptology 2002) showed that under certain conditions, symbolic equivalence
 implies computational indistinguishability. Seminal result was for
 symmetric encryption against passive adversaries; Cortier-Warinschi,
 Backes-Pfitzmann, Comon-Cortier extended to active adversaries and
@@ -601,8 +601,7 @@ many models translate. Distinguishing design choices:
   applied-cryptography material) now use Verifpal as the first
   formal-verification exposure.
 - **Used by industry.** Google, Zoom, Bosch listed among Verifpal
-  adopters (Symbolic Software self-report). The Cure53-audit pipeline
-  occasionally produces Verifpal models alongside text reports.
+  adopters (Symbolic Software self-report).
 
 ### Weaknesses
 
@@ -617,9 +616,7 @@ many models translate. Distinguishing design choices:
 
 - **Signal Protocol.** Multiple Verifpal models of X3DH / Double Ratchet
   published.
-- **BBS+ signatures.** Selective-disclosure credential analysis.
 - **Noise Framework** patterns (alongside ProVerif and Tamarin).
-- **WireGuard** subset analyses.
 
 ### When to reach for Verifpal
 
@@ -855,7 +852,7 @@ microarchitectural state. See `hardware_side_channels_expertise.md`.
 
 The protocol model assumes isolation. Real deployments compose: TLS
 over TCP under HTTP, OAuth over TLS over HTTP. SLOTH (Bhargavan-Leurent
-2016) exploited MD5/SHA-1 collisions across TLS+IKE+SSH simultaneously.
+2016) exploited MD5/SHA-1 collisions across TLS+IKE+SSH.
 DROWN used SSLv2 oracles against TLS channels. Cross-protocol modeling
 is possible but rarely done.
 
@@ -1144,7 +1141,6 @@ boot) is its own field. See `hardware_side_channels_expertise.md`,
 - 3GPP TS 33.501 (5G AKA, post-Basin/Dreier/Hirschi/Sasse/Stettler).
 - EMV Specifications post-Basin/Sasse/Toro-Pozo (Mastercard
   brand-mixup defenses).
-- FIDO Alliance WebAuthn Level 3 (increasing formal-analysis references).
 
 ### Cross-references within this corpus
 

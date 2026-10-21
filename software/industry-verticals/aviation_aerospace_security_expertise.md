@@ -91,7 +91,7 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 The **DEF CON Aerospace Village** first appeared in 2019 as the Aviation Village and was renamed the Aerospace Village in 2020. Founded by a coalition of aviation researchers, pilots, defense-industrial-base practitioners, and FAA-adjacent policy specialists, with explicit goals of *open conversation* and *researcher-vendor collaboration*. Hosts CTFs, hardware-hacking labs (Bricks-in-the-Air, avionics tear-downs), and joint sessions with the Voting Village, ICS Village, and Car Hacking Village. The Village exists because the open vulnerability-disclosure relationship between researchers and aviation vendors was historically broken; the Roberts episode (2015) is the canonical illustration. The Village normalized researcher engagement and reduced — though did not eliminate — the legal risk profile of aviation research.
 
-The **academic ACARS/SATCOM/CPDLC corpus** lives across Marshall University, EURECOM (Costin et al.), Oxford System Security Lab (Strohmeier, Martinovic, Smith), ETH Zurich (Capkun, Moser), and KU Leuven (Wouters, Verbauwhede). The CPDLC security paper from Linköping University (Gurtov, Polishchuk, Wernberg, Sensors 2018) and the TCAS spoofing work led by Giacomo Longo (USENIX Security 2024) are the canonical examples — careful, threat-modeled, defensible-in-court contributions that drove real specification revisions.
+The **academic ACARS/SATCOM/CPDLC corpus** lives across EURECOM (Costin et al.), Oxford System Security Lab (Strohmeier, Martinovic, Smith), ETH Zurich (Capkun, Moser), and KU Leuven (Wouters, Verbauwhede). The CPDLC security paper from Linköping University (Gurtov, Polishchuk, Wernberg, Sensors 2018) and the TCAS spoofing work led by Giacomo Longo (USENIX Security 2024) are the canonical examples — careful, threat-modeled, defensible-in-court contributions that drove real specification revisions.
 
 ---
 
@@ -142,7 +142,7 @@ The bus-and-protocol corpus below predates the modern threat model by 10-40 year
 
 ### ARINC 429
 
-Point-to-point one-shot serial digital data bus, defined by ARINC 429 in 1977. The most ubiquitous avionics data bus on Western commercial transport — Boeing 737, 747, 757, 767, 777, A300, A310, A320, A330, A340 families.
+Point-to-point one-shot serial digital data bus, defined by ARINC 429 in 1977. The most ubiquitous avionics data bus on Western commercial transport — Boeing 737, 747, 757, 767, A300, A310, A320, A330, A340 families.
 
 - **Topology**: One transmitter, up to 20 receivers. No bus arbitration.
 - **Data rate**: 12.5 kbit/s (low speed) or 100 kbit/s (high speed). 32-bit data words.
@@ -203,7 +203,7 @@ The dominant air-ground text-messaging protocol since 1978. Carries flight-crew 
 
 - **Three radio media**: VHF (POA-CSP and VDL Mode 2), HF, SATCOM (Inmarsat Classic Aero, SwiftBroadband; Iridium).
 - **Plaintext by default**. 99% of ACARS traffic is unencrypted (Smith, Moser, Strohmeier 2017).
-- **FANS-1/A** is the ACARS evolution carrying CPDLC and ADS-C; it adds limited integrity protection via ATN addressing, not cryptographic protection of the message body.
+- **FANS-1/A** is the ACARS evolution carrying CPDLC and ADS-C; it runs inside the ACARS protocol rather than ATN and adds no cryptographic protection of the message body.
 - **No sender authentication, no message integrity, no replay protection** for the bulk of operational ACARS traffic.
 
 ACARS is the canonical "I assumed this channel was private and the academic literature proved it wasn't" example. Passive collection via inexpensive VHF/SATCOM receivers and online ACARS aggregation services produces a continuous, geolocated, content-readable stream of operational aviation messaging worldwide. Military, government, business-jet, medevac, and head-of-state flights all surface in the dataset.
@@ -301,7 +301,7 @@ Many seat-back IFE units expose a USB port for charging. The combination of USB 
 
 EFBs replaced the paper "flight bag" (charts, manuals, checklists, performance calculations) with a tablet or laptop. The transition started in the early 2000s and is essentially complete on commercial transport by 2026. **Class 1/2/3 EFB** classification:
 
-- **Class 1**: portable, no aircraft connectivity, no in-flight use.
+- **Class 1**: portable, not mounted, no aircraft data connectivity or dedicated aircraft power.
 - **Class 2**: portable, may have aircraft connectivity (typically tablet with mounting bracket and aircraft-power port).
 - **Class 3**: installed avionics, full aircraft integration, airworthiness certified.
 
@@ -677,7 +677,6 @@ Aviation's long device lifecycles mean that **today's cryptographic decisions sh
 - Patrick Kiley / Rapid7, "Investigating CAN Bus Network Integrity in Avionics Systems" (2019): https://www.rapid7.com/research/report/investigating-can-bus-network-integrity-in-avionics-systems/
 - Brad Haines and Nick Foster, "Hackers + Airplanes" (DEF CON 20, 2012): https://defcon.org/images/defcon-20/dc-20-presentations/Renderman/DEFCON-20-RenderMan-Hackers-plus-Airplanes.pdf
 - Martin Strohmeier publication page: https://www.cs.ox.ac.uk/people/martin.strohmeier/
-- Aviation Security at Oxford papers: https://www.avsec-oxford.com/papers.html
 - Smith, Moser, Strohmeier et al., "Undermining Privacy in ACARS" (PETS 2018): https://ora.ox.ac.uk/objects/uuid:4ca4c46a-6bff-4f5b-9cdf-62a6f826e0ce
 - Lennert Wouters, "Glitched on Earth by Humans" (Black Hat USA 2022): https://i.blackhat.com/USA-22/Wednesday/US-22-Wouters-Glitched-On-Earth.pdf
 - Pen Test Partners EFB blog: https://www.pentestpartners.com/security-blog/deploying-efbs-securely/
@@ -727,9 +726,9 @@ Aviation's long device lifecycles mean that **today's cryptographic decisions sh
 - DEF CON Aerospace Village: https://www.aerospacevillage.org/
 - OpenSky Network: https://opensky-network.org/
 - Aviation ISAC: https://www.a-isac.com/
-- Space ISAC: https://s-isac.org/
+- Space ISAC: https://spaceisac.org/
 - AIAA: https://www.aiaa.org/
-- ICAO Aviation Cybersecurity: https://www.icao.int/cybersecurity/Pages/default.aspx
+- ICAO Aviation Cybersecurity Action Plan: https://www.icao.int/cybersecurity-action-plan
 
 ### Cross-domain bibliography
 

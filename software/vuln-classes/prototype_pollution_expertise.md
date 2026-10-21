@@ -8,7 +8,7 @@
 > - **Michał Bentkowski (@SecurityMB), Securitum** — Author of "Exploiting prototype pollution – RCE in Kibana (CVE-2019-7609)," demonstrating that a single Timelion pollution combined with a NODE_OPTIONS / child_process gadget yielded full RCE against Elastic's dashboard. Also "Prototype pollution – and bypassing client-side HTML sanitizers" — the canonical reference for using `__proto__` mutations to defeat DOMPurify-class allowlists.
 > - **BlackFan (Sergey Bobrov)** — Maintains github.com/BlackFan/client-side-prototype-pollution, the largest curated corpus of client-side gadgets: per-library writeups for jQuery, Google Closure, js-xss, Embedly, Popper.js, Twitter UWT, Adobe Dynamic Tag Management, and others (29 libraries in all). Also BlackFan/cspp-tools, which includes a prototype_checker script.
 > - **Posix** — Pseudonymous researcher responsible for RCE-via-template-engine gadgets in Handlebars and Pug ("AST Injection").
-> - **s1r1us (@S1r1u5_)** — Bug-bounty researcher; co-presented "ElectroVolt: Pwning Popular Desktop apps while uncovering new attack surface on Electron" (Black Hat USA 2022); 4th place PortSwigger Top 10 Web Hacking Techniques 2021 for "Exploiting Client-Side Prototype Pollution in the wild". HackerOne writeups (Elastic #998398; Node.js #1431042; ~40 others) are the working catalogue of how the bug class manifests in production bounty programs.
+> - **s1r1us (@S1r1u5_)** — Bug-bounty researcher; co-presented "ElectroVolt: Pwning Popular Desktop apps while uncovering new attack surface on Electron" (Black Hat USA 2022); 4th place PortSwigger Top 10 Web Hacking Techniques 2021 for "Exploiting Client-Side Prototype Pollution in the wild". HackerOne writeups are the working catalogue of how the bug class manifests in production bounty programs.
 > - **Gareth Heyes (@garethheyes), PortSwigger Research** — "Server-side prototype pollution: Black-box detection without the DoS" (NullCon Berlin / OWASP Global AppSec Dublin 2023). Solved black-box detection: prior techniques required pollution that caused server crashes; Heyes' uses harmless type-confusion properties (`__proto__[status]=510`) yielding observable, non-destructive response deltas. Implemented as an open-source Burp Suite extension.
 > - **Snyk research team** — Ecosystem-wide disclosures including CVE-2019-10744 (lodash). security.snyk.io is the de-facto canonical CWE-1321 catalogue.
 > - **Kurt Boberg (@lapt0r / GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Three publicly-credited prototype pollution CVEs: **CVE-2021-3805** (object-path `del()` pollution; GHSA-8v63-cqqc-6r2c); **CVE-2020-28472** (`@aws-sdk/shared-ini-file-loader` pollution via crafted INI; GHSA-rrc9-gqf8-8rwg); **CVE-2019-5428** (jQuery `$.extend(true, ...)` pollution across npm, NuGet, RubyGems `jquery-rails` and Maven packages; advisory withdrawn as a duplicate of CVE-2019-11358; GHSA-wv67-q8rr-grjp).
@@ -31,7 +31,7 @@ A user-controlled string can reach `Object.prototype` through three distinct pro
 
 1. **`__proto__`** — A getter/setter pair defined on `Object.prototype` itself that, when accessed on an instance, reads or writes the instance's internal `[[Prototype]]` slot. Assignment to `obj.__proto__.x = 1` walks up to `Object.prototype` and assigns `x` there. Disabled by Node.js's `--disable-proto=delete` or `--disable-proto=throw` flag (Node 12.17.0 / 13.12.0+).
 2. **`constructor.prototype`** — Every plain object inherits `constructor` from `Object.prototype`, pointing at the `Object` function. `Object.prototype` is reachable as `obj.constructor.prototype`. NOT disabled by `--disable-proto`. This is the residual attack surface even on hardened Node deployments.
-3. **`prototype.prototype`** — For objects that *do* have a `prototype` field (functions, class instances), the chain extends further. Less common in practice but appears in some merge-into-class patterns and is the entry point Shcherbakov's "Silent Spring" paper uses for several Node.js core-API gadgets.
+3. **`prototype.prototype`** — For objects that *do* have a `prototype` field (functions, class instances), the chain extends further. Less common in practice but appears in some merge-into-class patterns.
 
 A recursive-merge primitive that walks user input and assigns properties without checking the destination key is exploitable through any of these three. **Filtering only `__proto__` is incomplete.** The minimal correct allowlist is: `__proto__`, `constructor`, `prototype`.
 
@@ -67,7 +67,7 @@ This is what `jQuery.extend(true, ...)` did before 3.4.0 (CVE-2019-11358 / CVE-2
 
 ### Object.assign and the shallow vs deep distinction
 
-`Object.assign(target, source)` is NOT vulnerable on its own — it copies *own* enumerable properties; `source.__proto__` is inherited and skipped. **But** it *does* assign to `target["__proto__"]` if `source` was a parser output that produced `__proto__` as an *own* property. V8's native `JSON.parse` (since ~Node 12) creates `__proto__` as an own data property on the result. Other parsers (older `JSON.parse` paths, several YAML parsers, `csv-parse` with `columns: true`) put the key on the prototype chain. The behavior depends on parser version and configuration. **Treat the question "does my parser put `__proto__` on the result as an own property" as unanswerable without testing the specific runtime; assume yes.**
+`Object.assign(target, source)` is NOT vulnerable on its own — it copies *own* enumerable properties; `source.__proto__` is inherited and skipped. **But** it *does* assign to `target["__proto__"]` if `source` was a parser output that produced `__proto__` as an *own* property. V8's native `JSON.parse` (since ~Node 12) creates `__proto__` as an own data property on the result. Other parsers (`js-yaml` before 3.14.2 / 4.1.1, `csv-parse` before 7.0.2 with `columns` and `group_columns_by_name`) can change the result object's prototype. The behavior depends on parser version and configuration. **Treat the question "does my parser put `__proto__` on the result as an own property" as unanswerable without testing the specific runtime; assume yes.**
 
 ### ECMAScript spec corner cases
 
@@ -135,7 +135,7 @@ Mongoose, Sequelize, and similar ORMs construct model instances from query resul
 
 ### 2.12 Specific package-level sources to remember
 
-Packages with documented pollution CVEs as *sources*: `lodash` (multiple CVEs through 4.17.20), `minimist`, `mixin-deep`, `set-value`, `deep-extend`, `hoek`, `qs`, `js-yaml` (pre-4 unsafe schema), `dot-prop`, `static-eval`, `object-path` (Kurt's CVE-2021-3805), `immer`, `nested-object-assign`, `flat`, `xml2js`, `csv-parse` (column-mode), `aws-sdk` shared-ini-file-loader (Kurt's CVE-2020-28472), `jquery` (Kurt's CVE-2019-5428 / parallel CVE-2019-11358), `mongoose` (pre-5.13.15 query helpers). Most are patched in current versions. Their continued presence in legacy lockfiles is the operational risk.
+Packages with documented pollution CVEs as *sources*: `lodash` (multiple CVEs through 4.17.20), `minimist`, `mixin-deep`, `set-value`, `deep-extend`, `hoek`, `qs`, `js-yaml` (pre-4 unsafe schema), `dot-prop`, `object-path` (Kurt's CVE-2021-3805), `immer`, `nested-object-assign`, `flat`, `xml2js`, `csv-parse` (column-mode), `aws-sdk` shared-ini-file-loader (Kurt's CVE-2020-28472), `jquery` (Kurt's CVE-2019-5428 / parallel CVE-2019-11358), `mongoose` (pre-5.13.15 query helpers). Most are patched in current versions. Their continued presence in legacy lockfiles is the operational risk.
 
 ---
 
@@ -158,27 +158,13 @@ A "gadget" is a code site that *reads* a property from a polluted prototype and 
 
 Documented in Shcherbakov's paper: Node's module resolution algorithm, when given a directory, reads `package.json` from that directory and looks up the `main` property. If `package.json` does not define `main`, the lookup falls through to the prototype chain. Polluting `Object.prototype.main = "./../../pwned.js"` causes any subsequent `require('./some-directory-without-package-json-main')` to load `pwned.js` instead of the directory's `index.js`. This is a universal Node.js gadget independent of application code.
 
-### 3.3 fs: file-system call gadgets
-
-`fs.writeFile`, `fs.readFile`, `fs.open`, and most fs primitives accept an options object. Polluted properties include:
-
-- **`flag`** — Open flags (`'r'`, `'w'`, `'a'`, etc.). Polluting `flag` to `'a'` on a `writeFile` call silently appends rather than overwrites.
-- **`mode`** — Unix permissions on created files. Polluting `Object.prototype.mode = 0o777` makes every created file world-writable.
-- **`encoding`** — Affects how reads return data; not directly exploitable but breaks invariants.
-
 ### 3.4 HTTP / HTTPS / Net agent gadgets
 
-`http.globalAgent` and `https.globalAgent` are shared singleton objects whose options derive from prototype lookups. Polluting `Object.prototype.options = {ca: "<attacker cert>"}` can install a trusted CA cert globally. Polluting `Object.prototype.host` can redirect outbound requests. Polluting `Object.prototype.rejectUnauthorized = false` disables TLS verification for every subsequent HTTPS connection in the process.
+The KTH-LangSec gadget catalogue lists `http` / `https` `get` and `request` gadgets via polluted `hostname`, `headers`, `method`, `path`, and `port`, plus a `NODE_TLS_REJECT_UNAUTHORIZED` gadget for `https.get` / `https.request`.
 
 ### 3.5 Express / Connect-specific gadgets
 
 - **`req.body` middleware ordering** — body-parser with `{extended: true}` + downstream `_.defaults(config, req.body)` lets body content pollute process state.
-- **Static file middleware** — `express.static(root, options)` reads `index`, `dotfiles`, `maxAge` from prototype if absent. Polluting `dotfiles = 'allow'` exposes `.git`, `.env` to direct download.
-- **Template engine resolution** — Express looks up `req.app.engines[ext]`; polluted `Object.prototype.engine` redirects rendering through an attacker-controlled function.
-
-### 3.6 Mongoose / Sequelize schema bypass
-
-Mongoose enforces schema strict mode via a `strict` property checked at save time. Polluting `Object.prototype.strict = false` disables strict-mode on all subsequent saves, accepting arbitrary fields. Combined with query operators (`$where`, `$gt`, `$ne`), this is the path to authentication bypass in Mongoose-backed logins. Sequelize has a parallel pattern around `raw` and `nest`.
 
 ### 3.7 The "ignored option" rule
 
@@ -252,7 +238,7 @@ Java does not have the same dynamic-class-mutation surface, but Jackson polymorp
 
 PHP's recursive array_merge_recursive and analogous custom recursive mergers exhibit the same shape, though without a single global `Object.prototype` equivalent. Class-property mutation via Reflection API is possible but rarer in production code paths.
 
-Symfony and Laravel both bundle recursive-merge primitives (`array_replace_recursive`, `array_merge_recursive`, `Arr::dot`, `Arr::set`); when called on user input without key validation, they can pollute config objects passed by reference downstream. Less impactful than JS due to PHP's request-isolated execution model — pollution is per-request, not process-wide — but still a vulnerability class.
+PHP's built-in `array_replace_recursive` / `array_merge_recursive` and Laravel's `Arr::set` (dot-notation nested set) are recursive-merge primitives; when called on user input without key validation, they can pollute config objects passed by reference downstream. Less impactful than JS due to PHP's request-isolated execution model — pollution is per-request, not process-wide — but still a vulnerability class.
 
 ### 5.4 Multi-language framing
 

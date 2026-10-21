@@ -174,8 +174,8 @@ Limits: (1) **one-direction** — Bechler / An Trinh (2019) showed RMI client-si
 deserialization of responses isn't filtered; force the target into client role to bypass.
 (2) **bean-property marshallers unaffected** — SnakeYAML, Jackson default typing, XStream
 don't go through `ObjectInputStream`. (3) **opt-in** — default-configured `ObjectInputStream`
-has no filter. (4) **subtle syntax** — `!*` discipline matters. JDK 17 strict mode
-(`jdk.serialFilterFactory`) tightens defaults but cannot retrofit every legacy call.
+has no filter. (4) **subtle syntax** — `!*` discipline matters. JDK 17's JVM-wide filter
+factory (`jdk.serialFilterFactory`) helps but cannot retrofit every legacy call.
 
 ### Real CVE corpus (selected)
 
@@ -266,7 +266,7 @@ Yaml yaml = new Yaml(new SafeConstructor());   // safe — no arbitrary type ins
 
 The `!!javax.script.ScriptEngineManager` payload from Bechler's marshalsec corpus (§3 of
 `deserialization_expertise.md`) was the canonical exploit. SnakeYAML downstream consumers —
-Spring Boot config parsing, Apache Camel, ESAPI, Apache Brooklyn, JBoss Resteasy — all needed
+Spring Boot config parsing, Apache Camel, Apache Brooklyn, JBoss Resteasy — all needed
 the fix propagated.
 
 Sources: `snyk.io/blog/unsafe-deserialization-snakeyaml-java-cve-2022-1471/`,

@@ -202,7 +202,7 @@ Reference baseline for the HTTP/2 frame-DoS class. Attacker opens a stream (HEAD
 Discovery: Bartek Nowotarski, disclosed to CERT/CC in January 2024. Mechanism summarized in section II above. Two structural properties make this class worse than Rapid Reset:
 
 1. **Single connection, sometimes single stream** — Rapid Reset needs many streams; CONTINUATION Flood needs only one stream with an unbounded CONTINUATION frame sequence. The DoS budget is set by frames-per-stream, not streams-per-connection.
-2. **Invisible to access logs** — HTTP access-log infrastructure writes on request completion. A flood request never completes, so the source IP and User-Agent never reach the log. Standard nginx / Apache / IIS / cloud-load-balancer log pipelines all miss the traffic. Detect via H2 frame counters (`nghttp2`'s `--continuation-frame-limit` style metrics) or via stream-lifetime histograms exported by the server's HTTP/2 stack.
+2. **Invisible to access logs** — HTTP access-log infrastructure writes on request completion. A flood request never completes, so the source IP and User-Agent never reach the log. Standard nginx / Apache / IIS / cloud-load-balancer log pipelines all miss the traffic. Detect via H2 frame counters or via stream-lifetime histograms exported by the server's HTTP/2 stack.
 
 Cross-implementation patch summary: each affected stack landed a per-stream cumulative-header-size cap and (most) a per-HEADERS CONTINUATION-count cap.
 

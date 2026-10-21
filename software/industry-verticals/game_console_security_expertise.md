@@ -41,7 +41,7 @@ Console hacking has been a hobbyist-research discipline more than an academic on
 
 ### Felix Domke (tmbinc)
 
-**Career arc**: German hardware-and-firmware reverse engineer. Best known for the original Xbox 360 hypervisor exploit ("King Kong glitch") in late 2006. Also work on TomTom GPS, Linux on Xbox, and broader embedded-firmware research. Active in the German CCC community.
+**Career arc**: German hardware-and-firmware reverse engineer. Best known for the original Xbox 360 hypervisor exploit ("King Kong glitch") in late 2006. Also work on Linux on Xbox and broader embedded-firmware research. Active in the German CCC community.
 
 **Xbox 360 King Kong exploit (December 2006)**: Hypervisor bug allowing unsigned-code execution on Xbox 360 running kernel 4532 (patched in 4552). The bug was in the hypervisor's `syscall` handler, which checked only the lower 32 bits of the syscall number while dispatching on the full 64-bit value. Demonstrated using a modified copy of Peter Jackson's *King Kong: The Official Game of the Movie* (Ubisoft, 2005) — the game's unsigned shader was modified so the GPU's memory-export feature overwrote kernel memory. Demoed at 23C3 (December 2006) booting Linux on Xbox 360.
 
@@ -110,7 +110,7 @@ Most PSP exploits were save-game or media-file parsing bugs. None required hardw
 
 **Browserhax (September 2015)**: yellows8 published heap-based exploits against the 3DS's WebKit browser. Each variant targeted a specific firmware version (sliderhax, spider28hax, spider31hax) and used heap spraying followed by UAF or type-confusion to gain ROP-chain execution in the browser sandbox.
 
-**3DS exploit families** clustered into three lanes: (1) save-game parsing (ninjhax / pasta-CFW / smashhax), (2) browser engine (browserhax / webkithax), (3) inter-process bugs in system services (sysmodule hacks). Kernel chains from ARM11 to ARM9 were where heavy lifting happened; most weren't published.
+**3DS exploit families** clustered into three lanes: (1) save-game parsing (ninjhax), (2) browser engine (browserhax / webkithax), (3) inter-process bugs in system services (sysmodule hacks). Kernel chains from ARM11 to ARM9 were where heavy lifting happened; most weren't published.
 
 ---
 
@@ -337,7 +337,7 @@ Primary exploit vector was the **WebKit JS engine** in the built-in browser. **M
 
 ### Switch (2017)
 
-**Fusée Gelée (April 23, 2018)**: Katherine Temkin / ReSwitched / plutoo / derrek / naehrwert. The Tegra X1 BootROM USB recovery-mode bug — length-field overflow in USB DMA setup. To trigger: short pin 10 of the right-hand Joy-Con rail to GND (puts the system into RCM mode), then send a USB control request with length 0xFFFF over USB-C. The BootROM DMAs the request into a stack buffer and overflows, allowing arbitrary code execution from BootROM context.
+**Fusée Gelée (April 23, 2018)**: Katherine Temkin / ReSwitched. The Tegra X1 BootROM USB recovery-mode bug — length-field overflow in USB DMA setup. To trigger: short pin 10 of the right-hand Joy-Con rail to GND (puts the system into RCM mode), then send a USB control request with length 0xFFFF over USB-C. The BootROM DMAs the request into a stack buffer and overflows, allowing arbitrary code execution from BootROM context.
 
 The "shorting pin 10" can be done with:
 - A bent paperclip (the original method)
@@ -611,7 +611,6 @@ Nintendo has been more aggressive in pursuing modchip vendors, though it does ru
 ### Professional Crossover
 
 Staff-level researchers who came through console-hacking:
-- fail0verflow alumni at Apple Platform Security
 - TheFloW at Google
 - bunnie Huang independent + hardware security collaborator with Edward Snowden
 - Multiple others on commercial offensive teams (Project Zero alumni, vulnerability brokers)

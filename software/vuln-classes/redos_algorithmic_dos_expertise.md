@@ -120,7 +120,7 @@ Six publicly-credited CVEs / GHSAs span the cluster from classical ReDoS through
 
 **Why the multi-grammar surface matters.** The case study for "your DoS surface is the union of every regex you transitively load." Requiring `highlight.js` in Node registers all languages by default (the CDN `highlight.min.js` bundles a common subset). The attacker doesn't need to know which grammar contains the bad regex; `highlightAuto` tries every one.
 
-**Fix.** 10.4.1 rewrote vulnerable regexes — anchored-non-greedy form, or replacing regex-based parsing with hand-written state machines (e.g. JavaScript template literals).
+**Fix.** 10.4.1 rewrote vulnerable regexes.
 
 **Lesson.** When you ship a library that registers regexes against untrusted input, your security model is the worst regex in your entire grammar inventory.
 
@@ -187,7 +187,7 @@ CVEs and fixes:
 - **CVE-2011-3414 (ASP.NET, MS11-100)** — emergency MS advisory; parameter-count cap.
 - **CVE-2011-4461 (Jetty), CVE-2011-4858 (Tomcat)** — similar caps.
 - **PEP 456 / Python 3.4+** — SipHash-based randomized hashing for `str`/`bytes`/`datetime`. Proper structural fix.
-- **Ruby 1.9.3** — randomized hash seed.
+- **Ruby 1.8.7-p357** — randomized hash seed (CVE-2011-4815); Ruby 1.9.3-p327 later switched `String` hashing from MurmurHash to SipHash 2-4 (CVE-2012-5371).
 - **Java 8 / JEP 180** — HashMap treeification: buckets >8 collisions promote to Red-Black trees, converting `O(n)` collision-walk to `O(log n)`. Mitigation, not structural fix.
 
 ### Why hash flooding still works in 2026
@@ -358,7 +358,7 @@ Recursive parsers are stack-overflow primitives. Bound: XML (depth, entity-expan
 
 WAFs (ModSecurity CRS, Cloudflare Managed Rules, AWS WAF) catch body-size, URL-pattern, and pathological-input-shape attacks pre-parse. Backstop, not primary defense.
 
-Every production handler should run with a hard platform-level CPU budget (Workers `cpu-time`, Lambda timeout, K8s pod CPU limits + circuit breakers). Application-level CPU budgets are the fallback.
+Every production handler should run with a hard platform-level CPU budget (Workers `cpu_ms`, Lambda timeout, K8s pod CPU limits + circuit breakers). Application-level CPU budgets are the fallback.
 
 ### Migrate away from backtracking engines
 

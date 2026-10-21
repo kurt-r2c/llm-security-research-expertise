@@ -41,8 +41,8 @@
 >   shared gradients.
 > - **Bo Zhao**, **Konda Reddy Mopuri**, **Hakan Bilen** — "iDLG: Improved Deep Leakage from
 >   Gradients" (arXiv:2001.02610, 2020).
-> - **Jonas Geiping**, **Hartmut Bauermeister**, **Hannah Dröge**, **Michael Moeller** (Universities
->   of Siegen / Maryland) — "Inverting Gradients - How easy is it to break privacy in federated
+> - **Jonas Geiping**, **Hartmut Bauermeister**, **Hannah Dröge**, **Michael Moeller** (University
+>   of Siegen) — "Inverting Gradients - How easy is it to break privacy in federated
 >   learning?" (NeurIPS 2020, arXiv:2003.14053). Scaled gradient-inversion to ImageNet resolution.
 > - **Hongxu Yin**, **Arun Mallya**, **Arash Vahdat**, **Jose M. Alvarez**, **Jan Kautz**, **Pavlo
 >   Molchanov** (NVIDIA) — "See through Gradients: Image Batch Recovery via GradInversion"
@@ -68,8 +68,8 @@
 >   y Arcas** (Google) — "Communication-Efficient Learning of Deep Networks from Decentralized
 >   Data" (AISTATS 2017, arXiv:1602.05629). The FedAvg paper. Established the algorithmic shape
 >   that every subsequent FL system has either used or argued against.
-> - **Robin C. Geyer**, **Tassilo Klein**, **Moin Nabi** (SAP / TU Munich) — "Differentially Private
->   Federated Learning: A Client Level Perspective" (NeurIPS 2017 PPML workshop, arXiv:1712.07557).
+> - **Robin C. Geyer**, **Tassilo Klein**, **Moin Nabi** (SAP / ETH Zurich) — "Differentially Private
+>   Federated Learning: A Client Level Perspective" (NIPS 2017 Workshop on Machine Learning on the Phone and other Consumer Devices, arXiv:1712.07557).
 >   Early DP-FedAvg framing at the client level.
 > - **Praneeth Vepakomma**, **Otkrist Gupta**, **Tristan Swedish**, **Ramesh Raskar** (MIT Media Lab)
 >   — split learning ("Split learning for health: Distributed deep learning without sharing raw
@@ -918,7 +918,7 @@ model, verify the audit trail.
 
 ## 14. Cross-link cluster
 
-- [[reference_adversarial_ml_model_security]] — Biggio's five-category catalog (evasion /
+- [[reference_adversarial_ml_model_security]] — the five-category catalog (evasion /
   poisoning / extraction / MIA / inversion) for general ML; this doc specializes in the
   federated case.
 - [[reference_privacy_engineering]] — DP, MPC, HE, ZKP primer; FL is one application of

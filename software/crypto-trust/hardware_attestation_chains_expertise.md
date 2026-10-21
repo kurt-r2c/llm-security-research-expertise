@@ -113,7 +113,7 @@ Intel Attestation Service (IAS) was Intel's first-party attestation backend; it 
 
 **Apple Private Cloud Compute (PCC):** stateless inference across hardware + Apple secure boot chain. Each request includes attestation evidence that the PCC node runs a specific signed PCC image. Not TPM-based; bespoke to Apple silicon. Apple publishes the signed images via the Apple Transparency Log — clients can verify the running image is in the public log before submitting requests. The public-build property is the load-bearing claim Apple makes about PCC.
 
-**NVIDIA H100 Confidential Computing** (since 2023): NVIDIA Attestation Service (NRAS) verifies GPU firmware + driver + confidential VM bindings. AI/ML workloads that need to keep model weights or training data confidential to the deploying party (and not the cloud operator) anchor on H100 CC. Cross-link to `[[reference-ai-orchestration-harnessing]]`.
+**NVIDIA H100 Confidential Computing** (since 2023): NVIDIA Remote Attestation Service (NRAS) verifies GPU firmware + driver + confidential VM bindings. AI/ML workloads that need to keep model weights or training data confidential to the deploying party (and not the cloud operator) anchor on H100 CC. Cross-link to `[[reference-ai-orchestration-harnessing]]`.
 
 ## 7. Mobile platform attestation
 
@@ -221,7 +221,7 @@ Reference-value management is the soft underbelly of attestation programs. When 
 - **Android Play Integrity supersedes SafetyNet:** full sunset by January 2025 `[unverified specific final date]`. App developers must migrate to Play Integrity API.
 - **NVIDIA H100 Confidential Computing GA:** GPU attestation as a new substrate. Confidential AI inference depends on this for protecting model weights from cloud-operator inspection.
 - **EU CRA (Reg 2024/2847):** Cyber Resilience Act includes attestation-style requirements for security claims by manufacturers (vulnerability disclosure timelines, secure-update obligations). Not directly an attestation mandate but related compliance pressure pushing hardware-rooted identity adoption.
-- **Hardware-backed device identity for AI agents (emerging):** the SPIFFE-ID-bound-to-Secure-Enclave-key pattern is gaining traction `[unverified specific production deployments]`. Cross-link to `[[reference-ai-orchestration-harnessing]]` and `[[reference-zero-trust-workload-identity]]`. The structural appeal: agent identity rooted in physical hardware prevents agent-loop credential exfiltration from being usable on another device.
+- **Hardware-backed device identity for AI agents (emerging):** Cross-link to `[[reference-ai-orchestration-harnessing]]` and `[[reference-zero-trust-workload-identity]]`. The structural appeal: agent identity rooted in physical hardware prevents agent-loop credential exfiltration from being usable on another device.
 
 ## 12. Real attack corpus
 

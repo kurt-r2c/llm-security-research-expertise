@@ -291,8 +291,7 @@ obligations on every vendor placing digital products on the EU market. Article 1
 requires a 24-hour early warning of actively-exploited vulnerabilities to the CSIRT
 coordinator and ENISA, a 72-hour notification, and a final report within 14 days after a
 corrective measure is available. Researcher safe-harbor is implicit
-but not strongly codified; the CVD framework is explicit and references ISO/IEC 29147
-and 30111.
+but not strongly codified; the CVD framework is explicit.
 
 The CRA's economic logic shifts the cost-bearing structure: vendors now bear
 notification cost as a fixed compliance overhead; researcher safe-harbor reduces the
@@ -336,8 +335,8 @@ standard Cournot quantity. Two operational consequences:
   searchers compete with each other for the user's slippage, not for the user's
   business.
 - **The user's defense is to commit to maximum slippage in the trade order**, which caps
-  the searchers' aggregate B1. This is why modern DEXes default to 0.5%-1.0% slippage
-  caps.
+  the searchers' aggregate B1. This is why DEXes default to capped slippage (Uniswap's auto
+  slippage: 0.5%-5%, by network cost and swap size).
 
 ### JIT (Just-In-Time) liquidity as sniping
 
@@ -462,9 +461,9 @@ insured defender has reduced incentive to invest in prevention; the attacker can
 insured-defender populations preferentially because the payment-conversion rate is
 higher.
 
-Market responses followed: several
-large insurers (AIG, Chubb, Lloyd's syndicates) introduced ransom-payment carve-outs or
-co-pay structures starting 2022. France's January 2023 LOPMI law made ransom-payment-
+Market responses followed: large
+insurers such as Chubb introduced ransom-payment sublimits and
+co-insurance structures. France's January 2023 LOPMI law made ransom-payment-
 coverage conditional on filing a criminal complaint within 72 hours, attempting to
 convert insurance moral hazard into an investigation incentive.
 
@@ -921,7 +920,7 @@ Minimize over model parameters θ the expected maximum (over perturbation δ in 
 loss L. The perturbation set captures attacker capability; the inner max is the
 adversarial-attack subproblem; the outer min is the defender's training procedure.
 
-The framework has been adapted to LLM-safety (Wei et al. 2023; Carlini et al. 2024),
+The framework has been adapted to LLM-safety (Wei et al. 2023; Carlini et al. 2023),
 prompt-injection and jailbreak defenses (arXiv 2510.09023, "The Attacker Moves Second", on adaptive attacks), and
 detection-system safety. Cross-link to `adversarial_ml_model_security_expertise.md` §1
 and `llm_agent_security_expertise.md`.

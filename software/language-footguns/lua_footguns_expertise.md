@@ -953,8 +953,8 @@ ignore = {}          -- explicitly do NOT silence sandbox-relevant warnings
 ```
 
 Lua Language Server (`LuaLS/lua-language-server`) provides
-LSP-level diagnostics including type inference (with EmmyLua
-annotations) and is the primary editor-integration option for
+LSP-level diagnostics including type inference (with LuaCATS
+annotations, originally based on EmmyLua) and is the primary editor-integration option for
 2024-2026 Lua development.
 
 Cross-link: the [Semgrep rule-writing docs](https://semgrep.dev/docs/writing-rules/overview) for the
@@ -1101,7 +1101,7 @@ not on the Lua code itself.)
 - Bytecode Corruption Attacks Are Real (DIMVA 2018) — `https://people.cs.kuleuven.be/~stijn.volckaert/papers/2018_DIMVA_Interpreters.pdf`
 - Mitigating the Danger of Malicious Bytecode (Cawley, Lua Workshop 2011) — `https://www.lua.org/wshop11/Cawley.pdf`
 - Redis EVAL Lua sandbox escape (benmmurphy, 2015) — `https://benmmurphy.github.io/blog/2015/06/04/redis-eval-lua-sandbox-escape/`
-- Bytecode Breakdown: Factorio's Lua Security Flaws — `https://memorycorruption.net/posts/rce-lua-factorio/`
+- Bytecode Breakdown: Unraveling Factorio's Lua Security Flaws — `https://memorycorruption.net/posts/rce-lua-factorio/`
 
 ### 14.4 Embedding-specific
 

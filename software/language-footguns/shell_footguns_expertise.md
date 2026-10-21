@@ -987,7 +987,9 @@ fi
 ### 9.4 `return` outside a function
 
 `return` is only valid inside a function or a sourced script. Using
-`return` at the top level of a non-sourced script is a syntax error.
+`return` at the top level of a non-sourced script is a runtime error
+("can only `return' from a function or sourced script"), not a syntax
+error; outside POSIX mode bash keeps running the script.
 ShellCheck SC2104 covers a related pattern (`break` in a function, where `return` was meant).
 
 ---
@@ -1250,7 +1252,7 @@ MY_VAR='() { :; }; /bin/touch /tmp/pwned'
 
 Any bash process that received this env var via fork-exec from a
 parent that had set it (which includes CGI scripts, DHCP clients,
-SSH `ForceCommand` sessions, and Git hooks) would, at startup,
+SSH `ForceCommand` sessions, and Git/Subversion restricted shells) would, at startup,
 parse the env var, recognize the function-prefix, *and execute the
 trailing command after the function definition*.
 

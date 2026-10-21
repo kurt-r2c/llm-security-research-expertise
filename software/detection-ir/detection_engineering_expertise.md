@@ -556,7 +556,7 @@ regardless of evasion. Behavior-level rules win.
 | VMware (Broadcom) | Carbon Black | Kernel driver; Cloud Workload Protection |
 | ESET | PROTECT / Inspect | Kernel driver |
 | Sophos | Intercept X | Kernel + behavioral / deep-learning |
-| Elastic | Elastic Security | eBPF (Linux) + kernel-driver (Windows); open-source |
+| Elastic | Elastic Security | eBPF (Linux) + kernel-driver (Windows) |
 | Wazuh / OSSEC | Open-source HIDS | Log-based; lighter than full EDR |
 | Falco (CNCF) | Open-source runtime sec | eBPF; container-native |
 
@@ -698,8 +698,7 @@ layer (Exabeam, Securonix, native).
 
 ### The alert budget
 
-Empirical sustainable rate: 5-15 high-severity investigations / analyst /
-8-hour shift. Above 15 quality drops; above 30 the SOC is triage-only. Every
+Every
 DE decision implicitly spends this budget. A 1/100-FP rule firing against
 1M events/day produces 10,000 alerts/day; the same rule against 100 events/day
 produces 1. **Telemetry-volume gating belongs in the rule's filter.** "Any
@@ -1025,7 +1024,7 @@ platforms ([Spheron observability survey](https://www.spheron.network/blog/llm-o
 | **LangSmith** | LangChain-native SaaS | Zero-config trace capture for LangChain/LangGraph; LLM-as-judge evals | Vendor lock-in to LangChain; per-trace pricing |
 | **Langfuse** | OSS + self-hostable | Framework-agnostic, GenAI semconv emit, transparent pricing | Younger ecosystem than LangSmith |
 | **Arize Phoenix** | OSS + Arize AX SaaS | OpenTelemetry-native, RAGAS hallucination eval, ML-monitoring heritage | Phoenix UI thinner than LangSmith |
-| **Helicone** | Proxy-mode | One-line setup as HTTP proxy | Proxy only — no in-process span-level visibility |
+| **Helicone** | Proxy-mode | One-line setup as HTTP proxy | Proxy-first; a non-proxy async logger (built on OpenLLMetry) also exists |
 | **Promptlayer** | Prompt-management focus | Prompt version tracking + observability | Less depth on tool-call telemetry |
 | **W&B Weave** | ML-experiment-tracking extension | Tight integration with model training | Built for research, less ops-shaped |
 | **LangWatch / Logfire / Braintrust** | Newer entrants | Various focused angles (eval, dev-loop) | Smaller adoption |
@@ -1185,9 +1184,7 @@ parameters in "Summarize with AI" buttons
 [Help Net Security summary](https://www.helpnetsecurity.com/2026/02/11/ai-recommendation-memory-poisoning-attacks/)).
 Formally classified by MITRE ATLAS as **AML.T0080.000 AI Agent Context Poisoning: Memory**.
 Detection signals encoded in three Advanced Hunting queries for Office
-365 (email, Teams, Safe Links). The advisory is the first public
-incident-detection corpus tying AI-runtime telemetry to MITRE ATLAS, in
-the same shape MITRE ATT&CK ties endpoint telemetry to TTP IDs.
+365 (email, Teams, Safe Links).
 
 **Cursor / Claude Desktop / IDE-agent corpus.** Ongoing class of incidents
 in which an AI coding assistant is instructed (via README, comment, or
@@ -1987,7 +1984,7 @@ architecture is wrong.
 - Falco. <https://falco.org/>; Tetragon. <https://tetragon.io/>;
   eBPF. <https://ebpf.io/>
 - Matt Graeber on AMSI / Windows internals.
-  <https://posts.specterops.io/> and <https://mattifestation.medium.com/>
+  <https://specterops.io/blog>
 
 ### Threat-hunting and adversary simulation
 

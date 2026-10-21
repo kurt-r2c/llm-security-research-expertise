@@ -90,7 +90,7 @@ Solves NAT traversal. Each endpoint collects candidates: host (local interfaces 
 
 ### SDP (RFC 4566/8866)
 
-Plaintext-textual session description used as offer/answer payload. Contains version, originator, connection address, timing, media descriptors (`m=`), per-media attributes (`a=`: codec parameters, fingerprints, ICE credentials, DTLS setup, RTP extensions). Attacker-controllable in 0-click scenarios. The `a=fingerprint` is the SHA-256 of the DTLS certificate presented during SRTP key exchange — substituting this is the MITM attack a signalling server could mount; verifying it (out-of-band or signed identity) is the defence.
+Plaintext-textual session description used as offer/answer payload. Contains version, originator, connection address, timing, media descriptors (`m=`), per-media attributes (`a=`: codec parameters, fingerprints, ICE credentials, DTLS setup, RTP extensions). Attacker-controllable in 0-click scenarios. The `a=fingerprint` is a hash (typically SHA-256) of the DTLS certificate presented during SRTP key exchange — substituting this is the MITM attack a signalling server could mount; verifying it (out-of-band or signed identity) is the defence.
 
 ### DTLS-SRTP (RFC 5764 + RFC 3711)
 
@@ -122,7 +122,7 @@ Google's `libwebrtc` ships in Chrome, Edge, Opera, Brave, Vivaldi, and many nati
 - **Opus**: audio codec; comparatively tight C, few CVEs.
 - **AAC**: enterprise paths and SIP/RTP gateways; long CVE history outside WebRTC scope.
 
-Codec-via-attachment surface in messaging apps follows the BLASTPASS image-parsing class in [[reference-browser-js-engine-exploitation]] §7. libwebp CVE-2023-4863 was exploited in the iOS BLASTPASS Pegasus chain (Citizen Lab); the same libwebp ships inside Chromium's WebRTC paths.
+Codec-via-attachment surface in messaging apps follows the BLASTPASS image-parsing class in [[reference-browser-js-engine-exploitation]] §7. The WebP flaw behind libwebp CVE-2023-4863 was first exploited as Apple CVE-2023-41064 in the iOS BLASTPASS Pegasus chain (Citizen Lab); the same libwebp ships inside Chromium's WebRTC paths.
 
 ### CVE-2023-7024 — Heap Overflow in WebRTC
 
@@ -261,7 +261,7 @@ Cross-platform comparison (2026):
 | FaceTime | Yes | n/a | Metadata |
 | iMessage audio | Yes | n/a | Metadata; iCloud backup if enabled |
 | Zoom meetings | No | Yes (paid+free with restrictions) | Audio/video/transcripts unless E2EE on |
-| Microsoft Teams 1:1 | No | Yes (1:1 only) | All call content unless E2EE |
+| Microsoft Teams 1:1 | No | Yes (1:1 calls; meetings with Teams Premium) | All call content unless E2EE |
 | Google Meet | No | Yes (client-side encryption requires customer KMS) | All call content |
 | Slack Huddles | No | No | All Huddle content |
 | Discord voice | Yes (DAVE; not Stage channels) | n/a | Metadata |

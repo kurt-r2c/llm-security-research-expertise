@@ -157,9 +157,9 @@ CoRIM is the practical wire format that pairs with RATS. As of March 2026, draft
 
 ### 4.3 TCG Reference Integrity Manifest (RIM)
 
-TCG's pre-IETF standard. EFI variable-based for UEFI components. Vendors publish RIMs covering firmware + boot stack.
+TCG's pre-IETF standard. Vendors publish RIMs covering firmware + boot stack.
 
-Two RIM types: **base RIM** (vendor's golden reference) + **support RIM** (per-configuration). Adoption: Cisco + Dell + HPE + Lenovo publish RIMs for enterprise hardware lines. Consumer-side tooling for ingesting RIMs lags vendor publication.
+Two RIM types: **base RIM** (vendor's golden reference) + **support RIM** (per-configuration). Consumer-side tooling for ingesting RIMs lags vendor publication.
 
 ### 4.4 IETF SUIT — Software Updates for the Internet of Things
 

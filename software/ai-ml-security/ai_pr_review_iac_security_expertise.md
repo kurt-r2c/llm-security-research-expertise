@@ -54,14 +54,14 @@ Most general-purpose AI reviewers from [[reference-ai-pr-review-platform]] §1 n
 
 | Platform | IaC coverage | Cloud-context-aware | Provenance / attestation | Enterprise SSO/SCIM | Pricing tier |
 |---|---|---|---|---|---|
-| **Snyk IaC / Snyk Cloud** | Terraform, CloudFormation, ARM, K8s YAML, Helm, Kustomize | Yes — Snyk Cloud joins IaC findings to live cloud config for context | Snyk-built rule packs; sigstore / cosign image signing supported on Snyk Container side | SSO + SCIM enterprise | Free → Team → Enterprise (per-developer) |
-| **Wiz Code** | Terraform, CloudFormation, K8s YAML, Helm | Yes — Wiz Code is part of the Wiz Cloud platform; IaC findings join the Security Graph with live cloud context | Sigstore awareness for container build context | SSO + SCIM enterprise | Enterprise-only |
+| **Snyk IaC / Snyk Cloud** | Terraform, CloudFormation, ARM, K8s YAML, Helm, Kustomize | Yes — Snyk Cloud joins IaC findings to live cloud config for context | Snyk-built rule packs; sigstore / cosign image signing supported on Snyk Container side | SSO + SCIM enterprise | Free → Team → Ignite → Enterprise (per-developer) |
+| **Wiz Code** | Terraform, CloudFormation, K8s YAML | Yes — Wiz Code is part of the Wiz Cloud platform; IaC findings join the Security Graph with live cloud context | Sigstore awareness for container build context | SSO + SCIM enterprise | Enterprise-only |
 | **Prisma Cloud Code Security (Bridgecrew)** | Terraform, CloudFormation, ARM, K8s YAML, Helm, Kustomize, Serverless | Yes — Palo Alto's Prisma Cloud joins IaC to live cloud config | Sigstore/cosign for container; provenance via Prisma Cloud platform | Enterprise SSO + SCIM | Enterprise per-asset pricing |
 | **Aqua / Trivy** | Terraform, CloudFormation, K8s YAML, Dockerfile | Partial — Trivy IaC scans without cloud context; Aqua Platform adds runtime context | Trivy supports sigstore verification | Enterprise via Aqua | OSS Trivy + Aqua commercial |
 | **Spectral (Check Point)** | Terraform, CloudFormation, K8s YAML | Limited cloud-context | [unverified] | Enterprise | Acquired by Check Point 2022 |
 | **CodeRabbit** | Terraform / HCL, K8s YAML files reviewed | No structural cloud-context awareness — LLM may pattern-match `0.0.0.0/0` but does not know your VPC topology | None (general AI reviewer) | SSO via paid plan | Free → Pro $24/dev/mo |
 | **Greptile** | All file types via LLM; no IaC-specific tooling | No structural cloud-context | None | SSO enterprise | Paid |
-| **Cursor BugBot** | All file types via LLM; no IaC-specific tooling | No structural cloud-context | None | Cursor org plan | Folded into Cursor plans |
+| **Cursor BugBot** | All file types via LLM; no IaC-specific tooling | No structural cloud-context | None | Cursor org plan | Separate Bugbot add-on, not tied to Cursor licenses |
 | **qodo Merge / PR-Agent** | All file types; can be configured with custom prompts for IaC | No native cloud-context (custom prompts only) | Self-hostable | Self-hosted SSO | OSS + paid |
 | **Semgrep Assistant + Semgrep IaC rules** | Terraform, CloudFormation, K8s YAML, Dockerfile via Semgrep IaC rule packs; AI triage on findings | Indirect — Semgrep rules are deterministic; AI layer does triage, not cloud-graph context | Semgrep platform supports SBOM context | SSO + SCIM enterprise | Free → Team → Enterprise |
 | **Open-source feed-ins (Checkov, tfsec, KICS, terrascan, cfn-nag)** | Checkov covers all major IaC types; tfsec is Terraform-only; KICS broad; cfn-nag CloudFormation-only; terrascan multi-cloud | Static-rule-only; not cloud-context | None natively; integrate with sigstore-signed pipelines downstream | N/A | OSS |
@@ -108,7 +108,7 @@ Terraform state files (`terraform.tfstate`) are the canonical attacker target in
 
 A state-file leak is equivalent to a full cloud-topology disclosure plus several high-value secret leaks. The S3 backend with no encryption, no versioning, no access logging, and `BlockPublicAccess` disabled is the canonical anti-pattern. The Pulumi Service-managed state is encrypted-at-rest by default; the customer-managed-backend variant (S3 / Azure Blob / etc.) inherits the same anti-patterns as Terraform.
 
-The AI reviewer's role here: catch state-backend configuration regressions in PRs. A PR that changes `backend "s3"` config to remove `encrypt = true` or to remove `dynamodb_table` (state locking) is a regression and must be flagged. Most general-purpose reviewers will not catch this.
+The AI reviewer's role here: catch state-backend configuration regressions in PRs. A PR that changes `backend "s3"` config to remove `encrypt = true` or to remove `use_lockfile = true` or the deprecated `dynamodb_table` (state locking) is a regression and must be flagged. Most general-purpose reviewers will not catch this.
 
 ### 4.4 Operator-as-attacker
 

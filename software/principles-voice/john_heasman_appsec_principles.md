@@ -409,7 +409,7 @@ consistent with Heasman's known research area.)
 ### The Windows kernel attack surface taxonomy
 
 **Stack overflows in kernel-mode code:**
-Kernel stacks are much smaller than user-mode stacks (typically 12–16KB on 32-bit Windows). The
+Kernel stacks are much smaller than user-mode stacks (12KB on 32-bit Windows). The
 GS compiler flag (`/GS`) places a stack cookie before the return address — but the attacker can
 overwrite enough data to control execution before the cookie check fires (e.g., by overwriting a
 local function pointer called before function return). Kernel heap overflows follow similar
@@ -610,7 +610,7 @@ The correct workflow:
 | MSI analysis | Orca (Windows SDK) | SQL query of MSI tables; inspect CustomAction, LockPermissions, ServiceInstall, File tables |
 | JRE debugging | JSwat | Breakpoint-based analysis of JVM internals; essential for authority component research |
 | Kernel debugging | WinDbg + kernel dump analysis | IOCTL handler fuzzing + crash analysis |
-| AML analysis | ACPI CA (Intel ACPI Component Architecture) | Decompile AML → ASL; recompile and flash modified BIOS |
+| AML analysis | Intel IASL tools | Decompile AML → ASL; recompile and flash modified BIOS |
 | Firmware extraction | Physical BIOS flash read + `strings`/hex analysis | Foundation for ACPI and option ROM research |
 | Exploit development | Heap spray, CVT read primitive, function pointer overwrite | JRE TrueType exploitation chain |
 | NTLM capture | Unsigned Java applet + localhost HTTP server | Works via Local Intranet zone trust |
@@ -810,7 +810,7 @@ first-principles root cause analysis, full-stack scope, interface completeness, 
 thinking. Heasman's 2024 BSides talk reinforces — does not retreat from — the
 class-elimination-over-instance-fixing framing. The CVE catalog from 2005–2010 (CVE-2005-0227
 PostgreSQL `LOAD`, MS06-003 Exchange TNEF, the OpenOffice metafile / RTF / hyperlink chain,
-the JRE TrueType + URL-authority + JNLP-argument trio, the JRE-2018 DLL hijack at DocuSign)
+the JRE TrueType + URL-authority + JNLP-argument trio)
 still demonstrates every methodological commitment the doc canonizes. Section 12 below is the
 unchanged summary of what defines staff-level adversarial AppSec work.
 

@@ -254,7 +254,7 @@ The **TM-RID** (Trustworthy Multipurpose Remote ID) IETF effort adds trust to br
 
 A malicious operator has multiple low-effort options to evade Remote ID:
 
-- Use a non-compliant drone (the rule applies only to registered drones above 0.55 lb; non-registered drones or sub-threshold platforms are exempt).
+- Use a non-compliant drone (the rule applies only to drones required to register: all Part 107 drones regardless of weight, and recreational drones above 0.55 lb; sub-threshold recreational platforms are exempt).
 - Modify firmware to spoof a different drone's serial / position (community modding tooling exists; DJI Standard Remote ID has been firmware-patched out in some unofficial builds).
 - Use a Remote ID Broadcast Module attached to a different drone than the one actually flying.
 - Spoof multiple Remote ID signals from a SDR to flood the receiving fence with ghost drones.
@@ -393,7 +393,7 @@ The Gatwick episode remains the canonical airport-counter-UAS justification rega
 
 ### September 2019 — Saudi Aramco Abqaiq and Khurais (Saudi Arabia)
 
-On 14 September 2019, a coordinated drone-and-cruise-missile strike hit Saudi Aramco's Abqaiq oil-processing facility and Khurais oilfield. Saudi authorities reported 25 drones / missiles used; satellite-imagery analysis identified 19 individual strikes (14 puncturing storage tanks, three disabling oil-processing trains, two missing equipment). Production was reduced by approximately 5.7 million barrels per day, equal to ~5% of global supply, for several days. The Houthi movement in Yemen claimed responsibility; US and Saudi attribution placed the attack as originating from Iran or Iran-aligned forces in Iraq, traveling from north / east directions. The cruise-missile components resembled Iranian Ya-Ali / Quds-1 designs.
+On 14 September 2019, a coordinated drone-and-cruise-missile strike hit Saudi Aramco's Abqaiq oil-processing facility and Khurais oilfield. Saudi authorities reported 25 drones / missiles used; satellite-imagery analysis identified 19 individual strikes. Production was reduced by approximately 5.7 million barrels per day, equal to ~5% of global supply, for several days. The Houthi movement in Yemen claimed responsibility; US and Saudi attribution placed the attack as originating from Iran or Iran-aligned forces in Iraq, traveling from north / east directions. The cruise-missile components resembled Iranian Ya-Ali / Quds-1 designs.
 
 The structural lesson: low-altitude approach, multi-direction ingress, swarm-confused-radar tactics defeated a multi-billion-dollar Saudi air-defense procurement. The Patriot batteries deployed against high-flying targets did not detect or engage. The Aramco strike is the canonical reference for "critical infrastructure is realistically vulnerable to small-drone-and-cruise-missile saturation attack."
 
@@ -402,7 +402,7 @@ The structural lesson: low-altitude approach, multi-direction ingress, swarm-con
 The most expansive empirical data set on drone warfare in history. Selected reference points:
 
 - **September 2022 onward** — Russia begins mass Shahed-136 deployment against Ukrainian energy infrastructure. Iran-supplied initially; Russian-localized production at Yelabuga subsequently.
-- **2022-2024** — Ukrainian USV (Unmanned Surface Vessel) strikes against Russian Black Sea Fleet at Sevastopol (October 2022 onward); RFS Ivan Golubets damaged October 2022; submarine Rostov-on-Don damaged September 2023 by Storm Shadow / SCALP cruise missiles and later claimed destroyed; RFS Ivanovets sunk 1 February 2024; RFS Caesar Kunikov sunk in a night attack; RFS Sergey Kotov sunk 5 March 2024. The cumulative impact forced Russia to relocate elements of the Black Sea Fleet to Novorossiysk. RUSI commentary identifies this as the largest-scale operational use of unmanned surface platforms in naval-warfare history.
+- **2022-2024** — Ukrainian USV (Unmanned Surface Vessel) strikes against Russian Black Sea Fleet at Sevastopol (October 2022 onward); RFS Ivan Golubets damaged October 2022; submarine Rostov-on-Don damaged September 2023 by Storm Shadow / SCALP cruise missiles and later claimed destroyed; RFS Ivanovets sunk 1 February 2024; RFS Caesar Kunikov sunk in a night attack; RFS Sergey Kotov sunk 5 March 2024. The cumulative impact forced Russia to relocate elements of the Black Sea Fleet to Novorossiysk.
 - **2023-2025** — Ukrainian FPV-drone production scales toward 2-3 million units per year. Casualty share attributed to drones rises from <10% at war start to ~80% by 2025.
 - **February 2025** — Russian Shahed daily-launch average rises to ~140 per day; February 23, 2025 single-day record of 267 drones.
 - **March 2026** — Russia launches 948 Shahed-type UAVs in a single 24-hour window (23-24 March 2026) — the highest-ever recorded single-day UAV deployment.
@@ -421,7 +421,7 @@ The structural lesson: counter-UAS detection and attribution at the public-safet
 
 ### 2024-2026 — Red Sea and broader Middle East drone operations
 
-Houthi anti-shipping drone operations against commercial vessels in the Red Sea (2023-2025), US Navy counter-UAS engagement with the Coyote Block 2 interceptor at sustained operational tempo, Iran-Israel direct drone-and-missile exchange in April 2024 and October 2024. The cumulative operational data set has informed US Navy procurement and Israeli counter-UAS doctrine substantially.
+Houthi anti-shipping drone operations against commercial vessels in the Red Sea (2023-2025), Iran-Israel direct exchanges in April 2024 (drones and missiles) and October 2024 (ballistic missiles). The cumulative operational data set has informed US Navy procurement and Israeli counter-UAS doctrine substantially.
 
 ---
 

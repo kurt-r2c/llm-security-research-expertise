@@ -35,7 +35,7 @@
 >   ML detection bot flagged four hacks worth $23.5M before exploitation (Oct-Nov 2022). Source: github.com/mwakaba2;
 >   cointelegraph author page.
 > - **Adrian Hetman** — Head of Triaging at Immunefi; operates the
->   high-volume bug-bounty triage pipeline that handles most disclosed DeFi vulns.
+>   high-volume bug-bounty triage pipeline.
 >   Source: linkedin.com/in/adrianhetman.
 > - **Dennison Bertram** — early OpenZeppelin team member, co-founder of Tally; the
 >   OpenZeppelin Contracts library is the canonical secure-defaults Solidity codebase.
@@ -111,8 +111,7 @@ rather than the contract pushing payments.
 ### Economic incentives: attackers pay gas, profit on failures
 
 Failed exploits cost gas but no funds. Attackers submit dozens of probe transactions
-exploring state combinations cheaply. The bZx 2020 attacker found the right combination
-of flash-loan size, slippage, and oracle timing after multiple visible-onchain attempts.
+exploring state combinations cheaply.
 When a bug is dropped onchain, generalized-arbitrage infrastructure replicates within
 seconds — Nomad devolved into a "crowdsourced" exploit (Section 13).
 
@@ -134,8 +133,7 @@ seconds — Nomad devolved into a "crowdsourced" exploit (Section 13).
 
 ### Real economic loss
 
-Industry estimates (Chainalysis, Elliptic, Immunefi): cumulative DeFi losses 2020-2025 in
-the tens of billions USD; 2022 (~$3.7B) and 2023 (~$1.7B) were worst. Bridges dominate —
+Industry estimates (Chainalysis, Elliptic, Immunefi): 2022 (~$3.7B) and 2023 (~$1.7B) were worst. Bridges dominate —
 Ronin ($625M), Poly Network ($610M), Wormhole ($325M), Nomad ($190M) alone exceed $1.7B.
 The 2024-2025 trend shifts toward access-control compromise (stolen keys, multi-sig
 phishing, frontend hijacks) as onchain bugs are more thoroughly audited out.
@@ -1146,7 +1144,7 @@ attack surface specific to LLM-driven auditing.
 - Wormhole — halborn.com/blog/post/explained-the-wormhole-hack-february-2022
 - Wormhole technical analysis (Kudelski) —
   kudelskisecurity.com/research/quick-analysis-of-the-wormhole-attack
-- Nomad Bridge — medium.com/immunefi/hack-analysis-nomad-bridge-august-2022-...
+- Nomad Bridge — immunefi.com/blog/bug-fix-reviews/hack-analysis-nomad-bridge-august-2022/
 - Halborn on Nomad — halborn.com/blog/post/explained-the-nomad-hack-august-2022
 - BNB Bridge — blocksecteam.medium.com (BlockSec's writeup)
 - Euler Finance — euler.finance/blog/war-peace-behind-the-scenes-of-eulers-240m-exploit-recovery

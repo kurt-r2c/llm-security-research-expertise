@@ -259,10 +259,7 @@ Privacy parameters:
   then expire.
 
 The API was designed to be drop-in for interest-based targeting use cases
-that had historically used cookie-based segments; the IAB Tech Lab Fit Gap
-Analysis (February 2024) concluded the API did not provide a viable
-replacement for cookie-based interest-based audience targeting at the
-granularity required by the ad-tech industry, and the API was retired.
+that had historically used cookie-based segments, and the API was retired.
 
 ### 2.2 Protected Audience API (retired October 2025; formerly FLEDGE, TURTLEDOVE)
 
@@ -282,7 +279,7 @@ The lineage:
   On Victory) — original 2020 proposal.
 - **FLEDGE** (First Locally-Executed Decision over Groups Experiment) —
   Chrome's prototype 2022-2023 Q2.
-- **Protected Audience API** — renamed Q3 2023 (Chrome 115 GA) to signal
+- **Protected Audience API** — renamed April 2023 to signal
   the privacy intent.
 
 Adjacent proposals merged into the design: SPARROW (Criteo's trusted
@@ -473,7 +470,7 @@ data brokers, and using third-party SDKs that perform tracking.
 ### 3.3 SKAdNetwork
 
 [SKAdNetwork](https://developer.apple.com/documentation/storekit/skadnetwork/)
-(introduced in iOS 11.3, materially upgraded in iOS 14 to v2.0, in iOS 14.6
+(introduced in iOS 11.3, materially upgraded in iOS 14 to v2.0, in iOS 14.5
 to v2.2, and in iOS 16.1 to v4.0) is Apple's privacy-preserving install
 attribution framework. The mechanism: the ad network presents a signed ad,
 the user clicks or views the ad, the user later installs the app from the
@@ -607,8 +604,8 @@ is the design venue.
 
 ### 4.1 The DAP protocol
 
-DAP is an IETF standards-track protocol (current draft `draft-ietf-ppm-dap-17`,
-January 2026) for privacy-preserving aggregate measurement. Architecture:
+DAP is an IETF standards-track protocol (current draft `draft-ietf-ppm-dap-20`,
+October 2026) for privacy-preserving aggregate measurement. Architecture:
 
 - **Two aggregation servers** operated by mutually distrustful parties
   (typically the measurement publisher and an independent third party such
@@ -798,9 +795,7 @@ stable cross-site identifier (modulo mobile carrier-grade NAT and changing
 home networks). iCloud Private Relay, residential VPNs, and Tor are the
 primary user-side defenses. Server-side, the IP is increasingly less
 useful: VPN adoption, CGN, and IPv6 privacy extensions degrade its
-identifying power, and the IAB Tech Lab's analysis of Privacy Sandbox
-acknowledged IP-based identity as the de facto fallback that Sandbox
-designs were partly trying to displace.
+identifying power.
 
 The Google Chrome IP Protection proposal — itself retired in
 October 2025 as part of the Sandbox shutdown — would have hidden the IP
@@ -1170,8 +1165,7 @@ later redeems a token to verify the user has been positively-checked,
 without learning which user or which check was performed. The
 cryptographic construction is the Privacy Pass protocol family
 (`draft-ietf-privacypass`), which is also the basis of Cloudflare's
-Privacy Pass extension and Apple's iCloud Private Relay token
-authentication.
+Privacy Pass extension.
 
 ### 10.5 Fraud in privacy-preserving environments
 
@@ -1258,8 +1252,7 @@ effectiveness without cross-site tracking; the open web does not have
 first-party data on the same population and depends on the privacy-
 preserving primitives. The deprecation of cookies therefore systematically
 favors the walled gardens against the open web; the post-cookie measurement
-gap is the structural concern of publisher-advocacy organizations (DCN,
-News Media Alliance, IAB).
+gap is the structural concern of publisher-advocacy organizations (IAB).
 
 ### 11.5 Privacy-preserving advertising for children
 

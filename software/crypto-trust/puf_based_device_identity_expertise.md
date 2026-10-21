@@ -98,11 +98,11 @@ The Dodis-Reyzin-Smith construction has two stages:
 
 The most common secure-sketch instantiation is the **code-offset construction**. At enrollment: pick a random codeword c from an error-correcting code C, compute helper data s = w XOR c, store s in flash. At reproduction: read noisy w', compute w' XOR s = c XOR (w XOR w') = c plus error. Decode this with C's decoder to recover c. Then w = s XOR c. Apply the strong extractor to w.
 
-The error-correcting code choice matters. Concatenated codes (e.g., BCH + repetition) are common; the code rate trades off helper-data size and error tolerance. For an SRAM PUF with ~10% BER and a 128-bit final key, expect helper data on the order of 1-4 KB and ~10-50% boot-time CPU overhead for the decode + extract pipeline.
+The error-correcting code choice matters. Concatenated codes (e.g., BCH + repetition) are common; the code rate trades off helper-data size and error tolerance. For an SRAM PUF with ~10% BER and a 128-bit final key, expect helper data on the order of 1-4 KB.
 
 **Index-based syndrome coding (IBS).** An alternative that publishes indices of "reliable" cells instead of an XOR sketch. The idea: at enrollment, identify cells that read consistently across multiple reads at multiple voltage/temperature corners. Publish only the indices of reliable cells as helper data; the values of those cells become the PUF response. Avoids the XOR-based sketch's leakage in some attack models but reduces the effective PUF response length (only the reliable subset is used). **Yu and Devadas** (IEEE Design & Test 2010) and follow-up work explored IBS variants.
 
-**Soft-decision decoding.** Rather than treating each PUF bit as a hard 0/1, treat it as a probability based on multiple reads. Soft-decision decoders (e.g., soft-input BCH) achieve better error-correction performance than hard-decision decoders. Cost: more reads at boot, more decoder complexity. Used in some Intrinsic-ID Quiddikey configurations.
+**Soft-decision decoding.** Rather than treating each PUF bit as a hard 0/1, treat it as a probability based on multiple reads. Soft-decision decoders (e.g., soft-input BCH) achieve better error-correction performance than hard-decision decoders. Cost: more reads at boot, more decoder complexity.
 
 **Reverse fuzzy extractors.** Standard fuzzy extractors put the heavy decoding on the device (where the PUF lives). Reverse fuzzy extractors invert this: the verifier does the decoding, the device just sends a noisy reading. Useful when devices are resource-constrained but verifiers are not. Trade-off: more bandwidth between device and verifier; the noisy reading must be transmitted protected.
 
@@ -191,7 +191,7 @@ Mitigations:
 
 **Aging-acceleration attacks.** Force premature aging via voltage/temperature stress to drift the PUF response toward attacker-favored patterns. Theoretical attacks exist `[unverified specific feasibility in field conditions]`; practical demonstrations are limited.
 
-**Invasive probing post-decap.** For coating PUFs the act of decapping destroys the response. For SRAM PUFs the decap process can damage the cells in question, but skilled labs can in some cases probe SRAM startup states post-decap. The Rührmair group has discussed this in workshop venues. The empirical question — what fraction of cells survive decap with their startup preference intact — is poorly documented in open literature because most relevant work is under vendor NDA or commercial confidentiality.
+**Invasive probing post-decap.** For coating PUFs the act of decapping destroys the response. For SRAM PUFs the decap process can damage the cells in question, but skilled labs can in some cases probe SRAM startup states post-decap. The empirical question — what fraction of cells survive decap with their startup preference intact — is poorly documented in open literature because most relevant work is under vendor NDA or commercial confidentiality.
 
 **Fault-injection attacks.** Voltage glitching, clock glitching, EM fault injection during the PUF readout or fuzzy-extractor evaluation can corrupt intermediate state in attacker-favorable ways. **Bar-El et al.** (Proc. IEEE 2006) laid the foundations; subsequent work on Differential Fault Analysis (DFA) of PUF systems has shown that injecting faults during the error-correction step can leak helper-data-conditioned secret bits. Production-grade defenses require redundant computation, signature verification of intermediate state, and tamper-detection circuits.
 
@@ -306,7 +306,7 @@ The decision a vendor or platform team faces: which UDS source for this product?
 
 ## 10. Operational discipline
 
-**Enrollment.** At manufacturing test, each chip's PUF is characterized: read the response, compute the helper data, compute and store the helper-data integrity hash in a small OTP region. The helper data itself goes into flash (typically a dedicated locked partition). Per-chip variance means there is no "golden" helper data; each chip is individually enrolled. This adds production-test time — budget 0.1-1 second per chip depending on PUF size and error-correction code.
+**Enrollment.** At manufacturing test, each chip's PUF is characterized: read the response, compute the helper data, compute and store the helper-data integrity hash in a small OTP region. The helper data itself goes into flash (typically a dedicated locked partition). Per-chip variance means there is no "golden" helper data; each chip is individually enrolled. This adds production-test time, depending on PUF size and error-correction code.
 
 **Reprovisioning.** If helper data is lost or corrupted (flash failure, intentional erase), can the chip be re-enrolled? Some PUF designs support multiple enrollment rounds (the PUF response is the same, so a new helper data set can be generated). Others use a fuse to disable re-enrollment after first use, preventing an attacker from re-enrolling a stolen chip with their own helper data. Design choice: fuse-lock for rollback-prevention vs. re-enrollable for field-recoverability. The fuse-lock choice is strictly more secure but eliminates recovery paths.
 
@@ -316,7 +316,7 @@ The decision a vendor or platform team faces: which UDS source for this product?
 
 **Supply-voltage variation.** PUF response depends on supply voltage. Brown-out events during boot, voltage droop under load, and voltage regulator tolerance all matter. Production designs include voltage monitoring and abort PUF readout if Vdd is outside the characterization window. This delays boot under abnormal conditions, which is the correct trade-off — better to retry than to derive a wrong UDS.
 
-**Pre-boot PUF readout window.** The PUF must be read **once**, early in ROM, and the response (and intermediate fuzzy-extractor state) must be cleared from memory before any non-ROM code executes. Otherwise a compromised L1 boot stage could observe the PUF readout. Mainstream production silicon gates PUF circuit access behind a one-shot fuse that locks after the first read.
+**Pre-boot PUF readout window.** The PUF must be read **once**, early in ROM, and the response (and intermediate fuzzy-extractor state) must be cleared from memory before any non-ROM code executes. Otherwise a compromised L1 boot stage could observe the PUF readout.
 
 **Helper-data integrity.** Sign or MAC the helper data with a key derived from a chip-bound primitive (OTP-stored hash of helper data is the common pattern). Unsigned helper data is a soft target — modifying it biases the recovered UDS.
 
@@ -374,7 +374,7 @@ The PUF literature can read as enthusiastic. The deployment record is more mixed
 
 **Vendor consolidation reduces diversity.** Synopsys' acquisition of Intrinsic-ID consolidates the dominant SRAM-PUF IP portfolio. Fewer independent PUF IP vendors means more concentrated supply-chain risk. If Synopsys' Quiddikey IP has a yet-undisclosed flaw, the blast radius spans the SoCs of most major IoT silicon vendors.
 
-**Enrollment-test time costs at scale.** PUF enrollment adds production-test time per chip (typically 0.1-1 second). At billion-unit IoT volumes this is non-trivial; some vendors trade off enrollment thoroughness for throughput, leaving devices with marginal helper data that fails in extreme conditions.
+**Enrollment-test time costs at scale.** PUF enrollment adds production-test time per chip. At billion-unit IoT volumes this is non-trivial; some vendors trade off enrollment thoroughness for throughput, leaving devices with marginal helper data that fails in extreme conditions.
 
 **Open-source PUF implementations are sparse.** Most production PUF IP is proprietary, evaluated only by the licensor and the licensee. Independent security review is limited. The fuzzy-extractor academic literature is rich; the implementation literature is thinner.
 

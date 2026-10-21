@@ -46,9 +46,8 @@
 >   in 2026 against modern MySQL/MSSQL/PostgreSQL/Oracle versions.
 > - **HD Moore** — founder of Metasploit (2003).
 > - **Alexander Polyakov** — founder of ERPScan; author of books on
->   SAP and Oracle Database security. Presented "SSRF vs. Business Critical Applications" (Black Hat USA 2012)
->   and demonstrated the Oracle / SAP database lateral-movement
->   surface through `DBMS_LDAP`, `UTL_HTTP`, `XML DB`. The institutional
+>   SAP and Oracle Database security. Presented "SSRF vs. Business Critical Applications" (Black Hat USA 2012).
+>   The institutional
 >   memory for Oracle / SAP / PeopleSoft database attacks.
 > - **PortSwigger Research / James Kettle** — Director of Research at
 >   PortSwigger; author of HTTP Request Smuggler, Backslash Powered
@@ -347,7 +346,7 @@ paths; set to NULL disables file I/O.
 LOAD DATA INFILE '/etc/passwd' INTO TABLE leak;
 ```
 
-MySQL 8.x defaults `secure_file_priv` to `/var/lib/mysql-files/` —
+MySQL DEB/RPM builds default `secure_file_priv` to `/var/lib/mysql-files/` —
 narrows but doesn't eliminate.
 
 ### 3.2 `LOAD DATA LOCAL INFILE` — the rogue-server attack
@@ -1298,7 +1297,7 @@ footgun catalog:
   `cloudsqlsuperuser` is a proxy superuser.
 - **Azure SQL Database** disables CLR, xp_cmdshell, OLE
   Automation, linked servers (except Azure SQL Managed Instance).
-  The `dbmanager` role is the proxy admin.
+  The `dbmanager` role in `master` can create and delete databases.
 - **Azure Database for PostgreSQL** restricts `CREATE EXTENSION`
   to allowlist; `azure_pg_admin` is the proxy superuser.
 

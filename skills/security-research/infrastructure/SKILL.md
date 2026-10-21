@@ -127,7 +127,8 @@ limit (document which limit and its value).
 - **Java:** `ObjectInputStream.readObject`, `XMLDecoder.readObject`,
   `XStream` without a whitelist, `Kryo` without class registration,
   `Jackson` with default typing enabled (`enableDefaultTyping`).
-- **Ruby:** `Marshal.load` on untrusted input, `YAML.load` (not `YAML.safe_load`).
+- **Ruby:** `Marshal.load` on untrusted input, `YAML.load` on Psych < 4 (Ruby < 3.1, where it is unsafe by default), or
+  `YAML.unsafe_load` (not `YAML.safe_load`).
 - **PHP:** `unserialize()` on user-supplied strings.
 - **.NET:** `BinaryFormatter`, `NetDataContractSerializer`,
   `SoapFormatter`, `LosFormatter` on untrusted streams.
