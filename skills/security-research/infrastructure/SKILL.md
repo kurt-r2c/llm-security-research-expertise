@@ -84,7 +84,7 @@ manually inspect:
   `make([]byte, n)` where `n` traces to user input.
 - External calls: look for database queries, cache reads, and third-party API
   calls missing explicit `timeout`, `deadline`, `context.WithTimeout`, or a
-  circuit-breaker wrapper (`hystrix`, `resilience4j`, `pybreaker`, `go-breaker`).
+  circuit-breaker wrapper (`hystrix`, `resilience4j`, `pybreaker`, `gobreaker`).
 
 **Evaluate:**
 
@@ -244,7 +244,7 @@ Look for:
   in a path construction (`os.path.join(upload_dir, filename)`) without normalization
   or stripping of path separators — enables writing outside the intended upload
   directory with `../` sequences.
-- **Zip slip:** `zipfile.ZipFile.extractall()` (Python), `ZipInputStream` (Java),
+- **Zip slip:** `tarfile.TarFile.extractall()` (Python, before the 3.14 `filter='data'` default), `ZipInputStream` (Java),
   `Archive::Zip` (Ruby), or equivalent archive extraction without verifying that each
   entry's resolved path stays within the target directory. Enables arbitrary write via
   `../../etc/cron.d/malicious`.
@@ -264,8 +264,8 @@ Look for:
    check (`resolved.startswith(upload_dir)`). Both steps are required; `basename()`
    alone is insufficient.
 4. **Zip slip:** Verify each archive entry's resolved destination path is checked
-   against the target directory before extraction. `extractall()` without path
-   iteration is always a finding when the archive source is user-supplied.
+   against the target directory before extraction. `tarfile` `extractall()` without path
+   iteration or `filter='data'` is always a finding when the archive source is user-supplied.
 
 **Severity:**
 - **HIGH**: web shell upload to a web-accessible directory with script execution

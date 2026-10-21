@@ -83,8 +83,7 @@ failed.
   arbitrary shell commands as the web process user", "forge a valid session token
   for another user")
 
-Half of false positives collapse at this step because claims lack coherence when
-precisely restated. Proceed to Check 1 only after all four are answered.
+Proceed to Check 1 only after all four are answered.
 
 ### Check 1: Implication
 

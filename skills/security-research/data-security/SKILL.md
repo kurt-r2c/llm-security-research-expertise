@@ -79,7 +79,7 @@ column, file, or cache. Common patterns:
   `MessageDigest.getInstance("SHA-256")` in Java
 - `crypto.createHash('md5')`, `crypto.createHash('sha1')` in Node.js
 - `password_hash($password, PASSWORD_DEFAULT)` — verify the constant resolves to bcrypt
-  or Argon2, not `PASSWORD_MD5`
+  or Argon2
 - Any call to `base64_encode`, `base64.b64encode`, `Buffer.from(...).toString('base64')`
   on a credential before storage
 - `AES.encrypt(password, ...)`, `Cipher.getInstance("AES/ECB/...")` or any symmetric

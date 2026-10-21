@@ -284,8 +284,8 @@ call sites (`redirect()`, `Response.Redirect()`, `res.redirect()`, `header('Loca
   (`urllib.parse.urlparse(target).netloc == request.host` style), not merely check
   for a leading `/`.
 - For OAuth `redirect_uri`: exact allowlist match is the only acceptable control;
-  prefix matching is exploitable (`https://evil.com/?x=https://allowed.com`).
-- For `javascript:` and `data:` URIs: any redirect to these is a DOM XSS vector.
+  prefix matching is exploitable (`https://allowed.com.evil.com`).
+- For `javascript:` URIs: a client-side redirect (e.g., `window.location`) to one is a DOM XSS vector.
 
 **Severity:**
 - **HIGH**: OAuth `redirect_uri` not validated against an exact allowlist — enables
