@@ -18,27 +18,26 @@
 > - **Mooly Sagiv** — co-founder of Certora (2018); principal researcher; PL/formal-methods
 >   academic at Tel Aviv University; the Certora Prover is the industry-leading commercial
 >   formal verification tool for Solidity. Source: certora.com/author/mooly.
-> - **Mudit Gupta** — CISO at Polygon Labs (formerly Coinbase Security Lead); blogger and
+> - **Mudit Gupta** — CISO at Polygon Labs; blogger and
 >   incident-response practitioner on DeFi exploits. Source: mudit.blog; Polygon Labs
 >   LinkedIn.
-> - **samczsun / Sam Sun** — formerly Paradigm Research Partner; now leading the Security
+> - **samczsun / Sam Sun** — Paradigm Head of Security (as of 2024); leading the Security
 >   Alliance (SEAL) 911 emergency response initiative; "Escaping the Dark Forest" is the
 >   canonical first-person whitehat-recovery essay. Source: samczsun.com.
 > - **Tincho** — security researcher at The Red Guild; former lead auditor at OpenZeppelin;
 >   creator of Damn Vulnerable DeFi; the "Tincho methodology" for manual audits is widely
 >   taught. Source: blog.theredguild.org/author/tincho.
-> - **Christoph Michel (cmichel)** — independent smart contract auditor; first Code4rena
->   contestant to cross $1M in awards; published "How to become a smart contract auditor"
->   pedagogy. Source: cmichel.io.
+> - **Christoph Michel (cmichel)** — independent smart contract auditor; published "How to become a smart
+>   contract auditor" pedagogy. Source: cmichel.io.
 > - **Patrick Collins** — Cyfrin founder; Updraft instructor; long-form pedagogy for smart
 >   contract security from beginner to audit-track. Source: cyfrin.io.
-> - **Mariko Wakabayashi** — ML lead at OpenZeppelin and Forta Network; her Forta
->   detection systems have flagged $300M+ of pre-exploit anomalies. Source: github.com/mwakaba2;
+> - **Mariko Wakabayashi** — machine learning engineer at OpenZeppelin; her Forta
+>   ML detection bot flagged four hacks worth $23.5M before exploitation (Oct-Nov 2022). Source: github.com/mwakaba2;
 >   cointelegraph author page.
-> - **Adrian Hetman** — Head of Triaging at Immunefi (formerly CertiK); operates the
+> - **Adrian Hetman** — Head of Triaging at Immunefi; operates the
 >   high-volume bug-bounty triage pipeline that handles most disclosed DeFi vulns.
 >   Source: linkedin.com/in/adrianhetman.
-> - **Dennison Bertram** — early OpenZeppelin Developer Advocate, founder of Tally; the
+> - **Dennison Bertram** — early OpenZeppelin team member, co-founder of Tally; the
 >   OpenZeppelin Contracts library is the canonical secure-defaults Solidity codebase.
 >   Source: dennisonbertram.com; openzeppelin.com.
 >
@@ -119,11 +118,11 @@ seconds — Nomad devolved into a "crowdsourced" exploit (Section 13).
 
 ### Chain-specific threat models
 
-- **Ethereum mainnet**: full EVM, established MEV, ~13s block, ~6 min econ-finality, no
+- **Ethereum mainnet**: full EVM, established MEV, 12s slots, ~13 min finality (two epochs), no
   sequencer.
 - **L2 rollups (Optimism, Arbitrum, Base, zkSync, Linea, Scroll)**: single sequencer at
-  the L2 layer; escape hatches via fault proofs (OP-stack BOLD 2024, Arbitrum BOLD
-  2024-2025) or validity proofs (zkSync). Cross-link [[distributed_authz_expertise.md]]
+  the L2 layer; escape hatches via fault proofs (OP-stack Cannon 2024, Arbitrum BoLD
+  2025) or validity proofs (zkSync). Cross-link [[distributed_authz_expertise.md]]
   on sequencer-as-trust-anchor.
 - **Solana**: stateless programs + account state; Sealevel parallel execution; account-
   confusion is the dominant bug class; no recursive-call reentrancy.
@@ -136,7 +135,7 @@ seconds — Nomad devolved into a "crowdsourced" exploit (Section 13).
 ### Real economic loss
 
 Industry estimates (Chainalysis, Elliptic, Immunefi): cumulative DeFi losses 2020-2025 in
-the tens of billions USD; 2022 (~$3.7B) and 2023 (~$1.8B) were worst. Bridges dominate —
+the tens of billions USD; 2022 (~$3.7B) and 2023 (~$1.7B) were worst. Bridges dominate —
 Ronin ($625M), Poly Network ($610M), Wormhole ($325M), Nomad ($190M) alone exceed $1.7B.
 The 2024-2025 trend shifts toward access-control compromise (stolen keys, multi-sig
 phishing, frontend hijacks) as onchain bugs are more thoroughly audited out.
@@ -197,7 +196,7 @@ brick contracts that assumed `.send()` would succeed silently.
 
 ### Delegatecall and the Parity multisig CVE
 
-The Parity multisig wallet (July 2017, $280M frozen) implemented wallet logic in a shared
+The Parity multisig wallet (November 2017, $280M frozen) implemented wallet logic in a shared
 library. The library had `initWallet(...)` callable by anyone; a user called it on the
 library directly, became owner, then `selfdestruct`-ed the library — bricking every
 Parity wallet pointing at it.
@@ -278,7 +277,7 @@ truncates regardless of version — use OpenZeppelin SafeCast); inline `assembly
 The most common audit finding. Three sub-types: missing modifier (developer forgot);
 wrong modifier (auction-winner function gated by `onlyOwner`); role-confusion in
 OpenZeppelin AccessControl (PAUSER_ROLE function gated by DEFAULT_ADMIN_ROLE, preventing
-emergency response). Slither's `external-function` plus manual review of every external
+emergency response). Manual review of every external
 `setX` is the baseline.
 
 ### Unchecked external calls
@@ -329,7 +328,7 @@ ERC-20 is underspecified. Two compatibility classes:
 
 ### Block-timestamp manipulation
 
-Proposers can adjust `block.timestamp` within ~15s on Ethereum. Don't use as randomness;
+Post-Merge, consensus fixes `block.timestamp` to the slot time. Don't use as randomness;
 don't use for sub-block windows; prefer block number for short intervals.
 
 ### Hash collision in mapping keys
@@ -355,9 +354,9 @@ governance attack — flash-loaned voting power passed a malicious proposal).
 
 ### Price-oracle TWAP attacks (Mango Markets, October 2022)
 
-The Mango attacker pumped MNGO on Mango's own AMM and FTX for long enough that even the
-TWAP smoothed-average reflected the manipulated price; borrowed $114M against inflated
-MNGO collateral. TWAPs defend against single-block manipulation, not multi-minute
+The Mango attacker bought MNGO on the three exchanges feeding Mango's oracle (Mango,
+AscendEX, FTX); the oracle price jumped over 13-fold in 30 minutes; borrowed $114M against
+inflated MNGO collateral. TWAPs defend against single-block manipulation, not multi-minute
 campaigns. Defense: multi-source aggregation (Chainlink + DEX TWAP + offchain sanity);
 listing thin-liquidity assets as collateral is a risk-engineering decision.
 
@@ -390,9 +389,9 @@ proposal, wait for execution (often timelocked), repay loan, collect payout. Bea
 loans don't span blocks); timelock with admin veto; checkpoint-based voting requiring
 time-locked staking.
 
-### Compound Proposal 7 (October 2021)
+### Compound Proposal 62 (September 2021)
 
-Compound's Proposal 7 was meant to fix a smaller bug; the patch had a comparison-operator
+Compound's Proposal 62 was meant to fix a smaller bug; the patch had a comparison-operator
 typo (`>=` vs `>`) that distributed ~$80M of COMP excessively to LPs. The proposal had
 passed governance; the executor had no halt power; the bug ran. Mitigation via follow-up
 proposal subject to its own timelock. Lesson: governance proposals are code and need code
@@ -404,7 +403,7 @@ review rigor; calldata-preview tooling (Tally, Etherscan) is essential.
 
 A bridge represents a token on chain A as wrapped on chain B. Lock-and-mint (chain A
 custody + chain B mint), burn-and-mint (CCTP, CCIP), liquidity-pool (Stargate, Across),
-optimistic (Nomad, before exploit), or zk-based (Polygon zkBridge, SP1-based). In every
+optimistic (Nomad, before exploit), or zk-based (Polyhedra zkBridge, SP1-based). In every
 variant the bridge's job is to keep supply on B matched to locks on A; violating this
 invariant infinite-mints the wrapped asset.
 
@@ -452,8 +451,8 @@ Replica upgrade initialized the trusted root to `0x00` — the same value the em
 `messages` mapping lookup returns by default. Effect: every unprocessed message hash
 matched the trusted root; any message could be marked proven without proof.
 
-First attacker drained ~$2M. Calldata visible in mempool. Dozens of unrelated actors
-copied it, substituted their address, replayed. Total: $190M across ~300 addresses.
+Calldata visible in mempool. Dozens of unrelated actors
+copied it, substituted their address, replayed. Total: $190M.
 
 Lessons: zero-default semantics interact with sentinel values badly; auditor checklist
 must verify every state variable's default. Public-mempool exploits replicate in
@@ -474,8 +473,8 @@ and data is meaningless if the manager can invoke arbitrary data functions.
 
 ### Cross-chain message-passing protocols (comparative trust)
 
-- **LayerZero**: two oracles (default: Chainlink + LayerZero's own). Trust: at least one
-  honest.
+- **LayerZero** (v1): independent oracle + relayer (default oracle: Chainlink). Trust:
+  oracle and relayer do not collude.
 - **Wormhole**: 19-Guardian 13/19 multi-sig. Trust: <7 Guardians compromised.
 - **Hyperlane**: per-message ISMs (multi-sig, optimistic, or zk).
 - **CCIP** (Chainlink): off-chain reporter network. Trust: Chainlink reporters.
@@ -506,8 +505,8 @@ enter timelock, after timelock anyone executes. Audit checklist per phase:
 
 Compound uses block-number snapshot; flash loans don't span blocks; defeated. Older or
 smaller DAOs without this are vulnerable. Beanstalk April 2022 ($182M) is the warning
-shot. MakerDAO's emergency shutdown is multi-sig governance-bypass for catastrophic
-contingencies; cross-link [[distributed_authz_expertise.md]].
+shot. MakerDAO's Emergency Shutdown Module lets MKR holders who deposit a threshold of MKR
+trigger shutdown for catastrophic contingencies; cross-link [[distributed_authz_expertise.md]].
 
 ### Malicious proposals via timelock
 
@@ -628,7 +627,7 @@ distribution are the design parameters.
 
 ### Slither (Trail of Bits) — canonical static analyzer
 
-Python framework for Solidity/Vyper. Parses to SlithIR; runs ~80 built-in detectors
+Python framework for Solidity/Vyper. Parses to SlithIR; runs ~100 built-in detectors
 (reentrancy, access control, arbitrary calls, dangerous delegatecall, ERC-20 issues).
 Custom detectors in Python against the SlithIR API — closest analog to Semgrep rule
 authoring (cross-link [Semgrep rule-writing docs](https://semgrep.dev/docs/writing-rules/overview)).
@@ -697,7 +696,7 @@ replacement. GitHub: github.com/a16z/halmos.
 Time-boxed competitive audit contests. Wardens/Watsons submit findings during the
 window; judges rank; payout proportional to severity and uniqueness. Standard for
 high-value contracts is multi-firm audit + competitive contest + ongoing bug bounty.
-Contestant pool concentrates — cmichel's $1M was a 14-month grind, top leaderboard is
+Contestant pool concentrates — cmichel earned >$1.3M on Code4rena from Q1 2021 to Q1 2022, top leaderboard is
 a few dozen names.
 
 ### Immunefi — bug bounty
@@ -768,22 +767,23 @@ Cross-link [[code_review_expertise.md]]. Three smart-contract modifications:
 Phases: (1) Scoping (2-5 days); (2) Preliminary review — docs, code top-to-bottom,
 candidate-point identification (1-2 weeks); (3) Deep review with PoC exploits (2-4
 weeks); (4) Reporting (1-2 weeks); (5) Mitigation review of developer fixes (3-7 days).
-Compress at your peril. Halborn's pre-exploit Wormhole report missed the Solana
+Compress at your peril. Neodyme's pre-exploit (January 2022) Wormhole Solana review missed the
 verification bug — "audited" does not mean "secure."
 
 ### Tincho methodology
 
-(1) Read all documentation first — docs-vs-code discrepancy is itself a finding class.
-(2) Order contracts in dependency order: base classes before derived, libraries before
-consumers. (3) Track invariants explicitly as you read; test each against preserving
-paths. (4) Look for the small things: visibility, modifiers, return checks, comparison
-operators. (5) Take breaks; re-read. Audits are discipline, not speed.
+(1) Read all documentation first — learn the jargon and what the protocol should do;
+docs-vs-code discrepancy is itself a finding class. (2) Measure complexity with tooling
+(CLOC, Solidity Metrics) and work through contracts systematically, smaller ones first.
+(3) Think adversarially: every token type, access control. (4) Keep notes; verify
+suspicions with tests such as fuzz tests. (5) Time-box the work; report with
+mitigations, then review the fixes.
 
 ### cmichel methodology
 
-Read previous audit reports of similar protocols (bug classes recur across competing
-projects); focus on novel logic over boilerplate; submit findings even when in doubt —
-contest economics reward quantity at low severities.
+Study common building blocks (token standards, proxies, MasterChef, Compound,
+UniswapV2) and read exploit post-mortems; budget roughly 200 lines of code per hour
+plus 5-10 hours for the report.
 
 ---
 
@@ -859,7 +859,7 @@ bounty with clear scope and severity tiers.
 ### Monitoring
 
 OZ Defender Sentinel: condition-based alerts to Slack/PagerDuty. Forta: decentralized
-detection. Tenderly Alerts: pre-tx simulation hooks. Cross-link
+detection. Tenderly Alerts: onchain event and state-change triggers. Cross-link
 [[detection_engineering_expertise.md]] — Forta is to onchain what EDR is to endpoint.
 
 ### Insurance
@@ -894,7 +894,7 @@ This is baseline, not exhaustive — it catches the most common real-world patte
 
 Decentralized network of detection bots running independent logic against live chain
 state. Bot operators stake FORT; alerts published for wallets, protocols, SOCs to
-subscribe. Bots in Python/JS/Rust against the Forta SDK; subscribe to block, tx, or log
+subscribe. Bots in Python/JS/TS against the Forta SDK; subscribe to block, tx, or log
 events. Mariko Wakabayashi's ML team at OpenZeppelin/Forta has produced detection bots
 that flagged $300M+ of pre-exploit anomalies. Latency bounded by block time (12s) plus
 bot processing; single-block exploits complete before alerts fire.
@@ -907,9 +907,9 @@ for own-contract alerts + Forta for ecosystem context.
 
 ### Tenderly Alerts
 
-Pre-tx simulation: every incoming tx simulated before inclusion to predict outcome.
-Alerting fires on simulated state changes, event emissions, balance shifts. Equivalent
-of sandbox analysis for the chain.
+Alerting fires on onchain transactions (success/failure), contract state changes, and
+view-function return-value changes after a transaction, routed to email, chat, incident
+tools, or webhooks.
 
 ### Phalcon / BlockSec
 
@@ -918,11 +918,6 @@ research team produces postmortems and pre-disclosed advisories. MetaSleuth fund
 tracking is the IR standard.
 
 ### Onchain SOC model
-
-From mid-2023, Aave, Compound, Uniswap, MakerDAO maintain dedicated ops teams: L1
-triages Forta/Defender alerts; L2 investigates and coordinates with SEAL 911 / Paradigm
-for active response; L3 traces funds, coordinates exchange freezes, works with law
-enforcement; threat intel monitors attacker addresses and malicious-contract patterns.
 
 Cross-link [[detection_engineering_expertise.md]] — onchain detection is detection
 engineering applied to chain events instead of endpoint telemetry, with gas-cost
@@ -944,16 +939,16 @@ Brief, primitive, mitigation lesson.
 
 - **DAO (June 2016, $60M)**. *Primitive*: reentrancy via `splitDAO` sending ether before
   zeroing balance. *Lesson*: CEI ordering + ReentrancyGuard.
-- **Parity multisig (July 2017, $280M frozen)**. *Primitive*: delegatecall to library
+- **Parity multisig (November 2017, $280M frozen)**. *Primitive*: delegatecall to library
   with anyone-callable `initWallet`; user became owner, then `selfdestruct`-ed the
   library. *Lesson*: never delegatecall to a target with anyone-callable state-modifying
   functions or `selfdestruct`.
 - **bZx (February 2020, $1M)**. *Primitive*: flash-loan-driven oracle manipulation —
-  USDC dumped into Uniswap V1 cratered WBTC/ETH spot; borrowed against undervalued
-  collateral. *Lesson*: single-block AMM spot is never an oracle. The first widely-
+  a bZx margin short routed via Kyber into Uniswap pumped WBTC spot;
+  attacker sold 112 WBTC borrowed from Compound into the inflated pool. *Lesson*: single-block AMM spot is never an oracle. The first widely-
   publicized flash-loan attack.
-- **Compound Proposal 7 (October 2021, $80M misdistributed)**. *Primitive*: comparison-
-  operator bug in proposal calldata over-distributed COMP. *Lesson*: governance proposals
+- **Compound Proposal 62 (September 2021, up to $80M misdistributed)**. *Primitive*: bug
+  in the upgraded Comptroller the proposal deployed over-distributed COMP. *Lesson*: governance proposals
   are code; calldata-preview tooling (Tally) is mandatory.
 - **Poly Network (August 2021, $610M, returned)**. *Primitive*: Manager contract forwarded
   arbitrary calls under its privilege; attacker forwarded a call that replaced the
@@ -980,7 +975,7 @@ Brief, primitive, mitigation lesson.
   (added to fix a smaller bug) lacked the health-check other state-modifying functions
   had; attacker self-liquidated for 20% penalty. *Lesson*: patches add bug surface;
   every state-modifying function must enforce all invariants.
-- **Curve / Vyper (July 2023, $70M, $52M after whitehat)**. *Primitive*: Vyper compiler
+- **Curve / Vyper (July 2023, ~$70M, ~70% returned)**. *Primitive*: Vyper compiler
   0.2.15/0.2.16/0.3.0 emitted reentrancy locks per-function rather than at a global slot,
   enabling cross-function reentrancy in factory-pool deployments. *Lesson*: compiler
   bugs are contract bugs; pin exact compiler version; auditing source isn't enough —
@@ -1019,10 +1014,10 @@ domain solver networks.
 ### L2 sequencer trust model
 
 Most L2s (Optimism, Arbitrum, Base, zkSync) run a single sequencer. Escape hatches via
-L1 fault proofs (OP-stack BOLD, Arbitrum BOLD) or validity proofs (zkSync, Linea). Bug
+L1 fault proofs (OP Stack Cannon, Arbitrum BoLD) or validity proofs (zkSync, Linea). Bug
 surface: sequencer outage = liveness failure; sequencer-side bugs (OP-stack 2024 fault-
-proof bug caught pre-launch in fuzzing); trust shifts during training-wheels phase
-(Base still has training wheels as of 2025); reorg risk on weak-finality L2s. Auditor
+proof bugs disclosed by Offchain Labs on testnet pre-launch); trust shifts during training-wheels phase
+(Base reached Stage 1, "limited training wheels", in April 2025); reorg risk on weak-finality L2s. Auditor
 checklist: identify trust assumptions for the L2's current stage; design for worst case.
 
 ### Account Abstraction (ERC-4337)
@@ -1074,10 +1069,9 @@ standard gaps first.
 
 ### LLM agents as smart-contract auditors
 
-OpenZeppelin Veritas, ChainPatrol Spec, Halborn Olympia attempt to automate audit
+LLM-based audit tools attempt to automate the audit
 pipeline: docs ingestion, code summary, candidate-finding generation, dedup against
-past reports. Useful for triage; not a senior-auditor replacement. FP rates 50%+; FN
-rates on subtle bugs also high.
+past reports. Useful for triage; not a senior-auditor replacement.
 
 Cross-link [[llm_agent_security_expertise.md]]: when an LLM acts as an agent calling
 tools to interact with onchain systems, the bugs are the agent's, not the contract's. A
@@ -1117,7 +1111,6 @@ attack surface specific to LLM-driven auditing.
 - ConsenSys Smart Contract Best Practices —
   consensys.github.io/smart-contract-best-practices/
 - Trail of Bits Building Secure Contracts — github.com/crytic/building-secure-contracts
-- Solana Cookbook security — solanacookbook.com/references/security
 - Vyper — github.com/vyperlang/vyper
 - Damn Vulnerable DeFi (Tincho) — damnvulnerabledefi.xyz
 - Ethernaut (OpenZeppelin) — ethernaut.openzeppelin.com
@@ -1139,7 +1132,6 @@ attack surface specific to LLM-driven auditing.
 - Halborn — halborn.com/blog
 - Spearbit — github.com/spearbit/portfolio
 - ChainSecurity — chainsecurity.com/audits
-- yAudit — github.com/yAcademy-residents
 
 ### Incident postmortems
 
@@ -1147,10 +1139,9 @@ attack surface specific to LLM-driven auditing.
   blog.ethereum.org/2016/06/17/critical-update-re-dao-vulnerability
 - Parity multisig kill — github.com/paritytech/parity-ethereum/issues/6995
 - bZx incident — peckshield.medium.com/bzx-hack-full-disclosure-with-detailed-profit-analysis-e6b1fa9b18fc
-- Compound Proposal 7 — robertleshner-medium.com
-- Poly Network — research.kudelskisecurity.com/2021/08/12/the-poly-network-hack-explained/
+- Compound Proposal 62 — blocksec.com/blog/the-butterfly-effect-the-compound-security-incident-caused-by-a-bugfix
 - Mudit Gupta's Poly Network writeup — mudit.blog/poly-network-largest-crypto-hack/
-- Ronin Bridge — roninchain.com/blog/posts/back-to-building-ronin-security-breach-...
+- Ronin Bridge — roninchain.com/blog/posts/back-to-building-ronin-security-breach-6513cc78a5edc1001b03c364
 - Halborn on Ronin — halborn.com/blog/post/explained-the-ronin-hack-march-2022
 - Wormhole — halborn.com/blog/post/explained-the-wormhole-hack-february-2022
 - Wormhole technical analysis (Kudelski) —

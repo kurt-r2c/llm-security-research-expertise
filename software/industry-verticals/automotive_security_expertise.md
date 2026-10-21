@@ -9,7 +9,7 @@ Automotive cybersecurity as a public research discipline is roughly 16 years old
 
 ### Charlie Miller and Chris Valasek — Cruise / GM (formerly IOActive, Uber ATG)
 
-**Career arc**: Miller — Ph.D., former NSA; first to publicly demonstrate iPhone (2007) and MacBook Air (2008) jailbreaks; long arc at Twitter and Uber ATG before Cruise. Valasek — IOActive, IBM X-Force, Uber ATG, Cruise. Both moved into AV security teams after concluding the realistic remediation path for the Jeep work was OEM-side architectural change, not bug-by-bug patching.
+**Career arc**: Miller — Ph.D., former NSA; first to publicly demonstrate remote exploits of the iPhone (2007) and MacBook Air (2008); long arc at Twitter and Uber ATG before Cruise. Valasek — IOActive, IBM X-Force, Uber ATG, Cruise. Both moved into AV security teams after concluding the realistic remediation path for the Jeep work was OEM-side architectural change, not bug-by-bug patching.
 
 **Core contribution**: The 2013-2015 trilogy that anchored automotive security as a research discipline. (1) DARPA-funded 2013 wired work on a 2010 Toyota Prius and 2010 Ford Escape demonstrating CAN-injection control of steering, braking, instrument cluster, and seatbelts ("Adventures in Automotive Networks and Control Units," DEFCON 21). (2) 2014 "Survey of Remote Automotive Attack Surfaces" — the field's first comparative vendor-by-vendor remote-surface map. (3) 2015 Jeep Cherokee — fully remote compromise via Sprint cellular to the Uconnect head unit, pivoting to CAN through a Renesas V850 chip with rewritable firmware, seizing steering/braking/transmission/accelerator while Andy Greenberg of *Wired* drove. 1.4M-vehicle Chrysler recall — the first auto cybersecurity recall.
 
@@ -17,17 +17,17 @@ Automotive cybersecurity as a public research discipline is roughly 16 years old
 
 ### Karl Koscher — University of Washington Security and Privacy Research Lab
 
-**Career arc**: Ph.D. under Tadayoshi Kohno at UW; research scientist at UW; co-lead with Stefan Savage (UCSD) on the Center for Automotive Embedded Systems Security (CAESS).
+**Career arc**: Ph.D. under Tadayoshi Kohno at UW; research scientist at UW; Ph.D. student member of the Center for Automotive Embedded Systems Security (CAESS), whose co-PIs were Kohno and Stefan Savage (UCSD).
 
-**Core contribution**: First author on "Experimental Security Analysis of a Modern Automobile" (IEEE S&P 2010, joint UW-UCSD), demonstrating CAN-side attacks on a 2009 Chevy Malibu / Impala — disabling brakes individually, killing the engine at speed, falsifying instrument-cluster readings. The 2011 USENIX follow-up ("Comprehensive Experimental Analyses of Automotive Attack Surfaces") extended to remote surfaces: a buffer overflow in the CDMA telematics modem permitted cell-tower-side compromise; an OBD-II Bluetooth dongle gave parking-lot reach; a malicious CD compromised the audio decoder. USENIX awarded a 2020 Test of Time Award.
+**Core contribution**: First author on "Experimental Security Analysis of a Modern Automobile" (IEEE S&P 2010, joint UW-UCSD), demonstrating CAN-side attacks on a pair of 2009 Chevy Impalas — disabling brakes individually, killing the engine at speed, falsifying instrument-cluster readings. The 2011 USENIX follow-up ("Comprehensive Experimental Analyses of Automotive Attack Surfaces") extended to remote surfaces: a buffer overflow in the CDMA telematics modem permitted cell-tower-side compromise; the hands-free Bluetooth system gave short-range reach; a malicious CD compromised the audio decoder. USENIX awarded a 2025 Test of Time Award.
 
 **Frame Koscher introduced**: CAN-bus attacks are *consequence-realizable* on production vehicles; the realistic attacker does not need physical access — cellular, Bluetooth, Wi-Fi, USB, CD, RDS, and TPMS are all candidate first stages.
 
 ### Stefan Savage — UCSD
 
-**Career arc**: Professor in Systems and Networking at UC San Diego; Irwin and Joan Jacobs Chair. NAE (2017); ACM Prize in Computing (2015); MacArthur Fellowship (2017). PI on the UCSD side of the CAESS collaboration. Cross-referenced in [[reference-credit-card-payments-security]] (spam-economy and click-fraud lineage).
+**Career arc**: Professor in Systems and Networking at UC San Diego; Irwin and Joan Jacobs Chair. NAE (2023); ACM Prize in Computing (2015); MacArthur Fellowship (2017). PI on the UCSD side of the CAESS collaboration. Cross-referenced in [[reference-credit-card-payments-security]] (spam-economy and click-fraud lineage).
 
-**Core contribution**: Senior co-author on the 2010 Oakland and 2011 USENIX automotive papers. Savage's broader systems-level threat-model rigor (network worms, DDoS, spam, click fraud, BGP) gave the automotive work an adversary-economics frame the Tier-1 supplier community had not previously applied. The CAESS work catalyzed NHTSA's Electronic Systems Safety Research Division.
+**Core contribution**: Senior co-author on the 2010 Oakland and 2011 USENIX automotive papers. Savage's broader systems-level threat-model rigor (network worms, DDoS, spam, click fraud, BGP) gave the automotive work an adversary-economics frame the Tier-1 supplier community had not previously applied.
 
 **Frame Savage introduced**: Automotive cybersecurity must be reasoned about from the *adversary's economics*, not the vendor's QA process. CAESS papers explicitly modeled which attacker classes (hobbyist, mechanic, repossession agent, thief, nation-state) would pursue which attack surfaces, and recommended defenses accordingly.
 
@@ -43,31 +43,31 @@ Automotive cybersecurity as a public research discipline is roughly 16 years old
 
 **Career arc**: Professor of computer security at Birmingham (UK); previously at Radboud University Nijmegen where the Megamos / Hitag2 papers were authored with Roel Verdult.
 
-**Core contribution**: First-author on the most-cited automotive-cryptanalysis papers: "Dismantling Megamos Crypto" (USENIX Security 2013, embargoed; published 2015 after a UK High Court injunction at VW's request was settled); "Gone in 360 Seconds: Hijacking with Hitag2" (USENIX Security 2012); "Cryptanalysis of the Megamos Crypto Automotive Immobilizer" (*;login:* USENIX magazine December 2015). The Megamos work demonstrated practical recovery of the 96-bit secret key via three attacks (minutes with a partial key; hours full search exploiting cipher weaknesses). VW sought the injunction explicitly because the paper enabled what later became the 2023 CAN-injection theft wave.
+**Core contribution**: Co-author (with first author Roel Verdult) on the most-cited automotive-cryptanalysis papers: "Dismantling Megamos Crypto" (USENIX Security 2013, embargoed; published 2015 after a UK High Court injunction at VW's request was settled); "Gone in 360 Seconds: Hijacking with Hitag2" (USENIX Security 2012); "Cryptanalysis of the Megamos Crypto Automotive Immobilizer" (*;login:* USENIX magazine December 2015). The Megamos work demonstrated practical recovery of the 96-bit secret key via three attacks (minutes with a partial key; hours full search exploiting cipher weaknesses).
 
 **Frame Garcia introduced**: Litigating against vulnerability disclosure makes the disclosure more important, not less. The two-year embargo and eventual publication is now a canonical coordinated-disclosure case.
 
 ### Marc Rogers and Kevin Mahaffey — formerly CloudFlare and Lookout
 
-**Career arc**: Rogers — Principal Security Researcher at CloudFlare (at the time of the 2015 work); previously head of security research at Lookout. Mahaffey — co-founder and CTO of Lookout. The two collaborated on a multi-month audit of the Tesla Model S, presented at DEFCON 23 (August 2015).
+**Career arc**: Rogers — Principal Security Researcher at CloudFlare (at the time of the 2015 work); previously Principal Security Researcher at Lookout. Mahaffey — co-founder and CTO of Lookout. The two collaborated on a multi-month audit of the Tesla Model S, presented at DEFCON 23 (August 2015).
 
-**Core contribution**: "How to Hack a Tesla Model S" — the first public Tesla security audit. Six vulnerabilities reported, permitting (with physical access via the in-vehicle Ethernet port) operator-style commands: unlock, open trunk, darken speedometer, kill drivetrain at low speed. Tesla pushed an OTA fix to every Model S in the global fleet within weeks. The first time the public saw an OEM patch an entire fleet from a single signed update.
+**Core contribution**: "How to Hack a Tesla Model S" — the first public Tesla security audit. Six vulnerabilities reported, permitting (with physical access via the in-vehicle Ethernet port) operator-style commands: unlock, open trunk, darken speedometer, kill drivetrain at low speed. Tesla pushed an OTA fix to every Model S in the global fleet one day before the talk. The first time the public saw an OEM patch an entire fleet from a single signed update.
 
 **Frame Rogers and Mahaffey introduced**: OTA update is the *primary structural defense* in modern automotive cybersecurity — if it works the vendor patches in days; if it doesn't every disclosure becomes a recall. Tesla's OTA pipeline became the reference architecture other OEMs have been chasing since.
 
 ### Sam Curry — independent researcher
 
-**Career arc**: Web-side AppSec researcher with high-impact bug-bounty history against fintech and SSO surfaces. Pivoted into automotive web-shaped surfaces late 2022. Operates with a recurring collective (Brett Buerhaus, Maik Robert, Ian Carroll, Justin Rhinehart, Shubham Shah, Tanner Barnes) at samcurry.net. Cross-referenced in [[reference-credit-card-payments-security]].
+**Career arc**: Web-side AppSec researcher with high-impact bug-bounty history against fintech and SSO surfaces. Pivoted into automotive web-shaped surfaces late 2022. Operates with a recurring collective (Brett Buerhaus, Maik Robert, Ian Carroll, Justin Rhinehart, Shubham Shah, Neiko Rivera) at samcurry.net. Cross-referenced in [[reference-credit-card-payments-security]].
 
-**Core contribution**: "Web Hackers vs. The Auto Industry" (January 2023) — admin-panel and SSO-bypass vulnerabilities across 16+ OEMs (Ferrari, BMW, Rolls Royce, Porsche, Mercedes-Benz, Hyundai, Genesis, Toyota, Nissan, Infiniti, Honda, Acura, Lexus, plus Hertz, SiriusXM, Spireon, Reviver). Demonstrated remote start, lock/unlock, geolocation, trunk-open across nearly every connected-services SKU; BMW and Mercedes-Benz dealer SSO permitted internal-network reach to dealer portals, Slack, GitHub, hundreds of production apps. Follow-ups: Kia (2024); Subaru STARLINK (January 2025, with Shubham Shah — admin-panel password-reset without confirmation enabled location-tracking and remote-start on every U.S./Canada/Japan Subaru).
+**Core contribution**: "Web Hackers vs. The Auto Industry" (January 2023) — admin-panel and SSO-bypass vulnerabilities across 16+ OEMs (Ferrari, BMW, Rolls Royce, Porsche, Mercedes-Benz, Hyundai, Genesis, Toyota, Nissan, Infiniti, Honda, Acura, Kia, Ford, Jaguar, Land Rover, plus SiriusXM, Spireon, Reviver). Demonstrated remote start, lock/unlock, geolocation, trunk-open across nearly every connected-services SKU; BMW and Mercedes-Benz dealer SSO permitted internal-network reach to dealer portals, Slack, GitHub, hundreds of production apps. Follow-ups: Kia (2024); Subaru STARLINK (January 2025, with Shubham Shah — admin-panel password-reset without confirmation enabled location-tracking and remote-start on every U.S./Canada/Japan Subaru).
 
 **Frame Curry introduced**: The OEM cloud is *the* automotive attack surface in 2023-2026 — not the ECU, the CAN bus, or the radio stack. VIN-as-auth-token, IDOR in admin panels, SSO trust between consumer apps and dealer infrastructure are the systemically-exploitable defects. Mature OEM-side mitigation looks like enterprise-AppSec, not embedded-systems hardening.
 
 ### Ralf-Philipp Weinmann — Comsecuris (founder)
 
-**Career arc**: Long-running embedded-systems researcher; doctoral cryptanalysis work at University of Luxembourg. Pre-automotive: "Baseband Attacks: Remote Exploitation of Memory Corruptions in Cellular Protocol Stacks" (USENIX WOOT 2012; Best Paper) — canonical demonstration of remote code execution against a cellular baseband. Cross-referenced in [[reference-mobile-security]] §11.
+**Career arc**: Long-running embedded-systems researcher; doctoral cryptology work at TU Darmstadt; postdoc at University of Luxembourg. Pre-automotive: "Baseband Attacks: Remote Exploitation of Memory Corruptions in Cellular Protocol Stacks" (USENIX WOOT 2012; Best Paper) — canonical demonstration of remote code execution against a cellular baseband. Cross-referenced in [[reference-mobile-security]] §11.
 
-**Core contribution**: With Benedikt Schmotzle, won Tesla Pwn2Own 2020 with *T-BONE* — a Wi-Fi-side compromise of Tesla IVI's ConnMan service yielding local-network code execution without user interaction in 30-45 seconds. Demonstrated that Tesla's rich Linux IVI is exploitable by the same memory-corruption + sandbox-escape techniques that exploit desktop and mobile browsers.
+**Core contribution**: With Benedikt Schmotzle, built *T-BONE* for Pwn2Own 2020 (the automotive category was cancelled; reported via Tesla's bug bounty) — a Wi-Fi-side compromise of Tesla IVI's ConnMan service yielding local-network code execution without user interaction in 30-45 seconds. Demonstrated that Tesla's rich Linux IVI is exploitable by the same memory-corruption + sandbox-escape techniques that exploit desktop and mobile browsers.
 
 **Frame Weinmann introduced**: The cellular baseband and the Wi-Fi/IVI stack are the *two* RF attack surfaces in a modern car, each carrying decades of C-code complexity. Phone-exploit techniques work against vehicles, and patch latency on vehicles is much worse.
 
@@ -75,7 +75,7 @@ Automotive cybersecurity as a public research discipline is roughly 16 years old
 
 **Career arc**: Researchers at Synacktiv, the French offensive-security firm. The most consistent professional research team in the Pwn2Own Automotive era (2023-2025).
 
-**Core contribution**: Sustained Pwn2Own corpus against Tesla — (2023 Vancouver) TOCTOU bug against the Tesla Energy Gateway permitting arbitrary CAN bus messages; (2024 Automotive Tokyo) two-bug chain compromising Tesla IVI via the LTE card; (2024 Vancouver) integer overflow in the Vehicle Controller Secondary (VCSEC) module yielding control over Vehicle CAN; (2024 Hexacon) zero-click RCE on Tesla Model 3 through TPMS sensors. Total Pwn2Own earnings on Tesla targets exceed $1M across the team.
+**Core contribution**: Sustained Pwn2Own corpus against Tesla — (2023 Vancouver) TOCTOU bug against the Tesla Energy Gateway permitting arbitrary CAN bus messages; (2024 Automotive Tokyo) two-bug chain compromising Tesla IVI via the LTE card; (2024 Vancouver) integer overflow in the Vehicle Controller Secondary (VCSEC) module yielding control over Vehicle CAN; (2024 Hexacon) zero-click RCE on Tesla Model 3 through TPMS sensors.
 
 **Frame Berard and Dehors established**: Even Tesla — with the strongest OTA hygiene and most-mature internal product-security team in the OEM market — still has exploitable C code at the boundary between trusted internal services and externally-reachable RF surfaces. Every Tesla generation in the last five years has had a chained-exploit path from a radio surface to CAN-bus messaging.
 
@@ -89,9 +89,9 @@ Automotive cybersecurity as a public research discipline is roughly 16 years old
 
 ### Comma.ai / openpilot — George Hotz (founder, 2015-2022) and core team
 
-**Career arc**: Hotz — first iPhone unlocker (2007); first PS3 root key (2010); founded comma.ai September 2015; released openpilot as open-source one month later; stepped down to found tinygrad in October 2022. comma.ai continues shipping openpilot on the comma 3 / comma 3X aftermarket hardware supporting ~250 vehicle models.
+**Career arc**: Hotz — first iPhone unlocker (2007); first PS3 root key (2010); founded comma.ai September 2015; released openpilot as open-source in November 2016; stepped down in November 2022 to work on tinygrad. comma.ai continues shipping openpilot on the comma 3 / comma 3X aftermarket hardware supporting over 325 vehicle models.
 
-**Core contribution**: The first production-grade open-source ADAS. openpilot replaces OEM lane-keeping and adaptive-cruise control by interposing on the CAN bus at the radar or camera ECU. The combination of (1) open-source AV stack, (2) public CAN-message DBC files (github.com/commaai/opendbc), and (3) ~100M miles of fleet learning makes openpilot the single best-documented production-class ADAS in existence. Every academic and offensive-security researcher working on ADAS attacks uses it as a reference target because it's the only stack readable end-to-end.
+**Core contribution**: The first production-grade open-source ADAS. openpilot replaces OEM lane-keeping and adaptive-cruise control by interposing on the CAN bus at the radar or camera ECU. The combination of (1) open-source AV stack, (2) public CAN-message DBC files (github.com/commaai/opendbc), and (3) ~400M miles of fleet learning makes openpilot the single best-documented production-class ADAS in existence. Every academic and offensive-security researcher working on ADAS attacks uses it as a reference target because it's the only stack readable end-to-end.
 
 **Frame Hotz and comma.ai introduced**: The OEM monopoly on understanding modern vehicle behavior is breakable. opendbc and openpilot turn each supported vehicle's CAN bus from a vendor-proprietary protocol into a public dataset; the field grows faster as a result.
 
@@ -155,7 +155,7 @@ Defensive priority correlates with the severity axis; insurance and regulatory p
 
 ISO/SAE 21434 ("Road vehicles — Cybersecurity engineering," published August 2021) is the cybersecurity-engineering process standard for road vehicles. It defines cybersecurity activities across concept, product development, production, operations, maintenance, and decommissioning. The conceptual framing parallels ISO 26262 for functional safety: a Threat Analysis and Risk Assessment (TARA) feeds cybersecurity goals, which feed cybersecurity concept, which feeds component-level requirements.
 
-UNECE Regulation 155 ("Uniform provisions concerning the approval of vehicles with regard to cyber security and cyber security management system") and Regulation 156 ("software update management system") are *type-approval prerequisites* in the WP.29 acceding countries (EU, UK, Japan, Korea, and others) since July 2024 for new vehicle types. R155 requires the OEM to demonstrate a certified Cybersecurity Management System (CSMS); R156 requires a certified Software Update Management System (SUMS). The two regulations are operationalized via ISO/SAE 21434 (for R155) and ISO 24089 (Road vehicles — Software update engineering, for R156).
+UNECE Regulation 155 ("Uniform provisions concerning the approval of vehicles with regard to cyber security and cyber security management system") and Regulation 156 ("software update management system") are *type-approval prerequisites* in the WP.29 acceding countries (EU, UK, Japan, Korea, and others) since July 2022 for new vehicle types (July 2024 for all new vehicles). R155 requires the OEM to demonstrate a certified Cybersecurity Management System (CSMS); R156 requires a certified Software Update Management System (SUMS). The two regulations are operationalized via ISO/SAE 21434 (for R155) and ISO 24089 (Road vehicles — Software update engineering, for R156).
 
 The combined regulatory effect is that, as of 2024, an OEM cannot sell a new vehicle type into the European market without a third-party-audited cybersecurity-engineering process and software-update governance. This is the strongest regulatory cybersecurity baseline in any consumer-product market in the world.
 
@@ -220,7 +220,7 @@ Security implications: zone-gateway compromise yields control over an entire phy
 
 ### CAN injection
 
-The canonical attack. An attacker who has physical or logical access to a CAN bus transmits frames with arbitrary IDs and payloads. Because the bus is unauthenticated and broadcast, the receiving ECUs cannot distinguish the attacker's frames from legitimate ones. The Koscher 2010 / Miller-Valasek 2013 work is the public-record reference; the 2023 wave of Toyota / Lexus / Range Rover thefts is the criminal-economy reference (see §IV "headlight CAN injection" below).
+The canonical attack. An attacker who has physical or logical access to a CAN bus transmits frames with arbitrary IDs and payloads. Because the bus is unauthenticated and broadcast, the receiving ECUs cannot distinguish the attacker's frames from legitimate ones. The Koscher 2010 / Miller-Valasek 2013 work is the public-record reference; the 2023 wave of Toyota / Lexus thefts is the criminal-economy reference (see §IV "headlight CAN injection" below).
 
 Attacker capability requires either (a) physical attachment — OBD-II port, headlight wiring, in-bumper diagnostic harness, in-cabin ports, sensor harnesses; or (b) compromise of an ECU on the bus, propagating from an externally-reachable surface (the Jeep cellular-to-CAN chain).
 
@@ -261,17 +261,16 @@ A central gateway ECU enforces inter-segment message filtering: only certain IDs
 
 ### The "CAN injection" car-theft wave (2023+)
 
-A criminal-economy attack pattern that emerged ~2022 and became widely documented in 2023, primarily targeting Toyota / Lexus and certain Range Rover models. The technique:
+A criminal-economy attack pattern that emerged ~2022 and became widely documented in 2023, primarily targeting Toyota / Lexus. The technique:
 
 1. Thieves pry off the front bumper or trim to expose the headlight wiring harness.
 2. The headlight ECU sits on the vehicle's CAN bus (modern headlights are smart enough to need their own ECU).
 3. A purpose-built device — sold on dark-web sites for ~€5,000 in 2023, disguised as a JBL Bluetooth speaker — is wired into the headlight CAN harness.
 4. The device transmits CAN frames that impersonate the legitimate key-fob authentication exchange, unlocking the vehicle and starting the engine.
-5. The whole process takes 2-3 minutes.
 
-The attack exploits the fact that the in-bumper CAN bus segment, after the headlight ECU, is effectively the same broadcast domain as the immobilizer / body-control segment in many architectures, and that the key-fob authentication exchange on CAN is unauthenticated past the initial RKE step. Defensive responses by Toyota and Lexus include retrofit aftermarket immobilizers and OEM software updates that add additional authentication on the bus; some markets have responded with insurer demands for steering-wheel locks. The 2023 Megamos-Crypto + CAN-injection theft wave is structurally a *physical-layer* defeat of the bus authentication assumption.
+The attack exploits the fact that the in-bumper CAN bus segment, after the headlight ECU, is effectively the same broadcast domain as the immobilizer / body-control segment in many architectures, and that the key-fob authentication exchange on CAN is unauthenticated past the initial RKE step. Defensive responses by Toyota and Lexus include retrofit aftermarket immobilizers and OEM software updates that add additional authentication on the bus; some markets have responded with insurer demands for steering-wheel locks. The 2023 CAN-injection theft wave is structurally a *physical-layer* defeat of the bus authentication assumption.
 
-Separately, the *Kia Challenge* (2022-2023, peak winter 2022-spring 2023) is a different class entirely: 8.3 million Kia and Hyundai vehicles manufactured 2011-2021 without industry-standard engine immobilizers were stealable by removing the steering-column shroud and inserting a USB-A connector into the ignition slot. Theft rates spiked 1000% in some cities; at least 14 fatalities attributed to crashed stolen vehicles; Kia and Hyundai pushed software updates beginning February 2023. The Kia Challenge is not a CAN-bus attack — it is the *absence* of a basic anti-theft control. Mentioned here because the lesson is the same in both cases: physical-layer assumptions about the inaccessibility of the bus or the ignition switch were wrong.
+Separately, the *Kia Challenge* (2022-2023, peak winter 2022-spring 2023) is a different class entirely: 8.3 million Kia and Hyundai vehicles manufactured 2011-2021 without industry-standard engine immobilizers were stealable by removing the steering-column shroud and inserting a USB-A connector into the ignition slot. Theft rates spiked over 800% in Cook County, Illinois; NHTSA linked the trend to at least 14 crashes and eight deaths; Kia and Hyundai pushed software updates beginning February 2023. The Kia Challenge is not a CAN-bus attack — it is the *absence* of a basic anti-theft control. Mentioned here because the lesson is the same in both cases: physical-layer assumptions about the inaccessibility of the bus or the ignition switch were wrong.
 
 ### The Tesla Toolbox / dealer-tool corpus
 
@@ -305,7 +304,7 @@ A modern mid-range vehicle has ~100 ECUs; premium platforms 150+. Major classes:
 2. **Leaked OTA update files** from vehicle update channels, OEM CDNs, or dealer networks.
 3. **JTAG / SWD / chip-off**. Debug-disable fuses on Infineon TriCore / Aurix, Renesas RH850 / V850, NXP MPC57xx, ST SPC57x, TI TMS570 are typically programmed in production. Chip-off + fault-injection (voltage glitching, EM-FI, optical FI) to bypass debug-disable, or direct flash read. Cross-reference [[reference-firmware-embedded-security]] §III.
 4. **Debugger backdoor via UDS**. Tier-1 firmware sometimes ships with vendor-internal debug unlocked via a higher SecurityAccess level; reversing yields memory-read.
-5. **Side-channel extraction** — cold-boot attacks (Ang Cui's 2023 S7-1500 demonstration, structurally portable) and power-analysis-driven recovery.
+5. **Side-channel extraction** — cold-boot attacks and power-analysis-driven recovery.
 
 ### ECU programming environments
 
@@ -320,14 +319,14 @@ Classic security stack: CryIf (cryptographic interface), Csm (Crypto Service Man
 
 - **Hardcoded credentials in firmware**. The UDS SecurityAccess seed-key algorithm and any cryptographic keys baked into firmware (RKE keys, immobilizer keys, OTA-update signing public keys). Recovery via firmware reverse engineering is routine.
 - **Plaintext UDS over CAN**. The default UDS-over-CAN flow has no message-level encryption; SecurityAccess is the only authentication primitive. Anyone on the bus who can talk to the ECU during a diagnostic session can read or write firmware if SecurityAccess is bypassed.
-- **Weak SecOC keys**. AUTOSAR SecOC depends on the OEM-managed symmetric keys provisioned into each ECU. Weak provisioning (default keys, reuse across SKUs, leaked keys) breaks the model. The "Extracting Secure Onboard Communication (SecOC) keys from a 2021 Toyota RAV4 Prime Power" disclosure (I CAN Hack blog, 2023) is a public reference for how a real OEM SecOC deployment was broken via firmware extraction.
+- **Weak SecOC keys**. AUTOSAR SecOC depends on the OEM-managed symmetric keys provisioned into each ECU. Weak provisioning (default keys, reuse across SKUs, leaked keys) breaks the model. The "Extracting Secure Onboard Communication (SecOC) keys from a 2021 Toyota RAV4 Prime" disclosure (I CAN Hack blog, 2024) is a public reference for how a real OEM SecOC deployment was broken via firmware extraction.
 - **Memory corruption in C-based protocol parsers**. CAN ISO-TP, UDS service handlers, SOME/IP service skeletons, MQTT clients for telematics, Bluetooth profile parsers — all written in C (or C++) for performance and supplier-toolchain compatibility, all subject to the usual buffer-overflow / use-after-free / type-confusion bug classes. Cross-reference [[reference-firmware-embedded-security]] §III.
 - **Authentication bypass via protocol downgrade**. Some ECUs accept a fallback "factory mode" or "legacy mode" command that bypasses the standard SecurityAccess flow. Recovery via firmware analysis.
 - **Insufficient firmware-update signature verification**. Update packages should be signed by an OEM key; the ECU should verify before flashing. Multiple disclosed cases of missing-or-broken signature verification, including the Pen Test Partners EV-charger work, indicate the failure mode persists across the automotive and EV-adjacent supply chain.
 
 ### Vendor-specific corpus
 
-**Tesla**: Pwn2Own corpus (Synacktiv, Berard, Dehors, others) — IVI (Linux + Chromium), Energy Gateway (TOCTOU 2023), VCSEC (integer overflow 2024), TPMS (zero-click RCE). Autopilot HW3 / HW4 are custom Tesla SoCs running stripped Linux. Service Mode and Toolbox are recurring targets.
+**Tesla**: Pwn2Own corpus (Synacktiv, Berard, Dehors, others) — IVI (Linux + Chromium), Gateway (TOCTOU 2023), VCSEC (integer overflow 2024), TPMS (zero-click RCE). Autopilot HW3 / HW4 are custom Tesla SoCs running stripped Linux. Service Mode and Toolbox are recurring targets.
 
 **Toyota / Lexus**: 2023 CAN-injection headlight wave. 2021 RAV4 Prime SecOC key extraction (I CAN Hack blog) demonstrated that OEM-managed SecOC keys are recoverable from ECU. Connected Services / TCU researched by Synacktiv and VicOne.
 
@@ -335,9 +334,9 @@ Classic security stack: CryIf (cryptographic interface), Csm (Crypto Service Man
 
 **Stellantis (Chrysler, Jeep, Dodge, Fiat, RAM)**: Uconnect was Miller / Valasek's target. Multiple Uconnect security-architecture revisions since 2015.
 
-**Hyundai / Kia**: Kia Challenge (absent immobilizer, not a software exploit). Curry 2022 disclosed remote-vehicle-control via Hyundai owner-portal API; 2024 follow-up extended to Kia dealer SSO via Bluelink.
+**Hyundai / Kia**: Kia Challenge (absent immobilizer, not a software exploit). Curry 2022 disclosed remote-vehicle-control via Hyundai owner-portal API; 2024 follow-up reached Kia vehicles via the Kia dealer portal.
 
-**BMW / Mercedes-Benz**: Curry's Web Hackers paper covered both. The 2018 Tencent Keen Lab BMW cluster (14 CVEs, web-to-ECU) is the most comprehensive single BMW disclosure.
+**BMW / Mercedes-Benz**: Curry's Web Hackers paper covered both. The 2018 Tencent Keen Lab BMW cluster (14 vulnerabilities, 7 CVEs, web-to-ECU) is the most comprehensive single BMW disclosure.
 
 **VW Group**: Megamos Crypto litigation centered here. Subsequent immobilizer-weakness, infotainment-exploit, and connected-services disclosures across 2020+ model years.
 
@@ -377,7 +376,7 @@ Multiple surfaces per vehicle: HFP, A2DP, PBAP, MAP, BLE Phone-as-a-Key, BLE TPM
 - **KNOB (CVE-2019-9506)** — Antonioli, Tippenhauer, Rasmussen, USENIX Security 2019. Bluetooth Classic key-negotiation permits forcing key entropy to 1 byte, brute-forceable in real time. BLE-KNOB is structurally analogous. Patch propagation into the automotive deployed base remains slow.
 - **BLE relay on Phone-as-a-Key** — NCC Group May 2022 against Tesla Model 3 / Model Y BLE Passive Entry. Link-layer relay with 8 ms RTT, well within typical 30 ms connection intervals, invisible to both endpoints. Two-attacker team unlocks and drives. Tesla mitigation: PIN-to-Drive (user-side); UWB ranging (architectural fix; Apple Car Keys with UWB on iPhone 11+).
 - **NFC relay on Tesla Keycard** — IOActive 2022. NFC auth relayed via Bluetooth or Wi-Fi to co-attacker near vehicle.
-- **HFP / A2DP / PBAP parser bugs** — crafted-pairing-flow exploits. 2017 BlueBorne (Armis) included profile-parser CVEs affecting automotive Bluetooth stacks on Cypress / Marvell / Broadcom chipsets.
+- **HFP / A2DP / PBAP parser bugs** — crafted-pairing-flow exploits. 2017 BlueBorne (Armis) included profile-parser CVEs affecting automotive Bluetooth stacks.
 
 ### Wi-Fi
 
@@ -387,7 +386,7 @@ In-cabin hotspot, service / diagnostic Wi-Fi, CarPlay / Android Auto wireless (W
 
 **Rolling-code RKE** at 315 / 433 MHz. Rolling counter defends against replay. Broken ciphers:
 
-- **Hitag2** (NXP) — Garcia / Verdult 2012. ~360s active recovery, longer passive. ~34 makes, ~200 models.
+- **Hitag2** (NXP) — Garcia / Verdult 2012. ~360s active recovery, longer passive.
 - **Megamos Crypto** (EM Microelectronic) — Verdult / Garcia / Ege 2012-2013, published 2015 after VW litigation. 96-bit key recoverable via cipher weaknesses.
 - **DST40** (TI) — Bono et al., USENIX Security 2005. Practical key recovery.
 
@@ -397,7 +396,7 @@ Modern fobs are mostly AES-128 with proper KDF. Cryptanalysis pressure has shift
 
 ### NFC — Phone-as-a-Key
 
-Apple Car Keys (iOS 13.1.2+, iPhone 11+ with UWB), Android Digital Car Keys (Android 12+), BMW Digital Key, Hyundai Digital Key. NFC tap-to-auth with vehicle-provisioned PKI credentials; BLE / UWB for proximity ranging. Attacks: NFC-side relay (IOActive Tesla Model Y), protocol layering between NFC / BLE / vehicle auth state.
+Apple Car Keys (iOS 13.6+; UWB on iPhone 11+), Android Digital Car Keys (Android 12+), BMW Digital Key, Hyundai Digital Key. NFC tap-to-auth with vehicle-provisioned PKI credentials; BLE / UWB for proximity ranging. Attacks: NFC-side relay (IOActive Tesla Model Y), protocol layering between NFC / BLE / vehicle auth state.
 
 ### V2X
 
@@ -479,7 +478,7 @@ Mercedes MBUX, BMW iDrive, GM with Alexa Auto / Google built-in, Tesla voice com
 
 ### Tesla and premium-IVI research
 
-Tesla is the most-targeted IVI platform because it offers the highest Pwn2Own bounties and the IVI runs rich Linux + Chromium. Public corpus: Tencent Keen Lab 2016 / 2017 / 2018 chains (browser → IVI RCE → CAN); Synacktiv Pwn2Own Automotive 2024 (LTE-card → IVI). The 2018 Tencent Keen Lab BMW disclosure cluster (14 CVEs across TCU, head unit, central gateway) is the most comprehensive non-Tesla single disclosure.
+Tesla is the most-targeted IVI platform because it offers the highest Pwn2Own bounties and the IVI runs rich Linux + Chromium. Public corpus: Tencent Keen Lab 2016 / 2017 / 2018 chains (browser → IVI RCE → CAN); Synacktiv Pwn2Own Automotive 2024 (LTE-card → IVI). The 2018 Tencent Keen Lab BMW disclosure cluster (14 vulnerabilities, 7 CVEs, across TCU, head unit, central gateway) is the most comprehensive non-Tesla single disclosure.
 
 ---
 
@@ -524,10 +523,10 @@ Cross-reference [[reference-adversarial-ml-model-security]]. ADAS-specific: trai
 - **Tesla Autopilot / FSD** — proprietary HW3 / HW4; camera-only (radar removed 2021, ultrasonics 2022); FSD Beta supervised on-road since 2020.
 - **Mobileye EyeQ** — most-deployed ADAS perception globally; Mobileye Drive (L4) in robotaxi rollout.
 - **Waymo Driver** — L4, LiDAR-heavy; commercial robotaxi in Phoenix, SF, LA, Austin, Atlanta, Miami (2024-2026 expansion).
-- **Cruise** — GM L4; suspended after October 2023 San Francisco pedestrian incident; partial 2024-2025 resumption.
+- **Cruise** — GM L4; suspended after October 2023 San Francisco pedestrian incident; GM ended Cruise robotaxi development in December 2024.
 - **Zoox** — Amazon-owned; purpose-built carriage-style robotaxi; multi-city testing.
 - **Mercedes Drive Pilot** — first SAE Level 3 certified for U.S. retail; hands-off / eyes-off on specific Nevada and California highways.
-- **comma.ai openpilot** — open-source L2; ~250 vehicles supported.
+- **comma.ai openpilot** — open-source L2; 325+ vehicles supported.
 
 ### openpilot as research target
 
@@ -568,7 +567,7 @@ Converts DC battery to AC for traction motor; controls torque, regen, thermal. C
 
 ### Tesla Supercharger and Wall Connector
 
-Tesla connector originally proprietary; now CCS in non-NA markets, NACS in NA. Attack surface: V2G PLC stack (when CCS-equipped), Tesla-cloud auth / billing / rate-management, physical charger hardware. Pwn2Own Automotive 2024 / 2025 inclusion of Tesla Wall Connector yielded $129K-$200K in payouts.
+Tesla connector originally proprietary; now CCS in non-NA markets, NACS in NA. Attack surface: V2G PLC stack (when CCS-equipped), Tesla-cloud auth / billing / rate-management, physical charger hardware. Tesla Wall Connector exploits at Pwn2Own Automotive 2025 paid $129,500 on day two.
 
 ### Smart grid + EV charging cyber-physical risk
 
@@ -582,7 +581,7 @@ The incidents below are the field's load-bearing case studies. Every automotive-
 
 ### Miller / Valasek Jeep Cherokee (2015)
 
-**Target**: 2014 Jeep Cherokee, Uconnect 8.4A head unit. **Effect**: Miller and Valasek remotely disabled the transmission of a Jeep on a public highway with Andy Greenberg of *Wired* driving; later disabled brakes at speed on a closed course. 1.4M-vehicle Chrysler recall (first auto cybersecurity recall). **Technical detail**: Uconnect D-Bus reachable on Sprint's IP backbone on TCP 6667 with no auth; RCE on the head unit; reflash of an unsigned Renesas V850 chip bridging IVI to CAN; V850 transmits attacker CAN frames to powertrain bus. Black Hat USA 2015 paper "Remote Exploitation of an Unaltered Passenger Vehicle" is the technical reference. **Lesson**: Remote chains traverse cellular → IVI → bridge-MCU → CAN; gateway segmentation between IVI and powertrain is the structural defense. NHTSA voluntary guidance moved toward enforcement post-incident.
+**Target**: 2014 Jeep Cherokee, Uconnect 8.4A head unit. **Effect**: Miller and Valasek remotely disabled the transmission of a Jeep on a public highway with Andy Greenberg of *Wired* driving; later disabled its brakes at low speed in a parking lot. 1.4M-vehicle Chrysler recall (first auto cybersecurity recall). **Technical detail**: Uconnect D-Bus reachable on Sprint's IP backbone on TCP 6667 with no auth; RCE on the head unit; reflash of an unsigned Renesas V850 chip bridging IVI to CAN; V850 transmits attacker CAN frames to powertrain bus. Black Hat USA 2015 paper "Remote Exploitation of an Unaltered Passenger Vehicle" is the technical reference. **Lesson**: Remote chains traverse cellular → IVI → bridge-MCU → CAN; gateway segmentation between IVI and powertrain is the structural defense. NHTSA voluntary guidance moved toward enforcement post-incident.
 
 ### Tencent Keen Lab Tesla (2016, 2017, 2018, 2019)
 
@@ -590,7 +589,7 @@ The incidents below are the field's load-bearing case studies. Every automotive-
 
 ### Megamos Crypto and Hitag2 (2012-2015)
 
-**Target**: Audi, VW, Honda, Volvo, Fiat (Megamos); 34+ makes for Hitag2. **Effect**: Practical key recovery against deployed immobilizer ciphers; VW litigation delayed Megamos publication two years. **Lesson**: Pre-2010 proprietary automotive crypto is structurally weak; replacement requires multi-model-year hardware-cycle. The 2023 CAN-injection wave is the criminal realization.
+**Target**: Audi, VW, Honda, Volvo, Fiat (Megamos). **Effect**: Practical key recovery against deployed immobilizer ciphers; VW litigation delayed Megamos publication two years. **Lesson**: Pre-2010 proprietary automotive crypto is structurally weak; replacement requires multi-model-year hardware-cycle. The 2023 CAN-injection wave is the criminal realization.
 
 ### 2023 CAN-injection vehicle-theft wave
 
@@ -598,25 +597,25 @@ The incidents below are the field's load-bearing case studies. Every automotive-
 
 ### Kia Challenge (2022-2023)
 
-**Target**: 8.3M Kia and Hyundai vehicles, model years 2011-2021, U.S. **Effect**: Theft rates up 1000% in some U.S. cities; at least 14 fatalities in crashed stolen vehicles. Kia / Hyundai software updates from February 2023. **Technical detail**: Absent industry-standard immobilizer. Steering-column shroud removal + USB-A in ignition slot. TikTok-amplified. **Lesson**: Absence of basic anti-theft controls on cost-reduced trims is a fleet-scale liability. Product-decision story, not software exploit.
+**Target**: 8.3M Kia and Hyundai vehicles, model years 2011-2022, U.S. **Effect**: Theft rates up 1000% in some U.S. cities; at least 14 reported crashes and eight fatalities. Kia / Hyundai software updates from February 2023. **Technical detail**: Absent industry-standard immobilizer. Steering-column shroud removal + USB-A in ignition slot. TikTok-amplified. **Lesson**: Absence of basic anti-theft controls on cost-reduced trims is a fleet-scale liability. Product-decision story, not software exploit.
 
 ### Sam Curry "Web Hackers vs. the Auto Industry" (2023, follow-ups 2024-2025)
 
-**Target**: 16+ OEMs initially (Ferrari, BMW, Rolls Royce, Porsche, Mercedes-Benz, Hyundai, Genesis, Toyota, Nissan, Infiniti, Honda, Acura, Lexus, Hertz, SiriusXM, Spireon, Reviver). Kia 2024 (Round 2); Subaru STARLINK January 2025. **Effect**: Remote vehicle-control, location tracking, dealer-portal access, internal-network reach across nearly the entire OEM market in a single coordinated disclosure. **Technical detail**: Standard web-app failures at OEM scale — IDOR, SSO confusion, admin-panel reset without confirmation, mass-assignment, VIN-as-auth-token. **Lesson**: OEM cloud is the dominant 2023-2026 attack surface. OEM-side mitigation is enterprise-AppSec maturity — bounty programs, internal red-team, security-engineering review on new APIs.
+**Target**: 16+ OEMs initially (Ferrari, BMW, Rolls Royce, Porsche, Mercedes-Benz, Hyundai, Genesis, Toyota, Nissan, Infiniti, Honda, Acura, Kia, Ford, Jaguar, Land Rover, SiriusXM, Spireon, Reviver). Kia 2024 (Round 2); Subaru STARLINK January 2025. **Effect**: Remote vehicle-control, location tracking, dealer-portal access, internal-network reach across nearly the entire OEM market in a single coordinated disclosure. **Technical detail**: Standard web-app failures at OEM scale — IDOR, SSO confusion, admin-panel reset without confirmation, mass-assignment, VIN-as-auth-token. **Lesson**: OEM cloud is the dominant 2023-2026 attack surface. OEM-side mitigation is enterprise-AppSec maturity — bounty programs, internal red-team, security-engineering review on new APIs.
 
 ### 2024 Tesla Pwn2Own corpus
 
-**Target**: Tesla Model 3, Model S, Wall Connector; multiple ECUs. **Effect**: Synacktiv and others demonstrated remote / proximity exploits yielding CAN-bus control; $100K-$200K+ per vehicle exploit; Synacktiv cumulative corpus exceeds $1M. **Technical detail**: TOCTOU on Energy Gateway (Vancouver 2023); LTE-card → IVI two-bug chain (Tokyo 2024); VCSEC integer overflow (Vancouver 2024); TPMS zero-click RCE (Hexacon 2024). **Lesson**: Even Tesla — the most-mature OEM internal product-security — has exploitable C code at the radio/trusted-services boundary.
+**Target**: Tesla Model 3, Model S, Wall Connector; multiple ECUs. **Effect**: Synacktiv and others demonstrated remote / proximity exploits yielding CAN-bus control; $100K-$200K+ per vehicle exploit. **Technical detail**: TOCTOU on Gateway (Vancouver 2023); LTE-card → IVI two-bug chain (Tokyo 2024); VCSEC integer overflow (Vancouver 2024); TPMS zero-click RCE (Hexacon 2024). **Lesson**: Even Tesla — the most-mature OEM internal product-security — has exploitable C code at the radio/trusted-services boundary.
 
 ### Pen Test Partners EV-charger disclosures (2020-2024)
 
-**Target**: Project EV, Wallbox, EVBox, EO Hub, EO mini pro 2, Hypervolt, ChargePoint Home Flex, Autel MaxiCharger, EMPORIA EV, Phoenix Contact CHARX SEC. **Effect**: Multi-vendor API-auth, firmware-signing, and authentication failures. **Lesson**: EV charging is a parallel attack surface with grid-impact consequences; charger-market defensive maturity lags vehicles by several years.
+**Target**: Project EV, Wallbox, EVBox, EO Hub, EO mini pro 2, Hypervolt, ChargePoint Home Flex. **Effect**: Multi-vendor API-auth, firmware-signing, and authentication failures. **Lesson**: EV charging is a parallel attack surface with grid-impact consequences; charger-market defensive maturity lags vehicles by several years.
 
 ### Subaru STARLINK admin-panel takeover (January 2025)
 
 **Target**: STARLINK admin panel covering U.S. / Canada / Japan Subarus. **Effect**: Full remote-control, 1-year location history (5m accuracy), PII access for any vehicle in affected regions. Disclosed by Shubham Shah and Sam Curry. **Technical detail**: Admin-panel password reset endpoint did not require a confirmation token. Resetting any employee's password yielded admin access; adding authorized users generated no owner notification. Patched within 24 hours. **Lesson**: Internal applications still require enterprise-AppSec review when they're on the public Internet.
 
-### DEFCON Car Hacking Village (2014-present)
+### DEFCON Car Hacking Village (2015-present)
 
 The longest-running automotive-security community event; structured CTF, vendor coordination, novel-attack-class disclosure venue. Raises the public-research bar across the field.
 
@@ -630,7 +629,7 @@ Cybersecurity-engineering process standard (August 2021). Sections: Cybersecurit
 
 ### UNECE WP.29 R155 (CSMS)
 
-Mandates a certified Cybersecurity Management System as type-approval prerequisite. The CSMS must maintain lifecycle cybersecurity risk management, identify and manage threats and vulnerabilities, verify supply-chain measures, and monitor vehicles post-sale with incident response. Mandatory for new vehicle types in EU since July 2024; mandatory for *all* vehicle types from July 2026.
+Mandates a certified Cybersecurity Management System as type-approval prerequisite. The CSMS must maintain lifecycle cybersecurity risk management, identify and manage threats and vulnerabilities, verify supply-chain measures, and monitor vehicles post-sale with incident response. Mandatory for new vehicle types in EU since July 2022; mandatory for *all* new vehicles from July 2024.
 
 ### UNECE WP.29 R156 (SUMS)
 
@@ -657,7 +656,7 @@ Industry-led ISAC for light- and heavy-duty OEMs, suppliers, commercial vehicles
 
 ### NMFTA Heavy Vehicle Cybersecurity
 
-Working group covering commercial trucks: J1939 specifics, ELD mandates, telematics security, fleet-management protection. Coordinates with CISA and FMCSA. The 2024 "Cybersecurity Best Practices for Modern Vehicles" NMFTA document is the sector reference.
+Working group covering commercial trucks: J1939 specifics, ELD mandates, telematics security, fleet-management protection. Coordinates with CISA and FMCSA.
 
 ### China GB cybersecurity standards
 
@@ -679,7 +678,7 @@ Runs on gateway or central-compute ECU:
 - **SecOC MAC-failure monitoring** — high failure rate indicates key mismatch (post-update) or active attack.
 - **Automotive Ethernet IDS** — SOME/IP / AVTP / TSN traffic anomalies. HCRL dataset is the public benchmark.
 
-Commercial offerings: Argus (Continental), Karamba Security, GuardKnox, Aurora Labs, Upstream (cloud-side), VicOne (Tencent-affiliated).
+Commercial offerings: Argus (Continental), Karamba Security, GuardKnox, Aurora Labs, Upstream (cloud-side), VicOne (Trend Micro subsidiary).
 
 ### Fleet-telemetry anomaly detection at OEM backend
 
@@ -735,7 +734,7 @@ Cross-reference [[reference-ics-ot-security]] §VII (SIS pattern). Automotive an
 
 ### Coordinated disclosure programs
 
-Tesla, GM, Stellantis, BMW, Mercedes-Benz, Ford, Hyundai and other major OEMs operate public bounty / coordinated-disclosure programs. Tesla's is longest-running and highest-paying ($600K+ for integrated chains). Auto-ISAC coordinates cross-OEM disclosure on Tier-1 vulnerabilities. Maturity gap between OEMs that engage with researchers and those that don't is the strongest predictor of security-engineering culture.
+Tesla, GM, Stellantis, BMW, Mercedes-Benz, Ford, Hyundai and other major OEMs operate public bounty / coordinated-disclosure programs. Tesla has offered up to $600K at Pwn2Own for integrated multi-system chains. Auto-ISAC coordinates cross-OEM disclosure on Tier-1 vulnerabilities. Maturity gap between OEMs that engage with researchers and those that don't is the strongest predictor of security-engineering culture.
 
 ### Code-review checklist (12 items)
 
@@ -762,7 +761,7 @@ Cross-reference [[reference-firmware-embedded-security]] for the generic embedde
 
 ### AI-agent-driven vehicle controls
 
-The voice-assistant generation has been LLM-backed since 2024 (Mercedes MBUX with ChatGPT, BMW with proprietary models, BYD with multiple Chinese LLM partners). The next step — an in-vehicle agent with read/write access to vehicle controls, calendar, contacts, payments, and external APIs — is already shipping in limited form. Cross-reference [[reference-llm-agent-security]].
+The voice-assistant generation has been LLM-backed since 2023 (Mercedes MBUX with ChatGPT, BMW with Amazon's Alexa LLM, BYD with multiple Chinese LLM partners). The next step — an in-vehicle agent with read/write access to vehicle controls, calendar, contacts, payments, and external APIs — is already shipping in limited form. Cross-reference [[reference-llm-agent-security]].
 
 The threat model:
 
@@ -786,7 +785,7 @@ DOT-sponsored research into close-following heavy-truck convoys (the leader truc
 
 ### Cross-link to game-console security
 
-Cross-reference [[reference-game-console-security]]. The Tesla Arcade and similar IVI gaming features have a recurring history of security-relevant disclosure — game-engine vulnerabilities, save-file parsing bugs, multiplayer-network surfaces all importing the console-security attack surface into the vehicle. The Tesla Pwn2Own corpus has touched IVI gaming components.
+Cross-reference [[reference-game-console-security]].
 
 ### Maritime automotive parallels
 
@@ -813,7 +812,7 @@ General-aviation cockpit avionics (Garmin G1000, Avidyne IFD series) parallel au
 - Verdult, R., Garcia, F. D., Balasch, J. "Gone in 360 Seconds: Hijacking with Hitag2." USENIX Security 2012. https://www.usenix.org/conference/usenixsecurity12/technical-sessions/presentation/verdult
 - Verdult, R., Garcia, F. D., Ege, B. "Dismantling Megamos Crypto: Wirelessly Lockpicking a Vehicle Immobilizer." USENIX Security 2015. https://www.usenix.org/conference/usenixsecurity15/technical-sessions/presentation/verdult
 - Verdult, R., Garcia, F. D. "Cryptanalysis of the Megamos Crypto Automotive Immobilizer." ;login: USENIX magazine, December 2015, vol. 40, no. 6. https://www.usenix.org/system/files/login/articles/login_dec15_04_verdult.pdf
-- Nohl, K. "Corroding Immobilizer Cryptography." SIGINT 2013 / NoSuchCon 2013. https://nosuchcon.org/talks/2013/D2_05_KNohl_Immobilizer_Security.pdf
+- Nohl, K. Immobilizer security talk. SIGINT 2013 / NoSuchCon 2013. https://nosuchcon.org/talks/2013/D2_05_KNohl_Immobilizer_Security.pdf
 - Bono, S., Green, M., Stubblefield, A., Juels, A., Rubin, A., Szydlo, M. "Security Analysis of a Cryptographically-Enabled RFID Device" (DST40). USENIX Security 2005.
 
 ### Tesla and other modern-vehicle research
@@ -851,8 +850,8 @@ General-aviation cockpit avionics (Garmin G1000, Avidyne IFD series) parallel au
 ### UDS and ECU exploitation
 
 - ISO 14229-1:2020 "Road vehicles — Unified diagnostic services (UDS) — Part 1: Application layer services."
-- "Formal Security Analysis of Vehicle Diagnostic Protocols." Various authors, ACM CSCS 2023. https://dl.acm.org/doi/fullHtml/10.1145/3600160.3600184
-- I CAN Hack blog. "Extracting Secure Onboard Communication (SecOC) keys from a 2021 Toyota RAV4 Prime Power." 2023. https://icanhack.nl/blog/secoc-key-extraction/
+- Lauser, T., and Krauß, C. "Formal Security Analysis of Vehicle Diagnostic Protocols." ARES 2023. https://dl.acm.org/doi/fullHtml/10.1145/3600160.3600184
+- I CAN Hack blog. "Extracting Secure Onboard Communication (SecOC) keys from a 2021 Toyota RAV4 Prime." 2024. https://icanhack.nl/blog/secoc-key-extraction/
 
 ### EV charging
 

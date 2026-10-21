@@ -7,9 +7,9 @@
 
 Aviation cybersecurity as a public research discipline is younger than its consequence profile suggests. Until 2013 essentially all serious work was inside OEMs (Boeing, Airbus, Embraer, Bombardier, Honeywell, Collins, Thales, Leonardo), national-aviation authorities (FAA, EASA), or three-letter agencies. Hugo Teso's 2013 Hack-In-The-Box talk and Ruben Santamarta's 2014 Black Hat SATCOM paper opened the field to the public-research community; ADS-B and ACARS research at Oxford, ETH Zurich, and EURECOM in 2012-2018 produced the canonical academic corpus; Pen Test Partners and Rapid7 added the consultancy-cadence disclosure stream in the 2018-2024 window; and the AcidRain / Viasat incident of February 2022 forced the wider security community to acknowledge that satellite ground segments are nation-state-grade targets. The names below span those waves.
 
-### Hugo Teso — formerly N.runs Professionals; Synopsys
+### Hugo Teso — formerly N.runs Professionals
 
-**Career arc**: Commercial pilot turned aviation-security consultant. Began at N.runs AG in Germany. Holds an active commercial pilot license — the rare combination of cockpit experience and embedded-RE skill that allowed his work to land credibly with the airworthiness-certification community rather than getting brushed off as theatre.
+**Career arc**: Commercial pilot turned aviation-security consultant. Began at N.runs AG in Germany. A former commercial pilot — the rare combination of cockpit experience and embedded-RE skill that allowed his work to land credibly with the airworthiness-certification community rather than getting brushed off as theatre.
 
 **Core contribution**: "Aircraft Hacking: Practical Aero Series" (Hack-In-The-Box Amsterdam, April 2013). The first public, end-to-end demonstration that the broadcast-based aviation data links (ACARS and ADS-B) could be used as attacker-controlled input into onboard Flight Management Systems. Teso built **SIMON**, an attack framework targeting FMS-class software running on a desktop simulator, and **PlaneSploit**, an Android front-end that selected ADS-B-located target aircraft and delivered crafted ACARS uplinks. Both deliberately constrained to non-airworthy targets: the FMS Teso compromised was the same software stack that ships on aircraft but running on a desktop trainer, not a real avionics line-replaceable unit. He was explicit about scoping at the press briefings.
 
@@ -27,7 +27,7 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 **Career arc**: PhD from EURECOM (advisors Aurélien Francillon and Davide Balzarotti) on "Large-scale Security Analysis of Embedded Devices' Firmware." Founded Firmware.RE for automated firmware analysis. Currently Assistant Professor in the Cyber Security Group at University of Jyväskylä, Finland.
 
-**Core contribution**: "Ghost in the Air(Traffic): On insecurity of ADS-B protocol and practical attacks on ADS-B devices" (Black Hat USA 2012). First systematic public treatment of ADS-B security weaknesses with a taxonomy of practical attacks: ground-station message injection ("ghost-inject"), aircraft disappearance ("ghost-flooding"), aircraft creation ("aircraft-spoofing"), virtual-trajectory modification ("trajectory-modification"), and Mode S extended-squitter DoS. Costin's framing — that ADS-B was specified with no cryptographic protections at a time (early 2000s) when this was already known to be a poor choice — became the canonical academic reading.
+**Core contribution**: "Ghost in the Air(Traffic): On insecurity of ADS-B protocol and practical attacks on ADS-B devices" (Black Hat USA 2012). First systematic public treatment of ADS-B security weaknesses with practical attacks ranging from passive eavesdropping to active message jamming, injection, and replay. Costin's framing — that ADS-B lacks the minimal security mechanisms needed to protect air traffic — became the canonical academic reading.
 
 **Frame Costin introduced**: ADS-B insecurity is not subtle. The protocol broadcasts unauthenticated position reports in the clear at known frequencies on a known schedule; a software-defined radio plus a few hundred dollars of off-the-shelf hardware is all that's needed to inject fake targets into receivers — including airborne TCAS receivers and ground ATC fusion systems. The defensive case must rest on **multilateration**, **primary surveillance radar**, and **vehicle-state plausibility filtering**, not on the integrity of ADS-B itself.
 
@@ -35,7 +35,7 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 **Career arc**: Senior Security Consultant at Rapid7 during the 2017-2019 aviation arc; previously a long career in network security and incident response. Builder of a kit aircraft, which surfaced his research question — a hobbyist context that gave him hands-on access to small-aircraft avionics that institutional researchers don't routinely get.
 
-**Core contribution**: "Investigating CAN Bus Network Integrity in Avionics Systems" (Rapid7 white paper, 30 July 2019). First public-research demonstration of CAN-bus attacks against modern small-aircraft avionics. Kiley showed that an attacker with physical access could spoof altitude, airspeed, engine readings, and autopilot commands by injecting CAN frames; the displays trusted the bus, and there was no authentication or integrity check. CISA/DHS issued **ICS-ALERT-19-211-01** — the first CISA bulletin explicitly covering general-aviation cybersecurity. Cross-link to `automotive_security_expertise.md` §II (CAN heritage); the avionics CAN derivatives (ARINC 825, CAN aerospace) inherit the same trust model.
+**Core contribution**: "Investigating CAN Bus Network Integrity in Avionics Systems" (Rapid7 white paper, 30 July 2019). First public-research demonstration of CAN-bus attacks against modern small-aircraft avionics. Kiley showed that an attacker with physical access could spoof engine telemetry, compass and attitude data, altitude, airspeed, and angle of attack by injecting CAN frames; the displays trusted the bus, and there was no authentication or integrity check. CISA/DHS issued **ICS-ALERT-19-211-01**. Cross-link to `automotive_security_expertise.md` §II (CAN heritage); the avionics CAN derivatives (ARINC 825, CAN aerospace) inherit the same trust model.
 
 **Frame Kiley introduced**: General aviation is the most-overlooked attack surface in aviation cybersecurity. Commercial aircraft get certification rigor and ARINC 664 segregation; small aircraft get whatever the avionics vendor decided to ship, which is increasingly CAN-bus-derived and inherits all the automotive-CAN insecurity properties.
 
@@ -49,7 +49,7 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 ### Brad Haines (RenderMan) — independent
 
-**Career arc**: Canadian independent security researcher with long history in wireless and aviation topics. Founder of the **CYBR.IO Aviation Security Initiative**; long-running advocate for transparency in the FAA NextGen modernization program. Co-author of *Kismet Hacking* (Syngress, 2008).
+**Career arc**: Canadian independent security researcher with long history in wireless and aviation topics. Long-running advocate for transparency in the FAA NextGen modernization program. Co-author of *Kismet Hacking* (Syngress, 2008).
 
 **Core contribution**: Early public-research work on ADS-B spoofing with co-researcher Nick Foster. The DEF CON 20 (2012) talk "Hackers + Airplanes: No Good Can Come Of This" walked through ghost-target injection — coupling FlightGear (open-source flight simulator) output through a software-defined radio to ADS-B receivers, producing realistic but entirely synthetic aircraft tracks on ATC and pilot displays. The follow-up coverage included a demonstration of injecting a ghost flight near San Francisco International Airport. Haines's arc paralleled Costin's academic work and Teso's FMS-side work — three independent confirmations within an 18-month window.
 
@@ -59,13 +59,13 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 **Career arc**: Senior Scientist at the Swiss Cyber-Defence Campus (based at ETH Zurich); Visiting Fellow of Kellogg College, Oxford. DPhil at Oxford (2016) under Prof. Ivan Martinovic. Co-founder and board member of the **OpenSky Network**, the largest public crowdsourced ADS-B receiver network. The most-prolific academic researcher on aviation wireless security in the 2014-2026 window.
 
-**Core contribution**: A multi-paper canon comprehensively characterizing the security and privacy posture of operational aviation wireless protocols. Key papers: "Security of ADS-B: State of the Art and Beyond"; "Realities and Challenges of NextGen Air Traffic Management"; "Survey of Cyber Threats in Air Traffic Control and Aircraft Communications Systems"; the ACARS privacy series with Daniel Moser and Matthew Smith. Together these form the academic backbone of the field.
+**Core contribution**: A multi-paper canon comprehensively characterizing the security and privacy posture of operational aviation wireless protocols. Key papers: "Security of ADS-B: State of the Art and Beyond"; "Realities and Challenges of NextGen Air Traffic Management"; the ACARS privacy series with Daniel Moser and Matthew Smith. Together these form the academic backbone of the field.
 
 **Frame Strohmeier introduced**: Aviation wireless security must be analyzed as a *system*, not protocol-by-protocol. The dependency graph among ADS-B, Mode S, TCAS, ACARS, CPDLC, VDL Mode 2, SATCOM, and ATC ground systems means that a single protocol break propagates into ground-fusion errors, cockpit decision-support errors, and pilot behavior changes.
 
 ### Daniel Moser and Matthew Smith — ETH Zurich; Oxford
 
-**Career arc**: Moser — PhD at ETH Zurich's System Security Group under Prof. Srdjan Capkun. Smith — DPhil at Oxford under Prof. Ivan Martinovic. Both collaborated closely with Strohmeier on the ACARS series.
+**Career arc**: Moser — ETH Zurich. Smith — DPhil at Oxford under Prof. Ivan Martinovic. Both collaborated closely with Strohmeier on the ACARS series.
 
 **Core contribution**: "Undermining Privacy in ACARS" (PETS 2018) and "Economy Class Crypto: Exploring Weak Cipher Usage in Avionic Communications via ACARS." Demonstrated empirically — using more than 2 million ACARS messages collected over 16 months — that ACARS is essentially a public broadcast for the small fraction of users (government, military, business jets) who have a privacy interest in it. The "Economy Class Crypto" paper found that the small share of ACARS traffic that *is* encrypted uses weak or homebrew ciphers — easily recoverable plaintext from passive collection.
 
@@ -73,7 +73,7 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 ### Lennert Wouters — KU Leuven COSIC
 
-**Career arc**: Postdoctoral researcher at KU Leuven COSIC (Computer Security and Industrial Cryptography), Belgium. Long arc of hardware fault-injection and side-channel research against high-assurance consumer and infrastructure targets — including Tesla keyfob attacks and the Starlink work.
+**Career arc**: Researcher at KU Leuven COSIC (Computer Security and Industrial Cryptography), Belgium. Long arc of hardware fault-injection and side-channel research against high-assurance consumer and infrastructure targets — including Tesla keyfob attacks and the Starlink work.
 
 **Core contribution**: "Glitched on Earth by Humans: A Black-Box Security Evaluation of the SpaceX Starlink User Terminal" (Black Hat USA 2022). A **voltage fault-injection attack** against the Starlink user terminal that bypassed firmware-signature checks and yielded persistent code execution on the dish-side embedded Linux. The custom modchip cost approximately $25. The contribution is twofold: (1) it broke the implicit assumption that consumer satellite user terminals are not high-assurance targets, and (2) the SpaceX response — bringing the work into the bounty program and inviting further researcher engagement — became the reference for how a modern space-internet operator should treat external research. Cross-link to `wireless_rf_satellite_security_expertise.md`.
 
@@ -81,7 +81,7 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 ### Ken Munro — Pen Test Partners
 
-**Career arc**: Founder of Pen Test Partners (Sheffield/London, UK); pilot license-holder; long arc of consultancy disclosures across IoT, automotive, maritime, and aviation. The most consistent professional source of aviation cybersecurity disclosures in the 2018-2026 window, with an emphasis on EFB, IFE, and aviation app-side surfaces. Three of the firm's members hold pilot certifications, which gives them operational credibility that pure-bug-finder researchers don't carry.
+**Career arc**: Founder of Pen Test Partners (Buckingham, UK); pilot license-holder; long arc of consultancy disclosures across IoT, automotive, maritime, and aviation. The most consistent professional source of aviation cybersecurity disclosures in the 2018-2026 window, with an emphasis on EFB, IFE, and aviation app-side surfaces.
 
 **Core contribution**: A decade-long disclosure cadence covering EFB authentication weaknesses (4-digit PINs, no MDM, BYO devices), IFE-network reachability paths from passenger seat-back to back-of-domain services, EFB software vulnerabilities (Airbus NAVBLUE Flysmart+ Manager, multiple smaller vendors), TCAS-spoofing research, and aviation-app supply-chain analysis. Cross-referenced in `automotive_security_expertise.md` §I (Munro's broader EV-charging arc).
 
@@ -89,9 +89,9 @@ Aviation cybersecurity as a public research discipline is younger than its conse
 
 ### Aerospace Village (DEF CON) and academic corpus
 
-The **DEF CON Aerospace Village** first appeared in 2019. Founded by a coalition of aviation researchers, pilots, defense-industrial-base practitioners, and FAA-adjacent policy specialists, with explicit goals of *open conversation* and *researcher-vendor collaboration*. Hosts CTFs, hardware-hacking labs (Bricks-in-the-Air, avionics tear-downs), and joint sessions with the Voting Village, ICS Village, and Car Hacking Village. The Village exists because the open vulnerability-disclosure relationship between researchers and aviation vendors was historically broken; the Roberts episode (2015) is the canonical illustration. The Village normalized researcher engagement and reduced — though did not eliminate — the legal risk profile of aviation research.
+The **DEF CON Aerospace Village** first appeared in 2019 as the Aviation Village and was renamed the Aerospace Village in 2020. Founded by a coalition of aviation researchers, pilots, defense-industrial-base practitioners, and FAA-adjacent policy specialists, with explicit goals of *open conversation* and *researcher-vendor collaboration*. Hosts CTFs, hardware-hacking labs (Bricks-in-the-Air, avionics tear-downs), and joint sessions with the Voting Village, ICS Village, and Car Hacking Village. The Village exists because the open vulnerability-disclosure relationship between researchers and aviation vendors was historically broken; the Roberts episode (2015) is the canonical illustration. The Village normalized researcher engagement and reduced — though did not eliminate — the legal risk profile of aviation research.
 
-The **academic ACARS/SATCOM/CPDLC corpus** lives across Marshall University, EURECOM (Costin et al.), Oxford System Security Lab (Strohmeier, Martinovic, Smith), ETH Zurich (Capkun, Moser), KU Leuven (Wouters, Verbauwhede), and the US Naval Postgraduate School. The CPDLC security paper from NPGS (Mahmoud, Khan, et al., 2018) and the TCAS spoofing work led by Giacomo Longo (USENIX Security 2024) are the canonical examples — careful, threat-modeled, defensible-in-court contributions that drove real specification revisions.
+The **academic ACARS/SATCOM/CPDLC corpus** lives across Marshall University, EURECOM (Costin et al.), Oxford System Security Lab (Strohmeier, Martinovic, Smith), ETH Zurich (Capkun, Moser), and KU Leuven (Wouters, Verbauwhede). The CPDLC security paper from Linköping University (Gurtov, Polishchuk, Wernberg, Sensors 2018) and the TCAS spoofing work led by Giacomo Longo (USENIX Security 2024) are the canonical examples — careful, threat-modeled, defensible-in-court contributions that drove real specification revisions.
 
 ---
 
@@ -153,7 +153,7 @@ ARINC 429 security depends on **physical separation and supply-chain integrity**
 
 ### AFDX / ARINC 664 Part 7
 
-**Avionics Full-Duplex Switched Ethernet**, originally developed by Airbus for the A380 (2005). Ships on A380, A350, A400M, Boeing 787, ARJ21, Sukhoi Superjet 100, Embraer E2.
+**Avionics Full-Duplex Switched Ethernet**, originally developed by Airbus for the A380 (2005). Ships on A380, A350, A400M, Boeing 787, ARJ21, Sukhoi Superjet 100.
 
 - **Switched, full-duplex** 100 Mbit/s Ethernet with deterministic-QoS achieved through Virtual Links (VLs) — point-to-multipoint logical channels with reserved bandwidth.
 - **Bandwidth Allocation Gap (BAG)**: each VL has a guaranteed minimum gap between frames; switches enforce non-conformant traffic shaping.
@@ -169,9 +169,9 @@ US military standard published in 1973 (revisions 1975, 1978, 2018). The dominan
 - **Command/response**: Bus Controller initiates; Remote Terminals respond. Up to 31 RTs per bus segment.
 - **Dual-redundant** physical buses; time-division-multiplexed transactions with Manchester encoding.
 - **1 Mbit/s** raw rate.
-- **No authentication, no encryption** in the 1973-2018 base standard. 2018 revisions allowed encrypted RT addresses and authenticated frames; production-aircraft uptake is partial.
+- **No authentication, no encryption** in the base standard. The 2018 Revision C is functionally equivalent to 1553B.
 
-The MIL-STD-1553 attack surface is **direct bus injection** by any actor with physical access. The 2018-vintage authenticated mode uses HMAC; deployment is rare and the legacy fleet will outlive it by decades.
+The MIL-STD-1553 attack surface is **direct bus injection** by any actor with physical access.
 
 ### ARINC 825 (CAN aerospace)
 
@@ -179,7 +179,7 @@ Avionics-adapted CAN bus, standardized by ARINC in 2007 as a higher-layer protoc
 
 ### TTEthernet (SAE AS6802)
 
-Time-Triggered Ethernet. Developed by TTTech Aerospace. Backbone for NASA Orion, SpaceX Crew Dragon, Boeing CST-100 Starliner, parts of Airbus A380.
+Time-Triggered Ethernet. Developed by TTTech Aerospace. Backbone for NASA Orion.
 
 - **Time-triggered, deterministic Ethernet** that schedules frame transmission via a synchronous clock.
 - **Mixed-criticality** support: time-triggered, rate-constrained (AFDX-style), and best-effort on the same physical infrastructure.
@@ -310,7 +310,7 @@ The dominant deployment is **Class 2 iPads** with airline-provided apps used for
 ### The EFB attack surface
 
 1. **Tablet hardening**: iPad MDM is sometimes optional or weak. Pen Test Partners and others have documented PIN-only-4-digit, no remote-wipe, sideloaded apps, and pilot-owned devices outside MDM.
-2. **App supply chain**: EFB apps are distributed via Apple Business Manager, Google Play, or vendor-private channels. Vendor-private channels often lack the security review of major app stores. Pen Test Partners disclosed authentication and update-channel weaknesses in **Airbus NAVBLUE Flysmart+ Manager** in 2022-2023.
+2. **App supply chain**: EFB apps are distributed via Apple Business Manager, Google Play, or vendor-private channels. Vendor-private channels often lack the security review of major app stores. Pen Test Partners disclosed disabled certificate validation (App Transport Security turned off) in **Airbus NAVBLUE Flysmart+ Manager**, reported to Airbus in June 2022 and published in February 2024.
 3. **Network attack surface**: EFBs connect to airline networks (often via airport Wi-Fi), to OEM cloud services, and to the AID. Each is a separate trust boundary.
 4. **AID interface**: see §V.
 5. **Database integrity**: navigation databases, terrain databases, performance databases — all critical inputs to the EFB's calculations. The structural defense is signed databases distributed by the OEM through the EFB app's update channel.
@@ -319,7 +319,7 @@ The dominant deployment is **Class 2 iPads** with airline-provided apps used for
 
 The worst-case EFB compromise scenario is **malware on a flight crew's tablet that uses the AID to inject crafted data into the Flight Management System**. The FMS is a high-trust device that computes flight paths and feeds the autopilot. Successful exploitation requires both EFB compromise *and* AID weakness *and* FMS input-validation weakness — but each link is plausibly compromisable individually, and the defense-in-depth argument hinges on no single link being trivially compromisable.
 
-DO-326A / DO-356A guidance explicitly enumerates this chain and requires that operators address it via EFB hardening (MDM, app signing, OS patching), AID input validation, and FMS input-validation hardening. The practical state: the EFB layer is the weakest, the AID layer is variable, the FMS layer is generally well-hardened. Cross-link `mobile_security_expertise.md` for the tablet-fleet management discipline.
+The defenses are EFB hardening (MDM, app signing, OS patching), AID input validation, and FMS input-validation hardening. The practical state: the EFB layer is the weakest, the AID layer is variable, the FMS layer is generally well-hardened. Cross-link `mobile_security_expertise.md` for the tablet-fleet management discipline.
 
 ### Public-Wi-Fi EFB download
 
@@ -331,7 +331,7 @@ A recurring failure mode: pilots download EFB updates over public airport or hot
 
 The US ATC system is operated by the FAA. Major components:
 
-- **ARTCCs (Air Route Traffic Control Centers)** — 22 facilities covering en route airspace. Runs **ERAM** (En Route Automation Modernization) replacing the legacy HOST mainframe in 2015.
+- **ARTCCs (Air Route Traffic Control Centers)** — 20 facilities in the contiguous US covering en route airspace. Runs **ERAM** (En Route Automation Modernization) replacing the legacy HOST mainframe in 2015.
 - **TRACONs (Terminal Radar Approach Control)** — terminal-area control. Runs **STARS** (Standard Terminal Automation Replacement System); legacy ARTS in some facilities.
 - **ATCT (Airport Traffic Control Tower)** — runway and immediate-vicinity. Increasingly digital with surface-surveillance (ASDE-X, ASSC).
 - **ATCSCC (Air Traffic Control System Command Center)** — strategic flow management.
@@ -358,7 +358,7 @@ The compound attack discussed in academic literature: spoof an ADS-B target near
 
 **DJI** (Shenzhen) is the dominant consumer/professional drone manufacturer worldwide. The Mavic, Mini, Air, and Phantom families and the Matrice professional series ship with GPS/GNSS-based positioning, **OcuSync / LightBridge proprietary RF link** (2.4/5 GHz, AES-encrypted) between drone and controller, DJI mobile app, **geofencing** (No-Fly Zones in firmware), and **DJI Cloud** integration for flight logs and AeroScope identification.
 
-The DJI firmware ecosystem has been the target of consistent reverse-engineering and modding since the mid-2010s. The 2017 disclosure of hardcoded private keys in DJI app source code (Kevin Finisterre) led to DJI's eventual hardening but also raised national-security concerns around DJI's data-handling that drove the 2020 US DoD ban on DJI products and the 2024 "Countering CCP Drones Act" debate.
+The DJI firmware ecosystem has been the target of consistent reverse-engineering and modding since the mid-2010s. The 2017 disclosure of hardcoded private keys in DJI app source code (Kevin Finisterre) led to DJI's eventual hardening but also raised national-security concerns around DJI's data-handling that drove the 2018 US DoD ban on DJI products and the 2024 "Countering CCP Drones Act" debate.
 
 ### Commercial / professional and military drones
 
@@ -380,7 +380,7 @@ Security and privacy implications: **Aviation safety win** (law enforcement can 
 
 GPS jamming and command-link jamming have been **mass-deployed** in the 2022-2026 conflict zones. Countermeasures: inertial navigation, visual-inertial odometry (Skydio can operate GPS-denied via vision/INS), terrain-matching, hardened RF links.
 
-GPS spoofing against commercial drones has been observed in conflict zones, near airports, and maritime contexts. The structural defense is **multi-constellation GNSS** (GPS + GLONASS + Galileo + BeiDou cross-checking), **GNSS authentication** (Galileo OSNMA — Open Service Navigation Message Authentication, operational since 2023), and **integrity monitoring** at the receiver. Cross-link `wireless_rf_satellite_security_expertise.md` §6.
+GPS spoofing against commercial drones has been observed in conflict zones, near airports, and maritime contexts. The structural defense is **multi-constellation GNSS** (GPS + GLONASS + Galileo + BeiDou cross-checking), **GNSS authentication** (Galileo OSNMA — Open Service Navigation Message Authentication, Initial Service declared July 2025), and **integrity monitoring** at the receiver. Cross-link `wireless_rf_satellite_security_expertise.md` §6.
 
 Counter-UAS vendors: **DroneShield**, **Dedrone**, **Anduril** (Lattice mesh, Anvil interceptor), **Echodyne**, **D-Fend Solutions** (protocol-level take-over of consumer drones). The C-UAS product space *exploits* protocol weaknesses in consumer-drone command links on the defensive side. Cross-link `wireless_rf_satellite_security_expertise.md` §7.
 
@@ -404,11 +404,11 @@ The dominant space-asset attack vector in 2026 is **compromise of the ground seg
 
 The canonical case study and the most consequential space-asset cyber incident to date.
 
-- **Target**: Viasat KA-SAT satellite broadband service, operated by Eutelsat. Roughly 30,000 European subscribers; some operational customers including a large wind-turbine fleet in Germany.
+- **Target**: Viasat KA-SAT satellite broadband service, operated by Eutelsat. Tens of thousands of fixed-broadband customers across Ukraine and Europe; some operational customers including a large wind-turbine fleet in Germany.
 - **Method**: attacker accessed the KA-SAT management mechanism (the back-office network that pushes configuration to user modems), then used legitimate management commands to deploy **AcidRain**, a wiper malware targeting the Surfbeam2 / Viasat modem firmware.
 - **Effect**: modems rendered inoperable across Ukraine and parts of Europe. The attack landed **one hour before the Russian invasion of Ukraine** began. Spillover: 5,800 Enercon wind turbines in Germany lost remote-monitoring connectivity.
-- **Attribution**: EU and Five Eyes attributed AcidRain to Russian GRU (Sandworm), in the VPNFilter / WhisperGate / NotPetya wiper family.
-- **Analysis**: SentinelOne (Reguly) published the canonical technical breakdown. The malware was a MIPS ELF binary (the Surfbeam2 modem CPU architecture) that brute-forced device file paths and wiped every file it could find.
+- **Attribution**: EU and Five Eyes attributed the attack to Russia. SentinelOne assessed with medium confidence that AcidRain shares developmental similarities with a VPNFilter stage 3 destructive plugin.
+- **Analysis**: SentinelOne (Juan Andres Guerrero-Saade and Max van Amerongen) published the canonical technical breakdown. The malware was a MIPS ELF binary (the Surfbeam2 modem CPU architecture) that brute-forced device file paths and wiped every file it could find.
 
 The structural lessons:
 
@@ -433,7 +433,7 @@ The CubeSat market is heavily university and small-commercial driven. Security p
 
 ### Private launch
 
-The 2010s-2020s growth of commercial spaceflight (SpaceX, Rocket Lab, Blue Origin, Relativity, Axiom, Sierra Space) brought new ground-segment and avionics targets: launch-vehicle avionics, crew capsules with onboard networks (Crew Dragon TTEthernet, Starliner avionics), ground-segment automation. The recurring pattern: commercial spaceflight inherits the same cybersecurity challenges as commercial aviation, with a younger industry-wide security posture.
+The 2010s-2020s growth of commercial spaceflight (SpaceX, Rocket Lab, Blue Origin, Relativity, Axiom, Sierra Space) brought new ground-segment and avionics targets: launch-vehicle avionics, crew capsules with onboard networks, ground-segment automation. The recurring pattern: commercial spaceflight inherits the same cybersecurity challenges as commercial aviation, with a younger industry-wide security posture.
 
 ---
 
@@ -441,7 +441,7 @@ The 2010s-2020s growth of commercial spaceflight (SpaceX, Rocket Lab, Blue Origi
 
 ### Hugo Teso 2013 — "Aircraft Hacking: Practical Aero Series" (HITB Amsterdam)
 
-The first comprehensive public demonstration of attacker-controlled input into FMS-class software via ACARS and ADS-B abuse. Conducted against a desktop simulator with the same FMS software stack as production aircraft. Established the field's threat model: broadcast aviation data links are attacker-controlled input to safety-critical software, not benign transports.
+The first comprehensive public demonstration of attacker-controlled input into FMS-class software via ACARS and ADS-B abuse. Conducted against a PC-based training simulator, not certified flight hardware. Established the field's threat model: broadcast aviation data links are attacker-controlled input to safety-critical software, not benign transports.
 
 ### Chris Roberts 2015 — United Airlines / FBI
 
@@ -449,7 +449,7 @@ April-May 2015: Roberts tweeted from a flight that he was probing IFE systems; F
 
 ### Polish LOT June 2015 — DDoS against ground operations
 
-22 June 2015: Polish flag carrier LOT's ground-side flight-plan-generation system was hit with a DDoS attack at Warsaw Chopin Airport. The system was unable to produce flight plans for departing aircraft; about 10 flights cancelled and 15 delayed, ~1,400 passengers affected. Resolved in ~5 hours. **Aircraft in flight were not affected**; the attack was against ground IT, not avionics. First publicly-acknowledged cyber attack against airline operations that caused operational disruption.
+21 June 2015: Polish flag carrier LOT's ground-side flight-plan-generation system was hit with a DDoS attack at Warsaw Chopin Airport. The system was unable to produce flight plans for departing aircraft; 10 flights cancelled and about a dozen delayed, ~1,400 passengers affected. Resolved in ~5 hours. **Aircraft in flight were not affected**; the attack was against ground IT, not avionics. First publicly-acknowledged cyber attack against airline operations that caused operational disruption.
 
 ### Pen Test Partners EFB / IFE corpus (2016-2026)
 
@@ -500,7 +500,7 @@ The aviation cybersecurity standards canon is jointly produced by **RTCA Special
 
 - **DO-326A** (Airworthiness Security Process Specification, 2014; EUROCAE ED-202A) — the foundational document. Defines the **Plan for Security Aspects of Certification (PSecAC)**. Establishes the **threat modeling, vulnerability assessment, and risk-management** processes that integrate with the safety case.
 - **DO-356A** (Airworthiness Security Methods and Considerations, 2018; EUROCAE ED-203A) — methods for performing the DO-326A activities. Defines threat scenarios, attack paths, and consequence evaluation.
-- **DO-355A** (Information Security Guidance for Continuing Airworthiness, 2020; EUROCAE ED-204A) — guidance for operators on maintaining the security posture of in-service aircraft.
+- **DO-355A** (Information Security Guidance for Continuing Airworthiness; EUROCAE ED-204A) — guidance for operators on maintaining the security posture of in-service aircraft.
 - **DO-178C** (Software Considerations in Airborne Systems and Equipment Certification, 2011) — the core software-certification standard. Five Design Assurance Levels (DAL A = catastrophic, DAL E = no safety effect). Critical avionics typically certify to DAL A or B.
 - **DO-254** — hardware-side counterpart to DO-178C.
 
@@ -508,7 +508,7 @@ The aviation cybersecurity standards canon is jointly produced by **RTCA Special
 
 EASA: **ED-202A / ED-203A / ED-204A / ED-205** — European mirrors of the RTCA standards. Effectively-identical through joint authoring. **AMC 20-42** — EASA Acceptable Means of Compliance for aircraft cybersecurity-related certification.
 
-FAA: **AC 20-115D / 20-152A / 20-174** — software, complex hardware, certification ACs. **AC 119-1** — Airworthiness and Operational Approval of Aircraft Network Security. **FAA NextGen ADS-B Mandate** — 14 CFR 91.225/91.227, requiring ADS-B Out compliance in most US controlled airspace from 1 January 2020.
+FAA: **AC 20-115D / 20-152A / 20-174** — software, complex hardware, certification ACs. **AC 119-1A** — Operational Authorization of Aircraft Network Security Program (replaced AC 119-1, cancelled 2023). **FAA NextGen ADS-B Mandate** — 14 CFR 91.225/91.227, requiring ADS-B Out compliance in most US controlled airspace from 1 January 2020.
 
 ### Space-segment standards
 
@@ -629,7 +629,7 @@ Cross-link `dfir_methodology_expertise.md`.
 
 ### AI in cockpit
 
-The FAA / EASA "AI in cockpit" certification debate is active. Existing certification frameworks (DO-178C, DO-326A) assume deterministic software. Machine-learning components — even in operational support roles like predictive maintenance, weather prediction, or pilot decision support — break the deterministic assumption. EASA's **First Usable Guidance for Level 1 Machine Learning Applications** (2023) is the first formal regulatory step.
+The FAA / EASA "AI in cockpit" certification debate is active. Existing certification frameworks (DO-178C, DO-326A) assume deterministic software. Machine-learning components — even in operational support roles like predictive maintenance, weather prediction, or pilot decision support — break the deterministic assumption. EASA's **First Usable Guidance for Level 1 Machine Learning Applications** (2021) is the first formal regulatory step.
 
 The cybersecurity angle: cross-link `adversarial_ml_model_security_expertise.md` and `llm_agent_security_expertise.md`. ML models in aviation are adversarial-attack surfaces (model poisoning, evasion, model-extraction), and the certification machinery doesn't yet have a satisfactory threat-model framework for them. The "agent with flight authority" discussion is academic for now — current AI in the cockpit is bounded to decision-support, with the pilot retaining final authority on every action. The structural question — *can a learning system be certifiable at DAL A?* — is open.
 
@@ -649,7 +649,7 @@ MRO IT systems — **IBM Maximo**, **Trax**, **AMOS**, **Ramco** — are increas
 
 ### Crewless cargo aircraft
 
-**Reliable Robotics**, **Xwing**, **Merlin Labs**, **Wisk** — emerging market for crewless cargo aircraft. The certification path is unsettled. The cybersecurity model needs to address full autonomy without the crew-as-defense layer that commercial transport relies on.
+**Reliable Robotics**, **Xwing**, **Merlin Labs** — emerging market for crewless cargo aircraft. The certification path is unsettled. The cybersecurity model needs to address full autonomy without the crew-as-defense layer that commercial transport relies on.
 
 ### Spaceflight and private launch
 
@@ -661,7 +661,7 @@ The Unmanned Aircraft System Traffic Management (UTM) concept and the eVTOL Vert
 
 ### Quantum-resistant cryptography migration
 
-Aviation's long device lifecycles mean that **today's cryptographic decisions ship for 25+ years**. RSA-2048, ECDSA P-256 — currently safe — will be at risk by mid-century if cryptographically-relevant quantum computers materialize. NIST PQC standardization (CRYSTALS-Kyber, CRYSTALS-Dilithium, Falcon, SPHINCS+) is the upstream input; aviation-specific PQC migration timelines are being discussed in RTCA / EUROCAE forums. Cross-link `cryptography_expertise.md`.
+Aviation's long device lifecycles mean that **today's cryptographic decisions ship for 25+ years**. RSA-2048, ECDSA P-256 — currently safe — will be at risk by mid-century if cryptographically-relevant quantum computers materialize. NIST PQC standardization (CRYSTALS-Kyber, CRYSTALS-Dilithium, Falcon, SPHINCS+) is the upstream input. Cross-link `cryptography_expertise.md`.
 
 ---
 
@@ -716,10 +716,10 @@ Aviation's long device lifecycles mean that **today's cryptographic decisions sh
 - ARINC 664 / AFDX overview: https://www.aim-online.com/products-overview/tutorials/afdx-arinc664p7-tutorial/
 - AFDX Wikipedia: https://en.wikipedia.org/wiki/Avionics_Full-Duplex_Switched_Ethernet
 - MIL-STD-1553 Wikipedia: https://en.wikipedia.org/wiki/MIL-STD-1553
-- MIL-STD-1553 attack detection (Oxford 2018): https://www.cs.ox.ac.uk/files/14887/Targeted_Detection_for_Attacks_on_the_MIL-STD-1553_Bus.pdf
+- MIL-STD-1553 attack detection (Oxford, IEEE TAES 2023): https://www.cs.ox.ac.uk/files/14887/Targeted_Detection_for_Attacks_on_the_MIL-STD-1553_Bus.pdf
 - CPDLC Wikipedia: https://en.wikipedia.org/wiki/Controller%E2%80%93pilot_data_link_communications
 - CPDLC security paper (MDPI Sensors 2018): https://www.mdpi.com/1424-8220/18/5/1636
-- CPDLC practical attacks (ACM CPS-SPC 2021): https://dl.acm.org/doi/10.1145/3457339.3457985
+- CPDLC practical attacks (ACM CPSS 2021): https://dl.acm.org/doi/10.1145/3457339.3457985
 - AID overview (Bytron): https://www.bytron.aero/aviation-news/what-is-an-aircraft-interface-device
 
 ### Community resources
