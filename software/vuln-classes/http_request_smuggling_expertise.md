@@ -1,13 +1,13 @@
 # HTTP Request Smuggling — Primitives, Variants, and Defenses
-## Synthesized from Chaim Linhart, Amit Klein, Ronen Heyes, Watchfire Research, James Kettle, Bishop Fox, Daniel Stenberg, PortSwigger Research, and the OWASP HTTP working group
+## Synthesized from Chaim Linhart, Amit Klein, Ronen Heled, Watchfire Research, James Kettle, Bishop Fox, Daniel Stenberg, PortSwigger Research, and the OWASP Web Security Testing Guide
 
 > **Researchers:**
-> - **Chaim Linhart, Amit Klein, Ronen Heyes, Steve Orrin** — Authors of "HTTP Request Smuggling" (Watchfire, June 2005, https://www.cgisecurity.com/lib/HTTP-Request-Smuggling.pdf). The canonical first systematic treatment of the class. Documented CL/TE disagreement against Apache, IIS, WebLogic, SunONE, and proxy chains commonly deployed at the time. Predated by Klein's own 2004 work on HTTP Response Splitting (Sanctum / Watchfire), which seeded the framing of HTTP as a state-machine that two endpoints can disagree about.
-> - **James Kettle (@albinowax)** — Head of Research, PortSwigger. Re-popularized the class with "HTTP Desync Attacks: Request Smuggling, Reborn" (Black Hat USA 2019, https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn). Followed by "HTTP/2: The Sequel is Always Worse" (Black Hat USA 2021, https://portswigger.net/research/http2), "Browser Powered Desync Attacks: A New Frontier in HTTP Request Smuggling" (Black Hat USA 2022, https://portswigger.net/research/browser-powered-desync-attacks), and "Smashing the State Machine: The True Potential of Web Race Conditions" (Black Hat USA 2023, https://portswigger.net/research/smashing-the-state-machine). The 2019-2023 sequence is the canonical modern corpus; Kettle's PoCs against Slack, PayPal, GitHub, and Atlassian during the talks moved the class from "theoretical" to "every CDN ships variants of this."
+> - **Chaim Linhart, Amit Klein, Ronen Heled, Steve Orrin** — Authors of "HTTP Request Smuggling" (Watchfire, June 2005, https://www.cgisecurity.com/lib/HTTP-Request-Smuggling.pdf). The canonical first systematic treatment of the class. Documented CL/TE disagreement against Apache, IIS, WebLogic, SunONE, and proxy chains commonly deployed at the time. Predated by Klein's own 2004 work on HTTP Response Splitting (Sanctum / Watchfire), which seeded the framing of HTTP as a state-machine that two endpoints can disagree about.
+> - **James Kettle (@albinowax)** — Director of Research, PortSwigger. Re-popularized the class with "HTTP Desync Attacks: Request Smuggling, Reborn" (Black Hat USA 2019, https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn). Followed by "HTTP/2: The Sequel is Always Worse" (Black Hat USA 2021, https://portswigger.net/research/http2), "Browser Powered Desync Attacks: A New Frontier in HTTP Request Smuggling" (Black Hat USA 2022, https://portswigger.net/research/browser-powered-desync-attacks), and "Smashing the State Machine: The True Potential of Web Race Conditions" (Black Hat USA 2023, https://portswigger.net/research/smashing-the-state-machine). The 2019-2023 sequence is the canonical modern corpus; Kettle's PoCs against PayPal, Netflix, Atlassian, and Amazon during the talks moved the class from "theoretical" to "every CDN ships variants of this."
 > - **Bishop Fox** — Authors of h2cSmuggler (Jake Miller, https://bishopfox.com/blog/h2c-smuggling-request and https://github.com/BishopFox/h2csmuggler, 2020). Documented HTTP/2-cleartext upgrade smuggling through HTTP/1.1 proxies; the canonical reference for h2c-upgrade abuse.
 > - **Daniel Stenberg (@bagder)** — curl maintainer; ongoing documentation of the gap between RFC 7230's request-target grammar and what HTTP libraries actually accept. The framing of HTTP as "a protocol with one specification and dozens of inconsistent implementations" runs through curl's bug tracker.
 > - **PortSwigger Research / Web Security Academy** — Maintains a labbed taxonomy of HRS shapes (https://portswigger.net/web-security/request-smuggling) and the HTTP Request Smuggler Burp extension. The Web Security Academy lab corpus is the practical reference for the four classical shapes plus the HTTP/2 variants.
-> - **OWASP HTTP Desync Working Group** — Maintainers of the OWASP HTTP Request Smuggling cheat sheet and the Web Security Testing Guide entries that translate Kettle's research into auditor-facing checklists.
+> - **OWASP Web Security Testing Guide** — The "Testing for HTTP Request Smuggling" entry (WSTG-INJT-16) translates the research into auditor-facing checklists.
 >
 > Sources: cgisecurity.com (Watchfire 2005 paper); portswigger.net/research (Kettle BHUSA 2019/2021/2022/2023); bishopfox.com/blog (h2cSmuggler); github.com/BishopFox/h2csmuggler; daniel.haxx.se; everything.curl.dev; RFC 7230; RFC 9112 (HTTP/1.1); RFC 9113 (HTTP/2); RFC 9114 (HTTP/3); NVD; GitHub Advisory Database; OWASP Web Security Testing Guide v4.
 
@@ -23,15 +23,15 @@ Connection reuse is the precondition. If every request opened a new TCP+TLS conn
 
 ---
 
-## 2. The 1999 → 2005 origin and why it stayed alive
+## 2. The 2005 origin and why it stayed alive
 
-The class predates the Watchfire paper by several years. Chaim Linhart's earlier work and a 1999 "double Content-Length" PoC circulated on the web-application-security mailing lists; the techniques were folklore before they were a paper. Linhart, Klein, Heyes, and Steve Orrin's June 2005 Watchfire white paper "HTTP Request Smuggling" (https://www.cgisecurity.com/lib/HTTP-Request-Smuggling.pdf) was the first systematic treatment — it cataloged the CL/CL, CL/TE, and TE/CL shapes against the major HTTP servers of the day (Apache, IIS, SunONE, WebLogic) and the major caching proxies (Squid, Tinyproxy).
+Linhart, Klein, Heled, and Steve Orrin's June 2005 Watchfire white paper "HTTP Request Smuggling" (https://www.cgisecurity.com/lib/HTTP-Request-Smuggling.pdf) was the first systematic treatment — it cataloged double Content-Length, CL+TE, and other header-parsing anomalies against the major HTTP servers of the day (Apache, IIS, SunONE, WebLogic) and caching proxies (Squid, ISA/2000, DeleGate, Oracle9iAS cache server).
 
 The class went quiet for roughly a decade. Vendors patched the obvious shapes; auditors moved on. HRS surfaced occasionally in single advisories but stopped being framed as a live class.
 
-James Kettle's "HTTP Desync Attacks: Request Smuggling, Reborn" (Black Hat USA 2019) re-popularized HRS by showing it was still exploitable against production stacks at PayPal, Slack, the Red Hat customer portal, and others. Kettle's framing made HRS legible to a generation of researchers who hadn't read the 2005 paper: he reframed the bug as a desync between a state-machine the front-end runs and one the back-end runs, and showed that the state-machine gap had grown with HTTP/2 rather than shrunk.
+James Kettle's "HTTP Desync Attacks: Request Smuggling, Reborn" (Black Hat USA 2019) re-popularized HRS by showing it was still exploitable against production stacks at PayPal, New Relic, Red Hat, and others. Kettle's framing made HRS legible to a generation of researchers who hadn't read the 2005 paper: he reframed the bug as a desync between a state-machine the front-end runs and one the back-end runs, and showed that the state-machine gap had grown with HTTP/2 rather than shrunk.
 
-The reason the class survives twenty-five years: every CDN, every load balancer, every WAF, and every origin server has its own RFC interpretation, and the RFC itself is ambiguous on edge cases. RFC 7230 §3.3.3 says a request with both Content-Length and Transfer-Encoding should treat Content-Length as if it were not present (effectively: prefer TE). RFC 9112 §6.3 says the same. Real implementations split. RFC 7230 §3.2.4 explicitly bans whitespace between header name and colon ("No whitespace is allowed between the header field-name and colon") — but several long-deployed parsers accept it. The grammar is precise enough to score on Wireshark; it's not precise enough to force every implementer to the same byte-level behavior.
+The reason the class survives two decades: every CDN, every load balancer, every WAF, and every origin server has its own RFC interpretation, and the RFC itself is ambiguous on edge cases. RFC 7230 §3.3.3 says a request with both Content-Length and Transfer-Encoding should treat Content-Length as if it were not present (effectively: prefer TE). RFC 9112 §6.3 says the same. Real implementations split. RFC 7230 §3.2.4 explicitly bans whitespace between header name and colon ("No whitespace is allowed between the header field-name and colon") — but several long-deployed parsers accept it. The grammar is precise enough to score on Wireshark; it's not precise enough to force every implementer to the same byte-level behavior.
 
 The structural reason HRS persists is that HTTP/1.1 is a textual protocol parsed by hand-written code in a dozen different languages by a dozen different teams, none of which share a test corpus. Every variant of "what is a valid header line?" lives somewhere in production.
 
@@ -57,8 +57,6 @@ SMUGGLED
 ```
 
 Front-end reads 13 bytes (`0\r\n\r\nSMUGGLED`), forwards them as the body of one request, and considers the connection ready for the next request. Back-end reads `Transfer-Encoding: chunked`, sees the `0\r\n\r\n` chunk terminator, considers the body done after byte 5, and treats the remaining bytes (`SMUGGLED`) as the start of the next request on the pooled connection.
-
-Canonical pairing observed in the field: Cloudflare and similar CDNs in front of origins that aggressively prefer TE (older nginx + chunked-aware modules; Apache 2.4.x in some configs).
 
 ### 3.2. TE.CL — front-end TE, back-end CL
 
@@ -128,17 +126,17 @@ The reason this matters: almost every production stack still terminates HTTP/2 a
 
 ### 4.1. H2.CL
 
-HTTP/2 has a `content-length` pseudoheader. The front-end translates the HTTP/2 request to HTTP/1.1 by emitting a `Content-Length` header with the value the attacker supplied — even if the actual body length after H2-to-H1 translation is different. The back-end honors the translated `Content-Length`; any bytes past it become the next request.
+HTTP/2 permits a `content-length` header (a regular header, not a pseudo-header). The front-end translates the HTTP/2 request to HTTP/1.1 by emitting a `Content-Length` header with the value the attacker supplied — even if the actual body length after H2-to-H1 translation is different. The back-end honors the translated `Content-Length`; any bytes past it become the next request.
 
-The attacker can ship a body of 100 bytes in HTTP/2 while declaring `content-length: 5` in the pseudoheader. The H2 front-end forwards `Content-Length: 5\r\n\r\n<100-byte-body>` to the back-end; the back-end reads 5 bytes and treats the remaining 95 as the next request.
+The attacker can ship a body of 100 bytes in HTTP/2 while declaring `content-length: 5` in the header. The H2 front-end forwards `Content-Length: 5\r\n\r\n<100-byte-body>` to the back-end; the back-end reads 5 bytes and treats the remaining 95 as the next request.
 
 ### 4.2. H2.TE
 
-Same shape but the smuggled body relies on a `transfer-encoding: chunked` header surviving the H2-to-H1 downgrade. Per RFC 9113 §8.1.1, HTTP/2 forbids `Transfer-Encoding` as a connection-level header and forbids `chunked` as a value — but plenty of HTTP/2 front-ends pass it through unmolested to the back-end, where it activates chunked parsing.
+Same shape but the smuggled body relies on a `transfer-encoding: chunked` header surviving the H2-to-H1 downgrade. Per RFC 9113 §8.2.2, HTTP/2 forbids `Transfer-Encoding` as a connection-level header and forbids `chunked` as a value — but plenty of HTTP/2 front-ends pass it through unmolested to the back-end, where it activates chunked parsing.
 
 ### 4.3. CL.0
 
-Front-end honors `Content-Length`. Back-end treats the body as zero-length for some reason — most often because the request method is one the back-end's router ignores bodies for (typically GET or HEAD), or because the back-end strips Content-Length before parsing. The body bytes the front-end forwarded land at the head of the connection and get parsed as the next request.
+Front-end honors `Content-Length`. Back-end treats the body as zero-length for some reason — most often because the back-end wasn't expecting a body on that endpoint (static files, server-level redirects, server-level errors), or because the back-end strips Content-Length before parsing. The body bytes the front-end forwarded land at the head of the connection and get parsed as the next request.
 
 ```
 GET / HTTP/1.1
@@ -148,8 +146,6 @@ Content-Length: 50
 GET /admin HTTP/1.1
 X: Y
 ```
-
-The classical version uses POST; CL.0 is the GET/HEAD variant where back-ends that route to body-less handlers discard the body entirely.
 
 ### 4.4. TE.0
 
@@ -169,7 +165,7 @@ HTTP2-Settings: AAMAAABkAARAAAAAAAIAAAAA
 
 If the front-end forwards these headers to the back-end without stripping the `Upgrade` and `HTTP2-Settings` headers, the back-end may accept the upgrade and begin parsing the rest of the socket as HTTP/2 frames. The attacker now has a direct HTTP/2 tunnel to the back-end through the front-end's auth boundary. Every HTTP/2 frame the attacker sends bypasses the front-end's HTTP-level filtering — including auth header injection, host-header rewriting, and path-based access control.
 
-The defense is trivial in principle: front-end strips `Connection`, `Upgrade`, and `HTTP2-Settings` from forwarded headers, or refuses to honor h2c upgrade against the back-end. In practice, plenty of reverse proxies in 2020-2024 didn't strip these (the h2cSmuggler README has a tested-target list).
+The defense is trivial in principle: front-end strips `Connection`, `Upgrade`, and `HTTP2-Settings` from forwarded headers, or refuses to honor h2c upgrade against the back-end. In practice, plenty of reverse proxies didn't strip these.
 
 ### 4.6. HTTP/3 — same class, different transport
 
@@ -181,9 +177,9 @@ HTTP/3 (RFC 9114) runs over QUIC and inherits the HTTP/2 framing model. The HRS-
 
 Kettle's "Smashing the State Machine: The True Potential of Web Race Conditions" (Black Hat USA 2023, https://portswigger.net/research/smashing-the-state-machine) is not strictly HRS, but it uses the HTTP/2 framing primitives that the HRS toolchain already ships, and it lives in the same `Turbo Intruder` workflow.
 
-The single-packet attack uses HTTP/2 to pack N requests into a single TCP packet, defeating server-side rate limits and race-condition defenses that rely on serial request arrival. The mechanism: open an HTTP/2 connection; warm the connection up with a harmless first request so TLS handshake and TCP slow-start are amortized; then send N HEADERS frames simultaneously, all flushed as a single TCP segment. The server sees all N requests within microseconds of each other, defeating the "request 2 must observe request 1's side effects" assumption that powers most race-condition defenses.
+The single-packet attack uses HTTP/2 to pack N requests into a single TCP packet, defeating server-side rate limits and race-condition defenses that rely on serial request arrival. The mechanism: open an HTTP/2 connection; send each of the N requests with its final frame withheld (headers without END_STREAM, or the body minus its last byte); then release all the withheld final frames together in a single TCP packet, with Nagle's algorithm batching them. The server sees all N requests within microseconds of each other, defeating the "request 2 must observe request 1's side effects" assumption that powers most race-condition defenses.
 
-Connection warmup is the load-bearing detail. Without warmup, TCP slow-start staggers the requests across multiple segments and the attack degrades to N-1 race conditions. With warmup, the requests arrive synchronized at L7.
+Connection warming is a supporting detail: a ping sent before the final frames keeps the first final frame from landing in a separate packet, and a few inconsequential requests sent first can smooth timing through front-ends that route per connection.
 
 The defense pattern is the same as for filesystem TOCTOU: per-request idempotency tokens, server-side request-level locks, optimistic concurrency control at the application layer. Cross-link `[[reference-race-conditions-concurrency]]` for the broader race-condition taxonomy; HRS and single-packet are siblings in that doc.
 
@@ -196,8 +192,8 @@ Kettle's "Browser Powered Desync Attacks: A New Frontier in HTTP Request Smuggli
 The mechanism in outline:
 
 1. Victim visits attacker-controlled page `evil.example`.
-2. The page issues a `fetch()` to `victim.example` with a body crafted to trigger CL.0 or H2.CL on victim.example's stack.
-3. The victim's browser establishes a connection to victim.example, sends the request, and pools the connection per HTTP/2 connection-reuse rules.
+2. The page issues a `fetch()` to `victim.example` with a body crafted to trigger a CL.0-style desync on victim.example's stack.
+3. The victim's browser establishes a connection to victim.example, sends the request, and pools the connection per HTTP/1.1 connection-reuse rules.
 4. The victim's browser then issues normal requests to victim.example (perhaps the user clicks a link). Those requests are smuggled-into by the leftover bytes from step 2.
 
 The attacker doesn't need network position. The attacker needs to convince the victim to load attacker JS, which is the precondition for half of all web attacks anyway. HRS is now an XSS-precursor class: client-side prompt-inject the browser into pool-poisoning, then ride the pollution for whatever the front-end's auth boundary protects.
@@ -212,19 +208,19 @@ Practical reference. Treat any row marked `[unverified specific advisory]` as "t
 
 | Front-end | Back-end | Known shape(s) | Observed CVE / disclosure | Mitigation status |
 |---|---|---|---|---|
-| Cloudflare | Any-origin | H2.CL, H2.TE pre-2021 | Kettle BHUSA 2019 demos against Cloudflare-fronted properties; Cloudflare blog acknowledges hardening | Cloudflare strips ambiguous CL+TE since 2019; H2 downgrade hardened progressively 2020-2024 |
-| AWS ALB | Any-origin | CL.TE, H2.CL pre-2021 | Multiple HackerOne disclosures against AWS-ALB-fronted properties; specific CVE attribution `[unverified specific advisory]` | ALB rejects ambiguous CL+TE since ~2020; HTTP/2-to-HTTP/1.1 hardening per AWS HTTP/2 announcements |
-| AWS CloudFront | Any-origin | CL.TE, H2.CL | `[unverified specific advisory]` | CloudFront rejects ambiguous CL+TE per AWS docs |
-| Azure Front Door | Any-origin | H2.CL, H2.TE | `[unverified specific advisory]` | Azure published HTTP/2 desync mitigations 2022 |
-| Google Cloud Load Balancer | Any-origin | CL.TE, H2.CL | `[unverified specific advisory]` | GCLB rejects ambiguous CL+TE per Google docs |
-| nginx (1.x) | Apache | CL.TE | Documented in Watchfire 2005 paper for the era's versions | Modern nginx (1.18+) and Apache 2.4 reject ambiguous CL+TE |
+| Cloudflare | Any-origin | `[unverified specific advisory]` | Kettle BHUSA 2019 reports Cloudflare normalizes ambiguous requests | Check Cloudflare security advisories |
+| AWS ALB | Any-origin | CL.TE, H2.CL pre-2021 | Multiple HackerOne disclosures against AWS-ALB-fronted properties; specific CVE attribution `[unverified specific advisory]` | ALB desync mitigation mode classifies CL+TE requests as Ambiguous: default defensive mode routes them but closes client and target connections; strictest mode blocks them |
+| AWS CloudFront | Any-origin | CL.TE, H2.CL | `[unverified specific advisory]` | Check AWS CloudFront documentation |
+| Azure Front Door | Any-origin | H2.CL, H2.TE | `[unverified specific advisory]` | Check Azure security advisories |
+| Google Cloud Load Balancer | Any-origin | CL.TE, H2.CL | `[unverified specific advisory]` | Check Google Cloud load balancing documentation |
+| nginx (1.x) | Apache | CL.TE | `[unverified specific advisory]` | nginx 1.21.1+ always rejects requests with both Content-Length and Transfer-Encoding; check Apache version |
 | nginx | uWSGI | CL.TE, CL.0 | Various GitHub issues against specific uWSGI versions; specific CVE `[unverified specific advisory]` | uWSGI versions post-2.0.20 reject ambiguous CL+TE; check version |
 | HAProxy | Backend | TE.CL, integer-overflow CL parsing | CVE-2021-40346 (HTX header parser integer overflow → HRS, fixed in 2.0.25 / 2.2.17 / 2.3.14 / 2.4.4) | Patched in stated versions; older HAProxy 2.0-2.3 vulnerable |
-| Akamai | Any-origin | Various; Kettle 2019/2021 demos | Kettle BHUSA 2019 against Akamai-fronted properties; specific public CVE attribution `[unverified specific advisory]` | Akamai published HRS hardening per their security advisories feed |
+| Akamai | Any-origin | Various; Kettle 2019 demos | Kettle BHUSA 2019 against Akamai-fronted properties; specific public CVE attribution `[unverified specific advisory]` | Akamai deployed a fix about 48 hours after Kettle's 2019 publication |
 | Fastly | Any-origin | CL.TE, H2.CL pre-2021 | `[unverified specific advisory]` | Fastly hardened progressively 2019-2022 per their security blog |
 | Imperva | Any | TE.TE obfuscation bypass class | `[unverified specific advisory]` | WAF parser-differential risk; treat WAF as compensating control |
 | F5 BIG-IP | Any | CL.TE, TE.TE | F5 K-series advisories; specific CVE attribution `[unverified specific advisory]` | Check F5 security advisories feed for current version's status |
-| Varnish | Any | CL.TE, TE.TE | Varnish GitHub issues for specific releases | Patched in modern Varnish 6.x+ versions |
+| Varnish | Any | CL.TE, TE.TE | VSV00007 / CVE-2021-36740 (HTTP/2, fixed 6.0.8 / 6.5.2 / 6.6.1); VSV00008 / CVE-2022-23959 (HTTP/1, fixed 6.0.10 / 7.0.2) | Later smuggling advisories also affect 6.x and 7.x; check Varnish security advisories for current version |
 | Envoy | Backend | H2.CL, H2.TE | CVE-2019-9512 (HTTP/2 Ping Flood) and related H2-framing CVEs; specific HRS CVE attribution `[unverified specific advisory]` | Envoy hardens H2 frame parsing per CVE feed; check version |
 | Istio sidecar | Backend | Inherits Envoy | See Envoy | See Envoy |
 | Kong | Backend | CL.TE | `[unverified specific advisory]` | Check Kong security advisories per release |
@@ -235,8 +231,6 @@ Two operational rules from the table:
 
 1. **The "ambiguous CL+TE rejection" defense is widely deployed at the CDN tier but still incomplete at long-tail origin stacks.** Treat the CDN's hardening as a *first* line, not the only line.
 2. **Every HTTP/2-to-HTTP/1.1 downgrade is a candidate.** If a row in the table has a CDN doing H2 termination and an origin speaking H1, that pairing is a candidate H2.CL / H2.TE target regardless of what the CDN's published hardening claims.
-
-PortSwigger's Web Security Academy maintains a more current and lab-verified version of this kind of table at `https://portswigger.net/web-security/request-smuggling` — defer to it over this one when current accuracy matters.
 
 ---
 
@@ -250,7 +244,7 @@ The smuggled request lands at the head of some other user's pooled connection. T
 
 Concretely: smuggle a `GET /admin HTTP/1.1\r\nX:` prefix; the back-end consumes the victim's next request as the continuation of the X header, finds the victim's `Cookie:` line, treats the cookie as authentication for `/admin`. The privileged-user-as-victim case is the one that pays out — admin users have privileged cookies, and the attacker only needs one of them to land on the pooled connection.
 
-This is the textbook HRS-to-admin pattern. Kettle's BHUSA 2019 demos against PayPal, Slack, and the Red Hat customer portal were variants of this primitive.
+This is the textbook HRS-to-admin pattern.
 
 ### 8.2. Cache poisoning
 
@@ -315,7 +309,7 @@ HTTP/1.1 header names are case-insensitive per RFC 7230 §3.2 ("Each header fiel
 
 ### 9.3. Continuation lines (obsolete folding)
 
-RFC 7230 §3.2.4 deprecates header continuation: "A server that receives an obs-fold in a request message that is not within a message/http container MUST… reply with a 400 (Bad Request)." Some parsers still accept it:
+RFC 7230 §3.2.4 deprecates header continuation: "A server that receives an obs-fold in a request message that is not within a message/http container MUST either reject the message by sending a 400 (Bad Request)… or replace each received obs-fold with one or more SP octets prior to interpreting the field value." Some parsers still accept it:
 
 ```
 Transfer-Encoding:
@@ -428,11 +422,11 @@ These rules catch only the obvious config-level cases. Most HRS lives below the 
 
 The practical detection path. Tools:
 
-- **HTTP Request Smuggler** (Burp extension, https://portswigger.net/bappstore/aaaa60ef945341e8a450217a54a11646) — PortSwigger's official tool; runs the full TE.TE / CL.TE / TE.CL / CL.CL probe set plus H2.CL / H2.TE / CL.0. Includes Kettle's `smuggle-probe` and `smuggle-attack` workflows.
-- **smuggler** (defparam, https://github.com/defparam/smuggler) — Python CLI tool with a YAML mutation grammar for header obfuscations. Faster than the Burp extension for at-scale corpus testing.
+- **HTTP Request Smuggler** (Burp extension, https://portswigger.net/bappstore/aaaa60ef945341e8a450217a54a11646) — PortSwigger's official tool; runs the full TE.TE / CL.TE / TE.CL / CL.CL probe set plus H2.CL / H2.TE / CL.0. Includes the "Launch Smuggle probe" right-click workflow.
+- **smuggler** (defparam, https://github.com/defparam/smuggler) — Python CLI tool with Python mutation config files for header obfuscations. Faster than the Burp extension for at-scale corpus testing.
 - **h2cSmuggler** (Bishop Fox, https://github.com/BishopFox/h2csmuggler) — Specifically for the h2c-upgrade variant.
 - **Turbo Intruder** (PortSwigger, https://github.com/PortSwigger/turbo-intruder) — Kettle's high-rate HTTP fuzzer; the single-packet-attack workflow lives here. Not strictly HRS, but the same primitives.
-- **`http-request-smuggling-cracker`** and similar second-tier tools — `[unverified specific advisory]` on quality; defer to PortSwigger / Bishop Fox tooling for production audits.
+- Other second-tier tools — `[unverified specific advisory]` on quality; defer to PortSwigger / Bishop Fox tooling for production audits.
 
 Typical detection workflow on a new target:
 
@@ -485,11 +479,11 @@ Practical: even where end-to-end H2 is feasible, audit the transition carefully.
 
 ### 11.2. Reject ambiguous CL+TE
 
-Front-end rejects with HTTP 400 any request that contains both `Content-Length` and `Transfer-Encoding`. RFC 9112 §6.1 codifies this as the recommended behavior for security-conscious deployments. Cloudflare, AWS ALB, AWS CloudFront, GCLB, Azure Front Door all do this by 2024 for canonical obfuscations.
+Front-end rejects with HTTP 400 any request that contains both `Content-Length` and `Transfer-Encoding`. RFC 9112 §6.1 permits this: a server MAY reject such a request, and MUST close the connection after responding to it.
 
 The gap is the long tail of obfuscation grammar (§9). Every obfuscation variant a server doesn't recognize as TE is an opening for "the obfuscated TE is silently dropped; the CL is honored; the back-end honors the same obfuscation as TE; CL.TE desync." Hardening means recognizing all obfuscations, not just the canonical form.
 
-Concrete: nginx 1.18+ rejects whitespace-before-colon per RFC 9112 by default. Apache 2.4 has `HttpProtocolOptions Strict` (default since 2.4.55). HAProxy has `option http-buffer-request` and `option httplog`. Verify each by version.
+Concrete: nginx 1.21.1+ rejects whitespace-before-colon per RFC 9112 by default. Apache 2.4 has `HttpProtocolOptions Strict` (default since 2.4.24). HAProxy has `option http-buffer-request` and `option httplog`. Verify each by version.
 
 ### 11.3. Per-connection request limit + force-close on parse anomaly
 
@@ -527,21 +521,21 @@ Real-world exploitations, chronological where dates are public. Each entry cites
 
 ### 12.1. Watchfire 2005 demo set
 
-Linhart, Klein, Heyes, Orrin's June 2005 paper cataloged working HRS against Apache, IIS, SunONE, WebLogic, Squid, and Tinyproxy of the era. The paper demonstrated cache poisoning of a Squid proxy, credential disclosure via response splitting, and authentication bypass via CL.CL on a SunONE / Apache pair. This is the canonical first systematic disclosure; the techniques have aged but the framing is unchanged. Source: https://www.cgisecurity.com/lib/HTTP-Request-Smuggling.pdf.
+Linhart, Klein, Heled, Orrin's June 2005 paper cataloged working HRS against Apache, IIS, SunONE, WebLogic, Squid, and DeleGate of the era. The paper demonstrated cache poisoning of a Squid proxy, request credential hijacking, and web cache poisoning via CL.CL on a SunONE proxy / SunONE web server pair. This is the canonical first systematic disclosure; the techniques have aged but the framing is unchanged. Source: https://www.cgisecurity.com/lib/HTTP-Request-Smuggling.pdf.
 
-### 12.2. PortSwigger BHUSA 2019 demo: PayPal, Slack, Red Hat
+### 12.2. PortSwigger BHUSA 2019 demo: PayPal, New Relic, Red Hat
 
-James Kettle's "HTTP Desync Attacks: Request Smuggling, Reborn" (https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn) demonstrated working HRS against PayPal, Slack, and the Red Hat customer portal during the conference talk. The PayPal exploit reached login pages of other users; the Slack exploit reached privileged channels; the Red Hat exploit reached internal endpoints. All were CL.TE or TE.CL against AWS-fronted infrastructure of the era. Bug bounty payouts were significant per HackerOne's published disclosures.
+James Kettle's "HTTP Desync Attacks: Request Smuggling, Reborn" (https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn) demonstrated working HRS against PayPal, New Relic, and Red Hat. The PayPal exploit poisoned a JavaScript file used on PayPal's login page; the New Relic exploit reached an internal admin API; the Red Hat exploit redirected victims to an external domain. Bug bounty payouts totaled over $70k per the paper.
 
 Specific CVE attribution for these disclosures: `[unverified specific advisory]`. Treat the Kettle talk + the HackerOne reports as the primary source.
 
 ### 12.3. HAProxy CVE-2021-40346
 
-Integer overflow in HAProxy's HTX header parser leading to HRS via crafted header lengths. Disclosed by JFrog Security Research in August 2021 (https://jfrog.com/blog/critical-vulnerability-in-haproxy-cve-2021-40346-integer-overflow-enables-http-smuggling/). Affected HAProxy 2.0 through 2.4 series; fixed in 2.0.25 / 2.2.17 / 2.3.14 / 2.4.4. The HTX bug is a textbook example of integer-overflow-as-parser-corruption: the header parser's length tracking wraps, and the wrapped value lets the attacker land a smuggled prefix where a longer header should have been. CVSS 8.6 (CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:N) per NVD.
+Integer overflow in HAProxy's HTX header parser leading to HRS via crafted header lengths. Disclosed by JFrog Security Research in September 2021 (https://jfrog.com/blog/critical-vulnerability-in-haproxy-cve-2021-40346-integer-overflow-enables-http-smuggling/). Affected HAProxy 2.0 through 2.5 series; fixed in 2.0.25 / 2.2.17 / 2.3.14 / 2.4.4. The HTX bug is a textbook example of integer-overflow-as-parser-corruption: the header parser's length tracking wraps, and the wrapped value lets the attacker land a smuggled prefix where a longer header should have been. CVSS 7.5 (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N) per NVD.
 
 ### 12.4. Apache mod_proxy CVE-2021-33193, CVE-2021-40438
 
-CVE-2021-33193 — Apache HTTP Server 2.4.x request splitting via crafted Transfer-Encoding header that the mod_proxy module forwarded literally to back-ends. Fixed in 2.4.49. Apache advisory at https://httpd.apache.org/security/vulnerabilities_24.html.
+CVE-2021-33193 — Apache HTTP Server 2.4.x request splitting via a crafted method sent through HTTP/2 that bypasses validation and is forwarded by mod_proxy. Fixed in 2.4.49. Apache advisory at https://httpd.apache.org/security/vulnerabilities_24.html.
 
 CVE-2021-40438 — mod_proxy SSRF reachable via crafted `uri-path` argument. Not strictly HRS but in the same advisory cluster and demonstrative of how mod_proxy's parsing surface accumulated bugs in that release cycle. Fixed in 2.4.49.
 
@@ -553,11 +547,11 @@ Kettle's "HTTP/2: The Sequel is Always Worse" (https://portswigger.net/research/
 
 ### 12.6. Bishop Fox h2cSmuggler disclosures (2020)
 
-Jake Miller's August 2020 h2cSmuggler blog post and tool release (https://bishopfox.com/blog/h2c-smuggling-request) included a tested-target list with reproducer commands. The reproducers ran against multiple production targets at the time of release; specific vendor advisory attributions are in the blog post's referenced disclosures.
+Source: Jake Miller's September 2020 h2cSmuggler blog post and tool release (https://bishopfox.com/blog/h2c-smuggling-request).
 
 ### 12.7. PortSwigger BHUSA 2022 demo: browser-powered desync
 
-Kettle's "Browser Powered Desync Attacks: A New Frontier in HTTP Request Smuggling" (https://portswigger.net/research/browser-powered-desync-attacks) demonstrated CL.0 against Amazon AWS console (the demo specifically named in the talk) plus several other targets. The class change here is structural: HRS no longer requires attacker control of a TLS-terminating proxy; the attacker's website is sufficient. Specific bounty attributions for the demonstrated targets are in the PortSwigger disclosure-acknowledgment archive.
+Kettle's "Browser Powered Desync Attacks: A New Frontier in HTTP Request Smuggling" (https://portswigger.net/research/browser-powered-desync-attacks) demonstrated CL.0 against amazon.com plus several other targets. The class change here is structural: HRS no longer requires attacker control of a TLS-terminating proxy; the attacker's website is sufficient. Specific bounty attributions for the demonstrated targets are in the PortSwigger disclosure-acknowledgment archive.
 
 ### 12.8. GitLab HRS series 2020-2022
 
@@ -569,7 +563,7 @@ There are multiple 2024 CDN-side HRS-related advisories and security blog posts 
 
 ### 12.10. PortSwigger BHUSA 2023: single-packet attack
 
-Kettle's "Smashing the State Machine: The True Potential of Web Race Conditions" demonstrated single-packet race conditions against several major targets, including a $7,000 payout from a target the talk references. The headline structural claim: HTTP/2 framing makes server-side rate-limit and idempotency defenses against race conditions structurally weaker than they look at HTTP/1.1.
+Kettle's "Smashing the State Machine: The True Potential of Web Race Conditions" demonstrated single-packet race conditions against several major targets. The headline structural claim: HTTP/2 framing makes server-side rate-limit and idempotency defenses against race conditions structurally weaker than they look at HTTP/1.1.
 
 ---
 

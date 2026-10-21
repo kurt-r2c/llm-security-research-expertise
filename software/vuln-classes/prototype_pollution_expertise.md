@@ -1,17 +1,17 @@
 # Prototype Pollution — Primitives, Gadgets, and Defenses
-## Synthesized from Olivier Arteau, Mikhail Shcherbakov, Sebastian Lekies, Michał Bentkowski, BlackFan (Stanislav Vinokurov), Posix, s1r1us, Gareth Heyes, the Snyk research team, and Kurt Boberg
+## Synthesized from Olivier Arteau, Mikhail Shcherbakov, Sebastian Lekies, Michał Bentkowski, BlackFan (Sergey Bobrov), Posix, s1r1us, Gareth Heyes, the Snyk research team, and Kurt Boberg
 
 > **Researchers:**
-> - **Olivier Arteau** — Formalized the class in 2018. NorthSec 2018 talk "Prototype pollution attacks in NodeJS applications" is the canonical reference; its "vulnerable patterns" enumeration (recursive merge, deep clone with key recursion, object-path setters) is still the working taxonomy. Reported CVE-2018-3721 and CVE-2018-16487 in lodash — the disclosures that catalyzed an ecosystem-wide audit.
-> - **Mikhail Shcherbakov** — KTH Royal Institute of Technology (with Musard Balliu and Cristian-Alexandru Staicu). First author of "Silent Spring: Prototype Pollution Leads to Remote Code Execution in Node.js" (USENIX Security 2023) and "GHunter: Universal Prototype Pollution Gadgets in JavaScript Runtimes" (USENIX Security 2024). The work that moved server-side pollution from "DoS curiosity" to "RCE-grade vulnerability class": 11 universal gadgets in core Node.js APIs and 56 more via V8-instrumented dynamic taint analysis. Maintains KTH-LangSec/server-side-prototype-pollution and KTH-LangSec/silent-spring.
+> - **Olivier Arteau** — Formalized the class in 2018. NorthSec 2018 talk "Prototype pollution attacks in NodeJS applications" is the canonical reference; its "vulnerable patterns" enumeration (recursive merge, deep clone with key recursion, object-path setters) is still the working taxonomy. Reported CVE-2018-3721 in lodash — the disclosure that catalyzed an ecosystem-wide audit.
+> - **Mikhail Shcherbakov** — KTH Royal Institute of Technology (with Musard Balliu and Cristian-Alexandru Staicu). First author of "Silent Spring: Prototype Pollution Leads to Remote Code Execution in Node.js" (USENIX Security 2023) and co-author of "GHunter: Universal Prototype Pollution Gadgets in JavaScript Runtimes" (USENIX Security 2024). The work that moved server-side pollution from "DoS curiosity" to "RCE-grade vulnerability class": 11 universal gadgets in core Node.js APIs and 56 more via V8-instrumented dynamic taint analysis. Maintains KTH-LangSec/server-side-prototype-pollution and KTH-LangSec/silent-spring.
 > - **Sebastian Lekies** — Google researcher; co-author of "Code-Reuse Attacks for the Web: Breaking Cross-Site Scripting Mitigations via Script Gadgets" (CCS 2017, with Kotowicz, Groß, Vela Nava, Johns). Script-gadget research is the structural foundation for client-side pollution-to-XSS chains: even when raw script injection is blocked by CSP, a polluted property can reach a code-eval primitive in legitimate library code.
 > - **Michał Bentkowski (@SecurityMB), Securitum** — Author of "Exploiting prototype pollution – RCE in Kibana (CVE-2019-7609)," demonstrating that a single Timelion pollution combined with a NODE_OPTIONS / child_process gadget yielded full RCE against Elastic's dashboard. Also "Prototype pollution – and bypassing client-side HTML sanitizers" — the canonical reference for using `__proto__` mutations to defeat DOMPurify-class allowlists.
-> - **BlackFan (Stanislav Vinokurov)** — Maintains github.com/BlackFan/client-side-prototype-pollution, the largest curated corpus of client-side gadgets: per-library writeups for jQuery, Google Closure, js-xss, Embedly, Popper.js, Twitter UWT, purl, Adobe Analytics, and ~30 others. Also BlackFan/cspp-tools, a V8-instrumented prototype_checker.
-> - **Posix** — Pseudonymous researcher responsible for the canonical universal-Jira gadget (`__proto__.isFresh` + `__proto__.onmousemove`), RCE-via-template-engine gadgets in EJS/Pug variants, and DOMPurify tampering primitives.
-> - **s1r1us (Sai Krishna Kothapalli, @msrkp)** — Bug-bounty researcher; "Prototype Pollution in Electron Apps" (DEF CON / Black Hat USA 2022); 4th place PortSwigger Top 10 Web Hacking Techniques 2021 for systematic document.location-source scanning. HackerOne writeups (Elastic #998398; Node.js #1431042; ~40 others) are the working catalogue of how the bug class manifests in production bounty programs.
-> - **Gareth Heyes (@garethheyes), PortSwigger Research** — "Server-side prototype pollution: Black-box detection without the DoS" (NullCon Berlin / OWASP Global AppSec Dublin 2023). Solved black-box detection: prior techniques required pollution that caused server crashes; Heyes' uses harmless type-confusion properties (`__proto__[status]=999`) yielding observable, non-destructive response deltas. Implemented as open-source Burp BCheck.
-> - **Snyk research team** — Liran Tal, Asaf Hecht, and the broader Snyk research practice; ecosystem-wide disclosures of CVE-2018-3721 / CVE-2018-16487 / CVE-2019-10744 (lodash), CVE-2020-7598 (minimist), and dozens of follow-ons. security.snyk.io is the de-facto canonical CWE-1321 catalogue.
-> - **Kurt Boberg (@lapt0r / GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Three publicly-credited prototype pollution CVEs: **CVE-2021-3805** (object-path `del()` pollution; GHSA-8v63-cqqc-6r2c); **CVE-2020-28472** (`@aws-sdk/shared-ini-file-loader` pollution via crafted INI; GHSA-rrc9-gqf8-8rwg); **CVE-2019-5428** (jQuery `$.extend(true, ...)` pollution in jquery-rails RubyGems distribution — cross-ecosystem fanout of the npm-side CVE-2019-11358; GHSA-wv67-q8rr-grjp).
+> - **BlackFan (Sergey Bobrov)** — Maintains github.com/BlackFan/client-side-prototype-pollution, the largest curated corpus of client-side gadgets: per-library writeups for jQuery, Google Closure, js-xss, Embedly, Popper.js, Twitter UWT, Adobe Dynamic Tag Management, and others (29 libraries in all). Also BlackFan/cspp-tools, which includes a prototype_checker script.
+> - **Posix** — Pseudonymous researcher responsible for RCE-via-template-engine gadgets in Handlebars and Pug ("AST Injection").
+> - **s1r1us (@S1r1u5_)** — Bug-bounty researcher; co-presented "ElectroVolt: Pwning Popular Desktop apps while uncovering new attack surface on Electron" (Black Hat USA 2022); 4th place PortSwigger Top 10 Web Hacking Techniques 2021 for "Exploiting Client-Side Prototype Pollution in the wild". HackerOne writeups (Elastic #998398; Node.js #1431042; ~40 others) are the working catalogue of how the bug class manifests in production bounty programs.
+> - **Gareth Heyes (@garethheyes), PortSwigger Research** — "Server-side prototype pollution: Black-box detection without the DoS" (NullCon Berlin / OWASP Global AppSec Dublin 2023). Solved black-box detection: prior techniques required pollution that caused server crashes; Heyes' uses harmless type-confusion properties (`__proto__[status]=510`) yielding observable, non-destructive response deltas. Implemented as an open-source Burp Suite extension.
+> - **Snyk research team** — Ecosystem-wide disclosures including CVE-2019-10744 (lodash). security.snyk.io is the de-facto canonical CWE-1321 catalogue.
+> - **Kurt Boberg (@lapt0r / GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Three publicly-credited prototype pollution CVEs: **CVE-2021-3805** (object-path `del()` pollution; GHSA-8v63-cqqc-6r2c); **CVE-2020-28472** (`@aws-sdk/shared-ini-file-loader` pollution via crafted INI; GHSA-rrc9-gqf8-8rwg); **CVE-2019-5428** (jQuery `$.extend(true, ...)` pollution across npm, NuGet, RubyGems `jquery-rails` and Maven packages; advisory withdrawn as a duplicate of CVE-2019-11358; GHSA-wv67-q8rr-grjp).
 >
 > Sources: NorthSec 2018 video; USENIX Security 2023/2024 papers; arXiv 2207.11171, 2407.10812; research.securitum.com; portswigger.net/research; github.com/BlackFan; github.com/KTH-LangSec; snyk.io/blog; security.snyk.io; nvd.nist.gov; github.com/advisories; blog.s1r1us.ninja; cheatsheetseries.owasp.org; MITRE CWE-1321.
 
@@ -29,11 +29,11 @@ This is the structural fact that makes prototype pollution a vulnerability *clas
 
 A user-controlled string can reach `Object.prototype` through three distinct property names:
 
-1. **`__proto__`** — A getter/setter pair defined on `Object.prototype` itself that, when accessed on an instance, reads or writes the instance's internal `[[Prototype]]` slot. Assignment to `obj.__proto__.x = 1` walks up to `Object.prototype` and assigns `x` there. Disabled by Node.js's `--disable-proto=delete` or `--disable-proto=throw` flag (Node 11+).
+1. **`__proto__`** — A getter/setter pair defined on `Object.prototype` itself that, when accessed on an instance, reads or writes the instance's internal `[[Prototype]]` slot. Assignment to `obj.__proto__.x = 1` walks up to `Object.prototype` and assigns `x` there. Disabled by Node.js's `--disable-proto=delete` or `--disable-proto=throw` flag (Node 12.17.0 / 13.12.0+).
 2. **`constructor.prototype`** — Every plain object inherits `constructor` from `Object.prototype`, pointing at the `Object` function. `Object.prototype` is reachable as `obj.constructor.prototype`. NOT disabled by `--disable-proto`. This is the residual attack surface even on hardened Node deployments.
 3. **`prototype.prototype`** — For objects that *do* have a `prototype` field (functions, class instances), the chain extends further. Less common in practice but appears in some merge-into-class patterns and is the entry point Shcherbakov's "Silent Spring" paper uses for several Node.js core-API gadgets.
 
-A recursive-merge primitive that walks user input and assigns properties without checking the destination key is exploitable through any of these three. **Filtering only `__proto__` is incomplete.** The minimal correct allowlist is: `__proto__`, `constructor`, `prototype`. Several library fixes (lodash 4.17.5, jQuery 3.4.0) include precisely this three-key denylist as the inline guard.
+A recursive-merge primitive that walks user input and assigns properties without checking the destination key is exploitable through any of these three. **Filtering only `__proto__` is incomplete.** The minimal correct allowlist is: `__proto__`, `constructor`, `prototype`.
 
 ### Why Map and Set are immune
 
@@ -63,7 +63,7 @@ function merge(target, source) {
 
 Pass `source = JSON.parse('{"__proto__": {"polluted": "yes"}}')`. The loop enters `source.__proto__`, sees it is an object, recurses into `target["__proto__"]` (which resolves to `Object.prototype` via the getter), and assigns `polluted: "yes"` onto the global. Every subsequent `{}` in the process has `polluted === "yes"` until exit.
 
-This is what `jQuery.extend(true, ...)` did before 3.4.0 (CVE-2019-11358 / CVE-2019-5428), what `lodash.merge` / `defaultsDeep` / `set` / `setWith` did before their respective fixes, what `minimist` did before 1.2.2 (CVE-2020-7598), what `Hoek.merge`, `dot-prop`, `set-value`, `deep-extend`, `nested-object-assign`, `merge-deep`, `mixin-deep`, and dozens of others did. Shape is identical; the difference between vulnerable and patched is three lines guarding the destination key.
+This is what `jQuery.extend(true, ...)` did before 3.4.0 (CVE-2019-11358 / CVE-2019-5428), what `lodash.merge` / `defaultsDeep` / `set` / `setWith` did before their respective fixes, what `minimist` did before 1.2.3 (CVE-2020-7598), what `Hoek.merge`, `dot-prop`, `set-value`, `deep-extend`, `nested-object-assign`, `merge-deep`, `mixin-deep`, and dozens of others did. Shape is identical; the difference between vulnerable and patched is three lines guarding the destination key.
 
 ### Object.assign and the shallow vs deep distinction
 
@@ -127,11 +127,11 @@ The parser produced an object whose `__proto__` key was set as an own property, 
 
 ### 2.10 CLI argument parsers — minimist (CVE-2020-7598)
 
-`minimist` is one of the most-downloaded npm packages; it parses argv into a config object. Versions pre-1.2.2 supported `--__proto__.polluted=yes` argv and propagated the assignment. Anyone consuming `minimist` to parse arguments from an untrusted source — environment variables that derive from HTTP headers, supervisor-passed argv lists in container orchestrators, JSON-RPC-to-CLI bridges — was exposed. Patched advisory: [GHSA-vh95-rmgr-6w4m](https://github.com/advisories/GHSA-vh95-rmgr-6w4m). `yargs-parser` had the parallel issue (CVE-2020-7608).
+`minimist` is one of the most-downloaded npm packages; it parses argv into a config object. Versions pre-1.2.3 supported `--__proto__.polluted=yes` argv and propagated the assignment. Anyone consuming `minimist` to parse arguments from an untrusted source — environment variables that derive from HTTP headers, supervisor-passed argv lists in container orchestrators, JSON-RPC-to-CLI bridges — was exposed. Patched advisory: [GHSA-vh95-rmgr-6w4m](https://github.com/advisories/GHSA-vh95-rmgr-6w4m). `yargs-parser` had the parallel issue (CVE-2020-7608).
 
 ### 2.11 ORM / database hydration
 
-Mongoose, Sequelize, and similar ORMs construct model instances from query results by assigning database-returned columns onto an object. If the schema allows arbitrary keys and a row contains a key named `__proto__`, hydration is a source. This is the path exploited by some MongoDB injection chains (e.g. `mongo-express` CVE-2019-10758) where the attacker can control row contents.
+Mongoose, Sequelize, and similar ORMs construct model instances from query results by assigning database-returned columns onto an object. If the schema allows arbitrary keys and a row contains a key named `__proto__`, hydration is a source.
 
 ### 2.12 Specific package-level sources to remember
 
@@ -188,10 +188,6 @@ A pattern that recurs across Shcherbakov's catalogue: APIs taking options object
 
 EJS reads `options.outputFunctionName` for the generated render function. Polluting it to malicious JavaScript yields RCE on the next render. EJS, Pug, Handlebars, and Underscore templates have variants of this gadget. Payload + a single render call anywhere = code execution.
 
-### 3.9 JWT library gadgets
-
-`jsonwebtoken` reads `algorithms` from options. Polluting `Object.prototype.algorithms = ['none']` makes every JWT verification accept unsigned tokens. Defense: explicit `algorithms: ['HS256']` at every verify site, which most code does NOT do consistently.
-
 ---
 
 ## 4. Sink / Gadget Catalog (Client-Side)
@@ -218,13 +214,9 @@ DOMPurify is the most-deployed client-side HTML sanitizer. Bentkowski's research
 
 CSP `nonce-...` and `integrity-...` are per-request server-issued values. Some SPA frameworks read them from configuration objects; polluting those reads substitutes attacker-controlled values. Polluted `Object.prototype.nonce = "<attacker-known>"` + an injected script tag with the same nonce bypasses CSP.
 
-### 4.6 Universal Jira gadget (Posix)
-
-Posix's `__proto__[isFresh]=1&__proto__[onmousemove]=alert(1)//` worked against every Jira instance: `isFresh` controlled a code path that called a function whose name came from `onmousemove`, yielding JS execution on hover.
-
 ### 4.7 PortSwigger Research catalogue
 
-Gareth Heyes maintains a running catalogue at [portswigger.net/research](https://portswigger.net/research). The "Widespread prototype pollution gadgets" article (June 2022) enumerates gadgets in Google Tag Manager, Akamai Boomerang, Adobe DTM, Google Analytics, and others — each loaded on millions of pages, each with a responsibly-disclosed pollution-to-XSS chain.
+Gareth Heyes maintains a running catalogue at [portswigger.net/research](https://portswigger.net/research). The "Widespread prototype pollution gadgets" article (June 2022) enumerates gadgets in Google Tag Manager, Adobe DTM, Google Analytics, and others.
 
 ---
 
@@ -421,7 +413,7 @@ The strongest "shut the bug class down" defense in the JavaScript portion of the
 
 Recommend with caveat: try it in a dev branch, run the full test suite, see what breaks, fix or document each break.
 
-### 7.5 Node.js --disable-proto flag (Node 11+)
+### 7.5 Node.js --disable-proto flag (Node 12.17+ / 13.12+)
 
 `node --disable-proto=delete app.js` removes `__proto__` from `Object.prototype` entirely. `--disable-proto=throw` makes access to it throw `ERR_PROTO_ACCESS`. Either flag closes the `__proto__` path; the `constructor.prototype` path remains reachable.
 
@@ -429,7 +421,7 @@ Recommended as defense-in-depth: enable it in production. Combined with Object.f
 
 ### 7.6 Audit-and-block known-vulnerable versions
 
-Maintain a lockfile-level deny list against the canonical vulnerable versions: `lodash` < 4.17.21, `jquery` < 3.5.0 (3.4.0 had a regression; 3.5.0 is the safe baseline), `minimist` < 1.2.6, `qs` < 6.7.3, `yargs-parser` < 18.1.2, `set-value` < 4.0.1, `mixin-deep` < 1.3.2, `deep-extend` < 0.5.1, `hoek` < 5.0.3, `object-path` < 0.11.8 (Kurt's CVE-2021-3805), `@aws-sdk/shared-ini-file-loader` < 1.0.0-rc.9 (Kurt's CVE-2020-28472), `dot-prop` < 5.1.1, `immer` < 9.0.6, `static-eval` < 2.0.5, `xml2js` < 0.5.0, `csv-parse` < 4.16.2.
+Maintain a lockfile-level deny list against the canonical vulnerable versions: `lodash` < 4.17.21, `jquery` < 3.5.0, `minimist` < 1.2.6, `qs` < 6.10.3 (or the per-line backports such as 6.9.7 / 6.8.3 / 6.7.3), `yargs-parser` < 18.1.2, `set-value` < 4.0.1, `mixin-deep` < 1.3.2 (and 2.0.0), `deep-extend` < 0.5.1, `hoek` < 5.0.3, `object-path` < 0.11.8 (CVE-2021-3805), `@aws-sdk/shared-ini-file-loader` < 1.0.0-rc.9 (CVE-2020-28472), `dot-prop` < 5.1.1, `immer` < 9.0.6, `xml2js` < 0.5.0, `csv-parse` < 7.0.2.
 
 Snyk's advisory database and `npm audit` cover this set automatically. Treat any `npm audit` finding of a CWE-1321 advisory as P1 unless reachability has been ruled out.
 
@@ -458,25 +450,25 @@ Migration cost is real: `obj[k]` becomes `m.get(k)`, `obj[k] = v` becomes `m.set
 
 ## 8. The Server-Side Prototype Pollution Renaissance — Shcherbakov 2023
 
-Pre-2023, the consensus position on server-side prototype pollution was "it's mostly DoS." The bug-bounty programs of several major Node platforms (Node.js itself, npm, GitHub Actions) accepted pollution reports at a low severity tier or rejected them entirely on the grounds that without an application-specific gadget, the bug was not exploitable.
+Pre-2023, the consensus position on server-side prototype pollution was "it's mostly DoS."
 
 Mikhail Shcherbakov's "Silent Spring: Prototype Pollution Leads to Remote Code Execution in Node.js" (USENIX Security 2023, with Musard Balliu and Cristian-Alexandru Staicu) demolished this position by demonstrating that *Node.js itself* contains the gadgets — independent of any application code.
 
 ### 8.1 The 11 universal gadgets
 
-The paper enumerates 11 gadgets in core Node.js APIs, all independent of application code: `child_process` env / shell / execArgv (see §3.1), `require` main fallback (see §3.2), `fs` options (§3.3), `http`/`https` agent options (§3.4), `url.parse` defaults, `Buffer` encoding fallback, `worker_threads` options (analogous to `child_process`), `vm.runInContext` context options, `crypto` algorithm fallbacks, `net.Socket` options, and `stream` buffer/pipe options. A single prototype-pollution primitive in *any* application running *any* recent Node version is reachable to these gadgets.
+The paper enumerates 11 gadgets in core Node.js APIs, all independent of application code: `child_process` command-execution APIs via polluted `shell` / `env` / `input` (see §3.1), `require` / `import` of a package without a declared `main` (see §3.2), `require` of a relative path via polluted `exports` / `1`, Windows path resolution via `'=C:'`, and `vm` function compilation via `contextExtensions`; two further gadgets combine these into command execution. A single prototype-pollution primitive in *any* application running *any* recent Node version is reachable to these gadgets.
 
-### 8.2 The HASTE / Silent Spring corpus
+### 8.2 The Silent Spring corpus
 
-The paper's accompanying artifact ([github.com/KTH-LangSec/silent-spring](https://github.com/KTH-LangSec/silent-spring)) is the working corpus of exploits against three production apps: NPM CLI, Parse Server, and Rocket.Chat. Each is a multi-stage chain: source (HTTP body or CLI flag) → merge sink (a recursive merger inside the framework's middleware) → gadget (one of the 11 Node primitives) → RCE.
+The paper's accompanying artifact ([github.com/KTH-LangSec/silent-spring](https://github.com/KTH-LangSec/silent-spring)) holds the CodeQL-based analysis and benchmarks; the paper manually exploits eight RCEs in three production apps: NPM CLI, Parse Server, and Rocket.Chat. Each is a multi-stage chain: untrusted entry point (a malicious package from the NPM registry for NPM CLI; stored database records for Parse Server) → injection sink (NPM CLI's `diffApply`; Parse Server's `expandResultOnKeyPath` record sanitizer) → gadget or attack sink (NPM CLI: `spawn` reading a polluted `env.GIT_SSH_COMMAND`; Parse Server: the MongoDB BSON parser's `evalFunctions`) → RCE.
 
 ### 8.3 The methodological shift
 
-The paper's tool, a CodeQL-based static taint analysis, found pollution primitives at scale. Combined with the manually-developed gadget catalogue, the analysis is now *universal*: any Node application with a pollution primitive is RCE-likely, regardless of application code. The defense recommendation in the paper is uncompromising: do not deserialize untrusted JSON / YAML / form-encoded data into shared mutable state without schema validation. Period.
+The paper's tool, a CodeQL-based static taint analysis, found pollution primitives at scale. Combined with its hybrid dynamic/static gadget detection, the analysis is now *universal*: any Node application with a pollution primitive is RCE-likely, regardless of application code.
 
 ### 8.4 GHunter (2024)
 
-The follow-up "GHunter: Universal Prototype Pollution Gadgets in JavaScript Runtimes" (USENIX 2024, Cornelissen-Shcherbakov-Balliu) extended the methodology to Deno and Bun, using a V8-engine-instrumented dynamic taint analysis. The results: 56 new Node gadgets, 67 in Deno. The runtime-specific findings show that Deno's "secure by default" claim does not extend to prototype-reachable internal property lookups.
+The follow-up "GHunter: Universal Prototype Pollution Gadgets in JavaScript Runtimes" (USENIX 2024, Cornelissen-Shcherbakov-Balliu) extended the methodology to Deno, using a V8-engine-instrumented dynamic taint analysis. The results: 56 new Node gadgets, 67 in Deno. The runtime-specific findings show that Deno's "secure by default" claim does not extend to prototype-reachable internal property lookups.
 
 The cumulative position post-GHunter: **every JavaScript runtime is universally exposed to RCE-grade gadgets via prototype pollution.** There is no "safe Node version," no "safe runtime alternative," and no path to safety that does not begin with eliminating the pollution primitive at the boundary.
 
@@ -486,7 +478,7 @@ The cumulative position post-GHunter: **every JavaScript runtime is universally 
 
 ### 9.1 Serverless (Lambda, Vercel, Cloudflare Workers)
 
-Serverless platforms isolate invocations into separate process containers, so a pollution within one invocation does not persist to the next — in theory. In practice the "warm container" optimization means a single physical process serves many invocations *sequentially*, and pollution from invocation N persists to invocation N+1 on the same container. This is the largest unrecognized risk in serverless deployments today; the platform abstraction implies isolation that the runtime does not deliver. Cloudflare Workers' V8 isolate model is closer to true per-request isolation; Lambda Node runtime is not. Recommendation: assume warm-container pollution persistence; wipe state explicitly at handler entry; prefer `Object.create(null)` for per-request configuration.
+Serverless platforms isolate invocations into separate process containers, so a pollution within one invocation does not persist to the next — in theory. In practice the "warm container" optimization means a single physical process serves many invocations *sequentially*, and pollution from invocation N persists to invocation N+1 on the same container. This is the largest unrecognized risk in serverless deployments today; the platform abstraction implies isolation that the runtime does not deliver. Cloudflare Workers is not an exception: a single Workers instance may handle multiple requests, including concurrent requests; Lambda's Node runtime likewise carries global state across invocations. Recommendation: assume warm-container pollution persistence; wipe state explicitly at handler entry; prefer `Object.create(null)` for per-request configuration.
 
 ### 9.2 Pollution via npm package post-install scripts
 
@@ -519,7 +511,7 @@ Polluted runtimes feed into LLM-agent tool implementations like any other Node c
 - [Shcherbakov, Balliu, Staicu, "Silent Spring" — USENIX Security 2023](https://www.usenix.org/conference/usenixsecurity23/presentation/shcherbakov) / [arXiv 2207.11171](https://arxiv.org/abs/2207.11171)
 - [Cornelissen, Shcherbakov, Balliu, "GHunter" — USENIX Security 2024](https://www.usenix.org/conference/usenixsecurity24/presentation/cornelissen) / [arXiv 2407.10812](https://arxiv.org/abs/2407.10812)
 - [Bentkowski, "Exploiting prototype pollution – RCE in Kibana (CVE-2019-7609)"](https://research.securitum.com/prototype-pollution-rce-kibana-cve-2019-7609/)
-- [Bentkowski, "Prototype pollution – and bypassing client-side HTML sanitizers"](https://research.securitum.com/prototype-pollution-and-bypassing-client-side-html-sanitizers/)
+- [Bentkowski, "Prototype pollution – and bypassing client-side HTML sanitizers"](https://securitum.com/resources/pentest-chronicles/prototype-pollution-and-bypassing-client-side-html-sanitizers)
 
 ### Client-side gadget corpora and tools
 
@@ -535,7 +527,7 @@ Polluted runtimes feed into LLM-agent tool implementations like any other Node c
 - [GHSA-p3vf-v8qc-cwcr — tampering by prototype pollution](https://github.com/cure53/DOMPurify/security/advisories/GHSA-p3vf-v8qc-cwcr)
 - [GHSA-v9jr-rg53-9pgp — PP-to-XSS via CUSTOM_ELEMENT_HANDLING fallback](https://github.com/cure53/DOMPurify/security/advisories/GHSA-v9jr-rg53-9pgp)
 
-### Kurt Boberg's CVEs
+### Advisories crediting Kurt Boberg (GHSA analyst)
 
 - [CVE-2021-3805 / GHSA-8v63-cqqc-6r2c — object-path `del()` pollution](https://github.com/advisories/GHSA-8v63-cqqc-6r2c) / [NVD](https://nvd.nist.gov/vuln/detail/CVE-2021-3805)
 - [CVE-2020-28472 / GHSA-rrc9-gqf8-8rwg — `@aws-sdk/shared-ini-file-loader` pollution](https://github.com/advisories/GHSA-rrc9-gqf8-8rwg)
@@ -544,7 +536,7 @@ Polluted runtimes feed into LLM-agent tool implementations like any other Node c
 ### Canonical historical CVEs
 
 - [CVE-2018-3721 / lodash — Arteau original](https://github.com/advisories/GHSA-fvqr-27wr-82fm)
-- [CVE-2018-16487 / lodash — Arteau merge bypass](https://github.com/advisories/GHSA-4xc9-xhrj-v574)
+- [CVE-2018-16487 / lodash — merge bypass (credited to asgerf)](https://github.com/advisories/GHSA-4xc9-xhrj-v574)
 - [CVE-2019-10744 / lodash defaultsDeep](https://security.snyk.io/vuln/SNYK-JS-LODASH-450202)
 - [CVE-2019-11358 / jquery — npm parallel to CVE-2019-5428](https://security.snyk.io/vuln/SNYK-JS-JQUERY-174006)
 - [CVE-2020-7598 / minimist](https://github.com/advisories/GHSA-vh95-rmgr-6w4m)

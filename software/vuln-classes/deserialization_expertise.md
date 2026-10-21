@@ -17,7 +17,7 @@
 
 > **Researchers:**
 > - **Chris Frohoff** (@frohoff) — ysoserial author; AppSecCali 2015 "Marshalling Pickles"
->   (with Gabriel Lawrence); Qualcomm red-team work; coined Property-Oriented Programming for Java
+>   (with Gabriel Lawrence); Qualcomm red-team work
 > - **Alvaro Muñoz** (@pwntester) — Principal Security Researcher, GitHub Security Lab; ysoserial.net
 >   co-author; Black Hat 2016 JNDI/LDAP injection, 2017 "Friday the 13th JSON Attacks" (both with
 >   Mirosh); Text4Shell discoverer; CodeQL-based taint analysis at scale
@@ -36,14 +36,14 @@
 > - **Leonardo Giovannini** (Doyensec) — Ruby 3.4 Marshal gadget chain (2024-10-16)
 > - **Peter Stöckli** (GitHub Security Lab) — Ruby unsafe-deserialization corpus (2024-06-20)
 >   covering JSON / XML / YAML / Marshal vectors with PoCs
-> - **JFrog Security Research** — PickleScan zero-day cluster (CVE-2025-1716 via `pip.main`,
+> - **JFrog Security Research** — PickleScan zero-day cluster (
 >   CVE-2025-10155 extension mismatch, CVE-2025-10156 ZIP CRC bypass, CVE-2025-10157 submodule
 >   import bypass); nullifAI Hugging Face campaign analysis (2024-02 - 2025-02)
 > - **HiddenLayer Research** — "Silent Sabotage" safetensors-conversion hijack on Hugging Face
->   (2024); OpenAI Privacy Filter impersonation campaign analysis (2025, 244k downloads)
+>   (2024); OpenAI Privacy Filter impersonation campaign analysis (2026, 244k downloads)
 > - **Viettel Cyber Security** (via ZDI / Pwn2Own Berlin 2025) — ToolShell SharePoint chain
 >   (CVE-2025-49704 + CVE-2025-49706, May 2025); ExcelDataSet CompressedDataTable BinarySerialization
->   sink; ExpandedWrapper XmlValidator allowlist bypass
+>   sink
 >
 > Sources: AppSecCali 2015/OWASP SD slides; Black Hat 2016/2017 papers; GitHub/ysoserial/
 > ysoserial.net/marshalsec; mbechler.github.io; codewhitesec.blogspot.com / code-white.com/blog;
@@ -158,7 +158,7 @@ provides a serialized `TemplatesImpl` with custom bytecode; any gadget that even
 `newTransformer()` or `getOutputProperties()` achieves arbitrary class execution.
 
 Chains that reach TemplatesImpl: CommonsCollections2/3/4, CommonsBeanutils1,
-ROME, Click1, Vaadin1, Wicket1, JSON1. The pattern is: BeanComparator or similar triggers a
+ROME, Click1, Vaadin1, JSON1. The pattern is: BeanComparator or similar triggers a
 getter via reflection → getter is `getOutputProperties()` → bytecode loaded.
 
 ### URLDNS: detection without RCE
@@ -207,13 +207,14 @@ Bechler developed this technique for Jenkins (CVE-2016-0788). The `JRMPClient` a
 From Florian Hauser (CODE WHITE) on JDK 15+ / JDK 16+:
 
 **What broke and why:**
-- `CommonsCollections6`: `IllegalAccessException` when setting `HashMap.table` via reflection
-  (JDK 16+ JPMS encapsulation, JEP 396)
-- `CommonsBeanutils1`: `IllegalAccessException` on `TemplatesImpl` private fields
+- `CommonsCollections6`: `InaccessibleObjectException` when making `HashSet.map` accessible via
+  reflection (JDK 16+ JPMS encapsulation, JEP 396)
+- `CommonsBeanutils1`: `PropertyUtilsBean` cannot access `TemplatesImpl` because `java.xml` does
+  not export its package
 - Nashorn-based execution gadgets: Nashorn removed entirely in JDK 15 (JEP 372)
 
 **Workarounds:**
-- Use `--add-opens java.base/java.util=ALL-UNNAMED` (and package equivalents) when **generating**
+- On JDK < 16, use `--add-opens java.base/java.util=ALL-UNNAMED` (and package equivalents) when **generating**
   payloads with ysoserial — opens fields for reflection during payload construction, even though
   the target JVM can't receive `--add-opens` injections at runtime
 - Replace Nashorn execution with **JShell API** (`jdk.jshell.JShell.create().eval(javaCode)`),
@@ -358,19 +359,20 @@ Sources: `veracode.com/blog/resolving-cve-2022-1471-snakeyaml-20-release-0/`,
 
 ### Bechler's C3P0 bridging gadget
 
-Bechler contributed the C3P0 payload to ysoserial (@mbechler credited). The C3P0 gadget
+Bechler contributed the C3P0 payload to ysoserial (@mbechler credited); that payload uses
+`PoolBackedDataSource` JNDI `Reference` remote class loading. A separate C3P0 gadget
 bridges from JSON/YAML deserialization (bean-property marshallers) to native Java deserialization
 gadget chains:
 
 ```
 WrapperConnectionPoolDataSource.setUserOverridesAsString(attacker_string)
   → C3P0ImplUtils.parseUserOverridesAsString()
-    → ByteArrayInputStream(Base64.decode(embedded_blob))
+    → ByteArrayInputStream(hex-decode(embedded_blob))
       → ObjectInputStream.readObject()           ← ysoserial payload goes here
 ```
 
 `WrapperConnectionPoolDataSource` has a `userOverridesAsString` setter that parses a string
-containing a Base64-encoded serialized Java object. Any JSON/YAML marshaller that calls setters
+containing a hex-encoded serialized Java object. Any JSON/YAML marshaller that calls setters
 on `WrapperConnectionPoolDataSource` will trigger native Java deserialization of attacker-
 controlled bytes — enabling reuse of the full ysoserial gadget library through a non-Java format.
 
@@ -394,9 +396,9 @@ directory API calls with user-influenced data is potentially injectable.
 **RMI:** Attacker's RMI registry returns a `Reference` with `classFactory` + `classFactoryLocation`
 pointing to attacker's codebase. JVM fetches and instantiates the named factory class.
 - **Blocked:** Java 8u121 (com.sun.jndi.rmi.object.trustURLCodebase = false by default)
-- **Post-patch bypass:** Use `org.apache.naming.factory.BeanFactory` (present in Tomcat). It
-  calls `getObjectInstance(Reference)` and evaluates an EL expression from the `factory` Reference
-  Attribute. Set `factory` = EL expression → RCE without remote codebase.
+- **Post-patch bypass:** Use `org.apache.naming.factory.BeanFactory` (present in Tomcat). Its
+  `forceString` Reference attribute remaps a setter to an arbitrary method such as
+  `javax.el.ELProcessor.eval()` → EL evaluation → RCE without remote codebase.
 
 **LDAP:** Attacker's LDAP server returns either (a) a `Reference` with codebase URL, or (b) a
 directly serialized Java object (`javaSerializedData` attribute).
@@ -418,7 +420,7 @@ Bechler published a Log4Shell JNDI state-of-the-art post on December 10, 2021 (d
 disclosure) documenting what still worked post-patches:
 1. **Local-classpath factory attacks** (BeanFactory + EL): work regardless of JDK version
 2. **Deserialization via RMI/LDAP**: serialize a ysoserial payload via LDAP's `javaSerializedData`
-3. **CORBA/IIOP**: functional on all JVMs
+3. **CORBA/IIOP**: impact very similar to RMI
 
 His conclusion: "A current Java runtime version won't save you. Do patch." (The fix is disabling
 JNDI lookup from message patterns in Log4j itself, not patching the JDK.)
@@ -436,7 +438,7 @@ checking is enabled, the JVM fetches intermediate CA certificates from URIs in t
 4. Attacker's LDAP server returns `Reference` → factory class fetched → RCE
 
 **Key insight:** No certificate validation has occurred before `caIssuers` is fetched — it's
-fetched to *build* the chain. A self-signed certificate with a malicious `caIssuers` URI is
+fetched to *build* the chain. A crafted certificate with a malicious `caIssuers` URI is
 sufficient. This applies to any Java application that validates certificates with AIA enabled.
 
 ---
@@ -460,8 +462,8 @@ sufficient. This applies to any Java application that validates certificates wit
 | DataContractJsonSerializer | JSON | Optional known-types | Medium |
 | FastJSON | JSON | Always includes `@type` | High — type always included |
 
-**BinaryFormatter is dead.** Microsoft deprecated it in .NET 5 (2021), disabled it by default in
-.NET 7, and fully removed it in .NET 9. Any codebase still using BinaryFormatter should be
+**BinaryFormatter is dead.** Microsoft deprecated it in .NET 5, disabled it by default in
+.NET 8, and removed the in-box implementation in .NET 9. Any codebase still using BinaryFormatter should be
 treated as a critical vulnerability regardless of other mitigations.
 
 ### ObjectDataProvider: the universal .NET gadget (Muñoz + Mirosh)
@@ -492,7 +494,7 @@ ASP.NET ViewState is an `ObjectStateFormatter`/`LosFormatter`-serialized blob th
 **CVE-2020-0688 (Exchange Server):** Microsoft Exchange installations had the same `MachineKey`
 values (`validationKey`, `decryptionKey`) hardcoded in the default installation. Every Exchange
 server had the same key. Any authenticated low-privilege user could:
-1. Obtain the hardcoded key values (published in Exchange documentation)
+1. Obtain the hardcoded key values (identical in every installation's `web.config`)
 2. Generate a malicious ViewState blob using ysoserial.net's ViewState plugin
 3. POST it to any Exchange page → SYSTEM RCE
 
@@ -547,7 +549,7 @@ discovered a systematic bypass in how the .NET runtime handles binder failures:
 
 **CVE-2022-28684 (DevExpress `SafeSerializationBinder`):**
 `EnsureAssemblyQualifiedTypeName()` validates using string matching on assembly names. By
-crafting a type name like `System.Data.DataSet` with a malformed assembly name suffix `", x=\]"`,
+crafting a type name like `System.Data.DataSet` with a malformed assembly name suffix `", x=]"`,
 the validator returns `false` early (skips validation), but `FastBindToType()` successfully
 resolves `System.Data.DataSet` → DataSet gadget → RCE.
 
@@ -597,13 +599,13 @@ Apache log4net's response to this research: removed `RemotingAppender` entirely 
 The 2025 high-water mark for .NET deserialization exploitation. Originally disclosed by
 **Viettel Cyber Security** at Pwn2Own Berlin (May 2025) via Trend Micro's ZDI; weaponized
 in-the-wild by mid-July 2025; Microsoft credited Viettel for the responsible disclosure of the
-underlying chain. CISA KEV listing within 48 hours of public PoC release. Per Kaspersky
+underlying chain. CISA added CVE-2025-53770 to KEV on July 20, 2025. Per Kaspersky
 Securelist, Akamai, and Trellix technical analyses:
 
 **The chain (logical):**
 1. **CVE-2025-49706 / CVE-2025-53771** — authentication bypass: `PostAuthenticateRequestHandler`
-   does a case-insensitive `Referer`-header substring match against sign-out paths
-   (`/_layouts/15/SignOut.aspx`). A crafted `Referer` containing the sign-out substring causes
+   does a case-insensitive `Referer`-header match against sign-out paths
+   (`/_layouts/15/SignOut.aspx`). A crafted `Referer` set to a sign-out path causes
    the handler to skip authentication checks for the request entirely.
 2. **CVE-2025-49704 / CVE-2025-53770** — XML deserialization sink at
    `/_layouts/15/ToolPane.aspx` POST. Parameters `MSOtlPn_Uri` (pointer to a CONTROLTEMPLATES
@@ -626,10 +628,7 @@ Securelist, Akamai, and Trellix technical analyses:
    live.
 
 **Gadget chain detail:** publicly observed exploits use the **TypeConfuseDelegate** payload
-from ysoserial.net for the ViewState forgery step. The Akamai writeup gives the
-`ysoserial.exe -p ViewState -g TypeConfuseDelegate --path="/_layouts/15/start.aspx" --apppath="/"
---decryptionalg="AES" --decryptionkey="<stolen>" --validationalg="HMACSHA256"
---validationkey="<stolen>" -c "..."` invocation shape.
+from ysoserial.net for the ViewState forgery step.
 
 **Patches:** Microsoft addressed CVE-2025-53770 / 53771 (the actively-exploited variants) in
 emergency out-of-band updates for SharePoint Subscription Edition, 2019, and 2016. SharePoint
@@ -652,8 +651,7 @@ accepts a SOAP envelope whose body contains a serialized authorization cookie de
 authentication required, internet-exposed WSUS deployments compromised in-the-wild within
 days of public PoC. The lesson reinforces the §5 taxonomy: **SoapFormatter / NetDataContractSerializer
 have the same risk profile as BinaryFormatter** and any production use over an untrusted
-network is critical. Microsoft's fix follows the BinaryFormatter-deprecation playbook —
-ultimately moving WSUS off SoapFormatter, but the interim patch is allowlist-style.
+network is critical. Microsoft's October 23 out-of-band patch removed the vulnerable code.
 
 ---
 
@@ -702,10 +700,9 @@ on `PolymorphicTypeValidator`, GitHub issue corpus on `jackson-databind`.
 
 ### FastJSON: always vulnerable when accepting input
 
-FastJSON includes `@type` type discriminators unconditionally. There is no "safe" configuration
-for FastJSON when processing untrusted input — type instantiation is a core feature, not an
-option. CVE-2017-10712 (KalikoCMS, Muñoz/Mirosh): FastJSON deserializes `@type` fields in
-any untrusted input.
+FastJSON resolves `@type` type discriminators via AutoType. AutoType is disabled by default but
+its deny lists have been repeatedly bypassed; `safeMode` (1.2.68+) removes AutoType support
+regardless of deny lists, but is not enabled by default.
 
 ### SnakeYAML: default constructor is dangerous
 
@@ -742,7 +739,7 @@ class instantiation and property-setter invocation.
 
 ### Sitecore (CVE-2023-35813, CVSS 9.8)
 
-Sitecore's `IIsAjaxEventHandler` allowed calling `ParseControl(string)` with user-supplied
+Sitecore's `XamlPageHandlerFactory` (`sitecore_xaml.ashx`) allowed calling `ParseControl(string)` with user-supplied
 markup. Two gadgets:
 
 **AssemblyInstaller (direct RCE):**
@@ -759,8 +756,8 @@ responses. No code execution required for credential theft.
 
 ### SharePoint (CVE-2023-33160)
 
-SharePoint's stricter controls required a novel bypass technique (full details withheld in
-public post). Demonstrates that TemplateParser is a platform-wide attack surface in ASP.NET
+SharePoint's stricter controls required a novel bypass technique (detailed in CODE WHITE's
+Part II post). Demonstrates that TemplateParser is a platform-wide attack surface in ASP.NET
 applications, not specific to one product.
 
 ### Generalization
@@ -791,7 +788,7 @@ public instance methods via `invoke()`. The managed resource is any serializable
 attacker can pass.
 
 **RequiredModelMBean (static methods):**
-A `ModelMBeanOperationInfo` `Descriptor` with `_class_` field pointing to any class allows
+A `ModelMBeanOperationInfo` `Descriptor` with `class` field pointing to any class allows
 invoking public static methods on that class, regardless of the managed resource. Unrestricted
 static method invocation on any class available to the JVM.
 
@@ -865,7 +862,7 @@ surface, scanner-bypass corpus, and `safetensors` as the architectural escape ha
   at a constrained Marshal) was escapable to full RCE. The dedicated "safe" wrapper turned out
   not to be safe.
 - *2025-08 (Trail of Bits retrospective, "Marshal madness"):* Synthesis of 2024-2025 Ruby gadget
-  evolution. Headline framing: "Marshal is considered too dangerous to use in 2025."
+  evolution. Headline framing: "Marshal is simply too dangerous to use in 2025."
 
 The universal gadget means Ruby `Marshal.load()` of untrusted data is exploitable on any Ruby
 2.x-3.x installation regardless of which gems are installed. This is the equivalent of Frohoff's
@@ -964,7 +961,7 @@ unsafe/suspicious issues across 51,700 models in the first six months of 2024-20
 4.47M unique model versions in 1.41M repositories — pickle bytes embedded in `.bin` model
 weights remain the dominant primitive (HF blog `huggingface.co/blog/pai-6-month`, 2025-04).
 
-PyTorch's `weights_only=True` (PyTorch 2.0+, default in 2.6+) is the in-place hardening: it
+PyTorch's `weights_only=True` (default in 2.6+) is the in-place hardening: it
 restricts the unpickler to a curated allowlist of tensor / `OrderedDict` types via a custom
 `Unpickler` subclass. **This is not a complete fix** — researchers have demonstrated
 edge-case bypasses around the allowlist, and `weights_only=False` is still required for
@@ -974,15 +971,15 @@ which is a common pattern in research repos.
 #### The PickleScan zero-day cluster (JFrog Security Research, 2025)
 
 PickleScan (`github.com/mmaitre314/picklescan`) is the de-facto static scanner adopted by
-Hugging Face and the broader ML supply-chain tooling stack. JFrog disclosed four critical
-bypasses in 2025 that collectively rendered scanner-only defenses unreliable:
+Hugging Face and the broader ML supply-chain tooling stack. Four critical bypasses were disclosed in 2025
+(CVE-2025-1716 by Sonatype, the rest by JFrog) that collectively rendered scanner-only defenses unreliable:
 
 | CVE | Bypass | Mechanism |
 |---|---|---|
-| **CVE-2025-1716** (CVSS 8.8) | `pip.main` not on unsafe-globals list | `pip.main(["install", "malicious-package"])` from a pickle stream installs an arbitrary PyPI package on `torch.load`. Picklescan looked for `os.system` / `subprocess` but missed legitimate-looking package-manager APIs. Fixed in picklescan 0.0.21 by adding `pip` to the unsafe-globals set. |
+| **CVE-2025-1716** | `pip.main` not on unsafe-globals list | `pip.main(["install", "malicious-package"])` from a pickle stream installs an arbitrary PyPI package on `torch.load`. Picklescan looked for `os.system` / `subprocess` but missed legitimate-looking package-manager APIs. Fixed in picklescan 0.0.21 by adding `pip` to the unsafe-globals set. |
 | **CVE-2025-10155** (CVSS 9.3) | File-extension mismatch | A `.bin` / `.pt` file containing a raw pickle (not the expected ZIP-archive PyTorch container) is parsed by picklescan as PyTorch and fails parse — silent skip. `torch.load` identifies file format by **content**, not extension, and loads the pickle successfully. |
 | **CVE-2025-10156** (CVSS 9.3) | ZIP CRC mismatch | Deliberately bad-CRC ZIP entries cause picklescan's `zipfile` parsing to raise an exception (= no findings). PyTorch tolerates CRC errors and loads the model anyway. |
-| **CVE-2025-10157** (CVSS 9.3) | Submodule import bypass | PickleScan exact-matches blocked module names against a string list. `asyncio.unix_events._UnixSubprocessTransport.__start` (a real submodule entry point on Linux) is not on the list; loading instantiates the subprocess transport → arbitrary command execution. The PoC pickle filename in the JFrog advisory is `asyncio_asyncio_unix_events___UnixSubprocessTransport__start.pkl`. |
+| **CVE-2025-10157** (CVSS 9.3) | Submodule import bypass | PickleScan exact-matches blocked module names against a string list. `asyncio.unix_events._UnixSubprocessTransport._start` (a real submodule entry point on Linux) is not on the list; loading instantiates the subprocess transport → arbitrary command execution. The PoC pickle filename in the JFrog advisory is `asyncio_asyncio_unix_events___UnixSubprocessTransport__start.pkl`. |
 
 **The architectural lesson:** static blacklist scanners over a Turing-complete protocol are
 the same losing arms race as Jackson's `@JsonTypeInfo` blacklist (§6). The fix is structural —
@@ -997,16 +994,16 @@ GHSA-655q-fx9r-782v.
 
 #### The nullifAI Hugging Face campaign (2024-2025)
 
-JFrog and ReversingLabs reported, separately, a class of malicious HF uploads dubbed **nullifAI**
-(JFrog branding). Tactics observed:
+ReversingLabs reported a class of malicious HF uploads dubbed **nullifAI**
+(ReversingLabs branding). Tactics observed:
 
 - Pickle payloads compressed with **7-Zip** rather than the ZIP default — PickleScan's older
   versions only inspected ZIP-archived pickle and silently skipped 7z containers.
 - **Malicious code prepended** at the head of the pickle byte stream so that scanners scanning
   for trailing opcodes miss it; pickle's VM honors the bytes in stream order.
-- Repository names mimicking legitimate releases (HiddenLayer's 2025 "Privacy Filter"
-  impersonation campaign, 244k downloads, six accounts, shared infrastructure — see
-  `huggingface.co/blog/pai-6-month` and `csoonline.com` 2025 coverage).
+- Repository names mimicking legitimate releases (HiddenLayer's 2026 "Privacy Filter"
+  impersonation campaign, ~244k reported downloads, six more repositories sharing the same
+  loader — see `thehackernews.com` 2026 coverage).
 - Backdoors that beacon out only on import, evading sandbox detonation that loads the model
   without invoking forward pass.
 
@@ -1041,10 +1038,6 @@ audit (commissioned by EleutherAI + HF + Stability AI) found no critical RCE; mi
 Written in Rust, parsed via length-checked memory mapping. Subsequent adoption:
 
 - HF defaults to safetensors for new uploads (2023-2024).
-- PyTorch upstream merged native safetensors integration into core (2025) — `torch.save` /
-  `torch.load` can route through safetensors for weight payloads, leaving pickle only for
-  legitimately-needed Python-object metadata (and even then ideally in a separate, attested
-  file).
 - Diffusers, transformers, vLLM, llama.cpp accept safetensors as first-class input.
 
 **Operational stance for 2026:** treat the presence of a `.bin` / `.pt` / `.pkl` pickle artifact
@@ -1276,7 +1269,7 @@ payload; (2) parser is memory-safe; (3) no type-instantiation primitive from pay
 
 | Format | Author/Steward | Safe-for-untrusted | Notes |
 |---|---|---|---|
-| **safetensors** | Hugging Face / Trail of Bits audit 2023 | Yes (tensor data only) | Rust impl; length-prefixed; ML-weights only. Default for HF, integrated into PyTorch upstream 2025. |
+| **safetensors** | Hugging Face / Trail of Bits audit 2023 | Yes (tensor data only) | Rust impl; length-prefixed; ML-weights only. Default for HF; joined the PyTorch Foundation 2026-04. |
 | **Protocol Buffers** | Google | Yes with caveats | Schema out-of-band; no type discrimination by default. Caveat: `Any` type re-introduces type-info-in-payload (use carefully). gRPC integrates. |
 | **FlatBuffers** | Google | Yes | Zero-copy; even safer than protobuf because parsing is pointer-arithmetic over validated offsets — no allocator pressure, no constructor side effects. |
 | **Cap'n Proto** | Sandstorm / Kenton Varda | Yes | Similar to FlatBuffers; arena allocator; explicit "no calls during deserialization" design goal. |
@@ -1345,7 +1338,7 @@ Check for:
 | **CodeQL + taint tracking** | GitHub / Muñoz | Multi | Systematic deserialization sink discovery in large codebases |
 | **picklescan** | M. Maître (community) | Python/ML | Pickle-opcode scanner for ML model files; **multiple bypass CVEs in 2025** (see §9), use only as defense-in-depth alongside safetensors migration |
 | **ModelAudit** | Promptfoo | Python/ML | Open-source ML-model security scanner; reads safetensors as the safe path, scans pickle for known-bad opcodes/imports |
-| **ProtectAI Guardian** | ProtectAI / HF partnership | Python/ML | Commercial ML model scanner; HF integration since 2024-10; scanned 4.47M models / 51,700 unsafe findings as of 2025-04 |
+| **ProtectAI Guardian** | ProtectAI / HF partnership | Python/ML | Commercial ML model scanner; HF integration since 2024-10; scanned 4.47M model versions / 352,000 unsafe or suspicious issues across 51,700 models as of 2025-04 |
 | **Brakeman `UnsafeDeserialize`** | presidentbeef (Justin Collins) | Ruby/Rails | Static-analysis warning class for `Marshal.load`, `YAML.load`, `Oj.load` in Rails application code |
 | **GitHubSecurityLab/ruby-unsafe-deserialization** | Peter Stöckli (GHSL) | Ruby | PoC corpus covering Marshal / YAML / JSON / XML deserialization in modern Ruby |
 
@@ -1365,17 +1358,15 @@ Check for:
 - **CVE-2017-8565** — PSObject gadget, Windows PowerShell
 - **CVE-2022-42889** — Apache Commons Text ("Text4Shell")
 - **CVE-2020-9496** — Apache OFBiz pre-auth XMLRPC deserialization
-- **CVE-2021-25641 et al.** — Apache Dubbo multiple pre-auth RCE
+- **CVE-2021-30179 et al.** — Apache Dubbo multiple pre-auth RCE
 - **CVE-2021-36162/36163** — Apache Dubbo YAML + Hessian deserialization
-- **CVE-2017-1000207/1000208** — Swagger Codegen/Parser SnakeYAML RCE
-- Multiple OGNL/Struts CVEs: CVE-2016-3087, CVE-2016-4436, CVE-2017-5638, CVE-2018-1327,
-  CVE-2020-17530, CVE-2021-26084, CVE-2022-26134
+- Multiple OGNL/Struts CVEs: CVE-2016-3087, CVE-2016-4436, CVE-2018-1327,
+  CVE-2020-17530
 
 ### Markus Wulftange
 - **RF-14310 / RF-14309** — RichFaces 3.x/4.x EL injection bypass
 - **CVE-2019-18935** — Telerik UI for ASP.NET AJAX (RadAsyncUpload) deserialization
 - **CVE-2020-7961** — Liferay Portal pre-auth JSON RCE
-- **CVE-2021-21481** — SAP J2EE Engine missing auth on RMI method
 - **CVE-2022-23277** — Microsoft Exchange serialization binder bypass
 - **CVE-2022-28684** — DevExpress SafeSerializationBinder bypass
 - **CVE-2023-35813** — Sitecore ASP.NET TemplateParser RCE (CVSS 9.8)
@@ -1389,7 +1380,6 @@ Check for:
 - **CVE-2017-2608** — Jenkins / XStream
 - **CVE-2017-5641 / CVE-2017-3066** — BlazeDS / Adobe ColdFusion AMF
 - **CVE-2016-5229** — Atlassian Bamboo / XStream
-- **CVE-2018-2633** — Java X.509 AIA → JNDI injection RCE
 - **CVE-2018-2800** — Java JRMP HTTP tunneling SSRF deserialization
 - **CVE-2018-3149** — Java JNDI LDAP codebase loading restriction (analysis of fix)
 - C3P0 gadget contribution to ysoserial
@@ -1397,7 +1387,7 @@ Check for:
 ### Modern-era contributors (2024-2026)
 
 **JFrog Security Research (PickleScan cluster):**
-- **CVE-2025-1716** — PickleScan `pip.main` unsafe-globals omission (CVSS 8.8)
+- **CVE-2025-1716** — PickleScan `pip.main` unsafe-globals omission (reported by Sonatype; CVSS 4.0 5.3)
 - **CVE-2025-10155** — PickleScan extension-mismatch bypass (CVSS 9.3)
 - **CVE-2025-10156** — PickleScan ZIP CRC bypass (CVSS 9.3)
 - **CVE-2025-10157** — PickleScan submodule-import bypass (CVSS 9.3)
@@ -1409,17 +1399,16 @@ Check for:
 - **CVE-2025-53771** — Wild-exploit variant of CVE-2025-49706
 
 **Apache Struts2 OGNL mass-assignment lineage (Dynatrace / EQSTLab analysis):**
-- **CVE-2024-53677** — Struts2 file-upload `top.fileFileName` OGNL mass-assignment path traversal RCE (CVSS 9.5, CISA KEV)
+- **CVE-2024-53677** — Struts2 file-upload `top.fileFileName` OGNL mass-assignment path traversal RCE (CVSS 9.5)
 
-**Luke Jahnke / Leonardo Giovannini / Peter Stöckli (Ruby deserialization 2024):**
+**Luke Jahnke / Peter Stöckli (Ruby deserialization 2024):**
 - **Ruby 3.4 universal Marshal gadget chain** (Jahnke, 2024-11-24; patched)
 - **`Gem::SafeMarshal` escape** (Jahnke, 2024-12-03; patched)
-- **Ruby 3.4 Marshal chain** (Giovannini / Doyensec, 2024-10)
 - **`ruby-unsafe-deserialization` PoC corpus** (Stöckli / GHSL, 2024-06)
 
 **HiddenLayer Research (Hugging Face supply chain):**
 - **"Silent Sabotage"** — safetensors-conversion bot pickle execution (2024)
-- **OpenAI Privacy Filter impersonation campaign** — 244k-download infostealer corpus (2025)
+- **OpenAI Privacy Filter impersonation campaign** — 244k-download infostealer corpus (2026)
 
 ### JavaScript / Node.js
 - **CVE-2017-5941** — `node-serialize` `unserialize()` `_$$ND_FUNC$$_` IIFE RCE (CVSS 9.8, no fix)
@@ -1466,7 +1455,7 @@ Check for:
    niche RPC sink. As of 2026 it is a mass-volume attack surface via PyTorch / Hugging Face /
    joblib / Keras Lambda layers, with monthly download counts in the hundreds of millions. Static
    scanners (PickleScan, ProtectAI) form a blacklist arms race and have been bypassed
-   repeatedly (JFrog's CVE-2025-1716 / -10155 / -10156 / -10157 cluster). The architectural fix
+   repeatedly (Sonatype's CVE-2025-1716; JFrog's CVE-2025-10155 / -10156 / -10157 cluster). The architectural fix
    is **safetensors plus signed-and-attested model provenance**, not "scan harder." The
    pre-existing Jackson-blacklist lesson applies one-for-one.
 

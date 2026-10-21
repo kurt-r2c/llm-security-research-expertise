@@ -5,9 +5,9 @@
 > - **James Kettle** (@albinowax) — Director of Research, PortSwigger. Author of the **single-packet attack** and "Smashing the State Machine" (Black Hat USA 2023 / DEF CON 31); Turbo Intruder; long portfolio of HTTP desync and request-smuggling research.
 > - **Matt Bishop** (UC Davis) — UC Davis Tech Report CSE-95-9 "Race Conditions, Files, and Security Flaws; or the Tortoise and the Hare Redux" (1995) and CSE-95-10 "Checking for Race Conditions in File Accesses" (with M. Dilger). The canonical academic treatment of filesystem TOCTOU.
 > - **Crispin Cowan** — RaceGuard (USENIX Security 2001, with Beattie/Wright/Kroah-Hartman); kernel-level protection against temp-file race vulnerabilities. Also StackGuard and a long body of OS-security defensive work.
-> - **Madanlal Musuvathi** (Microsoft Research) — Co-author of **CHESS** ("Finding and Reproducing Heisenbugs in Concurrent Programs", OSDI 2008, with Qadeer, Ball, Burckhardt, Basler, Nainar, Neamtiu). Introduced context-bounded model checking.
+> - **Madanlal Musuvathi** (Microsoft Research) — Co-author of **CHESS** ("Finding and Reproducing Heisenbugs in Concurrent Programs", OSDI 2008, with Qadeer, Ball, Basler, Nainar, Neamtiu). Applied context bounding, introduced by Qadeer & Rehof (TACAS 2005).
 > - **Cormac Flanagan** (UC Santa Cruz) and **Stephen Freund** (Williams) — **FastTrack** (PLDI 2009 / CACM 2010) and the **RoadRunner** dynamic-analysis framework. Adaptive epoch vector clocks; the algorithm underlying modern TSan.
-> - **Konstantin Serebryany** (Google) — **ThreadSanitizer** (WBIA 2009; LLVM reimplementation 2011). Same author thread that produced ASan, MSan, UBSan, and libFuzzer.
+> - **Konstantin Serebryany** (Google) — **ThreadSanitizer** (WBIA 2009; LLVM reimplementation 2011). Same author thread that produced ASan, MSan, and libFuzzer.
 > - **Drew Dean** (SRI) and **Alan J. Hu** (UBC) — "Fixing Races for Fun and Profit: How to use access(2)" (USENIX Security 2004). Proved no portable deterministic UNIX TOCTOU solution exists without syscall-interface changes; proposed probabilistic hardness-amplification (later defeated by Borisov's "filesystem maze").
 > - **Kyle Kingsbury** (@aphyr, Jepsen) — Jepsen.io founder; Knossos and Elle linearizability checkers. The dominant practitioner of empirical distributed-systems consistency testing.
 > - **Martin Kleppmann** (Cambridge) — "Designing Data-Intensive Applications" (O'Reilly 2017) and "How to do distributed locking" (2016), which formalized the **fencing-token** argument against Redis Redlock.
@@ -43,7 +43,7 @@ The attacker's job is to time the interleaving so that the check sees one world 
 Three properties distinguish race conditions:
 
 1. **Non-determinism.** Two identical runs can produce different observable behaviors. A vulnerable race may execute correctly 9,999 times in testing and only manifest in production once attackers start probing. Standard unit tests exercise the sequential happy path, not interleavings.
-2. **Heisenbug behavior.** Instrumentation (printf, breakpoints, tracing) perturbs timing enough that the race stops reproducing. The CHESS paper coined the term — "a bug that appears to alter or disappear when one attempts to study it."
+2. **Heisenbug behavior.** Instrumentation (printf, breakpoints, tracing) perturbs timing enough that the race stops reproducing. The term predates CHESS; Jim Gray used it in a 1985 Tandem report for a bug that appears to alter or disappear when one attempts to study it.
 3. **Asymmetric exploitation.** The attacker runs thousands of probes cheaply; defender baseline is one or zero observed occurrences. In Dean & Hu's framing: the attacker can lose almost every race, as long as they win at least one.
 
 These properties explain why race conditions are systematically under-found by traditional QA — they live in the gap between "does the code work?" (which testing answers) and "what happens under an adversarial scheduler?" (which it doesn't).
@@ -67,10 +67,10 @@ Locks work by manufacturing happens-before edges: acquiring a lock another threa
 Race conditions have produced:
 
 - **LPE** — Dirty COW / CVE-2016-5195 (Linux mm/gup.c race in copy-on-write, present since 2007, exploited in the wild).
-- **Auth bypass** — Kettle's disclosures on multiple fintechs allowing multi-acceptance of invites via single-packet race.
-- **Double-spend** — Coinbase transfer races, banking duplicate-credit races.
+- **Auth bypass** — Kettle's GitLab case studies (invitation and email-change races) via single-packet race.
+- **Double-spend** — banking duplicate-credit races.
 - **Filesystem permission bypass** — decades of OpenSSH, sudo, setuid TOCTOU CVEs.
-- **Distributed data loss** — MongoDB w=majority writes lost under partition; Redis Redlock split-brain; Cassandra/etcd linearizability violations across the Jepsen corpus.
+- **Distributed data loss** — MongoDB w=majority writes lost under partition; Redis Sentinel split-brain; Cassandra/etcd linearizability violations across the Jepsen corpus.
 - **Container/VM escape** — runc CVE-2019-5736 had a TOCTOU component; CRIU/namespace races.
 - **Web logic violation** — vote-counting, voucher redemption, MFA-bypass via parallel-codepath enrollment.
 
@@ -94,11 +94,11 @@ if (access("/tmp/foo", W_OK) == 0) {       // 1. check (uses real UID)
 
 `access(2)` checks against the real UID, not the effective UID, so a setuid program can verify "the calling user has permission to write this file" before doing the write. Between line 1 and line 2, the attacker swaps `/tmp/foo` for a symlink to `/etc/passwd`. The check sees the original file (user has permission); the open follows the symlink and writes to a root-owned target.
 
-Bishop & Dilger's 1995 UC Davis tech reports laid out the full taxonomy of this pattern. Bishop's "Race Conditions, Files, and Security Flaws; or the Tortoise and the Hare Redux" (CSE-95-9) framed the abstract problem; the companion CSE-95-10 (with Dilger) presented a static analyzer that detected `stat()/access()/lstat()` followed by `open()/creat()/exec()` patterns. This was the first published static detector for any concurrency vulnerability class.
+Bishop & Dilger's 1995 UC Davis tech reports laid out the full taxonomy of this pattern. Bishop's "Race Conditions, Files, and Security Flaws; or the Tortoise and the Hare Redux" (CSE-95-9) framed the abstract problem; the companion CSE-95-10 (with Dilger) presented a static analyzer that detected `stat()/access()/lstat()` followed by `open()/creat()/exec()` patterns.
 
 ### Symlink swap and /tmp races
 
-Any syscall taking a pathname follows the symlink at resolution time. If the attacker controls a directory along the path, they can rename or symlink entries between sequential pathname-based syscalls. OpenSSH alone has accumulated more than a dozen TOCTOU CVEs in ssh-keysign, GSSAPI host-key acquisition, and ssh-agent socket creation; the defensive evolution avoided pathname-based file operations in favor of `fchmod`/`fchown` and anchored file descriptors.
+Any syscall taking a pathname follows the symlink at resolution time. If the attacker controls a directory along the path, they can rename or symlink entries between sequential pathname-based syscalls.
 
 `/tmp` is world-writable, so any setuid binary creating files there with predictable names invites the **tempfile race**: pre-create `/tmp/myprog.XXXX` as a symlink to `/etc/passwd`; the setuid binary's `open(path, O_WRONLY|O_CREAT)` follows the symlink. Defenses: `mkstemp(3)`, `tmpfile(3)`, or — modern recommendation — `O_TMPFILE` (Linux 3.11+) which creates an unlinked inode that has no path at all.
 
@@ -122,7 +122,7 @@ Linux 5.6 added `openat2(2)` with explicit resolution-restriction flags: `RESOLV
 
 ### Subterfugue: ptrace-based TOCTOU exploitation
 
-Subterfugue (Michael Karl Coleman, late 1990s) was a ptrace-based syscall-interposition framework that intercepted `access(2)` returns and paused the target until the attacker's swap completed, turning TOCTOU races into reliable single-shot exploits. The tool is unmaintained; the concept (ptrace-based scheduling control) survives in Mozilla's `rr` for deterministic replay of concurrency bugs.
+Subterfugue (Michael Karl Coleman, 2000) was a ptrace-based syscall-interposition framework that intercepted `access(2)` returns and paused the target until the attacker's swap completed, turning TOCTOU races into reliable single-shot exploits. The tool is unmaintained; the concept (ptrace-based scheduling control) survives in Mozilla's `rr` for deterministic replay of concurrency bugs.
 
 ### Cross-link to firmware/embedded
 
@@ -166,7 +166,7 @@ Validated by Kettle and subsequent disclosures:
 - **Token / invitation acceptance** — accept the same invite into multiple accounts.
 - **Email verification token reuse** — validate-then-invalidate is not atomic.
 
-### The 5-step Kettle methodology
+### A 5-step methodology
 
 1. **Identify the limit or guarded action** — anywhere the app says "X only once" or "X requires precondition Y." Universe of candidate races.
 2. **Find the security implication** — financial transactions, authorization grants, identity proofs, capability redemption. Not every limit is a security boundary.
@@ -186,7 +186,7 @@ def queueRequests(target, wordlists):
 
 The `gate=` parameter stages requests; `openGate` releases them in the single-packet pattern. A successful race shows N successful responses where the state machine should have allowed only 1.
 
-Subsequent research: Flatt Security's 2024 "Beyond the Limit" extends Kettle's technique past HTTP/2's 65,535-byte frame limit via first-sequence-sync. HTTP/3 (QUIC) primitives are being re-derived now.
+Subsequent research: Flatt Security's 2024 "Beyond the Limit" extends Kettle's technique past the single-packet attack's ~1,500-byte limit via IP fragmentation and first-sequence sync. HTTP/3 (QUIC) primitives are being re-derived now.
 
 ### Cross-link to HTTP/Web security
 
@@ -209,7 +209,7 @@ UPDATE accounts SET balance = 90 WHERE id = 1;
 COMMIT;
 ```
 
-Both transactions read 100; both write 90. One $10 debit is lost. Under READ COMMITTED isolation (default in many systems), there is no detection of this conflict. The conflict only surfaces under SERIALIZABLE (or via explicit `SELECT ... FOR UPDATE`).
+Both transactions read 100; both write 90. One $10 debit is lost. Under READ COMMITTED isolation (default in many systems), there is no detection of this conflict. In PostgreSQL the conflict surfaces under REPEATABLE READ or SERIALIZABLE (or via explicit `SELECT ... FOR UPDATE`).
 
 ### Locking and concurrency control
 
@@ -252,7 +252,7 @@ See `graphql_api_security_expertise.md` §2 for BOLA + race interactions. The co
 
 ### The "auth check on validate, action on different value" pattern
 
-This CWE-863 (Incorrect Authorization) pattern is sometimes called *ToctouAuthz*: an entry-decorator checks authorization on parameter X, but the body of the handler operates on parameter Y. The check authorizes X; the action happens on Y. If the attacker can vary the relationship between X and Y, the authorization is bypassed.
+This CWE-863 (Incorrect Authorization) pattern: an entry-decorator checks authorization on parameter X, but the body of the handler operates on parameter Y. The check authorizes X; the action happens on Y. If the attacker can vary the relationship between X and Y, the authorization is bypassed.
 
 Example (Python/Django-style):
 
@@ -321,7 +321,7 @@ The classic refcount race: `if (atomic_load(&refcount) == 1) { free(obj); } else
 
 Post-2018 iOS sandbox escapes have relied heavily on XNU races: find an IPC/syscall handler operating on a shared object, invoke from two threads with carefully timed arguments, cause state transitions between consistency checks, exploit the resulting UAF/type-confusion/OOB. Examples include IOSurface (cross-process shared memory), various IOKit drivers, AppleAVD, Mach voucher reference counting.
 
-Linux user namespaces (CLONE_NEWUSER) introduced a major race surface: CVE-2021-3493 (Ubuntu OverlayFS + namespace, TOCTOU on "is namespace owner privileged?"), CVE-2022-0185 (FSCONFIG_SET_FD context-handling race), CVE-2023-32233 (Netfilter UAF via nf_tables, race between table rebind and rule lookup). Prolific enough that distributions have considered disabling unprivileged user namespaces by default (Ubuntu 23.10+ uses AppArmor restrictions).
+Linux user namespaces (CLONE_NEWUSER) introduced a major attack surface: CVE-2021-3493 (Ubuntu OverlayFS did not validate file-capability setting with respect to user namespaces), CVE-2022-0185 (heap overflow in legacy_parse_param, reachable with namespaced CAP_SYS_ADMIN), CVE-2023-32233 (nf_tables use-after-free from mishandled anonymous sets in batch requests). Prolific enough that distributions have considered disabling unprivileged user namespaces by default (Ubuntu 23.10+ uses AppArmor restrictions).
 
 The "use-after-symlink" cousin: an operation captures a directory fd, the attacker swaps the directory's contents or replaces it with a symlink, the operation proceeds on what it believes is the original. Defense: `openat2()` with `RESOLVE_NO_SYMLINKS` + `RESOLVE_BENEATH`; for capability handoff, prefer fd-passing over UNIX sockets to passing pathnames.
 
@@ -350,10 +350,10 @@ Brewer's CAP theorem (Gilbert & Lynch 2002): under partition, choose Consistency
 Jepsen's methodology: cluster of N nodes, stream of client operations, fault injection (iptables partitions, crashes, clock skew, filesystem corruption), record history, run a checker (Knossos linearizability, Elle transactional isolation). Public findings include:
 
 - **MongoDB** — lost committed writes under partition pre-Raft.
-- **Redis** — Redlock split-brain under clock skew or process pause.
-- **Cassandra** — lightweight transactions not linearizable under partition; stale reads under default consistency.
+- **Redis** — Sentinel split-brain under partition lost 56% of acknowledged writes.
+- **Cassandra** — lightweight transactions not linearizable, losing acknowledged writes even without a partition; stale reads under default consistency.
 - **CockroachDB / FaunaDB / TiDB / YugabyteDB** — extensive Jepsen iteration to reach SERIALIZABLE.
-- **PostgreSQL** — single-node SERIALIZABLE works; multi-node logical replication does not provide linearizability.
+- **PostgreSQL** — single-node SERIALIZABLE exhibited G2-item anomalies in 12.3 (bug present since 9.1); multi-node logical replication does not provide linearizability.
 
 The security takeaway: never trust consistency claims without empirical validation. Jepsen-style stress testing belongs in any security review of systems that depend on distributed consistency for authorization, financial transactions, or audit-trail integrity.
 
@@ -363,7 +363,7 @@ See `vulnerability_research_methodology_expertise.md` §4 for the application of
 
 ### AWS S3 strong-read-after-write
 
-S3 offered only eventual consistency for object writes for 15 years — new objects 404 immediately after PUT; overwrites could read stale data. Constant source of races in customer code assuming read-your-writes. AWS shipped strong consistency for all S3 operations in December 2020. The migration was multi-year top-level engineering work — retrofitting linearizability onto a system originally designed AP is hard at hyperscaler scale.
+S3 offered only eventual consistency for object writes for 15 years — new objects could 404 after PUT if the key had been requested before it existed; overwrites could read stale data. Constant source of races in customer code assuming read-your-writes. AWS shipped strong consistency for all S3 operations in December 2020. The migration was multi-year top-level engineering work — retrofitting linearizability onto a system originally designed AP is hard at hyperscaler scale.
 
 ### Distributed-lock anti-patterns + Kleppmann's fencing tokens
 
@@ -383,11 +383,11 @@ storage.write(data, fencing_token=token)
 # storage rejects writes with token < last-seen token
 ```
 
-Redis Redlock generates random nonces, not monotonic IDs, so it cannot be made safe for correctness boundaries. Use ZooKeeper, etcd, or Consul (consensus-based, monotonic IDs). Sanfilippo defended Redlock in "Is Redlock safe?" for use cases where it's "less wrong than other approximate solutions" — the debate continues; the security takeaway is that any lock scheme without a fencing token is advisory only.
+Redis Redlock generates random nonces, not monotonic IDs, so it cannot be made safe for correctness boundaries. Use ZooKeeper, etcd, or Consul (consensus-based, monotonic IDs). Sanfilippo defended Redlock in "Is Redlock safe?" — the debate continues; the security takeaway is that any lock scheme without a fencing token is advisory only.
 
 ### Multi-region replication
 
-Cross-region replication adds latency to the race window: DynamoDB Global Tables use last-writer-wins by timestamp (older write silently lost); Aurora Global Database is eventually consistent (up to 1s stale cross-region); Spanner/Cosmos offer linearizability at latency cost. Security review of multi-region apps: what consistency does the application *assume* and what does the store *provide*? Mismatches are races waiting to happen.
+Cross-region replication adds latency to the race window: DynamoDB Global Tables use last-writer-wins by timestamp (older write silently lost); Aurora Global Database is eventually consistent (cross-region lag typically under 1s); Spanner/Cosmos offer linearizability at latency cost. Security review of multi-region apps: what consistency does the application *assume* and what does the store *provide*? Mismatches are races waiting to happen.
 
 ---
 
@@ -441,17 +441,16 @@ Cross-reference the [Semgrep rule-writing docs](https://semgrep.dev/docs/writing
 ### Dynamic detection: the sanitizers
 
 - **ThreadSanitizer (TSan)** — happens-before race detection via shadow memory and per-thread vector clocks. Overhead 5–15x. Reports only races that actually occur during test runs (floor, not ceiling). Some races are technically true under the C++ memory model but benign (e.g., double-checked locking with atomics) and need annotation.
-- **Helgrind / DRD** — older Valgrind-based race detectors. Higher overhead (20–100x), Linux-only. Useful when TSan unavailable.
+- **Helgrind / DRD** — older Valgrind-based race detectors. Useful when TSan unavailable.
 - **Go race detector** (`go build -race`) — same TSan algorithm, idiomatic in Go CI. Mandatory in concurrent Go code.
 - **Rust** — borrow checker eliminates most data races at compile time. `Send`/`Sync` traits encode thread-safety. Remaining surface (`unsafe`, FFI, OS resources) exercised with `loom` (model checker) or `miri` (interpreter with UB detection).
 - **libFuzzer + TSan/ASan combo** — multithreaded fuzz harnesses under multiple sanitizers. Kernel equivalent: syzkaller + KASAN/KCSAN.
 
 ### Concurrency-specific testing tools
 
-- **CHESS** (Musuvathi et al., Microsoft Research, OSDI 2008) — context-bounded model checking. Most concurrency bugs manifest within 2–3 preemptions, so bounding context switches makes exploration polynomial. Found "thousands of race conditions" inside Microsoft.
+- **CHESS** (Musuvathi et al., Microsoft Research, OSDI 2008) — context-bounded model checking. Most concurrency bugs manifest within 2–3 preemptions, so bounding context switches makes exploration polynomial. Found 27 bugs, 25 previously unknown, in Microsoft code bases.
 - **RoadRunner** (Flanagan & Freund) — framework containing FastTrack. Pluggable dynamic-analysis tools for Java (race detection, atomicity violations, lock-order checking).
 - **KRACE** (Xu et al., S&P 2020) — concurrency-aware kernel-filesystem fuzzer. Tracks alias coverage (which interleavings were exercised). Found 23 races in ext4/btrfs/VFS, 9 confirmed harmful.
-- **Pulse / WitchAlert** — distributed-system race detectors; less widely used than Jepsen.
 
 ### The production-vs-test reality
 
@@ -521,7 +520,7 @@ Operate on file descriptors. `fstat(fd)`, not `stat(path)` then `open(path)`. `o
 
 ### HTTP rate limiting is necessary but not sufficient
 
-Per-user-per-endpoint rate limiting bounds the frequency of race attempts but not the parallelism of a single burst — single-packet delivers 20 requests in <1ms, below the resolution of most rate limiters. Rate limiting raises cost; it does not close the race. The structural defense is application-layer atomicity: check-and-act as one database operation with idempotency or fencing tokens.
+Per-user-per-endpoint rate limiting bounds the frequency of race attempts but not the parallelism of a single burst — single-packet lands 20–30 requests with a ~1ms median spread, below the resolution of most rate limiters. Rate limiting raises cost; it does not close the race. The structural defense is application-layer atomicity: check-and-act as one database operation with idempotency or fencing tokens.
 
 ### Code review checklist
 
