@@ -38,18 +38,18 @@
 >   co-author on three of the four selected NIST PQC standards (Kyber, Dilithium,
 >   SPHINCS+); his constant-time reference implementations are what most
 >   production libraries derive from.
-> - **Bas Westerbaan** (Principal Research Engineer, Cloudflare Research) —
+> - **Bas Westerbaan** (Cloudflare Research) —
 >   drives PQC adoption at Cloudflare and at the Internet at large; co-author of
 >   the IETF hybrid-key-exchange draft; operator of
 >   pqtunnels.cloudflareresearch.com; author of Cloudflare's annual "State of
->   the post-quantum Internet" writeups (2023, 2024, 2025).
+>   the post-quantum Internet" writeups (2024, 2025).
 > - **Tanja Lange** (Professor of Coding Theory and Cryptology, TU Eindhoven) —
->   chairs PQCrypto; Classic McEliece co-author; long-running advocate (with
+>   sits on the PQCrypto steering committee; Classic McEliece co-author; long-running advocate (with
 >   Bernstein) for hybrid PQ/T as the only responsible deployment posture during
 >   the migration window.
 > - **Apple Security Engineering team** — published the iMessage PQ3 design and
 >   deployment writeup (February 2024) defining the "Level 3" classification for
->   PQ-ratcheted protocols. Formal analysis by Linker, Mitchell, Stebila (eprint
+>   PQ-ratcheted protocols. Formal analysis by Linker, Sasse, Basin (eprint
 >   2024/1395) gives PQ3 the most thoroughly modelled production PQ-protocol
 >   provenance to date.
 > - **Signal Foundation** (Ehren Kret, Rolfe Schmidt et al.) — shipped PQXDH
@@ -109,8 +109,7 @@ surveys cluster on 2030-2040 for CRQC arrival, but any data with a
 captures decrypted in 2036.
 
 The institutional cadence is **CNSA 2.0** (NSA, September 2022,
-updated May 2025) for U.S. NSS: 2025 — no new RSA/DH/ECC NSS
-approvals; January 2027 — new NSS acquisitions must support CNSA
+updated May 2025) for U.S. NSS: January 2027 — new NSS acquisitions must support CNSA
 2.0; December 2030 — deployed NSS software/firmware must use CNSA
 2.0 signatures; December 2031 — full enforcement; 2035 — all NSS
 fully quantum-resistant (aligned with NSM-10). CNSA 2.0 applies
@@ -184,22 +183,20 @@ Argon2id, AES-256-GCM with parameter sets, key sizes, curve IDs);
 **certificate** (X.509 certs and their signing-algorithm-of-record,
 including intermediates); **cryptographic material** (keys, secrets,
 PSKs, KDF outputs); **protocol** (TLS 1.2 / 1.3, IPsec, SSH, S/MIME,
-Authenticode, Sigstore). Each asset has a **state** (`current`,
-`deprecated`, `disallowed`) and **relationships** (TLS endpoint →
+Authenticode, Sigstore). Related cryptographic material carries a **state**
+(`pre-activation`, `active`, `suspended`, `deactivated`,
+`compromised`, `destroyed`); assets carry **relationships** (TLS endpoint →
 certificate → CA → algorithm). The relationship graph is what makes
 CBOM useful for migration: you can query "which TLS endpoints
 transitively depend on an RSA-2048 root cert with 2030 expiration?"
 without walking every chain manually.
 
-CBOM tooling: **CBOMkit** (IBM Research, github.com/IBM/CBOM)
-generates CBOM from source by static analysis of common crypto
-library call sites (OpenSSL, Bouncy Castle, `cryptography.hazmat`,
-Go `crypto/`); **cdxgen** (CycloneDX/cdxgen) generates CycloneDX
+CBOM tooling: **CBOMkit** (IBM Research, since donated to the
+Linux Foundation's PQCA) generates CBOM from source by static
+analysis of Java and Python crypto library call sites; **cdxgen** (CycloneDX/cdxgen) generates CycloneDX
 BOMs from source and container images with CBOM emission; **sslyze**
 and **testssl.sh** scan TLS endpoints for negotiated suite per host
-as the empirical check on a CBOM generated from source; **PQC-PCM**
-(PQC Provider Capability Matrix) is the federal-procurement vendor
-matrix under EO 14306. Inventory is where [[reference-supply-chain-provenance]]
+as the empirical check on a CBOM generated from source. Inventory is where [[reference-supply-chain-provenance]]
 overlaps: CBOM is the SBOM's crypto cousin, same provenance
 disciplines (signed, attested, retained across release boundaries,
 queryable). Treat CBOM emission as a release-pipeline artifact, not
@@ -333,17 +330,17 @@ deployments now use the final-standard `X25519MLKEM768`. **rustls**
 supports it via `aws-lc-rs` provider in `rustls` 0.23.x. **Go
 `crypto/tls`** uses hybrid X25519MLKEM768 by default for any peer that
 supports it as of Go 1.24 (February 2025). **NSS / Firefox 132+**
-(November 2024) and **Apple SecureTransport / Network framework**
-(iOS 18 / macOS 15, October 2024) enable it by default. The
+(November 2024) and **Apple URLSession / Network framework**
+(iOS 26 / iPadOS 26) enable it by default. The
 config change is one line; the dominant cost is verification —
 debugging "why is my client negotiating X25519 instead of
 X25519MLKEM768" against an opaque TLS library (section 4.4).
 
 ### 4.3 Client-side support landscape
 
-Client support is already deployed: Chrome 124+ (April 2024), Firefox
-132+ (November 2024), Edge (Chromium-based), Safari on macOS 15 / iOS
-18, curl with OpenSSL 3.5 / BoringSSL (`--curves X25519MLKEM768`), Go
+Client support is already deployed: Chrome 131+ (November 2024), Firefox
+132+ (November 2024), Edge (Chromium-based), Apple URLSession / Network
+clients on iOS 26 / iPadOS 26, curl with OpenSSL 3.5 / BoringSSL (`--curves X25519MLKEM768`), Go
 HTTP client (automatic since Go 1.24), `cloudflared`. **Enabling
 X25519MLKEM768 on the server is sufficient** — major clients are
 already there, hybrid serves classical-only clients via the X25519
@@ -358,9 +355,7 @@ the classical curve. Debug procedure: (1) capture the ClientHello with
 for `X25519MLKEM768` (group ID `0x11ec`) in `supported_groups`; (2)
 capture the ServerHello and inspect the `key_share` `selected_group`
 to see what the server actually picked; (3) suspect middleboxes if
-ALPN succeeds but PQ negotiation fails — the Cloudflare
-`pqtunnels.cloudflareresearch.com` telemetry endpoint exists because
-some legacy appliances mangle PQ ClientHellos that expect
+ALPN succeeds but PQ negotiation fails — some legacy appliances mangle PQ ClientHellos that expect
 sub-1500-byte sizes; (4) check MTU — ML-KEM-768 client_share is ~1184
 bytes vs X25519's 32 bytes, so the ClientHello swells to ~1700-1900
 bytes (TCP segmentation handles it, but legacy middleboxes don't
@@ -372,13 +367,13 @@ From large-scale deployment data: PQ ClientHello is ~1100-1200 bytes
 larger than classical X25519 (~600 bytes baseline + ~1200 byte ML-KEM
 client_share); server response ~1000 bytes larger. Net handshake
 increase: ~5-15% of total page-load bytes for typical short-content
-pages. ML-KEM-768 encapsulate / decapsulate is ~40-60 µs on modern
-x86_64 with AVX2 — comparable to a single X25519 scalar
+pages. ML-KEM-768 encapsulate / decapsulate cost is
+comparable to a single X25519 scalar
 multiplication. Hybrid handshake adds ~50% CPU vs X25519-only, but
 classical TLS CPU cost is dominated by RSA / ECDSA verification, so
 end-to-end overhead is single-digit percent. Latency increase < 10 ms
-in Cloudflare's measurements. Cloudflare reports ~43% of human
-connections were hybrid-PQ by mid-September 2025; over half by
+in Cloudflare's measurements. Cloudflare reports more than 45% of
+human traffic was hybrid-PQ by September 2025; 52% by
 end of 2025.
 
 ### 4.6 Fallback semantics
@@ -418,7 +413,7 @@ preference; sntrup761x25519-sha512 retained for compatibility.
 Expected 2026 steady state: 9.9+ negotiates mlkem768x25519-sha256,
 9.0-9.8 falls back to sntrup761x25519-sha512, pre-9.0 falls back to
 classical curve25519-sha256 (flag for remediation). GitHub enabled
-default PQ SSH for `git+ssh` in October 2025, making PQ the default
+PQ SSH (`sntrup761x25519-sha512`) for `git+ssh` in September 2025, making PQ the default
 for the most common SSH use case at the largest hosting provider.
 
 ### 5.2 Server-side configuration
@@ -427,9 +422,9 @@ The relevant sshd_config line:
 ```
 KexAlgorithms mlkem768x25519-sha256,sntrup761x25519-sha512,curve25519-sha256,curve25519-sha256@libssh.org
 ```
-Order matters: put PQ first. For SSH the server's preference order
-wins over the client's offered list (opposite to TLS), but the
-client's offered list bounds negotiation — a client not offering PQ
+Order matters: put PQ first. For SSH the client's preference order
+wins — the first algorithm on the client's list that the server also
+supports is chosen (RFC 4253 §7.1) — so a client not offering PQ
 still gets classical.
 
 ### 5.3 Client-side configuration
@@ -444,24 +439,21 @@ posture, temporary only).
 
 ### 5.4 Audit recipe — what your peers negotiate
 
-Fastest negotiation check: `ssh-keyscan -t kex hostname` surfaces
+Fastest negotiation check: `nmap --script ssh2-enum-algos -v -p22 hostname` surfaces
 server-advertised KEX; `ssh -vv user@hostname 2>&1 | grep 'kex:'`
 shows the actually-negotiated algorithm. Fleet-wide: script
-`ssh-keyscan -t kex` against every inventoried host and emit CSV
-for a PQ-readiness dashboard. GitLab and GitHub have published
-troubleshooting guides for PQ SSH failures against older jump-host
-intermediaries — typically a `KexAlgorithms` override on the jump
-host fixes it.
+`nmap --script ssh2-enum-algos` against every inventoried host and emit CSV
+for a PQ-readiness dashboard.
 
 ### 5.5 Embedded / non-OpenSSH SSH implementations
 
-The long tail in SSH inventories: **Dropbear** (embedded; PQ tracking
-late 2026); **libssh** 0.11 (April 2024, PQ KEX added — Wireshark /
+The long tail in SSH inventories: **Dropbear** (embedded; sntrup761 and ML-KEM PQ KEX since
+2025.87, March 2025); **libssh** 0.12 (February 2026, PQ KEX added — Wireshark /
 libcurl SSH inherit on rebuild); **libssh2** (slower; expected 1.12 or
 1.13); **paramiko** (Python; contributor-driven, not upstream as of
-2026); **golang.org/x/crypto/ssh** (X25519 today; PQ upstreaming
-alongside the broader Go rollout); **PuTTY** 0.81 (April 2024, PQ
-KEX). For embedded SSH on multi-year refresh hardware, note which
+2026); **golang.org/x/crypto/ssh** (`mlkem768x25519-sha256` supported when
+built with Go 1.24+); **PuTTY** 0.78 (October 2022, NTRU Prime PQ
+KEX; ML-KEM since 0.83, February 2025). For embedded SSH on multi-year refresh hardware, note which
 implementation is in use — upgrade cadence depends on the upstream
 library, not OpenSSH. Cross-link to
 [`post_quantum_cryptography_expertise.md`](post_quantum_cryptography_expertise.md)
@@ -518,7 +510,7 @@ SLH-DSA does not have. Choose XMSS / LMS when signing happens in a
 single well-controlled environment, signature size budget is tighter
 than SLH-DSA permits, and the application fits SP 800-208's narrow
 scope (code signing and similar — *not* general-purpose digital
-signatures). RFC 9802 (May 2025) specifies HSS (multi-tree LMS) and
+signatures). RFC 9802 (June 2025) specifies HSS (multi-tree LMS) and
 XMSS in X.509, opening the path for stateful-hash code-signing certs.
 
 ### 6.4 ML-DSA for code signing — when it's appropriate
@@ -538,12 +530,11 @@ package signing; ML-DSA-65 or hybrid ML-DSA + ECDSA for medium-lived
 
 **Apple code signing** (Developer ID, App Store) — no public PQC
 roadmap as of 2026; internal roadmap presumed given iMessage PQ3
-leadership. **Microsoft Authenticode** — ML-DSA signing support
-rolling out 2025-2026; legacy SHA1 / SHA256 chains remain valid for
+leadership. **Microsoft Authenticode** — legacy SHA1 / SHA256 chains remain valid for
 years. **Linux package signing** (DEB / RPM) — Debian / RPM tracking
 PQ via GnuPG / Sequoia-PGP roadmaps; no defaults flipped 2026.
-**Container image signing** — Sigstore cosign has experimental ML-DSA
-support; production defaults still ECDSA; Rekor transparency log
+**Container image signing** — Sigstore cosign production defaults are
+still ECDSA; Rekor transparency log
 itself signed so the migration applies to both. **Driver signing**
 (Microsoft WHQL, Apple kext) — long back-compatibility tails tied to
 OS major-version cycles. **Code-signing CAs** — DigiCert, GlobalSign,
@@ -571,7 +562,7 @@ to [[reference-supply-chain-provenance]] §3 and
 Document signing is the "Tier 1 long-lived authentication" sibling
 of code signing — high-value artifacts verifiable for decades. Use
 cases: **PDF signing** (PAdES, PAdES-LTV / PAdES-LTA for long-term
-archival — Adobe defines profiles from "basic" B-B through "long-
+archival — ETSI EN 319 142 defines profiles from "basic" B-B through "long-
 term archival" LTA embedding signature-validation data in the
 document); **S/MIME and CMS-signed objects** for email and B2B
 message signing; **PGP / OpenPGP** for software distribution,
@@ -599,10 +590,7 @@ back-compat pattern in long-term document signing.
 
 ### 7.2 Vendor migration timelines
 
-**Adobe** — published PAdES PQ roadmap; production rollout 2026-2028;
-Adobe Document Cloud has been staging PQ infrastructure since 2024.
-**DocuSign** — public roadmap targets enterprise PQ signing 2026-2027.
-**Adobe Sign** — aligns with Adobe Document Cloud. **TSAs**
+**TSAs**
 (DigiCert, GlobalSign, Entrust, Sectigo) — PQ-capable timestamping
 rolling out 2026.
 
@@ -631,7 +619,7 @@ protocol has its own deployment story.
 Signal's two-stage PQ migration is the canonical production reference.
 
 **PQXDH** (Sep 2023) replaced classical X3DH at session start. The
-shared secret derives from *both* X25519 ECDH and CRYSTALS-Kyber-768
+shared secret derives from *both* X25519 ECDH and CRYSTALS-Kyber-1024
 KEM. Rollout was incremental — older clients fell back to X3DH until
 updating. By mid-2024 most Signal sessions were PQXDH. **Important
 property**: only initial key agreement is PQ-protected. Subsequent
@@ -649,8 +637,8 @@ The "sparse" trick: ML-KEM ciphertexts (~1100 bytes) are too large to
 send every message, so SPQR splits each ciphertext across multiple
 messages with erasure coding for loss tolerance. Continuous PQ
 ratcheting means ongoing sessions are HNDL-safe. Apple's PQ3 taxonomy
-classifies pre-Triple-Ratchet Signal as "Level 2" and post-Triple-
-Ratchet (and PQ3 itself) as "Level 3."
+classifies pre-Triple-Ratchet Signal (PQXDH) as "Level 2" and PQ3
+itself as "Level 3."
 
 ### 8.2 Apple iMessage PQ3 — Feb 2024, Level 3
 
@@ -658,10 +646,10 @@ Apple's PQ3, announced February 2024, is the other production
 reference. Structure: (1) initial key agreement with classical ECDH +
 PQ KEM (Kyber); (2) per-message symmetric ratchet for forward
 secrecy; (3) per-message ECDH ratchet for fresh entropy; (4) periodic
-PQ KEM ratchet — a new ML-KEM key is mixed into the key derivation
-after every 50 epochs (~50 message round-trips). This continuous-PQ
+PQ KEM ratchet — a new Kyber-768 key is mixed into the key derivation
+about every 50 messages, and at least once every 7 days. This continuous-PQ
 property defines "Level 3." Apple's whitepaper, Stebila's analysis,
-and the formal verification by Linker, Mitchell, Stebila (eprint
+and the formal verification by Linker, Sasse, Basin (eprint
 2024/1395, USENIX Security 2025) give PQ3 the most thoroughly modelled
 production-PQ-protocol provenance to date. Apple deployed continuous
 PQ ratcheting from the start of PQ3 (Feb 2024); Signal matched it
@@ -715,10 +703,9 @@ Migration pattern: (1) update signers to issue new-algorithm
 (`ML-DSA-65` or hybrid composite); (2) update verifiers to accept
 both old and new; (3) wait for verifiers — where JWT migrations
 stall on long-tail third-party integrations; (4) cut signers to
-new-only. The `alg` value is in transition: JOSE WG is standardising
-PQ identifiers (`ML-DSA-65`); some deployments use vendor-prefixed
-values until the standard ships. Verifier libraries (jose-jwt,
-python-jose, jsonwebtoken) are adding PQ library-by-library.
+new-only. The `alg` value is in transition: the IETF COSE WG is standardising
+JOSE PQ identifiers (`ML-DSA-65`, draft-ietf-cose-dilithium); some deployments use vendor-prefixed
+values until the standard ships.
 
 ### 9.2 OAuth 2.1, OIDC, and the federation cost
 
@@ -735,8 +722,8 @@ all-at-once coordination.
 ### 9.3 SAML — the slow-mover
 
 SAML XML signatures historically support RSA-SHA256 / RSA-SHA1 /
-ECDSA. XML Signature WG has PQ extensions in draft as of 2026 but
-not deployed. SAML PQ migration will be the slowest identity-layer
+ECDSA. ML-DSA / SLH-DSA URIs are in IETF
+draft-eastlake-rfc9231bis-xmlsec-uris as of 2026 but not deployed. SAML PQ migration will be the slowest identity-layer
 migration: hundreds of relying parties with disparate cadences, and
 the XML signature ecosystem has limited active maintenance.
 Realistic pattern — wait for IdP vendor support (Okta, Microsoft
@@ -814,9 +801,9 @@ on resource-constrained devices.
 | Ed25519                  |    32 B    |   32 B      |  64 B                  |
 | X25519                   |    32 B    |   32 B      |  32 B (shared secret)  |
 | ML-KEM-768 (FIPS 203)    | 1,184 B    | 2,400 B     | 1,088 B (ciphertext)   |
-| ML-DSA-65 (FIPS 204)     | 1,952 B    | 4,000 B     | 3,293 B (signature)    |
+| ML-DSA-65 (FIPS 204)     | 1,952 B    | 4,032 B     | 3,309 B (signature)    |
 | SLH-DSA-128f (FIPS 205)  |    32 B    |   64 B      | 17,088 B (signature)   |
-| SLH-DSA-256s (FIPS 205)  |    64 B    |  128 B      | 49,856 B (signature)   |
+| SLH-DSA-256s (FIPS 205)  |    64 B    |  128 B      | 29,792 B (signature)   |
 | Falcon-512 (FN-DSA)      |   897 B    |  1,281 B    | 666 B (signature)      |
 | XMSS-SHA256-H10          |    64 B    |  varies     | 2,500-3,000 B          |
 | LMS-SHA256-H10           |    60 B    |  varies     | 1,100-2,400 B          |
@@ -874,30 +861,27 @@ failure modes are new.
 
 ### 12.1 KyberSlash — the canonical PQ side-channel
 
-KyberSlash (Bernstein, Bhargavan, Bhasin, Chitchanok, Kannwischer,
-Schwabe, Stoffelen, 2024) is the reference timing side-channel in PQ
+KyberSlash (Bernstein, Bhargavan, Bhasin, Chattopadhyay, Chia,
+Kannwischer, Kiefer, Paiva, Ravi, Tamvada, 2024) is the reference timing side-channel in PQ
 implementations. ML-KEM's reference does a division by Kyber prime
 `q` in message decoding. On many platforms (ARM Cortex-A7,
 Cortex-M4, x86 with certain compilers) integer division is not
 constant-time, so it leaks bits of the secret via timing. The
 exploit constructs chosen ciphertexts to amplify leakage and recover
 the ML-KEM private key. The fix was upstreamed to pq-crystals and
-most downstream libraries (Go, Rust, C bindings) in H1 2024. Dan
-Bernstein and the canonical authors discovered the bug within weeks
-of each other, hence the dual `KyberSlash1` / `KyberSlash2` naming
-(decap and encap sides). The lesson: PQ algorithms aren't secure by
+most downstream libraries (Go, Rust, C bindings) in H1 2024. `KyberSlash1`
+(`poly_tomsg`) was found by Tamvada, Bhargavan and Kiefer and
+independently by Dan Bernstein; `KyberSlash2` (`poly_compress` /
+`polyvec_compress`) was found by Ravi and Kannwischer. The lesson: PQ algorithms aren't secure by
 virtue of being PQ. A migration that uses a side-channel-vulnerable
 PQ implementation is worse than staying on hardened classical.
 
-### 12.2 Hertzbleed-style and fault attacks on Dilithium
+### 12.2 Side-channel and fault attacks on Dilithium
 
 ML-DSA has been targeted by power-analysis attacks on
 microcontrollers (key recovery from few signatures with a
-power-trace oracle), Hertzbleed-derivative timing attacks on the
-rejection-sampling loop (iteration count depends on secret), and
-fault attacks (Plundervolt voltage-glitch on Intel CPUs, laser fault
-injection on smart cards) that bypass rejection sampling to induce
-signature forgeries. Mitigations are the same as for classical algos
+power-trace oracle) and fault attacks that bypass rejection
+sampling to induce signature forgeries. Mitigations are the same as for classical algos
 with similar profiles: constant-time arithmetic, masked
 implementations on high-assurance devices, fault-detection
 countermeasures, and operational separation of assurance levels per
@@ -937,14 +921,14 @@ enterprises.
 ### 13.1 HSM vendor PQ status
 
 The HSM market is in coordinated transition. **Thales Luna HSM 7.9**
-(firmware June 2025) ships native support for ML-KEM (FIPS 203) and
+(firmware announced July 2025) ships native support for ML-KEM (FIPS 203) and
 ML-DSA (FIPS 204) fully integrated into firmware (no functionality
 modules); keys clone across partitions, back up / restore, and work
 in HA groups — the production reference for PQ HSM in 2026. **AWS
 CloudHSM** — PQ support announced; AWS-LC has the algorithms;
 integration in progress. **Azure Key Vault Managed HSM** — Microsoft
 PQ roadmap rolling out 2025-2026. **Google Cloud KMS / EKM** —
-BoringSSL stack supports PQ; KMS API exposure rolling out. **Entrust
+ML-DSA, SLH-DSA and ML-KEM GA in Cloud KMS (July 2026). **Entrust
 nShield, Utimaco** — PQ firmware updates 2025. Vendor-coordination
 playbook: inventory HSM dependencies; identify the firmware version
 with the algorithms you need; plan upgrade windows (HSMs require
@@ -953,10 +937,9 @@ scheduled-months-ahead maintenance); test in non-production first
 
 ### 13.2 Cloud KMS PQ roadmaps
 
-**AWS KMS** — PQ envelope encryption available in select regions;
-CloudFront / CloudHSM integration rolling out. **Azure Key Vault** —
-PQ key types in preview; ML-KEM and ML-DSA GA in 2026. **Google
-Cloud KMS** — PQ algorithm preview; broader exposure 2025-2026. For
+**AWS KMS** — ML-DSA signing keys available (June 2025);
+CloudFront / CloudHSM integration rolling out. **Google
+Cloud KMS** — ML-DSA, SLH-DSA and ML-KEM GA (July 2026). For
 KMS-dependent SaaS, the migration is gated by the provider's
 roadmap, not the SaaS team's own work.
 
@@ -975,8 +958,7 @@ master schedule.
 
 For end-to-end PQ testing: **Cloudflare PQ test endpoints**
 (`pq.cloudflareresearch.com`) for any TLS client wanting to exercise
-PQ negotiation against a known-good server. **Google PQC test
-server** at a rotating Google-internal hostname. **Open Quantum
+PQ negotiation against a known-good server. **Open Quantum
 Safe** `oqs-demos` Docker containers (PQ-enabled OpenSSL, Apache,
 nginx). **Cloudflare PQ tunnels telemetry**
 (`pqtunnels.cloudflareresearch.com`) collects failure-mode data
@@ -1018,14 +1000,12 @@ assessments, and cyber insurance underwriting will track.
 ### 14.3 EU CRA and NIS2 cryptography requirements
 
 The EU Cyber Resilience Act (CRA) (in force since December 2024,
-applicable from December 2027) includes Article 13 essential
+applicable from December 2027) includes Annex I essential
 cybersecurity requirements touching cryptographic strength. The CRA
-does not name PQ algorithms specifically but requires "appropriate
-cryptography" — interpreted in guidance to include PQ-readiness for
-multi-year-deployment products. NIS2 (transposed into EU member-state
+does not name PQ algorithms specifically but requires encryption by
+"state of the art" mechanisms. NIS2 (transposed into EU member-state
 law from 2024) has parallel critical-sector requirements with
-national implementations varying in specificity; the German BSI has
-issued the most detailed national PQ guidance under NIS2. For
+national implementations varying in specificity. For
 EU-market products, CRA + national NIS2 mirrors the CNSA 2.0
 structure on a slightly later timeline.
 
@@ -1044,9 +1024,7 @@ audit-language curve and makes future audits cheaper.
 critical-infrastructure operators are increasingly asked to
 demonstrate quantum-readiness in CISA reviews, with the
 CISA / NSA / NIST quantum-readiness factsheet (August 2023) as the
-assessor's reference. **PCI DSS** — PCI Council has indicated future
-versions will incorporate PQ migration expectations, likely in PCI
-DSS 4.1 or 5.0. **SOC 2 Type 2** — auditors are starting to ask about
+assessor's reference. **SOC 2 Type 2** — auditors are starting to ask about
 PQ migration plans under CC6; in 2026 this is "have a plan and
 timeline," tightening to "show evidence of execution" over 2027-2030.
 

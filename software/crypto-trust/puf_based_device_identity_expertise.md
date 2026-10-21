@@ -56,11 +56,9 @@ PUFs differ in **what physical phenomenon they measure**. Each type has distinct
 
 Each cell has a process-determined preference; collectively the startup pattern is per-chip-unique and per-chip-stable. The most-deployed PUF type in production silicon.
 
-Pioneered for commercial use by Intrinsic-ID (founded out of Philips/NXP research circa 2008, acquired by Synopsys 2024 `[unverified specific date]`).
+Pioneered for commercial use by Intrinsic-ID (founded out of Philips/NXP research circa 2008, acquired by Synopsys March 2024).
 
 SRAM-PUF startup characterization was studied in depth by **Daniel Holcomb** (UMass Amherst, IEEE Trans. Computers 2009).
-
-His work established that ~85-95% of SRAM cells exhibit stable startup preference, with the remainder being "fuzzy" cells averaged out by error correction.
 
 **Ring Oscillator (RO) PUF.** Layout-identical ring oscillators have slightly different frequencies due to process variation in transistor delays. Pairwise frequency comparisons yield stable bits. Introduced by **G. Edward Suh and Srinivas Devadas** (DAC 2007). Larger silicon area than SRAM PUF but simpler to add to a design that doesn't already include SRAM at the right location.
 
@@ -76,7 +74,7 @@ Production arbiter PUFs require XOR-arbiter or feed-forward variants, which rais
 
 **Optical PUF.** **Ravi Pappu's MIT thesis (2001)** — the foundational PUF work. Light shone through an inhomogeneous medium (epoxy with embedded scatterers) produces a speckle pattern unique to the medium. The pattern is sensitive to wavelength, angle, and the exact disposition of scatterers, so cloning requires reproducing the medium atom-by-atom. Foundational but not practical at IoT scale — requires a camera, light source, and mechanical alignment. Cited in nearly every subsequent PUF paper.
 
-**Coating PUF.** Capacitive measurements through a deposited dielectric layer with random doping. **Pim Tuyls, Boris Škorić, and collaborators** (CHES 2006) — a deposited tamper-evident coating whose capacitance depends on the random distribution of metal/dielectric particles. Has the anti-invasive-attack property: removing the coating to probe the chip destroys the PUF response. Used in higher-assurance smart cards.
+**Coating PUF.** Capacitive measurements through a deposited dielectric layer with random doping. **Pim Tuyls, Boris Škorić, and collaborators** (CHES 2006) — a deposited tamper-evident coating whose capacitance depends on the random distribution of metal/dielectric particles. Has the anti-invasive-attack property: removing the coating to probe the chip destroys the PUF response.
 
 **Memory-based PUFs beyond SRAM.** DRAM-startup PUF (decay rate of un-refreshed cells), flash-startup PUF (program/erase variability), butterfly PUF (cross-coupled latches similar to SRAM but explicitly added). Each leverages the same principle — exploit existing memory technology's process variation — with different reliability and cost trade-offs.
 
@@ -102,7 +100,7 @@ The most common secure-sketch instantiation is the **code-offset construction**.
 
 The error-correcting code choice matters. Concatenated codes (e.g., BCH + repetition) are common; the code rate trades off helper-data size and error tolerance. For an SRAM PUF with ~10% BER and a 128-bit final key, expect helper data on the order of 1-4 KB and ~10-50% boot-time CPU overhead for the decode + extract pipeline.
 
-**Index-based syndrome coding (IBS).** An alternative that publishes indices of "reliable" cells instead of an XOR sketch. The idea: at enrollment, identify cells that read consistently across multiple reads at multiple voltage/temperature corners. Publish only the indices of reliable cells as helper data; the values of those cells become the PUF response. Avoids the XOR-based sketch's leakage in some attack models but reduces the effective PUF response length (only the reliable subset is used). **Yu and Devadas** (DATE 2010) and follow-up work explored IBS variants.
+**Index-based syndrome coding (IBS).** An alternative that publishes indices of "reliable" cells instead of an XOR sketch. The idea: at enrollment, identify cells that read consistently across multiple reads at multiple voltage/temperature corners. Publish only the indices of reliable cells as helper data; the values of those cells become the PUF response. Avoids the XOR-based sketch's leakage in some attack models but reduces the effective PUF response length (only the reliable subset is used). **Yu and Devadas** (IEEE Design & Test 2010) and follow-up work explored IBS variants.
 
 **Soft-decision decoding.** Rather than treating each PUF bit as a hard 0/1, treat it as a probability based on multiple reads. Soft-decision decoders (e.g., soft-input BCH) achieve better error-correction performance than hard-decision decoders. Cost: more reads at boot, more decoder complexity. Used in some Intrinsic-ID Quiddikey configurations.
 
@@ -110,7 +108,7 @@ The error-correcting code choice matters. Concatenated codes (e.g., BCH + repeti
 
 Helper data is conventionally stored in unprotected flash. The fuzzy-extractor security analysis assumes the attacker can read it. The attacker just cannot **forge** it — if the attacker can modify helper data, they can bias the recovered key. Production designs sign the helper data with a key derived from a different (or hardware-bound) source, creating a chicken-and-egg problem that is usually solved by storing a hash of the helper data in a small OTP fuse region. The helper data itself is bulky; only its hash is hardware-anchored.
 
-**Becker's lattice-PUF construction** (Georg Becker, CHES 2017+) extends the helper-data idea with lattice-based learning-with-errors hardness assumptions, providing modeling-attack resistance for strong-PUF use cases.
+**The lattice-PUF construction** (Ye Wang, Xiaodan Xi, and Michael Orshansky, HOST 2020) extends the helper-data idea with lattice-based learning-with-errors hardness assumptions, providing modeling-attack resistance for strong-PUF use cases.
 
 ---
 
@@ -141,27 +139,19 @@ The PUF replaces the OTP-fused UDS. The rest of the chain is unchanged. From DIC
 
 ## 5. Real PUF deployments
 
-**Intrinsic-ID Quiddikey / BroadKey.** SRAM-PUF productized as IP cores. Licensed into many SoCs: NXP, Renesas, Microchip, and others integrate Quiddikey under license. The Intrinsic-ID founding team grew out of Pim Tuyls's research at Philips Research (the Tuyls–Škorić coating-PUF lineage). Acquired by Synopsys in 2024 `[unverified specific date]`. The acquisition consolidates the PUF IP licensing market.
+**Intrinsic-ID Quiddikey / BroadKey.** SRAM-PUF productized as IP cores. Licensed into many SoCs: NXP, Microchip, and others integrate Quiddikey under license. The Intrinsic-ID founding team grew out of Pim Tuyls's research at Philips Research (the Tuyls–Škorić coating-PUF lineage). Acquired by Synopsys in March 2024. The acquisition consolidates the PUF IP licensing market.
 
-**Maxim Integrated DS28E50 + DS28E84.** Secure ICs with PUF-derived keys. Small form factor; intended for accessory authentication, consumables management, and supply-chain attestation. Maxim is now part of Analog Devices.
+**Maxim Integrated DS28E50 + DS28E39.** Secure ICs with PUF-derived keys. Small form factor; intended for accessory authentication, consumables management, and supply-chain attestation. Maxim is now part of Analog Devices.
 
-**NXP A71CH / SE050 secure elements.** Modern variants incorporate PUF-class primitives `[unverified specific generations and implementations]`. Used in EdgeLock SE series for IoT identity.
+**Microsoft Azure Sphere Pluton chip.** Pluton has subsequently been integrated into AMD Ryzen and Qualcomm SoCs as a Windows security processor.
 
-**Microsoft Azure Sphere Pluton chip.** Pluton's secure MCU on Azure Sphere uses PUF-class primitives as a root of trust `[unverified specific implementation — Microsoft does not publish full Pluton silicon details]`. Pluton has subsequently been integrated into AMD Ryzen and Qualcomm SoCs as a Windows security processor.
-
-**Apple Secure Enclave (UID derivation).** Apple's Secure Enclave Processor (SEP) on A-series and M-series chips uses a per-device UID. Apple has stated the UID is "fused into the SoC at manufacturing" but has not published whether the fusing is conventional OTP or PUF-class `[unverified specific approach — Apple Platform Security Guide is silent on the underlying primitive]`. Independent research (Tarjei Mandt + others on iPhone teardowns) suggests PUF-class primitives are plausible but unconfirmed.
-
-**Google Pixel Titan M2 / Tensor G4 security IP.** Google's security chips use PUF-class primitives for device identity `[unverified specific approach — Google does not publish full Titan M2 silicon details]`.
+**Apple Secure Enclave (UID derivation).** Apple's Secure Enclave Processor (SEP) on A-series and M-series chips uses a per-device UID. Apple states the UID is randomly generated and fused into the SoC at manufacturing; starting with A9 SoCs, the Secure Enclave TRNG generates it during manufacturing and a software process in the Secure Enclave writes it to the fuses.
 
 **Xilinx/AMD Zynq UltraScale+ MPSoC.** Includes a PUF as an option for AES-key derivation (the "PUF helper data" stored in eFuses for sketch operation). Documented in the device security user guides. Provides a worked example of PUF + DICE-style chain in an FPGA SoC. The PUF is one of several key sources the configuration security unit (CSU) can select for bitstream decryption.
 
-**Maxim DS28C36.** ChipDNA PUF technology — Maxim's branding for their SRAM-PUF-derived key generation in DeepCover secure ICs. Used widely in printer-cartridge authentication, medical-device accessory authentication, and similar accessory-attestation use cases.
+**Maxim DS28C50.** ChipDNA PUF technology — Maxim's branding for PUF key generation from random variation in MOSFET analog characteristics, used in DeepCover secure ICs.
 
-**Microchip CryptoAuthentication / ATECC608.** Secure element with PUF-class key storage `[unverified specific PUF implementation — Microchip documentation describes "tamper-resistant key storage" without naming PUF specifically]`.
-
-**Renesas Synergy / RA family.** Selected Renesas microcontrollers ship with Intrinsic-ID Quiddikey under license. The PUF-derived key wraps the device's secret store; secrets stored in flash are encrypted under the PUF-derived KEK.
-
-**Lattice Semiconductor MachXO3.** Low-power FPGA with PUF for bitstream authentication.
+**Lattice Semiconductor Mach-NX.** FPGA family that includes a PUF to generate a device-unique random number.
 
 ---
 
@@ -174,14 +164,13 @@ A few thousand challenge-response pairs train a model that predicts unseen CRPs 
 Subsequent work extended the attack:
 
 - XOR-arbiter PUFs: Becker 2015 demonstrated polynomial-time attacks at reasonable XOR depth.
-- Feed-forward arbiter PUFs: Tobisch and Becker 2015.
-- Some controlled PUF variants: subsequent literature 2017+.
+- Feed-forward arbiter PUFs: Rührmair et al. 2010.
 
 **The practical consequence: strong PUFs used as authentication primitives without a hash-function wrapper are broken.**
 
 Many published authentication protocols based on raw arbiter PUFs are insecure against an attacker who can observe CRPs.
 
-**Side-channel attacks on PUF helper-data evaluation.** Becker and collaborators (CHES 2015 onward) demonstrated power-analysis and EM-analysis attacks during fuzzy-extractor evaluation.
+**Side-channel attacks on PUF helper-data evaluation.** Merli, Schuster, Stumpf, and Sigl (TRUST 2011) and follow-up work demonstrated side-channel attacks, including EM and power analysis, during fuzzy-extractor evaluation.
 
 The error-correction step processes the helper data combined with the PUF response; instantaneous power consumption leaks intermediate bits.
 
@@ -192,9 +181,9 @@ Mitigations:
 - use fuzzy extractors specifically designed for side-channel resistance
 - isolate the fuzzy-extractor accelerator in a power-domain shielded from external measurement
 
-**Side-channel attacks on PUF readout.** Power analysis during PUF response generation can leak partial response bits. SRAM PUFs are particularly susceptible because the power signature at startup correlates with the count of 1-vs-0 cells in a power-domain. **Lejla Batina** (Radboud + others on embedded crypto side-channels) has contributed to the broader side-channel literature applicable to PUF readout `[unverified specific PUF-focused publications]`.
+**Side-channel attacks on PUF readout.** Power analysis during PUF response generation can leak partial response bits. SRAM PUFs are particularly susceptible because the power signature at startup correlates with the count of 1-vs-0 cells in a power-domain.
 
-**Photon-emission analysis.** Switching transistors emit near-infrared photons. **Tajik et al.** (CCS 2017, "Physical Vulnerabilities of Physically Unclonable Functions") demonstrated photon-emission analysis on arbiter PUFs — backside imaging of the chip during PUF operation reveals which path won the race, completely breaking the PUF.
+**Photon-emission analysis.** Switching transistors emit near-infrared photons. **Tajik et al.** (CHES 2014, "Physical Characterization of Arbiter PUFs") demonstrated photon-emission analysis on arbiter PUFs — backside imaging of the chip during PUF operation reveals which path won the race, completely breaking the PUF.
 
 **Helper-data manipulation.** If an attacker modifies stored helper data, the fuzzy extractor outputs a different key — but a key the attacker may now know or control. Defense: integrity-protect helper data, ideally with a MAC keyed by a separate hardware-anchored secret.
 
@@ -234,7 +223,7 @@ The taxonomy matters because it determines what attacks are relevant.
 
 **Authentication protocols typically want strong PUFs** for the freshness property — but the ML-modeling result means the design space is constrained. Solutions:
 
-**Controlled PUFs** (Blaise Gassend, Dwaine Clarke, Marten van Dijk, Srinivas Devadas — CHES 2002 "Silicon Physical Random Functions" and follow-ups 2008).
+**Controlled PUFs** (Blaise Gassend, Dwaine Clarke, Marten van Dijk, Srinivas Devadas — ACSAC 2002 "Controlled Physical Random Functions" and follow-ups 2008).
 
 Wrap a strong PUF in a hash function:
 
@@ -245,7 +234,7 @@ Wrap a strong PUF in a hash function:
 
 The wrapper hash obscures the linear relationship between challenges and responses that ML attacks exploit. Adds latency but defends against modeling — the attacker can no longer observe the raw arbiter PUF challenges, only their hashes.
 
-**Lattice-PUF constructions.** Becker and collaborators have proposed PUF designs whose modeling problem reduces to learning-with-errors-style lattice problems, conjectured hard. The construction inserts a lattice-LWE step between the raw PUF response and the exposed CRP output. Provably modeling-resistant under standard lattice assumptions; not yet at production scale as of 2026.
+**Lattice-PUF constructions.** Wang, Xi, and Orshansky (HOST 2020) proposed a PUF design whose modeling problem reduces to learning-with-errors-style lattice problems, conjectured hard. The construction inserts a lattice-LWE step between the raw PUF response and the exposed CRP output. Provably modeling-resistant under standard lattice assumptions; not yet at production scale as of 2026.
 
 **Multi-PUF aggregation.** Combine outputs of multiple PUFs of different types — an SRAM PUF XOR'd with an RO PUF XOR'd with an arbiter PUF, for instance. Modeling all of them simultaneously is harder than modeling one. Practical complexity grows quickly in both area and ML attack difficulty.
 
@@ -265,11 +254,11 @@ The honest summary: **if your protocol needs a strong-PUF authentication primiti
 
 ## 8. Standards + certification
 
-**ISO/IEC 20897.** Multi-part PUF standard. Part 1 (security requirements), Part 2 (test methodology), additional parts on family-specific specifications. Defines PUF security properties (intra-distance, inter-distance, uniformity, steadiness, randomness) and test procedures. Provides a vocabulary for vendors to specify what their PUF guarantees.
+**ISO/IEC 20897.** Multi-part PUF standard. Part 1 (security requirements), Part 2 (test and evaluation methods). Defines PUF security properties (steadiness, randomness, uniqueness, tamper-resistance, unclonability) and test procedures. Provides a vocabulary for vendors to specify what their PUF guarantees.
 
-**Common Criteria evaluation profiles.** PUF-using products are evaluated under CC up to EAL5+ in the smart-card and HSM domains. Specific Protection Profiles (PPs) for PUF-based products exist `[unverified specific PP IDs]`. The PP defines the assurance the evaluation provides — but post-evaluation research has repeatedly demonstrated attacks on EAL-certified PUF products, so CC certification is necessary but not sufficient.
+**Common Criteria evaluation profiles.** PUF-using products are evaluated under CC up to EAL5+ in the smart-card and HSM domains. CC certification is necessary but not sufficient.
 
-**FIPS 140-3 Annex E.** Allows PUF-derived keys as an approved entropy source under certain conditions, contingent on NIST SP 800-90B entropy validation `[unverified specific Annex section as of latest revision]`. The PUF is treated as an entropy source; the helper-data construction is the conditioning function; the SP 800-90B health-test requirements apply.
+**FIPS 140-3.** An SRAM-PUF-based noise source has been validated as an SP 800-90B entropy source under FIPS 140-3 Implementation Guidance (CMVP entropy certificate E198). The PUF is treated as an entropy source; the helper-data construction is the conditioning function; the SP 800-90B health-test requirements apply.
 
 **NIST SP 800-90B.** Entropy-source validation. Applicable to PUF designs that claim to be entropy sources. Requires statistical tests (predictability, IID assumption testing) plus health monitoring during operation.
 
@@ -321,7 +310,7 @@ The decision a vendor or platform team faces: which UDS source for this product?
 
 **Reprovisioning.** If helper data is lost or corrupted (flash failure, intentional erase), can the chip be re-enrolled? Some PUF designs support multiple enrollment rounds (the PUF response is the same, so a new helper data set can be generated). Others use a fuse to disable re-enrollment after first use, preventing an attacker from re-enrolling a stolen chip with their own helper data. Design choice: fuse-lock for rollback-prevention vs. re-enrollable for field-recoverability. The fuse-lock choice is strictly more secure but eliminates recovery paths.
 
-**Aging refresh.** PUF response drifts with age — NBTI, PBTI, hot-carrier injection slowly shift transistor characteristics. Over 10-15 years the bit-error rate can grow from 10% to 15-20%, exceeding error-correction budgets sized for the initial BER. Long-lived devices need periodic helper-data refresh: at boot, recover the key using existing helper data, then generate fresh helper data from the current PUF reading anchored to the recovered key, then overwrite the stored helper data. Some implementations automate this; others require explicit return-to-factory service.
+**Aging refresh.** PUF response drifts with age — NBTI, PBTI, hot-carrier injection slowly shift transistor characteristics. Long-lived devices need periodic helper-data refresh: at boot, recover the key using existing helper data, then generate fresh helper data from the current PUF reading anchored to the recovered key, then overwrite the stored helper data. Some implementations automate this; others require explicit return-to-factory service.
 
 **Temperature-extreme handling.** A PUF characterized at 25°C may produce a response at -40°C (or +85°C) that differs enough that fuzzy extraction fails. Industrial and automotive deployments require **range-aware enrollment**: characterize the PUF at multiple temperature corners, generate helper data that accommodates the union of response variations. This costs more bits of helper data and more error-correction overhead. Skipping this step is a common cause of field failures — devices that work in lab conditions but boot-fail in cold-weather field deployment.
 
@@ -343,21 +332,21 @@ The decision a vendor or platform team faces: which UDS source for this product?
 
 ## 11. 2024-2026 currency
 
-**Synopsys + Intrinsic-ID acquisition (2024).** `[unverified specific date]` Consolidates the dominant SRAM-PUF IP into a single EDA-vendor portfolio. Reduces vendor diversity; raises supply-chain concentration risk. Synopsys now licenses Quiddikey and related PUF IP to most SoC vendors that want PUF-based UDS.
+**Synopsys + Intrinsic-ID acquisition (March 2024).** Consolidates the dominant SRAM-PUF IP into a single EDA-vendor portfolio. Reduces vendor diversity; raises supply-chain concentration risk.
 
 **PSA Certified PUF profiles maturing.** ARM-based Cortex-M IoT SoCs increasingly ship with PSA Certified Level 2/3 evaluations using PUF-based UDS. Cross-link to `[[reference-embedded-device-hardening-playbook]]` for the regulatory landscape forcing this adoption.
 
-**Apple Secure Enclave continued evolution.** A-series, M-series chips iterate on Secure Enclave Processor design. Whether Apple uses PUF-class primitives for the UID derivation remains undisclosed; **independent silicon teardowns (TechInsights, others) have not publicly resolved this** as of early 2026 `[unverified — Apple does not publish silicon-level details]`.
+**Apple Secure Enclave continued evolution.** A-series, M-series chips iterate on Secure Enclave Processor design. Apple states the UID is randomly generated and fused into the SoC at manufacturing; from A9 onward the Secure Enclave TRNG generates it, so the UID is not PUF-derived.
 
-**Google Pixel Titan M2 / Tensor G4.** Google security ICs use PUF-class primitives `[unverified specific implementation]`. Cross-link to `[[reference-dice-embedded-device-identity]]` §5 for the broader DICE-in-mobile picture.
+**Google Pixel Titan M2 / Tensor G4.** Cross-link to `[[reference-dice-embedded-device-identity]]` §5 for the broader DICE-in-mobile picture.
 
-**Microsoft Pluton MCU integration.** Pluton is integrated into AMD Ryzen and Qualcomm Snapdragon PCs as a Windows security processor. PUF-class primitives are part of the Pluton root-of-trust design `[unverified specific silicon implementation]`. Cross-link to `[[reference-dice-embedded-device-identity]]` §5 and `[[reference-hardware-attestation-chains]]` §11.
+**Microsoft Pluton MCU integration.** Pluton is integrated into AMD Ryzen and Qualcomm Snapdragon PCs as a Windows security processor. Cross-link to `[[reference-dice-embedded-device-identity]]` §5 and `[[reference-hardware-attestation-chains]]` §11.
 
 **FPGA-side PUF integration.** Xilinx/AMD Zynq UltraScale+ MPSoC and similar parts ship with PUF options for AES-key wrapping. The FPGA reconfigurability landscape makes PUF-based key derivation attractive because re-flashing the FPGA bitstream cannot change the PUF response.
 
 **Post-quantum migration.** PUF-derived UDS is independent of the signature/KEM choice in the upper attestation chain. Cross-link to `[[reference-post-quantum-cryptography]]` and `[[reference-hardware-attestation-chains]]` §10 for the PQC migration of certificates rooted in PUF-derived identity.
 
-**Research frontier.** Lattice-PUF constructions (Becker and collaborators), in-memory-computing PUFs (memristor-based), photonic PUFs for high-bandwidth applications. None at production scale as of 2026.
+**Research frontier.** Lattice-PUF constructions (Wang, Xi, Orshansky), in-memory-computing PUFs (memristor-based), photonic PUFs for high-bandwidth applications. None at production scale as of 2026.
 
 ---
 
@@ -365,7 +354,7 @@ The decision a vendor or platform team faces: which UDS source for this product?
 
 The PUF literature can read as enthusiastic. The deployment record is more mixed. Vendors evaluating PUF-based UDS need to understand these failure modes before shipping.
 
-**Helper-data leaks information.** Even with information-theoretic security analyses, side-channel leaks during helper-data evaluation and helper-data manipulation attacks reduce min-entropy below theoretical bounds. **Treat helper data as semi-secret.** Store it on-device, integrity-protect it, do not externalize it. Some published attacks (Becker side-channel work) recover the UDS from helper-data observation plus modest side-channel access.
+**Helper-data leaks information.** Even with information-theoretic security analyses, side-channel leaks during helper-data evaluation and helper-data manipulation attacks reduce min-entropy below theoretical bounds. **Treat helper data as semi-secret.** Store it on-device, integrity-protect it, do not externalize it. Some published attacks (Merli et al., TRUST 2011) recover the UDS from helper-data observation plus modest side-channel access.
 
 **Strong-PUF ML modeling breaks most production strong PUFs.** Arbiter PUFs, XOR-arbiter PUFs, feed-forward arbiter PUFs have all been broken with reasonable CRP corpora and modest compute. If you use a strong PUF for authentication, wrap it in a controlled-PUF construction or use a lattice-PUF design. Most production deployments do not need strong PUFs — use weak PUFs for UDS derivation and stop there.
 
@@ -439,18 +428,18 @@ This worked example illustrates why PUF-based UDS is harder to engineer than OTP
 ## Researchers / primary sources cited
 
 - **Ravi Pappu** (MIT 2001) — optical PUF foundational work
-- **Blaise Gassend, Dwaine Clarke, Marten van Dijk, Srinivas Devadas** (CHES 2002, controlled PUFs 2008) — silicon physical random functions
+- **Blaise Gassend, Dwaine Clarke, Marten van Dijk, Srinivas Devadas** (CCS 2002, controlled PUFs ACSAC 2002) — silicon physical random functions
 - **G. Edward Suh, Srinivas Devadas** (DAC 2007) — ring oscillator PUF
 - **Yevgeniy Dodis, Leonid Reyzin, Adam Smith** (Eurocrypt 2004) — fuzzy extractors and secure sketches
 - **Pim Tuyls, Boris Škorić** (CHES 2006) — coating PUF; Intrinsic-ID lineage from Philips Research
 - **Ulrich Rührmair** (CCS 2010 modeling attacks; subsequent strong-PUF attack lineage)
-- **Georg Becker** (CHES 2015+ side-channel attacks on helper data; lattice PUF)
+- **Georg Becker** (CHES 2015 reliability-based attack on XOR arbiter PUFs; helper-data manipulation attacks, IEEE TDSC 2019)
 - **Roel Maes** (PUF surveys; Physically Unclonable Functions monograph 2013)
 - **Daniel Holcomb** (UMass Amherst, IEEE Trans. Computers 2009) — SRAM PUF startup characterization
-- **Shahin Tajik et al.** (CCS 2017) — photon-emission analysis on arbiter PUFs
+- **Shahin Tajik et al.** (CHES 2014) — photon-emission analysis on arbiter PUFs
 - **Lejla Batina** (Radboud — embedded crypto side-channel literature applicable to PUF readout) `[unverified specific PUF-focused publications]`
 - **TCG DICE Working Group** — DICE specifications (UDS source-agnostic)
 - **NIST SP 800-90B working group** — entropy source validation applicable to PUF designs
 - **ISO/IEC JTC 1/SC 27** — ISO/IEC 20897 PUF standard family
 
-Vendors: **Intrinsic-ID** (founding team grew from Philips Research / Tuyls lineage; acquired by Synopsys 2024 `[unverified specific date]`); **Synopsys** (post-acquisition Quiddikey IP holder); **Maxim Integrated / Analog Devices** (ChipDNA, DS28E50/DS28E84/DS28C36); **NXP** (A71CH, SE050 secure elements); **Microsoft** (Pluton); **Apple** (Secure Enclave UID — implementation undisclosed); **Google** (Titan M2, Tensor G4 — implementation undisclosed); **Xilinx/AMD** (Zynq UltraScale+ MPSoC PUF option).
+Vendors: **Intrinsic-ID** (founding team grew from Philips Research / Tuyls lineage; acquired by Synopsys March 2024); **Synopsys** (post-acquisition Quiddikey IP holder); **Maxim Integrated / Analog Devices** (ChipDNA, DS28E50/DS28E84/DS28C39); **NXP** (SE050 secure element — PUF present in hardware but not enabled in software, per NXP support); **Microsoft** (Pluton); **Apple** (Secure Enclave UID — TRNG-generated and fused, not PUF-derived); **Google** (Titan M2, Tensor G4 — implementation undisclosed); **Xilinx/AMD** (Zynq UltraScale+ MPSoC PUF option).
