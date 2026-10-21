@@ -5,8 +5,8 @@
 > - **Sherman Kent** (1903–1986; Yale historian, OSS Research & Analysis, CIA Board of
 >   National Estimates) — Author of *Strategic Intelligence for American World Policy*
 >   (Princeton University Press, 1949), the foundational text of analytical intelligence
->   as a discipline. Kent argued intelligence is simultaneously *product*, *process*,
->   and *organization*; the tradecraft he formalized at CIA's Office of National
+>   as a discipline. Kent argued intelligence is simultaneously *knowledge*, *organization*,
+>   and *activity*; the tradecraft he formalized at CIA's Office of National
 >   Estimates is the direct ancestor of every modern analytic program. Often called the
 >   father of intelligence analysis.
 > - **Richards J. Heuer Jr.** (1927–2018; CIA, 45 years) — Author of *Psychology of
@@ -14,8 +14,7 @@
 >   Hypotheses (ACH), developed for a 1984 interagency deception course on Soviet
 >   arms-control behavior. The book collects CIA Directorate of Intelligence articles
 >   from 1978–86. CIA Seal Medallion (1987). ACH is the most-deployed structured
->   analytic technique outside the academy and has been ported into cyber-attribution
->   practice by Dragos, Mandiant, and Recorded Future.
+>   analytic technique outside the academy.
 > - **Sergio Caltagirone, Christopher Betz, Andrew Pendergast** — Authors of *The
 >   Diamond Model of Intrusion Analysis* (DTIC technical report, 2013). Each was a
 >   senior US-IC analyst at the time of writing; Caltagirone later built Dragos's threat-intelligence team;

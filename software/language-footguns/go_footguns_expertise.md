@@ -89,11 +89,7 @@
 > - **Trail of Bits Go team** — security research firm with a long
 >   corpus of Go audits (Cosmos / Tendermint, Ethereum-Go clients); authors of the
 >   "Security assessment techniques for Go projects" blog series;
->   contributors to `go-fuzz` improvements; the `Testing Handbook`
->   at `appsec.guide` consolidates the Go-audit doctrine; the
->   `gosec` / `staticcheck` / `golangci-lint` configuration baseline
->   that Trail of Bits ships is widely adopted as the floor for
->   Go-codebase static analysis
+>   contributors to `go-fuzz` improvements
 > - **Google Go Security Team** — institutional contributor; ships
 >   `govulncheck` (the call-graph-aware vulnerability scanner backed
 >   by the curated Go vulnerability database at `vuln.go.dev`,
@@ -289,8 +285,7 @@ The standard library panics on some misuses but not all.
 When the typed-nil footgun reaches a generic interface-typed
 parameter, neither `i == nil` nor `i != nil` gives the right answer.
 The standard recipe uses `reflect.ValueOf(i).IsNil()` after a kind
-check. Defensive use of `reflect` adds cost (~100x slower than
-direct comparison); the preferred fix is to eliminate the
+check. Defensive use of `reflect` adds cost; the preferred fix is to eliminate the
 typed-nil-returned-as-interface antipattern at the source.
 
 ---
@@ -1420,7 +1415,7 @@ each by reachability and trust boundary, then triage by severity.
 - Geomys blueprint announcement: https://words.filippo.io/geomys/
 
 ### Race detection and fuzzing
-- Dmitry Vyukov — Google profile: https://www.linkedin.com/in/dvyukov/
+- Dmitry Vyukov — LinkedIn profile: https://www.linkedin.com/in/dvyukov/
 - Google Testing Blog — ThreadSanitizer: https://testing.googleblog.com/2014/06/threadsanitizer-slaughtering-data-races.html
 - Dmitry Vyukov — syzkaller Linux Security Summit 2018: https://events19.linuxfoundation.org/wp-content/uploads/2017/11/Syzbot-and-the-Tale-of-Thousand-Kernel-Bugs-Dmitry-Vyukov-Google.pdf
 - ThreadSanitizer C++ manual: https://github.com/google/sanitizers/wiki/threadsanitizercppmanual

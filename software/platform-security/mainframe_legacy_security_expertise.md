@@ -7,7 +7,7 @@
 
 The word "mainframe" gets used to mean roughly "computer your bank still runs that you don't understand." That definition is fine for headlines and useless for threat modeling. This document covers four substrate threads that share an attribute — they predate Linux as the operational lingua franca and they still run an enormous share of consequential transaction load — but otherwise have different architectures, different auth models, different attack surfaces, and different research communities.
 
-**IBM Z (z/OS)** is IBM's flagship architecture descended from the 1964 System/360. Current hardware is the z16 (2022) and z17 (announced April 2025, GA June 2025); current OS is z/OS 3.1 (2023) with z/OS 3.2 announced for late 2025. By IBM's own marketing, z mainframes process the majority of credit-card transactions worldwide and run the back-office of the largest banks, insurance carriers, brokerages, government tax systems, and social-insurance agencies. IBM's specific numbers ("70% of Fortune 500 mainframe-resident workload," "two-thirds of global credit-card transactions") are vendor-supplied and not independently verified — but the directional claim that z/OS sits behind a structurally important fraction of global finance is uncontested.
+**IBM Z (z/OS)** is IBM's flagship architecture descended from the 1964 System/360. Current hardware is the z16 (2022) and z17 (announced April 2025, GA June 2025); current OS is z/OS 3.1 (2023) with z/OS 3.2 announced for late 2025. By IBM's own marketing, z mainframes process the majority of credit-card transactions worldwide and run the back-office of the largest banks, insurance carriers, brokerages, government tax systems, and social-insurance agencies. IBM's specific numbers ("70% of global transactions, on a value basis," "two thirds of the Fortune 100") are vendor-supplied and not independently verified — but the directional claim that z/OS sits behind a structurally important fraction of global finance is uncontested.
 
 **IBM i** (formerly OS/400, AS/400, iSeries, System i) is IBM's midrange business platform. Launched 1988 as the AS/400, runs on POWER hardware (Power9, Power10, Power11), current OS is IBM i 7.5 (2022) and 7.6 (announced 2025). The integrated DB2 for i + RPG + COBOL stack is the spine of countless small-to-mid manufacturing, distribution, insurance, and ERP installations worldwide. The footprint is smaller than the public conversation realizes but far stickier than people assume — a 1990s AS/400 installation often outlives three rounds of "we are migrating off the AS/400" project plans.
 
@@ -89,7 +89,7 @@ POSIX layer on z/OS. The bridge between mainframe-native and Unix-native attack 
 
 ## 4. z/OS auth — RACF, ACF2, Top Secret
 
-z/OS does not have a single auth product the way Linux has PAM-and-/etc/passwd. It has three external security manager (ESM) products in the field. Most installations run one of them. The market is **RACF (IBM, around 60-70% share)**, **ACF2 (Broadcom, formerly CA, formerly SKK)**, and **Top Secret (Broadcom, formerly CA)**.
+z/OS does not have a single auth product the way Linux has PAM-and-/etc/passwd. It has three external security manager (ESM) products in the field. Most installations run one of them. The market is **RACF (IBM)**, **ACF2 (Broadcom, formerly CA, formerly SKK)**, and **Top Secret (Broadcom, formerly CA)**.
 
 ### RACF — Resource Access Control Facility
 
@@ -432,7 +432,7 @@ VMS is a clustered operating system from inception. Multiple nodes (originally V
 
 ### Identity model
 
-Users are *UAF (User Authorization File)* records. The UAF stores username, password hash, default privileges, allowed login times, and other policy. Authentication is against the UAF or, in modern configurations, against an LDAP/AD via ACME (Authentication and Credentials Management Extension) modules.
+Users are *UAF (User Authorization File)* records. The UAF stores username, password hash, default privileges, allowed login times, and other policy. Authentication is against the UAF or, in modern configurations, against an LDAP/AD via ACME (Authentication and Credential Management Extension) modules.
 
 ### Privileges
 
@@ -587,7 +587,7 @@ Documented earlier in §11. The OpenVMS CVE corpus is sparser; VSI publishes sec
 ### Notable incidents (verified-to-the-extent-public-reporting-allows)
 
 - **Maersk NotPetya 2017** — the public account focuses on Active Directory compromise. Cross-reference `[[reference-active-directory-windows-security]]` for the AD-pivot mechanism (file path `~/ai/expertise/software/active_directory_windows_security.md`).
-- **MOVEit / Cl0p 2023-2024** — affected enterprise file-transfer infrastructure that often serves as the gateway between mainframe and distributed systems. The mainframe was not the breach origin in most cases, but the breach often included data extracted from mainframe-fed file flows.
+- **MOVEit / Cl0p 2023-2024** — affected enterprise file-transfer infrastructure that often serves as the gateway between mainframe and distributed systems.
 - **HCA Healthcare 2023 data breach** — large-scale data exposure. The relationship to mainframe infrastructure is not clearly documented in public reporting; HCA's environment includes substantial mainframe presence but the breach disclosure does not anchor specifics. `[unverified involvement of mainframe substrate]`.
 - **SHARE / GSE conference disclosures (2023-2026)** — small but consistent stream of integrity bugs presented at the user-group level, often months ahead of or alongside CVE assignment. Track the SHARE security project agendas for current research; the named researchers in §2 anchor the community.
 

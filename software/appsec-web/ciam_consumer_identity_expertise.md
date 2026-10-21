@@ -979,10 +979,10 @@ principles to internal-support tooling.
   iCloud Keychain sync.
 - Google Password Manager added cross-device passkey sync 2022.
 - Microsoft personal account + Entra began rolling passkey support 2023-2024.
-- 1Password, Dashlane, Bitwarden added third-party passkey vault storage 2023.
-- WhatsApp, X, GitHub, Best Buy, Kayak, eBay, Cloudflare, Adobe, Amazon, Shopify,
-  TikTok, Microsoft, Google, Apple, Yahoo, Robinhood, PayPal, Coinbase shipped
-  consumer-facing passkey support in 2023-2024.
+- 1Password and Bitwarden added third-party passkey vault storage 2023; Dashlane
+  added it to its browser extension in 2022.
+- WhatsApp, X, GitHub, Adobe, Amazon, Shopify, TikTok shipped consumer-facing
+  passkey support in 2023-2024; Best Buy, Kayak, eBay, PayPal shipped in 2022.
 
 Adoption rates `[unverified specific percentages]` vary: developer-savvy products
 report 10-40% of active users on passkeys; long-tail consumer products well under

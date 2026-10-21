@@ -25,9 +25,8 @@
 > Supply Chain deep dive 2022; tj-actions compromise 2025 co-authored with Isaac Evans, Lewis Ardern, and Bence Nagy;
 > vm2 sandbox escape 2026 co-authored with Katie Paxton-Fear; "Security Like It's 1977 —
 > Capabilities for the Modern Agentic Web," Jan 2026, solo); Sessionize speaker profile
-> for BSides Seattle 2026; GitLab
-> `lapt0r/border-collie`; and the internal detection-automation work he has shipped
-> at Semgrep spanning authorization bugs, command injection, and prompt injection.
+> for BSides Seattle 2026; and GitLab
+> `lapt0r/border-collie`.
 
 ---
 
@@ -607,16 +606,15 @@ imitable rules.
 
 15. **Match length to artifact type. Do not over-write.** Empirical anchors:
     - **malfunctioning.website (personal blog):** ~500-900w (Fun With Semgrep
-      ~500w of prose + 4 code blocks; People To Know ~700w).
-    - **Semgrep blog vendor-guide:** ~1,200-2,500w (MCP guide ~4,500w with
+      ~500w of prose + 4 code blocks).
+    - **Semgrep blog vendor-guide:** ~1,200-2,500w (MCP guide has
       named-checklist sections that pad the count; otherwise 1,200-2,500w
       essay).
     - **Semgrep blog VR-writeup:** ~600-1,100w (vm2 sandbox-escape ~830w).
       Terse register; see rule 27.
-    - **Semgrep blog doctrine post:** ~1,000-1,800w (Security Like It's 1977
-      ~1,300w). Doctrine essays are SHORTER than vendor-guides — they argue
+    - **Semgrep blog doctrine post:** ~1,000-1,800w. Doctrine essays are SHORTER than vendor-guides — they argue
       from a position rather than walking a checklist. Shift-5 informed agent
-      wrote 3,063w on a doctrine topic; the actual public artifact is ~1,300w.
+      wrote 3,063w on a doctrine topic.
       The rule's prior "2,500-3,500w doctrine band" was empirically wrong.
     - **Supply-Chain / Conference longreads:** can run 2,000-4,000w because
       numeric tables carry the wordcount.
@@ -1065,7 +1063,7 @@ imitable rules.
       your secrets. Pin to SHA going forward." — three imperatives, no
       compressed thesis line.
 
-    Shift-7 anchor: actual tj-actions post is ~500-700w with TOP byline,
+    Shift-7 anchor: actual tj-actions post has a TOP byline,
     a "What you should do" heading, in-prose SHAs, dated update sections.
     Shift-7 informed agent wrote 1,336w with FOOT byline, noun-phrase
     headings, fabricated byline, no Updates section — overshot on length
@@ -1126,7 +1124,7 @@ imitable rules.
       corner for the implementation guide of `watchdog`"). When a README's tool depends on someone else's
       integration recipe, name them.
 
-    Shift-8 anchor: Border Collie README is ~300-450w, no byline, GPL 2.1
+    Shift-8 anchor: Border Collie README is ~125w (1,100 bytes), no byline, GPL 2.1
     derivative-works clause, Python Corner credit, two CLI flags
     (`--monitor_path` / `--webhook`), Docker-sidecar + Go-rewrite roadmap.
     Both shift-8 agents hit the structural envelope; informed agent hit the

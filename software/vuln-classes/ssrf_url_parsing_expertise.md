@@ -14,8 +14,7 @@
 >   bounties demonstrating the technique.
 > - **Frans Rosén** (@fransrosen) — Detectify Security Advisor; long-running
 >   bug-bounty practitioner ranked #2 on HackerOne's all-time hall of fame. Frequent Detectify
->   Labs author on SaaS-context SSRF, the "file-format-as-SSRF-trigger" class (SVG / PDF / SVG-in-
->   ICS / HTML-to-PDF converters), and Adobe AEM exploitation research.
+>   Labs author on SaaS-context SSRF.
 > - **Nick Frichette** (@frichette_n) — Staff Security Researcher, Datadog; creator and primary
 >   maintainer of Hacking the Cloud. The de-facto reference for AWS exploitation primitives
 >   reachable through SSRF: IMDS credential theft, Lambda IAM-role pivot, ECS task metadata,
@@ -93,8 +92,8 @@ of this grammar. Consider these strings:
 |---|---|---|---|
 | `http://victim.com#@attacker.com/` | `victim.com` | `attacker.com` (Python urllib before the 2017 bpo-30500 fix) | varies |
 | `http://attacker.com#@victim.com/` | `attacker.com` | `victim.com` (some Ruby parsers) | varies |
-| `http://victim.com\@attacker.com/` | `victim.com\` (invalid) | `attacker.com` (backslash as separator) | varies |
-| `http://[::1]:80@attacker.com/` | `[::1]` (port 80, userinfo `attacker.com`) | `attacker.com` (parser misreads IPv6 bracket) | varies |
+| `http://victim.com\@attacker.com/` | `victim.com\` (invalid) | `attacker.com` (backslash read as a userinfo character; WHATWG treats `\` as `/` and sees `victim.com`) | varies |
+| `http://[::1]:80@attacker.com/` | Invalid (`[`/`]` not allowed in userinfo) | `attacker.com` (parser misreads IPv6 bracket) | varies |
 | `http://user@victim.com@attacker.com/` | Implementation-defined | first or second hostname | varies |
 
 Tsai demonstrated each of these against built-in URL libraries in Python, PHP, Perl, Ruby, Java,
@@ -336,8 +335,7 @@ The canonical multi-parser pitfall: code uses `urllib.parse.urlparse(url).hostna
 blocklist check, then passes the unmodified `url` to `requests.get(url)`. Three parsers see
 this URL — `urlparse` (RFC 3986), urllib3 (drives requests), and `socket.getaddrinfo` (name
 resolution). Divergences with CVE history: bpo-30500 (Tsai-reported fix to
-urllib host splitting for `http://127.0.0.1#@host.com/`); urllib3 vs urlparse divergence on
-`0x7f.0.0.1`; `urlparse(url).hostname` does no DNS, but `requests.get(url)` does — the
+urllib host splitting for `http://127.0.0.1#@host.com/`); `urlparse(url).hostname` does no DNS, but `requests.get(url)` does — the
 blocklist doesn't catch `http://my-private-dns-name/` that resolves private.
 
 Defense: parse with strict parser → resolve hostname → check resolved IP → pass the resolved
@@ -351,7 +349,7 @@ many inputs:
 
 | Input | `url.parse(x).hostname` | `new URL(x).hostname` |
 |---|---|---|
-| `http://[::ffff:127.0.0.1]/` | `[::ffff:127.0.0.1]` | `[::ffff:7f00:1]` |
+| `http://[::ffff:127.0.0.1]/` | `::ffff:127.0.0.1` | `[::ffff:7f00:1]` |
 | `http://EXAMPLE.com/` | `example.com` | `example.com` |
 | `http://example.com:80/` | `example.com` | `example.com` (port stripped from `hostname`) |
 
@@ -575,7 +573,7 @@ sink catalog. The shape is consistent across languages:
 | Java | `URL.openConnection`, `URL.openStream`, `HttpClient.send`, `HttpClient.sendAsync`, `OkHttpClient.newCall`, Apache HttpClient `HttpClient.execute`, JAX-RS `Client.target` |
 | Go | `http.Get`, `http.Post`, `http.NewRequest`, `(*http.Client).Do`, `(*http.Client).Get`, `(*http.Client).Post` |
 | Ruby | `Net::HTTP.{get,post,start}`, `Net::HTTP::Get.new`, `HTTParty.{get,post,...}`, `Faraday.new`, `RestClient.{get,post,...}`, `open-uri`'s `URI.open` |
-| PHP | `curl_setopt(..., CURLOPT_URL, ...)`, `file_get_contents`, `fopen`, `fsockopen`, `stream_socket_client`, `Guzzle\Client::request` |
+| PHP | `curl_setopt(..., CURLOPT_URL, ...)`, `file_get_contents`, `fopen`, `fsockopen`, `stream_socket_client`, `GuzzleHttp\Client::request` |
 | C# / .NET | `HttpClient.{GetAsync,PostAsync,SendAsync}`, `WebRequest.Create`, `WebClient.DownloadString`, `RestClient.Execute` |
 | Rust | `reqwest::Client::{get,post,...}`, `hyper::Client::get`, `surf::get` |
 

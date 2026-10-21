@@ -145,7 +145,7 @@ Matt Klein (Lyft, 2016) created Envoy. CNCF Graduated 2018. Every major mesh exc
 
 ### 5.2 Envoy CVE history is your mesh's CVE history
 
-When Envoy patches, every Envoy-based mesh has to roll. The cadence is high: Envoy ships security advisories roughly monthly. Selected high-impact:
+When Envoy patches, every Envoy-based mesh has to roll. The cadence is high: Envoy ships security releases roughly quarterly. Selected high-impact:
 
 - **CVE-2023-44487** (HTTP/2 Rapid Reset) — cross-vendor; the most consequential single CVE for service mesh in the last three years.
 - **CVE-2024-32974 / CVE-2024-32975 / CVE-2024-32976** — multi-CVE Envoy security release June 2024 (HTTP/3 / QUIC crashes, Brotli decompression loop).
@@ -273,7 +273,7 @@ The role-separation is intentional: cluster operators manage GatewayClass + Gate
 Gateway API implementations vary widely:
 
 - **NGINX Gateway Fabric** — the new NGINX Gateway API implementation (distinct from NGINX Ingress Controller).
-- **Envoy Gateway** — CNCF-incubating, Envoy-native.
+- **Envoy Gateway** — Envoy sub-project, Envoy-native.
 - **Contour** — Heptio/VMware, Envoy-based.
 - **Kong Gateway** — Kong's commercial offering.
 - **Cilium Gateway** — eBPF + Envoy.
@@ -362,7 +362,7 @@ The mesh-specific fields to ingest into the SIEM and to write detections against
 
 - **source.principal / destination.principal** — the SPIFFE-format identity. Detect unexpected pairs; detect new principals appearing.
 - **connection.mtls** — boolean; the alert here is "false in a STRICT namespace."
-- **response_flags** — Envoy emits short codes (`UAEX` external authz denial, `RBAC` denied by RBAC filter, `URX` upstream retry exhausted). These are the highest-signal alerts.
+- **response_flags** — Envoy emits short codes (`UAEX` external authz denial, `URX` upstream retry limit exceeded); RBAC filter denials appear in `%RESPONSE_CODE_DETAILS%` as `rbac_access_denied_matched_policy[...]`. These are the highest-signal alerts.
 - **request.headers and request.path** — for the L7 detection layer.
 - **upstream.cluster** — where the proxy ultimately routed; useful for routing-audit detections.
 
@@ -421,7 +421,7 @@ The incidents to know:
 
 **CVE-2023-44487.** Cloudflare, Google, AWS joint disclosure. Attacker abuses HTTP/2 stream-reset to force the server to allocate-then-free per-stream state at unbounded rate, exhausting CPU. Affected most HTTP/2 implementations, including Envoy, nginx, Apache, Go net/http, .NET, Node.
 
-**Mesh impact:** every Envoy-based mesh shipped emergency patches within 5-7 days. The episode is the canonical example of "Envoy CVE = my-mesh CVE."
+**Mesh impact:** every Envoy-based mesh shipped emergency patches. The episode is the canonical example of "Envoy CVE = my-mesh CVE."
 
 ### 13.3 Istio AuthorizationPolicy bypass class
 

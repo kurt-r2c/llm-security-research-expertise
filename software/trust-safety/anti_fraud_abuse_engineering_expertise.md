@@ -365,7 +365,7 @@ only for high-risk traffic.
 
 reCAPTCHA v3 (2018) eliminated the visible challenge for most users and exposed
 a 0.0–1.0 risk score; the integrator decides allow/MFA/block thresholds.
-reCAPTCHA Enterprise (2020+) added ML-driven account-defender modules for
+reCAPTCHA Enterprise (2019) added ML-driven account-defender modules for
 credential-stuffing, fake-account, and SMS-pumping detection.
 
 hCAPTCHA (Intuition Machines, 2018) ships similar mechanics with explicit "we
@@ -543,8 +543,7 @@ cost); TLS / HTTP/2 fingerprint; header-order fingerprint.
 The SSR vs CSR design choice is a scraping lever: **CSR (client-side-rendered)
 content is harder to scrape than SSR**. Scrapers must execute JS or
 reverse-engineer the API. The compromise pattern is SSR for search engines and
-accessibility (UA-detection or selective prerender) + CSR for everyone else,
-which LinkedIn, Twitter / X, and Glassdoor converge on.
+accessibility (UA-detection or selective prerender) + CSR for everyone else.
 
 ### Rate limiting and WAF-layer mitigation
 
@@ -633,8 +632,8 @@ MFA-fallback); country allow/blocklist; MNO-prefix rate limits (aggregate by
 first 6–8 digits); OTP-conversion-rate monitoring (real conversion is 80–95%,
 pumped is <5%); per-device-fingerprint OTP request limits; pivot to passkeys
 (eliminates SMS as second factor); pivot to email-OTP (cheaper, harder to
-pump); WhatsApp/Telegram OTP. Sardine "SMS pumping protection" and Twilio's
-"Verify Fraud Guard" are named products; reCAPTCHA Enterprise added
+pump); WhatsApp/Telegram OTP. Twilio's
+"Verify Fraud Guard" is a named product; reCAPTCHA Enterprise added
 SMS-pumping-specific protection (SMS Defense).
 
 ### Network-graph fake-account detection
@@ -874,7 +873,7 @@ against naive attackers, are bypassed by determined ones.
 Models*, ICML 2023): partition the model's vocabulary at each step into a
 pseudo-randomly-selected "green list" and "red list"; bias generation toward
 green-list tokens; a detector statistically checks green-list use rates over
-50–100 tokens. Invisible to readers, output quality approximately preserved.
+spans as short as 25 tokens. Invisible to readers, output quality approximately preserved.
 2024–2026 status: OpenAI prototyped text watermarking, did not deploy
 (adversarial-paraphrase defeat concerns); Google Gemini deployed SynthID for
 images and audio, then text; Anthropic has not publicly deployed text
@@ -960,8 +959,7 @@ Provider patterns: velocity-based key revocation; geographic-pin keys to
 source-IP range; required rotation; email-on-anomaly. Customer hygiene
 patterns: never commit keys to source (use secret-managers); scope-limit
 keys (per-feature, per-environment); monitor your bill (last-line defense;
-many customers discover compromise on the next invoice). Both OpenAI and
-Anthropic ship usage-anomaly detection in 2026, but customer-side hygiene
+many customers discover compromise on the next invoice). Customer-side hygiene
 remains primary. Cross-link to [[cryptography_expertise]] §key-management.
 
 ### Framing — business-logic flaw at the AI layer

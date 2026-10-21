@@ -32,8 +32,7 @@
 >   `erlang.org/download/armstrong_thesis_2003.pdf`.
 > - **Robert Virding** — Erlang co-creator alongside Armstrong at
 >   Ericsson. Co-author *Concurrent Programming in Erlang* (1996).
->   Designed substantial portions of OTP's process model and the
->   pattern-matching compiler. Today active in BEAM-language design
+>   Wrote Erlang's original support libraries. Today active in BEAM-language design
 >   via LFE (Lisp-Flavoured Erlang). `github.com/rvirding`.
 > - **José Valim** — Elixir creator, 2011-present. Former Rails Core
 >   Team (2010-2014; Ruby Hero 2010); Erlang User of the Year 2015.
@@ -718,8 +717,8 @@ generated on first BEAM boot as a 20-character uppercase-letter string
 (`[A-Z]+`), file mode 0400 on Unix. Failure modes: any process
 running as the same user can read it; it can be logged via
 `-setcookie` command-line args visible to `ps aux`; auto-generation
-entropy is the BEAM's default RNG (NOT cryptographically secure);
-Windows installs often have weaker permissions. Insinuator 2017
+entropy is the BEAM's default RNG (NOT cryptographically secure).
+Insinuator 2017
 documents crackable cookies in production.
 
 ### Cluster trust model
@@ -781,8 +780,8 @@ Port.open({:spawn, "ls #{user_input}"}, [])
 Port.open({:spawn_executable, "/bin/ls"}, [args: [user_input]])
 ```
 
-The `:spawn` form invokes a shell (`sh -c CMD` on Unix, `cmd.exe
-/c` on Windows). Shell metacharacters in `user_input` —
+The `:spawn` form is run by invoking the shell on certain platforms
+(OTP `open_port/2` docs). Shell metacharacters in `user_input` —
 `;`, `|`, `` ` ``, `$()`, `&`, `>`, `<`, `\n` — are interpreted
 by the shell. This is direct command injection.
 
@@ -993,8 +992,8 @@ weak_token = :rand.uniform(2**128) |> Integer.to_string()
 
 `:rand.uniform/1` (and the older `random:uniform/1`) is a fast PRNG
 for simulation use. The state is per-process and accessible via
-`:rand.export_seed/0`; an attacker who observes a few outputs can
-reconstruct the seed and predict future outputs. Using
+`:rand.export_seed/0`; the Erlang docs state the builtin algorithms
+are not cryptographically strong. Using
 `:rand.uniform/1` for session tokens, password-reset codes, CSRF
 tokens, or any security-relevant random value is a critical bug.
 
@@ -1041,7 +1040,7 @@ hashing," §"Certificate validation."
 
 ### Semgrep patterns
 
-Elixir-specific Semgrep grammar coverage is partial as of 2026;
+Semgrep Code lists Elixir as generally available as of 2026, but
 many Elixir audits use generic mode with regex anchoring. Sink
 patterns to encode: `String.to_atom($USER)` (atom exhaustion),
 `Code.eval_string($X)` (RCE), `Port.open({:spawn, $CMD}, $OPTS)`
@@ -1149,8 +1148,8 @@ particular scrutiny around macro-expansion-to-eval primitives.
 
 ### Variant analysis: AtomVM (BEAM for microcontrollers)
 
-Reduced-footprint BEAM for ESP32, RP2, MCU targets. Atom table is
-smaller (exhaustion trivially fast). Distribution is supported
+Reduced-footprint BEAM for ESP32, RP2, MCU targets.
+Distribution is supported
 (cookie auth, no TLS distribution yet), so the cookie footgun
 applies. NIFs are more dangerous (no MMU
 on most targets — a NIF crash takes down the device). ETS may not

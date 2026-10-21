@@ -20,10 +20,8 @@
 >   edition canonicalized the **BOLA / BFLA / BOPLA** taxonomy, which is now the dominant
 >   API-AuthZ bug vocabulary in product-security triage.
 > - **Aleksei Tiurin** — Senior Security Researcher at Acunetix / Invicti since 2018. Long
->   author byline on Acunetix's web-security blog covering GraphQL introspection,
->   GraphiQL/Playground exposure, schema enumeration, and GraphQL-specific scanner detections.
->   The Acunetix rules for `GraphQL Introspection Query Enabled`, `GraphiQL Explorer/Playground
->   Enabled`, and `GraphQL Alias Overloading Allowed` are downstream of his research.
+>   author byline on Acunetix's web-security blog covering cache-poisoning DoS, reverse-proxy
+>   attacks, SSTI in Thymeleaf, and JS deserialization.
 > - **Frans Rosén** — Security advisor at Detectify; one of the highest-paid HackerOne
 >   bounty hunters of the 2017–2022 era. Canonical writeups: "Hacking Slack using
 >   postMessage and WebSocket-reconnect to steal your precious token" (2017), "postMessage
@@ -48,9 +46,7 @@
 >   > considerations early in the design process which lead to a launch with basically zero
 >   > authorization issues." — *tl;dr sec, "Kurt Boberg - Staff Security Researcher at r2c"*
 >
->   Five publicly-credited AuthN/AuthZ CVEs (CVE-2020-13957 Apache Solr CVSS 9.8;
->   CVE-2022-1245 Keycloak CVSS 9.8; CVE-2022-1332 Mattermost; CVE-2022-3294 Kubernetes
->   CVSS 8.8; CVE-2022-24901 parse-server). See
+>   Publicly credited (with yoshmidev) on CVE-2022-24901 (parse-server). See
 >   `expertise/software/distributed_authz_expertise.md` for per-CVE writeups.
 >
 > Sources: OWASP API Security Top 10 2023; *Black Hat GraphQL* (No Starch, 2023); Apollo
@@ -397,7 +393,7 @@ security feature.
    SHA-256 hash.
 2. Client sends `{ extensions: { persistedQuery: { sha256Hash: "..." } } }`.
 3. Server in safelist mode looks up the hash; executes if found; rejects
-   `PersistedQueryNotFound` if not — no fallback to arbitrary queries.
+   `PERSISTED_QUERY_NOT_IN_LIST` if not — no fallback to arbitrary queries.
 
 This is the strongest discoverability hardening: attacker without build-pipeline access
 cannot run arbitrary queries. Introspection moot. Alias batching moot (every operation is
@@ -475,7 +471,7 @@ defaults to 15); field-count cap; cost analysis counting each alias separately.
 
 ### Fragment recursion (where allowed)
 
-The spec forbids direct circular fragments. Mutual recursion through indirection
+The spec forbids fragment-spread cycles, direct or indirect. Mutual recursion through indirection
 (`A → B → A`) is a known weakness in some implementations. Defense: current parser version plus depth limit.
 
 ### Field-name suggestion as side-channel DoS

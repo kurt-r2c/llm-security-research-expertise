@@ -16,8 +16,8 @@
 >   at Graphika; Principal Researcher at Google Jigsaw). Author of the
 >   *Actors–Behavior–Content (ABC) Disinformation Framework* (Transatlantic
 >   Working Group, September 2019) — the dominant structural taxonomy for
->   influence operations across the platform-T&S industry. Coined "patriotic
->   trolling" for government-backed networked harassment of journalists and
+>   influence operations across the platform-T&S industry. Wrote on "patriotic
+>   trolling," government-backed networked harassment of journalists and
 >   dissidents.
 > - **Ben Nimmo** (Principal Investigator, Intelligence and Investigations
 >   team, OpenAI, 2024–present; previously Global Lead, Threat Intelligence at
@@ -265,8 +265,8 @@ EU-institution adoption from 2022 onward.
 DISARM comprises two paired frameworks:
 
 - **DISARM Red** — offensive TTPs. The full lifecycle from *Plan Strategy* and
-  *Plan Objectives* through *Develop Narratives*, *Develop Content*,
-  *Establish Social Assets*, *Establish Legitimacy*, *Microtarget*, *Select
+  *Plan Objectives* through *Target Audience Analysis*, *Develop Narratives*,
+  *Develop Content*, *Establish Assets*, *Establish Legitimacy*, *Microtarget*, *Select
   Channels and Affordances*, *Conduct Pump Priming*, *Deliver Content*,
   *Maximize Exposure*, *Drive Online Harms*, *Drive Offline Activity*,
   *Persist in the Information Environment*, *Assess Effectiveness*. Modeled
@@ -411,7 +411,7 @@ The text content of an operation carries signatures beyond the message:
   often have stable per-operator signatures, so multi-operator clusters fall
   apart under stylometric clustering. *Mendenhall*, *Burrows Delta*, and
   modern transformer-embedding-based methods all work; stylometry is mature
-  literature with a 30-year track record.
+  literature dating to the 19th century.
 - **Named-entity overlap.** Across-account use of the same named entities
   (people, organizations, locations) at rates above baseline. Particularly
   diagnostic when paired with consistent stance toward the entity.
@@ -696,7 +696,7 @@ tool if any, signer identity) embedded in the asset and verifiable against a
 public-key trust list. Producers (cameras, editing software, generative-AI
 vendors) sign on output; consumers (browsers, platforms) verify on display.
 
-Adoption (May 2026): Adobe Creative Cloud signs by default. Leica, Sony, Nikon ship signing in
+Adoption (May 2026): Leica, Sony, Nikon ship signing in
 pro-tier camera models; Google Pixel 10 signs. OpenAI DALL-E 3, Sora; Adobe
 Firefly; Microsoft Designer; Bing Image Creator sign. Meta, LinkedIn, TikTok
 support partial verify-and-label. EU AI Act Article 50 effectively mandates
@@ -1494,9 +1494,7 @@ and legal pressure their institutions assessed as not worth bearing despite
 ultimate legal vindication. Lesson: research institutions in politically-
 contested spaces require pre-positioned defenses (legal counsel,
 communications, donor relationships, peer coalitions) anticipating the
-*cost of defending* the activity, not just substantive merit. Donor
-consortia (Knight, MacArthur, Hewlett, Omidyar) have shifted post-2024
-toward distributed research networks vs. centralized programs. Georgetown's
+*cost of defending* the activity, not just substantive merit. Georgetown's
 McCourt School of Public Policy (DiResta's institutional home) is
 the deliberate alternative model — public-policy school with stronger
 institutional infrastructure for politically-contested research.
@@ -1589,8 +1587,7 @@ broader-scope. Downstream influence-ops implications unresolved.
 
 Platforms piloting LLM-driven fact-checking-at-scale (X's *Grok*
 community-notes integration is most-visible as of 2026). Empirical question
-— do LLM fact-checkers improve or degrade information quality? — open;
-Cambridge SDM Lab and others suggest mixed results. Emerging consensus:
+— do LLM fact-checkers improve or degrade information quality? — open. Emerging consensus:
 LLMs are useful *triage* for fact-checking workflows (flagging for human
 review) but unreliable as *adjudicators*.
 

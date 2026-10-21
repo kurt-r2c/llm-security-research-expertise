@@ -81,7 +81,7 @@ When you pass a `sandbox` argument to `vm.runInNewContext`, Node calls `vm.creat
 
 ### The microtask queue boundary
 
-V8's microtask queue is *per-isolate*, not per-realm. When sandboxed code does `await somePromise`, the continuation is scheduled on the same isolate-wide queue. If `somePromise` was created in the host realm, the continuation runs with the host realm's intrinsics. Getting this right at the realm boundary requires either (a) a complete shim of every Promise primitive, or (b) running the guest in a separate isolate entirely.
+By default, V8's microtask queue is *per-isolate*, not per-realm (Node's `vm` `microtaskMode: 'afterEvaluate'` gives a context its own microtask queue). When sandboxed code does `await somePromise`, the continuation is scheduled on the same isolate-wide queue. If `somePromise` was created in the host realm, the continuation runs with the host realm's intrinsics. Getting this right at the realm boundary requires either (a) a complete shim of every Promise primitive, or (b) running the guest in a separate isolate entirely.
 
 vm2 chose (a). Every Promise-related vm2 CVE is a place where the shim missed a code path. There are more code paths than the maintainers have engineering time for; this is structural.
 
@@ -304,7 +304,7 @@ For LLM-agent browser tooling (Claude Code's web browsing, ChatGPT's browser-use
 
 WebAssembly modules execute against a *linear memory* — a contiguous byte buffer owned by the module — and cannot access any memory outside that buffer except through *imported functions* provided by the host. The linear memory is sized at module instantiation and accessible only by the module's own instructions (`memory.load`, `memory.store`). This is enforced by the Wasm runtime; the module's machine code is JIT-compiled with bounds checks on every memory access (or hardware-accelerated guard-page tricks on 64-bit hosts).
 
-The implication: a Wasm module cannot reach into host memory, cannot call native code unless the host explicitly imports a function for it, cannot inspect the host's stack, cannot perform speculative timing attacks across the boundary (the runtime inserts speculation barriers; see "Mitigations against Spectre" in the Wasm reference manual). The boundary is *architectural* — not "we wrote a careful proxy membrane" but "the machine instructions cannot express the bad operation."
+The implication: a Wasm module cannot reach into host memory, cannot call native code unless the host explicitly imports a function for it, and cannot inspect the host's stack. The boundary is *architectural* — not "we wrote a careful proxy membrane" but "the machine instructions cannot express the bad operation."
 
 ### WASI capability model
 
@@ -469,7 +469,7 @@ rules:
 ### The structural answers in priority order
 
 1. **Don't run untrusted JS at all.** The only structurally-correct answer. If you can get the requirement to "the user supplies declarative configuration; the application interprets it," you have eliminated the threat class.
-2. **Use a non-Turing-complete configuration language.** TOML, JSON, JSON5, YAML, dhall, jsonnet-with-strict-mode. The first four are pure-data; dhall is a total functional language with no general recursion; jsonnet is side-effect-free but Turing-complete. If your "users want to write logic" requirement is really "users want to compose declarative rules," push back hard on the "logic" framing.
+2. **Use a non-Turing-complete configuration language.** TOML, JSON, JSON5, YAML, dhall, jsonnet. The first four are pure-data; dhall is a total functional language with no general recursion; jsonnet is side-effect-free but Turing-complete. If your "users want to write logic" requirement is really "users want to compose declarative rules," push back hard on the "logic" framing.
 3. **Use QuickJS-in-Wasm via quickjs-emscripten.** This is the structurally-correct answer when the requirement really is "run untrusted JS." Pays a performance cost relative to V8, but the security boundary is hardware-enforced.
 4. **Use isolated-vm.** Better than vm2 by orders of magnitude. The boundary is V8-isolate-enforced, not proxy-membrane-enforced. Pays a marshalling cost on every host-guest call. Caveat: still in-process; a V8-isolate bug (rare but they exist; Pwn2Own-grade) escapes the boundary.
 5. **Use out-of-process workers with capability-typed IPC.** Spawn a child process (`child_process.fork`), run the guest there, communicate via structured IPC. The OS process boundary is the strongest practical boundary. Pays a per-call IPC cost. Cross-link to `agentic_web_capabilities_expertise.md` for the broader capability-system discussion.

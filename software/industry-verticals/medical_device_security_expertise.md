@@ -17,7 +17,7 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 ### Kevin Fu — Northeastern University (Khoury College) / formerly FDA
 
-**Career arc**: Professor at Northeastern; founded and directs the Archimedes Center for Healthcare and Device Security (originally University of Michigan). Served as the first Acting Director of Medical Device Cybersecurity at FDA's Center for Devices and Radiological Health (2021-2022). Co-author on the 2008 Halperin paper. IEEE Security & Privacy Test of Time Award. Research focus: "analog cybersecurity" — modeling threats to the physics of computation and sensing (acoustic injection into MEMS sensors, light-based attacks on pulse oximeters).
+**Career arc**: Professor at Northeastern; founded and directs the Archimedes Center for Healthcare and Device Security (originally University of Michigan). Served as the first Acting Director of Medical Device Cybersecurity at FDA's Center for Devices and Radiological Health (2021-2022). Co-author on the 2008 Halperin paper. IEEE Security & Privacy Test of Time Award. Research focus: "analog cybersecurity" — modeling threats to the physics of computation and sensing (acoustic injection into MEMS sensors).
 
 **Core contribution**: Built the institutional infrastructure that makes medical-device cybersecurity a field rather than a series of one-off disclosures. The Archimedes Center is the canonical academic-industry-regulator convening venue. His FDA tenure pulled the agency's cybersecurity guidance from advisory-only to enforcement-backed.
 
@@ -87,9 +87,9 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 **Frame Woods introduced**: The medical-device security ecosystem is small enough that every relevant practitioner has met every other relevant practitioner at a conference. Standards engagement is the actual mechanism by which the field organizes itself.
 
-### Eireann Leverett — Concinnity Risks / Cambridge Centre for Risk Studies
+### Eireann Leverett — Cambridge Centre for Risk Studies
 
-**Career arc**: Senior researcher on cyber risk at Cambridge Centre for Risk Studies. Founder of Concinnity Risks. Cross-referenced in [[reference-ics-ot-security]] for ICS internet-exposure work; included here for the Pacemaker Hacking Project collaboration with Moe (2015-2020) and ongoing healthcare-aggregate-loss modeling.
+**Career arc**: Senior researcher on cyber risk at Cambridge Centre for Risk Studies. Cross-referenced in [[reference-ics-ot-security]] for ICS internet-exposure work; included here for the Pacemaker Hacking Project collaboration with Moe (2015-2020) and ongoing healthcare-aggregate-loss modeling.
 
 **Core contribution**: With Moe, the multi-year reverse-engineering of the Biotronik pacemaker ecosystem (HMU firmware, proprietary telemetry protocol, vendor cloud back-end). Cambridge healthcare-sector cyber-risk modeling feeds the IEC 80001 risk-management framework and cyber-insurance pricing used by H-ISAC members.
 
@@ -157,7 +157,7 @@ The defender's mental model in 2026: physical proximity is one of several reach 
 
 ### Privacy overlay
 
-Even setting aside patient safety, every connected medical device handles regulated personal data. HIPAA Security Rule (45 CFR §164.302-318) imposes specific technical safeguards on covered entities and business associates. GDPR treats health data as Article 9 special-category data. State laws (CCPA, Washington My Health My Data Act) impose state-level breach-notification regimes. A medical-device security review must consider both the patient-safety surface and the data-protection surface; the controls for each often differ.
+Even setting aside patient safety, every connected medical device handles regulated personal data. HIPAA Security Rule (45 CFR §164.302-318) imposes specific technical safeguards on covered entities and business associates. GDPR treats health data as Article 9 special-category data. State laws (CCPA, Washington My Health My Data Act) impose state-level privacy regimes. A medical-device security review must consider both the patient-safety surface and the data-protection surface; the controls for each often differ.
 
 ### Cross-references
 
@@ -253,7 +253,7 @@ IEEE S&P (Oakland) May 2008; Best Paper; Test of Time. Target: Medtronic Maximo 
 
 ### Radcliffe 2011 — Insulin pump remote dosing
 
-Black Hat USA 2011, Medtronic MiniMed Paradigm series with 916.5 MHz proprietary RF interface. Used a Medtronic MiniMed ComLink transmitter to wirelessly disable the pump on stage from about 100 feet; said modifications could extend range to roughly half a mile. Forced Medtronic into the first major insulin-pump security update cycle and triggered FDA/DHS ICS-CERT coordinated-disclosure relationships. Follow-up CVEs: Animas OneTouch Ping (CVE-2016-5085), Medtronic MiniMed 508.
+Black Hat USA 2011, Medtronic MiniMed Paradigm series with 916.5 MHz proprietary RF interface. Used a Medtronic MiniMed ComLink transmitter to wirelessly disable the pump on stage from about 100 feet; said modifications could extend range to roughly half a mile. Triggered FDA/DHS ICS-CERT coordinated-disclosure relationships. Follow-up CVEs: Animas OneTouch Ping (CVE-2016-5085), Medtronic MiniMed 508.
 
 ### Rios + Butts 2017 — Pacemaker programmers
 
@@ -450,7 +450,7 @@ A characteristic operational reality. A medical device shipped 2010 with OpenSSL
 
 ### VEX (Vulnerability Exploitability eXchange)
 
-CycloneDX VEX and CSAF VEX let manufacturers assert which CVEs in their SBOM are actually exploitable on the device. FDA 2023 guidance encourages but does not require VEX. MDISS and H-ISAC have produced shared VEX guidance for medical-device manufacturers. The defender's question is whether to trust manufacturer VEX assertions; manufacturer incentive runs toward over-asserting "not exploitable" to reduce postmarket reporting burden.
+CycloneDX VEX and CSAF VEX let manufacturers assert which CVEs in their SBOM are actually exploitable on the device. The defender's question is whether to trust manufacturer VEX assertions; manufacturer incentive runs toward over-asserting "not exploitable" to reduce postmarket reporting burden.
 
 ### Information-sharing nodes
 

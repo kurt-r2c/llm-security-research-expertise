@@ -319,7 +319,7 @@ When the workload is hostile (multi-tenant SaaS, customer-supplied code executio
 
 ### 10.1 gVisor (Google, 2018+)
 
-**Primary anchors:** Adin Scannell, Andrei Vagin, Hanieh Hashemi (Google).
+**Primary anchors:** Adin Scannell (Google).
 
 **Architecture:** gVisor's Sentry component is a user-space kernel-syscall interceptor written in Go. The container runs against Sentry's reimplementation of ~250 Linux syscalls instead of against the host kernel directly. Sentry mediates everything; only a handful of syscalls reach the host kernel (and those go through a heavily-restricted seccomp filter on Sentry itself).
 
@@ -329,7 +329,7 @@ When the workload is hostile (multi-tenant SaaS, customer-supplied code executio
 
 **Attack surface:** Sentry itself. ~250 syscalls of Go code that intercepts and reimplements Linux syscall behavior. Bugs in Sentry are escape candidates, and several have been found (`[unverified specific CVE list]` — gVisor has a security bulletin page; check `github.com/google/gvisor/security/advisories` for the current list). The structural advantage: the attack surface is ~250 Go syscalls (smaller, simpler, less code) instead of ~330+ C syscalls in the Linux kernel (larger, more complex, more code).
 
-**Where it's deployed:** Google Cloud Run (entire workload tier runs under gVisor `[unverified scope]`), App Engine, parts of Google internal multi-tenant infrastructure. AWS does not use gVisor (AWS uses Firecracker — see §10.3).
+**Where it's deployed:** Google Cloud Run (first-generation execution environment; the second generation is a microVM), App Engine, parts of Google internal multi-tenant infrastructure. AWS does not use gVisor (AWS uses Firecracker — see §10.3).
 
 **When to choose gVisor over runc:** when the workload may execute untrusted code (PaaS, CI/CD untrusted-tenant builds, browser sandboxing, language-runtime sandbox like a Notebook).
 
@@ -347,7 +347,7 @@ When the workload is hostile (multi-tenant SaaS, customer-supplied code executio
 
 **When to choose Kata:** when the workload must run untrusted code AND must use kernel features gVisor doesn't reimplement (custom BPF, specialized network stacks, kernel modules the workload requires).
 
-**Where it's deployed:** RHEL (sandboxed-container preview), parts of Alibaba Cloud, parts of Azure (Confidential Containers built on Kata).
+**Where it's deployed:** Red Hat OpenShift (OpenShift sandboxed containers), parts of Alibaba Cloud, parts of Azure (Confidential Containers built on Kata).
 
 ### 10.3 Firecracker (AWS, 2018+)
 
@@ -456,11 +456,11 @@ The honest framing: runtime detection catches *known* primitive patterns. Novel 
 
 State of the art as of mid-2026:
 
-**leaky-vessels (Jan 2024)** as the canonical recent corpus event. Every container security team should know the four CVEs cold. Patches landed quickly (runc 1.1.12, BuildKit 0.12.5); the ecosystem migrated within ~3 months. No publicly documented in-the-wild exploitation as of writing `[unverified ongoing telemetry]`.
+**leaky-vessels (Jan 2024)** as the canonical recent corpus event. Every container security team should know the four CVEs cold. Patches landed quickly (runc 1.1.12, BuildKit 0.12.5). No publicly documented in-the-wild exploitation as of writing `[unverified ongoing telemetry]`.
 
 **xz-utils backdoor (CVE-2024-3094)** — surfaced March 2024. Showed that supply-chain compromise of a build-time dependency can bridge into container-image-poisoning. The xz-utils tarball-injected backdoor would have shipped in container images built from any base layer that included liblzma. Cross-link `[[reference-supply-chain-provenance]]` §image-provenance + `[[reference-cicd-supply-chain]]` §build-time-dependencies.
 
-**Rootless containers reaching production parity** — rootless Podman has matched root-podman for the bulk of workloads since ~2022. Rootless Docker (`dockerd-rootless`) is still maturing; some networking modes and some volume drivers don't work. The structural win: rootless containers run inside a user namespace by default.
+**Rootless containers reaching production parity** — Rootless Docker (`dockerd-rootless`) is still maturing; some networking modes and some volume drivers don't work. The structural win: rootless containers run inside a user namespace by default.
 
 **eBPF-based runtime detection maturing** — Falco graduated CNCF in 2024. Tetragon is GA from Isovalent. Tracee is Aqua-stewarded. The "default-deny syscall list per workload" pattern (CO-RE eBPF, per-workload BPF policy) is reaching production at the hyperscalers and at security-forward end users.
 

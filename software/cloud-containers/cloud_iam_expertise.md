@@ -478,7 +478,7 @@ https://rhinosecuritylabs.com/gcp/privilege-escalation-google-cloud-platform-par
 
 ### IAM Conditions and cross-project access
 
-**IAM Conditions** (GA 2020) add CEL-expression constraints to bindings — less feature-dense
+**IAM Conditions** add CEL-expression constraints to bindings — less feature-dense
 than AWS condition keys, less consistently supported across GCP services; mature use case
 is timeboxed JIT access.
 

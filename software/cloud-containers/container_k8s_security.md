@@ -59,7 +59,7 @@ defaults or common configurations.
 
 ### Features are weapons
 
-From Ian Coldwater's KubeCon 2019 keynote: Kubernetes features designed for legitimate use are
+Kubernetes features designed for legitimate use are
 frequently the best attack primitives. Ephemeral containers enable post-compromise persistence
 without modifying a pod spec in a way that triggers alerts. The Dynamic Audit Sink feature lets
 you filter your own activity from audit logs. Validating webhooks, intended to enforce policy, can
@@ -95,7 +95,7 @@ Without a threat model, hardening decisions are guesswork. With one, they are pr
 
 ### A container is a Linux process — nothing more
 
-From Liz Rice's "Containers from Scratch" (DockerCon, GOTO Chicago 2018, and many others): a
+From Liz Rice's "Containers from Scratch" (GOTO Chicago 2018, and many others): a
 container is a Linux process with its view of the world limited through three kernel mechanisms.
 Understanding these mechanisms is the foundation for understanding every container escape.
 
@@ -167,7 +167,7 @@ that apply mandatory access control on top of DAC (discretionary — ownership/p
 Containers can apply AppArmor profiles that restrict which files can be written, which syscalls
 invoked, what network operations are allowed — independent of the capabilities granted.
 
-The default Docker AppArmor profile blocks key escape paths (`mount`, `pivot_root`, some
+The default Docker AppArmor profile blocks key escape paths (`mount`, some
 procfs/sysfs writes). Kubernetes workloads without an explicit AppArmor profile run unconfined
 unless the node's container runtime applies one by default.
 
@@ -1035,7 +1035,7 @@ For the broader GPU and accelerator-sharing treatment, see
 | **kube-env-stealer** | Brad Geesaman | GKE bootstrap credential theft | Reads kube-env metadata → generates kubelet certs for all nodes → extracts all Secrets |
 | **mkit** | Darkbit (Geesaman/Larsen) | Managed k8s security config assessment | GKE, EKS, AKS; archived |
 | **k8s-mirror** | Darkbit | Offline cluster review | Mirrors cluster to in-memory apiserver+etcd in Docker; no credentials needed for review |
-| **OpenCSPM** | Darkbit | Cloud Security Posture Management | JanusGraph-based; cross-references GCP IAM + k8s RBAC for relationship analysis |
+| **OpenCSPM** | Darkbit | Cloud Security Posture Management | Cross-references GCP IAM + k8s RBAC for relationship analysis |
 | **malicious-compliance** | Brad Geesaman | Scanner evasion PoC | Five evasion technique image variants from KubeCon EU 2023 |
 | **kubesec** | Andrew Martin / ControlPlane | Manifest risk scoring | Scores pod specs 0–100; checks privileged, hostPID, capabilities, allowPrivilegeEscalation |
 | **kube_security_lab** | Rory McCune | Attack/defense practice labs | Ansible + kind; spin up clusters with specific vulnerable configurations |

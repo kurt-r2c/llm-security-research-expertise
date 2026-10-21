@@ -26,8 +26,7 @@
 > - **Aria Beingessner** (Gankra / Aria Desires) — formerly Mozilla Research,
 >   subsequently Apple Swift team; designed Rust's standard collection APIs and
 >   `Vec` / `HashMap` internals; authored *TURPL: The Unsafe Rust Programming
->   Language* (the canonical predecessor of the Rustonomicon) during her
->   internship at Mozilla; the long-running essay corpus at faultlore.com
+>   Language* during a summer internship; the long-running essay corpus at faultlore.com
 >   documents the practical reality of writing sound `unsafe` Rust
 > - **Ralf Jung** — PhD at MPI-SWS, now assistant professor at ETH Zürich
 >   Programming Language Foundations Lab; PhD thesis "Understanding and
@@ -70,8 +69,7 @@
 >   Error Handling)
 > - **Trail of Bits** (institutional) — security research firm; corpus on
 >   Rust-specific audit tooling, the `dylint` framework for custom Clippy
->   lints, the `cargo-geiger` integration for unsafe-code counting in
->   dependency trees; multi-year Rust-codebase audit experience covering
+>   lints; multi-year Rust-codebase audit experience covering
 >   blockchain consensus (Solana, Polkadot ecosystems), zero-knowledge
 >   tooling, and high-assurance Rust deployments
 > - **RustSec advisory database team** (institutional) — operated by the
@@ -169,8 +167,8 @@ its documented preconditions, it does not exhibit UB. Safe Rust is sound
 by construction; unsafe Rust is sound only if proven by its author.
 
 Critical asymmetry: **if a safe API can cause UB via valid safe Rust
-input, the unsafe-block author is at fault — not the caller**. This is
-Gankra's canonical argument. When `SmallVec::grow` exhibited a
+input, the unsafe-block author is at fault — not the caller**. When
+`SmallVec::grow` exhibited a
 double-free (RUSTSEC-2019-0009), the bug was the `unsafe` block's, not
 the caller's. The contract the `unsafe` block exposed was unsound;
 the fix landed in the `unsafe` block.
@@ -1020,9 +1018,8 @@ Cross-link `code_review_expertise.md` § auth-homogeneity.
 `serde_yaml` was archived by its maintainer in 2024. Replacements:
 `serde_yaml_ng` or `serde_norway` (maintained forks); `yaml-rust2` (YAML 1.2).
 `serde_yml` is not a replacement: RUSTSEC-2025-0068 (unsound, unmaintained).
-Archival was maintenance burden, not security — both forks inherit
-YAML's billion-laughs (anchor expansion) and YAML-1.1-implicit-type
-(Norway-problem `"no"` → `false`) footguns.
+Archival was maintenance burden, not security; serde_yaml 0.9.0 added a
+billion-laughs (anchor/alias expansion) mitigation.
 
 Audit: codebases pinned to archived `serde_yaml` should migrate; no
 upstream patches for future CVEs.
@@ -1235,8 +1232,7 @@ Cross-link `semgrep_rule_authoring.md`.
 
 ### 16.2 `cargo-audit`
 
-CI on every PR + scheduled daily. RustSec database lands ~weekly
-advisories. Configure ignores via `.cargo/audit.toml` with expiration
+CI on every PR + scheduled daily. Configure ignores via `.cargo/audit.toml` with expiration
 dates.
 
 ### 16.3 `clippy::pedantic` + `restriction`
@@ -1253,7 +1249,7 @@ adjacent), `clippy::float_arithmetic` (consensus-adjacent).
 
 Interpreter for Rust MIR. Detects pointer-provenance violations, type-
 validity failures, data races, weak-memory orderings, Stacked/Tree
-Borrows violations. 10x-1000x slower than native; typical workflow:
+Borrows violations. Typical workflow:
 gated CI job on `unsafe`-heavy modules, possibly nightly.
 
 POPL 2026 paper "Miri: Practical Undefined Behavior Detection for

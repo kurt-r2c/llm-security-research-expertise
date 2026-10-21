@@ -251,8 +251,6 @@ no `strict switch`. Workaround: use `if/elseif` chains with `===` or the PHP
 
 - **WordPress auth-cookie forgery** (MWR, 2014) — core compared the
   cookie HMAC with `!=`; magic-hash forgery was demonstrated.
-- The type-juggling lab in swisskyrepo/PayloadsAllTheThings catalogs ~30 CMS
-  and forum packages that historically shipped `==` token checks.
 
 ### Defensive counter-patterns
 
@@ -479,9 +477,8 @@ process from *creating* Phar archives; it does **not** prevent reading them.
 
 Charles Fol's PHPGGC (https://github.com/ambionics/phpggc) is the canonical
 PHP gadget-chain library. It includes ready-made RCE chains for: CodeIgniter
-(4.x), CakePHP, Doctrine (ORM + Common + Lexer), Drupal (7, 8),
-**Guzzle** (the `FnStream` `__destruct` is the most reused gadget in the PHP
-corpus), Laravel (5.x through 11.x — multiple chains per major version),
+(4.x), CakePHP, Doctrine (ORM + Common + Lexer), Drupal,
+**Guzzle** (`FnStream`), Laravel (5.x through 11.x — multiple chains per major version),
 Magento (1, 2), Monolog (`SyslogUdpHandler`),
 Phalcon, Slim, SwiftMailer (CVE-2024-28859 Symfony 1 chain
 via `Swift_KeyCache_DiskKeyCache::__destruct`), Symfony (1 through 5),
@@ -672,8 +669,6 @@ entire files one character at a time (Synacktiv's demo leaked a
 ### Real-world examples
 
 - **MISP arbitrary file read** (Synacktiv advisory) — filter-chain oracle.
-- Multiple Symfony / Laravel debug-endpoint LFIs chained to filter-chain RCE
-  through 2023-2024.
 
 ### Detection
 
@@ -871,8 +866,8 @@ the `$known_string` should be the first argument per the manual.
 Rouven Weßling's timing-attack RFC (https://wiki.php.net/rfc/timing_attack)
 and Anthony Ferrara's blog post "It's All About Time"
 (https://blog.ircmaxell.com/2014/11/its-all-about-time.html) walk through
-the primitive: with statistical sampling (O(million) for a remote target,
-O(thousand) for local), a secret can be recovered byte-by-byte.
+the primitive: with statistical sampling (about 49,000 samples to detect
+~15 ns differences remotely), a secret can be recovered byte-by-byte.
 
 ### Defensive counter-patterns
 

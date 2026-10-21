@@ -416,7 +416,7 @@ flexibility and efficiency are required.
 
 MP-SPDZ (CSIRO Data61; production SPDZ, Boolean + arithmetic); ABY (Darmstadt; mixed-protocol
 two-party); libOTe (Visa; oblivious transfer); EMP-toolkit (Northwestern; general semi-honest);
-MOTION (TU Darmstadt; composable framework); PSI-Cardinality (Google), DPF-PIR (Princeton).
+MOTION (TU Darmstadt; composable framework).
 
 ---
 
@@ -990,10 +990,10 @@ standard.
 
 **Smart-home / IoT privacy at scale.** Concerns: continuous capture, cross-device
 correlation, third-party processor exposure. Mitigations: on-device wake-word
-processing (Siri Local, Google Assistant On-Device, Alexa Local Voice Control),
+processing,
 explicit capture indicators, federated learning for updates, opt-in cross-device
 correlation. HomeKit is closest to "privacy-by-construction" for smart home: device-to-
-device E2EE, local-first, opt-in cloud-relay per accessory category.
+device E2EE, local-first.
 
 ---
 

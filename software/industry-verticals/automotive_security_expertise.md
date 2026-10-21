@@ -253,7 +253,7 @@ The SecurityAccess service is the load-bearing authentication primitive in UDS. 
 - Brute-force mitigations are bypassable via ECU reset (UDS service $11 ECUReset). Many implementations reset the brute-force counter on reset and may even reuse the same seed after reset.
 - The algorithm is identical across many ECU SKUs from the same Tier-1, so reversing one diagnostic tool unlocks many vehicles.
 
-UDS SecurityAccess weakness is the typical entry point for ECU firmware extraction and ladder-equivalent code modification in offensive automotive research. The 2014-2016 NXP-Vector papers and the more recent dissecto / I CAN Hack blog work document the attack pattern in detail.
+UDS SecurityAccess weakness is the typical entry point for ECU firmware extraction and ladder-equivalent code modification in offensive automotive research. The dissecto / I CAN Hack blog work documents the attack pattern in detail.
 
 ### Routing manipulation via gateway misconfiguration
 
@@ -656,7 +656,7 @@ Industry-led ISAC for light- and heavy-duty OEMs, suppliers, commercial vehicles
 
 ### NMFTA Heavy Vehicle Cybersecurity
 
-Working group covering commercial trucks: J1939 specifics, ELD mandates, telematics security, fleet-management protection. Coordinates with CISA and FMCSA.
+Working group covering commercial trucks: J1939 specifics, ELD mandates, telematics security, fleet-management protection. Coordinates with CISA.
 
 ### China GB cybersecurity standards
 
@@ -678,7 +678,7 @@ Runs on gateway or central-compute ECU:
 - **SecOC MAC-failure monitoring** — high failure rate indicates key mismatch (post-update) or active attack.
 - **Automotive Ethernet IDS** — SOME/IP / AVTP / TSN traffic anomalies. HCRL dataset is the public benchmark.
 
-Commercial offerings: Argus (Continental), Karamba Security, GuardKnox, Aurora Labs, Upstream (cloud-side), VicOne (Trend Micro subsidiary).
+Commercial offerings: Argus (Continental), Karamba Security, GuardKnox, Upstream (cloud-side), VicOne (Trend Micro subsidiary).
 
 ### Fleet-telemetry anomaly detection at OEM backend
 

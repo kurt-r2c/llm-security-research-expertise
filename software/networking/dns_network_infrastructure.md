@@ -51,8 +51,8 @@
 - **MAPS (1996)**: First DNS-based Block List (DNSBL / "Realtime Blackhole List") — founded first anti-spam company
 - **PAIX (1996)**: First neutral commercial internet exchange point
 - **DNS Response Rate Limiting (RRL)**: Co-designed with Vernon Schryver; in BIND 9.10+. Limits response rate per source IP to mitigate amplification attacks. `rate-limit { responses-per-second 5; window 5; }`
-- **Response Policy Zones (RPZ)**: DNS "firewall" — override DNS responses based on policy zones. Enables DNS-based malware blocking, phishing prevention, threat intelligence integration. Native BIND support; Infoblox, Cisco Umbrella deploy it.
-- **DNSSEC**: Early and persistent advocate; co-authored key DNSSEC RFCs; pivotal coordinator in 2008 Kaminsky patch coordination
+- **Response Policy Zones (RPZ)**: DNS "firewall" — override DNS responses based on policy zones. Enables DNS-based malware blocking, phishing prevention, threat intelligence integration. Native BIND support; Infoblox deploys it.
+- **DNSSEC**: Early and persistent advocate; co-authored key DNS protocol RFCs (Dynamic Update, EDNS, TSIG); pivotal coordinator in 2008 Kaminsky patch coordination
 
 **On CVE-2008-1447**: "Everything in the digital universe was going to have to get patched" — his assessment upon hearing Kaminsky's description.
 
@@ -72,7 +72,7 @@ Creator of djbdns (DNS implementation with security as primary objective), qmail
 
 **djbdns**: Source port randomization implemented *before* the Kaminsky disclosure — immune to CVE-2008-1447. Strict bailiwick checking; minimal attack surface; privilege separation; runs as non-root. Offers financial security rewards for identified flaws.
 
-**DNSCurve**: Uses Curve25519 ECDH for ephemeral shared secrets between resolvers and authoritative servers. Provides encryption (unlike DNSSEC, which only authenticates) and authentication (server's long-term public key encoded directly in NS record — no separate PKI). Bernstein claims 20x performance advantage over RSA-based DNSSEC.
+**DNSCurve**: Uses Curve25519 ECDH for ephemeral shared secrets between resolvers and authoritative servers. Provides encryption (unlike DNSSEC, which only authenticates) and authentication (server's long-term public key encoded directly in NS record — no separate PKI).
 
 ---
 
@@ -232,7 +232,7 @@ Dan Kaminsky held Recovery Key Share Holder 7 from 2010 until his death (2021); 
 - Global validation rate: ~30–35% (APNIC Labs, 2023–2025); EU average ~49%; EU ccTLDs (.nl, .se, .no, .cz) exceed 50%
 - .com zone signing rate: ~4% (Verisign, 2023) — the dominant TLD remains largely unsigned
 - .gov domains: DNSSEC mandated since 2008 (OMB M-08-23)
-- Common validation failures: clock skew; botched key rollovers (.se 2009; various government zones); incomplete parent DS updates
+- Common validation failures: clock skew; incorrect zone signatures (.se 2009); botched key rollovers (various government zones); incomplete parent DS updates
 
 ---
 

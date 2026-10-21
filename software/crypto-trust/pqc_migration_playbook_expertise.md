@@ -26,8 +26,7 @@
 > - **Dustin Moody** (NIST PQC project lead; mathematician in NIST Computer
 >   Security Division) — chaired the NIST PQC standardisation effort 2016 through
 >   final publication; principal public face of NIST's PQC announcements at
->   PQCrypto, RWC, NIST PQC Standardisation Conferences. His talks define the
->   "deprecate / disallow" migration vocabulary used in NIST IR 8547.
+>   PQCrypto, RWC, NIST PQC Standardisation Conferences.
 > - **Filippo Valsorda** (Geomys, formerly Google Go cryptography maintainer) —
 >   author of `filippo.io/mlkem768`, the ML-KEM-768 reference implementation in
 >   pure Go that became upstream of `crypto/mlkem` in Go 1.24, now the default in
@@ -369,10 +368,7 @@ client_share); server response ~1000 bytes larger. Net handshake
 increase: ~5-15% of total page-load bytes for typical short-content
 pages. ML-KEM-768 encapsulate / decapsulate cost is
 comparable to a single X25519 scalar
-multiplication. Hybrid handshake adds ~50% CPU vs X25519-only, but
-classical TLS CPU cost is dominated by RSA / ECDSA verification, so
-end-to-end overhead is single-digit percent. Latency increase < 10 ms
-in Cloudflare's measurements. Cloudflare reports more than 45% of
+multiplication. Cloudflare reports more than 45% of
 human traffic was hybrid-PQ by September 2025; 52% by
 end of 2025.
 
@@ -449,9 +445,9 @@ for a PQ-readiness dashboard.
 
 The long tail in SSH inventories: **Dropbear** (embedded; sntrup761 and ML-KEM PQ KEX since
 2025.87, March 2025); **libssh** 0.12 (February 2026, PQ KEX added — Wireshark /
-libcurl SSH inherit on rebuild); **libssh2** (slower; expected 1.12 or
-1.13); **paramiko** (Python; contributor-driven, not upstream as of
-2026); **golang.org/x/crypto/ssh** (`mlkem768x25519-sha256` supported when
+libcurl SSH inherit on rebuild); **libssh2** (hybrid ML-KEM KEX with OpenSSL 3.5 in
+1.11.2-dev); **paramiko** (Python; `mlkem768x25519-sha256` since
+5.1.0, October 2026, when `cryptography` exposes ML-KEM); **golang.org/x/crypto/ssh** (`mlkem768x25519-sha256` supported when
 built with Go 1.24+); **PuTTY** 0.78 (October 2022, NTRU Prime PQ
 KEX; ML-KEM since 0.83, February 2025). For embedded SSH on multi-year refresh hardware, note which
 implementation is in use — upgrade cadence depends on the upstream
@@ -621,7 +617,7 @@ Signal's two-stage PQ migration is the canonical production reference.
 **PQXDH** (Sep 2023) replaced classical X3DH at session start. The
 shared secret derives from *both* X25519 ECDH and CRYSTALS-Kyber-1024
 KEM. Rollout was incremental — older clients fell back to X3DH until
-updating. By mid-2024 most Signal sessions were PQXDH. **Important
+updating. **Important
 property**: only initial key agreement is PQ-protected. Subsequent
 message-rekeying used the classical Double Ratchet (X25519 + KDF
 chain). A CRQC-equipped adversary capturing Signal traffic post-2023
@@ -841,8 +837,8 @@ pqtunnels endpoint catches these in the wild.
 ### 11.4 Constrained-device memory budgets
 
 For RTOS / IoT, RAM and flash are the constraints. **ML-KEM-768**
-reference uses ~32 KB stack on decapsulation; PQClean and PQM4
-optimised implementations get to ~8-16 KB. **ML-DSA-65** signing is
+reference (PQClean `clean` in PQM4) uses ~14 KB stack on decapsulation; PQM4
+optimised implementations get to ~3-6 KB. **ML-DSA-65** signing is
 memory-intensive — may not be feasible on Cortex-M0 / M3. **SLH-DSA-128f**
 is more conservative on memory but slow on constrained devices.
 **XMSS / LMS** are the choice for verify-only constrained devices.
@@ -903,8 +899,7 @@ verification like Cryspen's `hax`-verified ML-KEM in Rust).
 ### 12.4 Hardware acceleration trade-offs
 
 Intel AVX2 / AVX-512 speeds up ML-KEM and ML-DSA via inner-loop
-vectorisation. AVX-512 has historically had timing side-channels
-AVX2 does not (frequency transitions under load leak timing). Use
+vectorisation. Use
 AVX2 unless AVX-512 performance is measured and necessary; verify
 the AVX-512 implementation is audited for the timing profile of your
 configuration. Cross-link to [[reference-hardware-side-channels]].
@@ -924,10 +919,7 @@ The HSM market is in coordinated transition. **Thales Luna HSM 7.9**
 (firmware announced July 2025) ships native support for ML-KEM (FIPS 203) and
 ML-DSA (FIPS 204) fully integrated into firmware (no functionality
 modules); keys clone across partitions, back up / restore, and work
-in HA groups — the production reference for PQ HSM in 2026. **AWS
-CloudHSM** — PQ support announced; AWS-LC has the algorithms;
-integration in progress. **Azure Key Vault Managed HSM** — Microsoft
-PQ roadmap rolling out 2025-2026. **Google Cloud KMS / EKM** —
+in HA groups — the production reference for PQ HSM in 2026. **Google Cloud KMS / EKM** —
 ML-DSA, SLH-DSA and ML-KEM GA in Cloud KMS (July 2026). **Entrust
 nShield, Utimaco** — PQ firmware updates 2025. Vendor-coordination
 playbook: inventory HSM dependencies; identify the firmware version

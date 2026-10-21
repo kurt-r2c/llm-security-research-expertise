@@ -11,7 +11,7 @@
 > - **Marc Heuse (van Hauser)** — German researcher; founder of **The Hacker's Choice (THC)**;
 >   author of `thc-hydra`, `thc-ipv6`, `amap`; co-founder and primary maintainer of
 >   **AFLplusplus (AFL++)** since 2019. AFL++ consolidates community patches from REDQUEEN,
->   MOpt, AFLfast, laf-intel, Eclipser, and Unicorn-mode — the default modern AFL since the
+>   MOpt, AFLfast, laf-intel, and Unicorn-mode — the default modern AFL since the
 >   original went unmaintained in 2017.
 > - **Konstantin (Kostya) Serebryany** — Software Engineer at Google since 2007. Author and
 >   tech lead for **libFuzzer**, **AddressSanitizer (ASan)**, **MemorySanitizer (MSan)**,
@@ -167,7 +167,7 @@ AFL was the watershed. Design choices that became modern defaults:
 
 - **Compile-time instrumentation** via `afl-gcc` / `afl-clang` wrappers — insert a
   basic-block ID at every block entry plus a snippet hashing `(prev_id, cur_id)` into
-  a 64KB shared-memory bitmap. ~5-10% runtime overhead.
+  a 64KB shared-memory bitmap.
 - **Fork-server.** Instead of `execve` per iteration (~1ms), pause the target after
   `main()` init and `fork()` a child per test. Iteration rate jumps to 10k-100k/s.
 - **Deterministic mutations then havoc.** Bit-flips, byte-flips, arith, known
@@ -222,7 +222,7 @@ but oracle improvement is larger:
 |-----------|----------------|----------|
 | ASan      | Heap/stack/global overflows, use-after-free, double-free | 2x time, 3x memory |
 | MSan      | Reads of uninitialized memory | 3x time |
-| UBSan     | Signed integer overflow, shift overflow, null deref, alignment | <2x time |
+| UBSan     | Signed integer overflow, shift overflow, null deref, alignment | small |
 | TSan      | Data races, deadlocks | 5-15x time |
 | LSan      | Memory leaks | included with ASan |
 
@@ -345,7 +345,7 @@ program, very high bug rate per CPU-year.
 
 **YARPGen** is the modern compiler stress tester; less random than CSmith, with a
 generation policy biased toward arithmetic and loop constructs that exercise optimizer
-corner cases. Found bugs CSmith missed for years. Lesson: **a more-targeted generator
+corner cases. Lesson: **a more-targeted generator
 beats a more-random one on a well-studied substrate.**
 
 TLS has many implementations (OpenSSL, BoringSSL, LibreSSL, wolfSSL, mbedTLS, NSS,
@@ -419,12 +419,12 @@ poorly supported.
 
 **angr** (UCSB / Shellphish, 2015-) is the modern Python-native symbolic-execution
 swiss-army-knife. Built on VEX IR; analyzes binaries across x86, ARM, MIPS, PowerPC.
-Used heavily in DARPA CGC and CTF contexts; also production at Trail of Bits.
+Used heavily in DARPA CGC and CTF contexts.
 Scriptability via the Python API is the main strength; state explosion on real targets
 is the main weakness (requires manual hints).
 
 **Manticore** (Trail of Bits, 2017-) supports WebAssembly and Solidity/EVM symbolic
-execution — useful for smart contracts. Echidna uses Manticore-style primitives.
+execution — useful for smart contracts.
 
 ### Driller, QSYM, SymCC (hybrid fuzzers)
 
@@ -485,8 +485,7 @@ DAG-shaped IL with affine types). Snapshot restoration reloads the target thousa
 times per second.
 
 Intel PT (no-recompile coverage) + KVM snapshot (fast reset) + affine-type bytecode
-mutation is the modern state-of-the-art for hypervisor and OS fuzzing. Microsoft's
-OneFuzz and several commercial platforms have adopted variants.
+mutation is the modern state-of-the-art for hypervisor and OS fuzzing.
 
 ### io_uring, eBPF, netfilter campaigns
 
@@ -552,7 +551,7 @@ correctly).
 
 ### REST, GraphQL
 
-Tools exist (RESTler, APIFuzzer, InQL/BurpQL) but the bottleneck is **modeling the
+Tools exist (RESTler, APIFuzzer, InQL) but the bottleneck is **modeling the
 auth/session state**. Coverage-guided fuzzing without a working auth context just
 bangs against 401 responses; no coverage progress. The harness must establish a
 session, then fuzz subsequent requests within it.
@@ -579,7 +578,7 @@ fuzzes these continuously.
 ### HTTP-level fuzzing
 
 **Burp Intruder** (interactive HTTP in Burp Suite — slow, precise); **wfuzz** (Python
-CLI; dictionary-driven path enumeration); **ffuf** (Go CLI; ~10x faster; modern default
+CLI; dictionary-driven path enumeration); **ffuf** (Go CLI; modern default
 for endpoint discovery). Essentially dictionary attacks with HTTP semantics — not
 coverage-guided. Useful for endpoint discovery and parameter-name brute force; not for
 finding parser-class bugs in the server's HTTP stack.
@@ -603,7 +602,7 @@ Core insight: LLMs are good at generating syntactically-valid, semantically-plau
 code in arbitrary languages — exactly the bottleneck for grammar-aware and
 structure-aware fuzzing.
 
-### OSS-Fuzz Gen (Google, 2024-)
+### OSS-Fuzz Gen (Google, 2023-)
 
 The canonical production deployment. Pipeline: **Fuzz Introspector** identifies
 under-fuzzed, high-potential code regions; **LLM** receives a prompt containing the
@@ -752,7 +751,7 @@ corpora.
 
 After a campaign, examine the coverage report. **Find the top 10 high-complexity
 functions with low coverage and ask why.** Usually "harness doesn't reach them"; fix
-is harness expansion. **Fuzz Introspector** (Google, part of OSS-Fuzz) automates this;
+is harness expansion. **Fuzz Introspector** (OpenSSF, integrated into OSS-Fuzz) automates this;
 OSS-Fuzz Gen targets the resulting list with LLM-generated harnesses.
 
 ---

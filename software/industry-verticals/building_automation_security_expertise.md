@@ -9,7 +9,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 ### Billy Rios — Whitescope / Nautilus Capital
 
-**Career arc**: Pentester at Microsoft, Ernst & Young, Google. Co-founded Whitescope LLC (2014) — research consultancy auditing medical devices, infusion pumps, airport baggage systems, and building-automation controllers. Cross-referenced in [[reference-medical-device-security]] and [[reference-ics-ot-security]].
+**Career arc**: Pentester; later at Microsoft and Google. Co-founded Whitescope LLC (2014) — research consultancy auditing medical devices, infusion pumps, airport baggage systems, and building-automation controllers. Cross-referenced in [[reference-medical-device-security]] and [[reference-ics-ot-security]].
 
 **Core contribution**: With Terry McCorkle, the multi-year audit of the **Tridium Niagara Framework** that produced ICS-ALERT-12-195-01 and ICSA-12-228-01A. Found directory traversal (CVE-2012-4027), weak credential storage in the `config.bog` station configuration file (CVE-2012-4028 — Base64-encoded usernames and passwords), session-cookie weaknesses, and predictable session IDs in Niagara AX. Demonstrated end-to-end exploitation against the building-control system at Google's Sydney office — pulling `config.bog`, recovering the administrator password, and getting remote control of HVAC, elevators, lighting, and CCTV.
 
@@ -17,7 +17,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 ### Terry McCorkle — Cylance / Whitescope alumnus
 
-**Career arc**: Long-time vulnerability researcher; co-founded Whitescope with Rios; later VP of research at Cylance. Frequent Black Hat / DEF CON speaker on SCADA and building-controls 2011-2015.
+**Career arc**: Long-time vulnerability researcher. Frequent Black Hat / DEF CON speaker on SCADA and building-controls 2011-2015.
 
 **Core contribution**: Co-author with Rios of the Tridium Niagara disclosures. McCorkle's particular contribution was reverse engineering of the **Niagara Fox protocol** on TCP port 1911 — the proprietary management protocol stations use to talk to supervisors. The Nmap NSE script `fox-info.nse` traces back to this work. McCorkle and Rios demonstrated that the Niagara product line is rebranded by major BMS vendors (Honeywell, Siemens, Schneider, Distech, Vykon), so a single class of bugs has multi-vendor blast radius.
 
@@ -57,7 +57,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 ### Jesus Molina — Independent / formerly Fujitsu Laboratories
 
-**Career arc**: Long-time researcher with home- and building-automation background. IEEE Computer Society senior member; former Trusted Computing Group board member.
+**Career arc**: Long-time researcher with home- and building-automation background.
 
 **Core contribution**: The **St. Regis Shenzhen hotel attack (Black Hat USA 2014 / DEF CON 22)**. While a guest, Molina noticed the in-room iPad spoke unauthenticated **KNX/IP**. He inferred per-room IP-address patterns, then sent KNX commands to other rooms — achieving full remote control of climate, lighting, and entertainment across all 200+ rooms. Disclosed to Starwood; the hotel took down the network.
 
@@ -73,7 +73,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 **Career arc**: MPhil at Cambridge; 2011 thesis "Quantitatively Assessing and Visualising Industrial System Attack Surfaces" was the first systematic public attempt to enumerate internet-exposed ICS via Shodan dorks. Co-author of *Solving Cyber Risk* (Wiley, 2018).
 
-**Core contribution**: 2011 enumeration found over 7,500 internet-facing devices including BMS, HVAC controllers, smart meters. Briefed DHS; presented at S4 2012. The methodology (29 protocol-specific Shodan queries) has been extended by every subsequent measurement effort.
+**Core contribution**: 2011 enumeration found over 7,500 internet-facing devices including BMS, HVAC controllers, smart meters. Briefed DHS. The methodology (29 protocol-specific Shodan queries) has been extended by every subsequent measurement effort.
 
 **Frame Leverett introduced**: Internet-exposure of building-control systems must be measured continuously, not asserted theoretically. The "air gap" claim was empirically false at scale.
 
@@ -93,9 +93,7 @@ Building-automation security is the commercial-real-estate sibling of industrial
 
 ### Trend Micro Research (Stephen Hilt and the IoT/OT team)
 
-**Career arcs**: Trend Micro's research division runs industrial and IoT honeypots, building-automation exposure, and BACnet implementation work. Hilt is primary author of several factory- and building-honeypot white papers. Cross-referenced in [[reference-ics-ot-security]].
-
-**Core contribution**: Honeypot research surfaced real-world attacker probing of internet-facing BACnet, showing exposure isn't theoretical.
+**Career arcs**: Trend Micro's research division runs industrial and IoT honeypots, building-automation exposure, and BACnet implementation work. Hilt is primary author of a factory-honeypot white paper. Cross-referenced in [[reference-ics-ot-security]].
 
 ### DEF CON ICS Village, IoT Village, and Physical Security Village
 
@@ -277,7 +275,7 @@ JC's flagship BMS. **Network Automation Engine (NAE)** is the field-level superv
 
 ### Siemens Desigo and Building Operator
 
-**Desigo CC** (formerly Desigo Insight) is Siemens's unified BMS — HVAC, lighting, power, fire, security in one dashboard. **Desigo PXC** is the field-controller line. Siemens building-controls share the insecure-by-design lineage of Siemens industrial controls; multiple OT:ICEFALL vulnerabilities included Siemens building products. Newer PXC generations support BACnet/SC.
+**Desigo CC** (formerly Desigo Insight) is Siemens's unified BMS — HVAC, lighting, power, fire, security in one dashboard. **Desigo PXC** is the field-controller line. Siemens building-controls share the insecure-by-design lineage of Siemens industrial controls. Newer PXC generations support BACnet/SC.
 
 ### Schneider Electric EcoStruxure Building
 
@@ -338,7 +336,7 @@ Cybersecurity controls cannot substitute for engineered safety; engineered safet
 
 ### The card-credential ecosystem
 
-- **125 kHz LF prox** (HID ProxCard II, EM4100, Indala) — original, still extremely common in older deployments. **Trivially cloneable** with a $30 Proxmark3 in under 30 seconds; the card number is plaintext.
+- **125 kHz LF prox** (HID ProxCard II, EM4100, Indala) — original, still extremely common in older deployments. **Trivially cloneable** with a Proxmark3; the card number is plaintext.
 - **13.56 MHz HF** (HID iCLASS, MIFARE Classic, MIFARE DESFire) — modern standard. iCLASS legacy uses a proprietary algorithm broken by Henryk Plötz and Milosch Meriac (27C3, 2010) and Garcia et al. (2011-2012); now in Proxmark. iCLASS SE/SR are newer secure variants.
 - **MIFARE Classic** — broken by Karsten Nohl et al. (2008); still deployed in non-security-critical contexts. **MIFARE DESFire EV1/EV2/EV3** use 3DES/AES.
 - **HID Seos** — newer HID Global platform; AES-128 mutual authentication.
@@ -507,7 +505,7 @@ Hospitality is most-cited partly because hotels have higher reporting incentive 
 
 ### Healthcare-facility incidents (largely undisclosed)
 
-Hospital BMS incidents are substantially undercounted in public reporting. HIPAA's PHI-confidentiality focus doesn't require reporting cyber-physical incidents that don't affect PHI. Joint Commission and CMS have begun requiring broader reporting; public corpus remains sparse.
+Hospital BMS incidents are substantially undercounted in public reporting. HIPAA's PHI-confidentiality focus doesn't require reporting cyber-physical incidents that don't affect PHI. The public corpus remains sparse.
 
 ### Volt Typhoon / VOLTZITE (2023-ongoing)
 

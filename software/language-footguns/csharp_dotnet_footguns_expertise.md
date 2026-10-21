@@ -686,7 +686,7 @@ If `userSuppliedFilename` is `/etc/passwd` or `C:\Windows\...\hosts`,
 `safeDirectory` is discarded — path traversal without a single `../`,
 defeating sanitizers that look for traversal sequences.
 
-`Path.Join` (.NET Core 2.1+) does *not* discard on absolute input
+`Path.Join` (.NET Core 3.0+ for `string` arguments; `ReadOnlySpan<char>` overloads since .NET Core 2.1) does *not* discard on absolute input
 but does not validate the result is under the intended root. The
 canonical safe pattern:
 

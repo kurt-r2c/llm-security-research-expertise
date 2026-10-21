@@ -44,7 +44,7 @@
 >   ECDSA. Source: blog.trailofbits.com; github.com/trailofbits/publications.
 > - **Verichains** (Vietnam applied-crypto audit) — disclosed TSSHOCK key-
 >   extraction on GG18 / GG20 / CGGMP21 (2023). Source: verichains.io/tsshock.
-> - **samczsun / Sam Sun** (Paradigm, SEAL 911) — "Escaping the Dark Forest"
+> - **samczsun / Sam Sun** (formerly Paradigm; SEAL 911) — "Escaping the Dark Forest"
 >   canonical whitehat-recovery essay; SEAL 911 is the ecosystem IR
 >   coordination layer. Source: samczsun.com; securityalliance.org.
 > - **Mudit Gupta** (Polygon Labs CISO) —
@@ -86,7 +86,7 @@
 
 The maximalist framing — *what executes on-chain is the truth* — holds at
 the EVM execution layer and breaks at the social layer. The DAO fork
-(June 2016), Steem / Hive split (March 2020), and small-chain rollbacks demonstrate
+(July 2016), Steem / Hive split (March 2020), and small-chain rollbacks demonstrate
 "code is law" yields to "consensus is people" once asset value is high
 enough. Working model: **every cryptocurrency system has a layer where
 the social cost of not intervening exceeds the cost of intervening; that
@@ -321,7 +321,7 @@ changes. User sees "this transaction will move 10 ETH from you to
 
 Defense limits: (a) **Simulation bypasses** — attacker contracts branch on
 `block.number`, `block.timestamp`, sender, oracle state; simulator's fork
-won't match deployment-time mempool state. Blockaid's December 2024
+won't match deployment-time mempool state. Blockaid's June 2024
 writeup catalogs bypass techniques. (b) **Coverage gaps** — simulators
 only see state changes within the transaction; off-chain permit signatures
 don't move state at signing time, future-execution authorization is missed
@@ -666,14 +666,14 @@ BGP exposure with availability cost. Institutional defense: multi-region
 Validator: 32 ETH deposited to beacon-chain deposit contract (cap
 balances decentralization against block-validation overhead). Validators
 sign attestations every slot (~12s) and occasionally propose. Honest
-~3-5% annual; misbehavior triggers slashing.
+~2.8-3.3% annual (2026); misbehavior triggers slashing.
 
 Key points: (a) **Withdrawal credentials** distinguish BLS-key-controlled
 and ETH-address-controlled (0x01 prefix); most institutional validators
 use 0x01 so withdrawal goes to a separately-keyed hot wallet. (b)
 **Validator key vs withdrawal key** are distinct — signing-key compromise
 alone lets an attacker slash the validator but NOT steal staked ETH. (c)
-**Slashing** (duplicate blocks or "surround" attestations) costs 1-32 ETH
+**Slashing** (duplicate blocks or "surround" attestations) costs ~0.0078-32 ETH (post-Pectra)
 based on correlated-slashing population. (d) **Exit queue**: hours-to-
 weeks for full validator exit; security feature (reduces long-range-attack
 risk), operational drag (slow compromised-key rotation).
@@ -693,9 +693,9 @@ below.
 
 ### Lido + EigenLayer centralization
 
-**Lido Finance** controls 25-33% of staked ETH. If Lido's operator set
+**Lido Finance** controls ~21% of staked ETH (mid-2026). If Lido's operator set
 were compelled, the chain would be materially affected. Defense
-evolution: initial ~30 KYC'd professional operators → 2024 Community
+evolution: initial curated set of professional operators → 2024 Community
 Staking Module (CSM) admitting solo stakers (Early Adoption first, later
 fully permissionless) with a 2.4 ETH bond (1.5 ETH for early adopters,
 1.3 ETH per additional validator) → DVT pilot with Obol eliminating single-operator-controls-key
@@ -1297,8 +1297,8 @@ SEV-SNP.
 ### Quantum threat to crypto signatures
 
 Shor's algorithm breaks ECDSA, EdDSA, Schnorr on sufficiently large
-quantum computers. NIST working assumption: 2030-2040 for
-"cryptographically relevant quantum computer." Implications: (a)
+quantum computers. NIST IR 8547 (draft) deprecates quantum-vulnerable
+algorithms after 2030 and disallows them after 2035. Implications: (a)
 **Address reuse risk** — Bitcoin P2PKH addresses derived from
 hash(public_key) only expose the public key after first spend;
 never-spent addresses are quantum-safe; spent addresses expose the

@@ -38,7 +38,7 @@
 >   covering JSON / XML / YAML / Marshal vectors with PoCs
 > - **JFrog Security Research** — PickleScan zero-day cluster (
 >   CVE-2025-10155 extension mismatch, CVE-2025-10156 ZIP CRC bypass, CVE-2025-10157 submodule
->   import bypass); nullifAI Hugging Face campaign analysis (2024-02 - 2025-02)
+>   import bypass)
 > - **HiddenLayer Research** — "Silent Sabotage" safetensors-conversion hijack on Hugging Face
 >   (2024); OpenAI Privacy Filter impersonation campaign analysis (2026, 244k downloads)
 > - **Viettel Cyber Security** (via ZDI / Pwn2Own Berlin 2025) — ToolShell SharePoint chain
@@ -84,7 +84,7 @@ deserialization and NOT in having gadgets on the classpath." Patching Apache Com
 removes one weapon. The application still deserializes attacker-controlled objects. The attacker
 finds a gadget in the next library on the classpath.
 
-Bechler's paper extends this: "No matter how the unmarshalling process is performed and what
+Bechler's paper extends this: "No matter how this process is performed and what
 implicit constraints are in place, it is prone to similar exploitation techniques." The
 vulnerability class is architectural; the format (binary Java serialization, XML, JSON, YAML,
 AMF, Hessian) is implementation detail.
@@ -563,7 +563,7 @@ BinaryFormatter vulnerabilities. The only reliable fix is to not use BinaryForma
 
 ### .NET Remoting: deprecated but not gone
 
-.NET Remoting (deprecated since .NET 2.0, present in .NET Framework indefinitely) uses
+.NET Remoting (a legacy technology; remoting APIs marked obsolete starting in .NET 5, present in .NET Framework indefinitely) uses
 BinaryFormatter or SoapFormatter internally. Wulftange's 2022–2024 research documented a
 progression of attacks:
 
@@ -1004,8 +1004,6 @@ ReversingLabs reported a class of malicious HF uploads dubbed **nullifAI**
 - Repository names mimicking legitimate releases (HiddenLayer's 2026 "Privacy Filter"
   impersonation campaign, ~244k reported downloads, six more repositories sharing the same
   loader — see `thehackernews.com` 2026 coverage).
-- Backdoors that beacon out only on import, evading sandbox detonation that loads the model
-  without invoking forward pass.
 
 Cross-link: `cicd_supply_chain_expertise.md` for CI-pipeline implications (pickle in MLflow
 artifact stores, DVC pipelines, model registries with pull-through caches).
@@ -1056,14 +1054,14 @@ Trail of Bits report `huggingface.co/datasets/safetensors/trail_of_bits_audit_re
   memory-mapped tensor optimization. Same RCE properties as `pickle.load`.
 - **TensorFlow Keras `.h5` / SavedModel** — `Lambda` layers serialize a `marshal`-encoded
   Python callable. `tf.keras.models.load_model` of a malicious model with a `Lambda` layer is
-  RCE. ProtectAI tracks this as a top-three risk alongside PyTorch pickle.
+  RCE.
 - **MLflow `pyfunc` flavor** — models can ship arbitrary `python_function` modules; load is
   effectively `importlib` of attacker-controlled paths.
 - **DVC remote `pull`** — fetched artifacts may be pickle; pull-then-load is the sink.
 - **Hugging Face `transformers.from_pretrained(trust_remote_code=True)`** — orthogonal but
   related: `trust_remote_code=True` allows fetching and executing arbitrary `*.py` code from
   the model repo as part of `AutoModel.from_pretrained()`. Not pickle, but the same trust
-  failure mode in the same supply chain. Default is `False` since 2023; finding any production
+  failure mode in the same supply chain. Default is `False`; finding any production
   call site with `trust_remote_code=True` over user-influenced model IDs is a critical finding.
 
 #### Scanner-stacking is not defense in depth
@@ -1330,10 +1328,10 @@ Check for:
 | **ysoserial.net** | Alvaro Muñoz + Soroush Dalili | .NET | Generate .NET deserialization payloads (BinaryFormatter, Json.Net, ViewState, etc.) |
 | **marshalsec** | Moritz Bechler | Java | Generate payloads for 13+ Java marshallers; includes LDAP/RMI reference servers |
 | **LDAP Swiss Army Knife** | Moritz Bechler / SySS | Network | LDAP server for JNDI injection testing; intercepts credentials; delivers Reference/serialized objects |
-| **beanshooter** | Tobias Neitzel / CODE WHITE | Java | JMX exploitation including StandardMBean+TemplatesImpl and RequiredModelMBean techniques |
+| **beanshooter** | Tobias Neitzel | Java | JMX exploitation including StandardMBean+TemplatesImpl and RequiredModelMBean techniques |
 | **HttpRemotingObjRefLeak** | CODE WHITE | .NET | Exploit toolkit for CVE-2024-29059; automated ObjRef leaking + exploitation |
 | **NewRemotingTricks** | CODE WHITE | .NET | PoC for three CAS-bypass .NET Remoting techniques (2024) |
-| **ExploitRemotingService** | James Forshaw (fork by Wulftange) | .NET | .NET Remoting exploitation with `--useobjref`, `--uselease`, `--useser` modes |
+| **ExploitRemotingService** | James Forshaw | .NET | .NET Remoting exploitation with `--useobjref`, `--uselease`, `--useser` modes |
 | **phpggc** | Ambionics Security | PHP | PHP gadget chain generator; analog of ysoserial for PHP frameworks |
 | **CodeQL + taint tracking** | GitHub / Muñoz | Multi | Systematic deserialization sink discovery in large codebases |
 | **picklescan** | M. Maître (community) | Python/ML | Pickle-opcode scanner for ML model files; **multiple bypass CVEs in 2025** (see §9), use only as defense-in-depth alongside safetensors migration |
@@ -1528,7 +1526,7 @@ obj = pickle.loads(request.data)                       # SHOULD FIRE
 cfg = yaml.load(request.data, Loader=yaml.Loader)      # SHOULD FIRE (UnsafeLoader/Loader = RCE)
 cfg = yaml.unsafe_load(request.data)                   # SHOULD FIRE
 cfg = yaml.load(request.data)                          # SHOULD FIRE (bare load: deprecated; defaults
-                                                       #   to FullLoader since pyyaml 5.1, which still
+                                                       #   to FullLoader in pyyaml 5.1-5.4 (6.0+ requires Loader); FullLoader
                                                        #   has RCE-bypass history — CVE-2020-1747/14343)
 model = torch.load(untrusted_path)                     # SHOULD FIRE (weights_only defaults False pre-2.6)
 

@@ -544,9 +544,9 @@ noting that `flatted.parse` is itself a prototype-pollution sink
 
 Pre-Node-15, an unhandled Promise rejection emitted a deprecation
 warning but did not terminate the process. From Node 15.0.0 onward,
-the default is `--unhandled-rejections=throw`: an unhandled rejection
-crashes the process with an `unhandledRejection` event whose default
-handler calls `process.exit(1)`.
+the default is `--unhandled-rejections=throw`: with no
+`unhandledRejection` hook, an unhandled rejection is raised as an
+uncaught exception and crashes the process.
 
 The footgun: an attacker who can cause an async path to reject without
 a handler can crash a Node.js server. Common shapes:
@@ -845,8 +845,8 @@ Kurt Boberg's CVE-2022-0235 (`node-fetch`, January 2022) is the
 canonical disclosure in this class for the Node.js ecosystem.
 `node-fetch` pre-3.1.1 and pre-2.6.7 forwarded `Authorization`,
 `Cookie`, and `WWW-Authenticate` on cross-origin redirects. The fix
-was to drop these headers when the redirect target's origin differs
-from the original.
+was to drop these headers when the redirect target's host is not
+the same domain as, or a subdomain of, the original.
 
 The WHATWG Fetch spec itself defines "redirect-mode" semantics that
 distinguish CORS-credentialed from non-credentialed contexts; the

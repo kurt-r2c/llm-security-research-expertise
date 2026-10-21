@@ -427,7 +427,7 @@ be Turing-complete with enough work.
 First widely-documented mercenary-spyware chain: CVE-2016-4655 (kernel
 info leak in OSUnserializeBinary), CVE-2016-4656 (kernel UAF privesc),
 CVE-2016-4657 (WebKit RCE via Safari). 1-click via SMS link. iOS 9.3.5
-shipped 10 days after Citizen Lab disclosure — establishing the public-
+shipped alongside Citizen Lab's August 25, 2016 disclosure, 15 days after the August 10 discovery — establishing the public-
 disclosure + fast-Apple-patch pattern that has held since.
 
 ---

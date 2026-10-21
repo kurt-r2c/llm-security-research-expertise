@@ -12,7 +12,7 @@ Register: imperative. The reader has 10M shipped devices and an inbound bug repo
 
 This playbook answers a different question: "how does the operations team build resilience around a fleet of devices that ships and stays in the field for five to fifteen years?" It is OS-agnostic. It is supplier-agnostic. It assumes you have already chosen a kernel and a BSP — `[[reference-rtos-embedded-os]]` and `[[reference-firmware-embedded-security]]` cover those choices. Here we cover what the org does once a device is in customer hands.
 
-The distinction is not academic. Mirai (2016) was not an RTOS bug. Mirai was an operations failure: factory-default credentials, no update channel, no telemetry, no decommissioning policy. Krebs's writeup at `krebsonsecurity.com/2016/10/source-code-for-iot-botnet-mirai-released/` and Symantec's October 2016 analysis both attribute the 600 Gbps DDoS — and the subsequent Dyn attack — to operational primitives that this playbook is designed to prevent: default passwords on Telnet ports, no firmware-update mechanism, devices on the public internet without segmentation. The vulnerabilities were ordinary. The operations were absent.
+The distinction is not academic. Mirai (2016) was not an RTOS bug. Mirai was an operations failure: factory-default credentials, no update channel, no telemetry, no decommissioning policy. Krebs's writeup at `krebsonsecurity.com/2016/10/source-code-for-iot-botnet-mirai-released/` and Symantec's October 2016 analysis both attribute the 620 Gbps DDoS on KrebsOnSecurity to operational primitives that this playbook is designed to prevent: default passwords on Telnet ports, no firmware-update mechanism, devices on the public internet without segmentation. The vulnerabilities were ordinary. The operations were absent.
 
 VPNFilter (Cisco Talos, May 2018, `blog.talosintelligence.com/vpnfilter`) tells the same story from the state-actor side. Sandworm achieved persistence on 500,000+ SOHO routers (Linksys, MikroTik, Netgear, TP-Link, QNAP) by exploiting old CVEs against devices that had no update channel and no telemetry-back-to-vendor. The kernel was incidental. The operations gap was the vulnerability.
 
@@ -157,7 +157,7 @@ Pick one and standardize:
 
 Two partitions; the running image lives in one, the new image is written to the other and booted. If the boot fails or the application fails to check in within a watchdog window, the bootloader reverts to the previous slot. This is the only sane operational design for unattended devices.
 
-Anti-rollback fuse policy: burn the fuse for a specific version only after telemetry confirms it is stable. This prevents an attacker with code-execution from downgrading to an older signed image with a known exploit. The classic case is the iOS SHSH-blob downgrade attack era (2011-2014); Apple eventually moved to enforce anti-rollback in hardware.
+Anti-rollback fuse policy: burn the fuse for a specific version only after telemetry confirms it is stable. This prevents an attacker with code-execution from downgrading to an older signed image with a known exploit. The classic case is the iOS SHSH-blob replay downgrade, which Apple closed in iOS 5 (2011) by binding the signed APTicket to a per-restore random nonce.
 
 ### 4.3 Update-payload signing
 
@@ -231,7 +231,7 @@ Industry norms (Project Zero's 90-day disclosure window is the gravitational anc
 
 ### 5.4 Coordinated disclosure via CERT/CC
 
-For multi-vendor CVEs (your firmware uses Treck, Treck is used by 50 others) the right mechanism is the **VINCE** platform at `kb.cert.org/vince/`, run by CERT/CC at Carnegie Mellon SEI. VINCE handles the multi-vendor coordination, the embargo, and the publication. Be a participating vendor — register and respond to VINCE cases promptly.
+For multi-vendor CVEs (your firmware uses Treck, Treck is used by 50 others) the right mechanism is the **VINCE** platform, originally hosted by CERT/CC at Carnegie Mellon and replaced on September 17, 2026 by the CISA-hosted VINCE-NT. VINCE handles the multi-vendor coordination, the embargo, and the publication. Be a participating vendor — register and respond to VINCE cases promptly.
 
 The reference case is Ripple20 (JSOF, June 2020): 19 CVEs in the Treck TCP/IP stack, used in hundreds of millions of devices across Schneider Electric, Caterpillar, Rockwell, HP, and many others. CERT/CC coordinated the multi-vendor disclosure (`kb.cert.org/vuls/id/257161`). URGENT/11 (Armis, July 2019, `armis.com/research/urgent11/`) followed the same playbook for VxWorks IPnet: 11 CVEs across the install base.
 
@@ -350,7 +350,7 @@ If field-debug is required: per-device challenge-response, gated by a server-sid
 
 ### 7.6 Counterfeit-component detection
 
-Supply-chain attacks at the silicon level are real (the Bloomberg "Big Hack" 2018 story is disputed; Operation Trojan Shield 2021 is not). Operational primitives:
+Supply-chain attacks at the silicon level are real (the Bloomberg "Big Hack" 2018 story is disputed). Operational primitives:
 - Authenticated components — silicon with on-die provisioned identity (NXP A1006, Microchip ATECC, Infineon OPTIGA) where you verify identity at first boot.
 - Receiving inspection — incoming-goods sampling against a verified golden sample, XRF or decapsulation for high-risk lines.
 - Trusted distribution — buy directly from the silicon vendor or from a small set of authorized distributors (Avnet, Arrow, Future, Mouser, Digi-Key for low-volume).

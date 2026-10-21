@@ -98,7 +98,7 @@ column, file, or cache. Common patterns:
    - Argon2, bcrypt, or scrypt → check cost parameter against project minimum:
      - bcrypt: work factor >= 10
      - Argon2id: memory >= 64 MB, iterations >= 3
-     - scrypt: N >= 32768
+     - scrypt: N >= 131072 (2^17)
      - Cost below minimum → raise as risk; cost at or above minimum → pass.
 
 **Severity:** HIGH if a non-adaptive hash or plaintext/base64 encoding is used; HIGH if

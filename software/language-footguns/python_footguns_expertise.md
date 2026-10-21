@@ -970,8 +970,8 @@ Safe: `yaml.safe_load(s)`, `yaml.load(s, Loader=yaml.SafeLoader)`,
 `yaml.load(s, Loader=yaml.BaseLoader)` (everything-as-string).
 Avoid: `yaml.unsafe_load(s)`, `yaml.load(s, Loader=yaml.Loader)`,
 `Loader=yaml.UnsafeLoader`, `Loader=yaml.FullLoader` (FullLoader
-blocks the most-direct primitives but still constructs arbitrary
-Python classes).
+was exploitable before PyYAML 5.4 via CVE-2020-14343; 5.4 moved
+arbitrary python tags to UnsafeLoader).
 
 ### 12.3 `yaml.unsafe_load` canonical RCE payload
 

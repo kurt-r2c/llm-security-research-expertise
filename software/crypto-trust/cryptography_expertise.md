@@ -609,9 +609,9 @@ FIPS standards effective August 14, 2024 (Federal Register
 ### ML-KEM (FIPS 203) — Key Encapsulation Mechanism
 
 Formerly CRYSTALS-Kyber. Security: Module Learning With Errors (MLWE). Three parameter sets:
-- **ML-KEM-512:** 128-bit classical / ~100-bit PQ security. Public key 800B, ciphertext 768B.
-- **ML-KEM-768:** 192-bit classical / ~128-bit PQ. Public key 1184B, ciphertext 1088B.
-- **ML-KEM-1024:** 256-bit classical / ~160-bit PQ. Public key 1568B, ciphertext 1568B.
+- **ML-KEM-512:** NIST security category 1 (~AES-128). Public key 800B, ciphertext 768B.
+- **ML-KEM-768:** NIST security category 3 (~AES-192). Public key 1184B, ciphertext 1088B.
+- **ML-KEM-1024:** NIST security category 5 (~AES-256). Public key 1568B, ciphertext 1568B.
 
 ML-KEM-768 is the recommended general-purpose choice. The scheme generates shared secrets via a
 CPA-secure PKE (lattice-based encryption) hardened to CCA2-secure KEM via Fujisaki-Okamoto
@@ -632,7 +632,7 @@ Public key ~1952 bytes, signature ~3309 bytes (ML-DSA-65), much larger than Ed25
 
 ### SLH-DSA (FIPS 205) — Hash-Based Signature (conservative backup)
 
-Formerly SPHINCS+. Pure hash-based — security rests only on hash function collision resistance.
+Formerly SPHINCS+. Pure hash-based — security rests only on hash function properties (second-preimage resistance and pseudorandomness).
 No algebraic structure to attack. Performance: slow signing (~milliseconds), moderate
 verification, large signatures (~8-50KB depending on parameter set). Recommended as a backup
 for scenarios where lattice cryptography assumptions are broken. SLH-DSA-SHA2-128f/128s/etc.
@@ -769,7 +769,7 @@ Engineering focus. Distinctive contributions:
 
 | Tool / Resource | Author(s) | Purpose |
 |----------------|-----------|---------|
-| **NTL (Number Theory Library)** | Victor Shoup | C++ library for arbitrary-precision arithmetic, lattice algorithms (LLL), ZK proofs — research and implementation standard |
+| **NTL (Number Theory Library)** | Victor Shoup | C++ library for arbitrary-precision arithmetic, lattice algorithms (LLL) — research and implementation standard |
 | **SageMath** | Community | Computer algebra system; standard for cryptographic research and attack implementation |
 | **mimoo/RSA-and-LLL-attacks** | David Wong | SageMath implementations of Boneh-Durfee and Coppersmith attacks; 840 stars |
 | **CryptoHack** | Community | CTF-style platform for learning cryptography by breaking intentionally vulnerable constructions |
@@ -818,7 +818,7 @@ CNSA 2.0 specifies ML-KEM-1024, ML-DSA-87, LMS/XMSS (firmware/software signing),
 does NOT permit hybrid stacks for compliance — pure PQ algorithms only. This is a deliberate
 break from the broader-internet "hybrid during transition" stance.
 
-For the lattice/hash family construction details, alternative-family backups (HQE, classic
+For the lattice/hash family construction details, alternative-family backups (HQC, classic
 McEliece), and the migration sequencing across symmetric/asymmetric/protocol layers, see
 `post_quantum_cryptography_expertise.md`.
 
@@ -950,8 +950,7 @@ library implementing PKCS#1 v1.5 decryption at all is a Bleichenbacher liability
 until proven constant-time and constant-error against the full corpus of historical
 oracle variants (Bleichenbacher 1998, Klima-Pokorny-Rosa 2003, ROBOT 2018).
 
-**libsodium** continues its conservative posture: no PKCS#1 v1.5, no CBC, no static
-DH/ECDH, default APIs are AEAD-only and use Curve25519/Ed25519. The libsodium CVE rate
+**libsodium** continues its conservative posture: no PKCS#1 v1.5, no CBC, default APIs are AEAD-only and use Curve25519/Ed25519. The libsodium CVE rate
 remains close to zero through 2024-2026 — a deliberate consequence of removing optionality
 that history shows is dangerous. Use libsodium for new application-layer encryption work
 unless you have specific reason to use a different library.

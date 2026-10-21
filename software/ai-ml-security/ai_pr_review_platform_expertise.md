@@ -37,7 +37,7 @@ Notable platforms (founding year inferred from public source where stated; integ
 - **Sourcery** — Founded 2018 (originally a Python-refactor tool). 30+ languages. Triggered via `@sourcery-ai review` comment. IDE plugin (VS Code, Cursor, JetBrains) mirrors the PR review.
 - **qodo (formerly Codium)** — Rebranded from Codium to qodo. Open-source CLI version (PR-Agent) plus hosted Qodo Merge / Qodo 2.0. Self-hostable, air-gapped deployment supported, can run against self-hosted LLMs. Notable for being the most open-source-friendly option in the category.
 - **Trag (usetrag.com)** — AI-powered code review with natural-language custom rules. GitHub + GitLab; Bitbucket and Azure DevOps stated as roadmap. Free tier for open source; paid Team plan at $300/repository/month.
-- **Sweep AI (sweep.dev)** — Originally an issue-to-PR-generation product; now positions as AI junior developer with review-and-fix capability. JetBrains plugin for full feature set. Does not train on customer code per public statements.
+- **Sweep AI (sweep.dev)** — Originally an issue-to-PR-generation product; now positions as AI junior developer with review-and-fix capability. JetBrains plugin for full feature set. Does not train on customer code when Privacy Mode is enabled, per Sweep's docs.
 - **Semgrep Assistant** — Semgrep's AI layer on top of deterministic static analysis. Distinct architectural position: the "is this a real finding?" question is asked of an AI over Semgrep findings, not the AI generating findings de novo. Posts triage suggestions and remediation guidance as PR/MR comments. Discussed comparatively in §11; vendor-side threat model in §12.
 - **GitHub Copilot Coding Agent / Copilot Autofix** — Microsoft/GitHub. Generally available September 2025 (Coding Agent) and integrated with CodeQL for security-finding autofix. Distinct from the third-party-app shape — runs on GitHub infrastructure with GitHub-issued tokens, but processes the same kind of untrusted PR content and has been part of the Comment-and-Control class (see §10).
 - **Adjacent / tangential** — Graphite (PR-stacking tool with AI-assist features), AugmentCode (IDE-first), CodeScene with AI features (technical-debt focus), Sweep AI (more code-gen than review).
@@ -155,7 +155,7 @@ Mitigations:
 - Per-PR token-count caps. If diff > N tokens, abort and post "PR too large to auto-review; manual review required."
 - Backpressure on shared LLM endpoints. Reservation pools per customer, not global.
 
-This shape is lower-severity than 4.1 and 4.2 but high-availability-cost. CodeRabbit's documentation describes large-diff handling (chunking, sequence-diagram generation only for diffs under a threshold).
+This shape is lower-severity than 4.1 and 4.2 but high-availability-cost. CodeRabbit's documentation describes large-diff handling.
 
 ### 4.4 Platform-as-target
 
@@ -214,7 +214,7 @@ Even with strong tenant isolation, prompt-injection-resistant system prompts, sa
 - **Adversarial inputs degrade quality.** Prompt-injection-resistant or not, the reviewer's quality degrades on adversarial PRs. An attacker who knows the reviewer's prompt structure (often inferable from observed output) can craft PRs that minimize bot scrutiny.
 - **Reviewer drift.** Vendor updates the model, the prompt, or the linter integration; reviewer quality changes silently. A team that relies on the reviewer as gatekeeper has no signal when the gate loosens.
 
-The structural answer is the Heasman doctrine of "human review is the load-bearing pillar." Cross-link `[[reference-code-review-expertise]]`. The AI reviewer is a *first-pass triage* tool that surfaces candidates for the human reviewer's attention. It is not the human reviewer.
+The structural answer is that human review is the load-bearing pillar. Cross-link `[[reference-code-review-expertise]]`. The AI reviewer is a *first-pass triage* tool that surfaces candidates for the human reviewer's attention. It is not the human reviewer.
 
 Practical implementation:
 
@@ -241,7 +241,7 @@ What an AppSec team should log and alert on. Aligned to the Pyramid-of-Pain fram
 
 - **Unexpected GitHub App permission expansion.** Vendor pushes a permission-update prompt to your org admin. Should be reviewed each time before consenting. Audit-log filter: `integration_installation.version_updated` events.
 - **Token rotation events.** Vendor rotates its App's PEM file or your access token after an incident. Often the first customer-visible signal of a vendor-side compromise.
-- **Auth events from unexpected IPs.** The bot is making API calls from IPs outside the vendor's documented range. GitHub audit log: filter for `oauth_authorization` and `personal_access_token` events.
+- **Auth events from unexpected IPs.** The bot is making API calls from IPs outside the vendor's documented range. GitHub audit log: filter for `oauth_application` and `personal_access_token` events.
 - **Workflow-file modifications by the bot.** If the bot has `contents: write`, it should never modify `.github/workflows/*`. An alert on this is high-fidelity.
 - **Bot-driven force-pushes.** Reviewers should never need to force-push. An alert on `git_push --force` from the bot's identity is a compromise signal.
 

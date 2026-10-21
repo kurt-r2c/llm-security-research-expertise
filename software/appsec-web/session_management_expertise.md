@@ -338,8 +338,8 @@ client holds. Two specs:
   thumbprint. A stolen access token presented over a different TLS channel is rejected.
 
 Adoption is rare in 2026. Most production OAuth deployments still issue bearer tokens that
-work for the attacker if stolen. DPoP is gaining traction in the GNAP and FAPI (Financial
-API) communities; mTLS-bound tokens are deployed in banking-grade FAPI deployments.
+work for the attacker if stolen. FAPI 2.0 (Financial-grade
+API) permits DPoP alongside mTLS; mTLS-bound tokens are deployed in banking-grade FAPI deployments.
 
 ---
 
@@ -397,7 +397,8 @@ draft (`draft-ietf-oauth-v2-1`, Parecki / Hardt / Lodderstedt) and RFC 9700 (BCP
 Current Practice for OAuth 2.0 Security," January 2025). The
 session-management-relevant requirements:
 
-- **PKCE mandatory for all OAuth flows**, not just public clients. PKCE (RFC 7636) binds
+- **PKCE required for all clients**, not just public clients (sole exception: a
+  confidential client the auth server trusts to implement the OIDC `nonce` correctly). PKCE (RFC 7636) binds
   the authorization request to the token request via a cryptographic verifier the attacker
   cannot guess; closes the authorization-code-interception class of attacks.
 - **Implicit grant deprecated**. The implicit grant returned access tokens in the URL
@@ -520,7 +521,8 @@ Defenses:
   + nonce-based inline scripts) raises the bar for XSS exploitation. CSP is not a primary
   XSS defense — primary defenses are output encoding and Trusted Types — but it constrains
   exfiltration channels.
-- **Trusted Types** (Chrome, behind a CSP directive). Forces DOM sinks (`innerHTML`,
+- **Trusted Types** (Chrome/Edge, Safari 26, Firefox 148; Baseline since February 2026;
+  enabled via a CSP directive). Forces DOM sinks (`innerHTML`,
   `document.write`, `setTimeout` with string-callbacks) to accept only specifically-typed
   values produced by a Trusted Types policy. Closes the DOM-XSS class structurally where
   deployed.
@@ -605,7 +607,8 @@ for a short window. Cross-link to `webauthn_fido2_passkeys_expertise.md`.
 
 ### 12.5 Short-lived access tokens + refresh-token rotation
 
-The OAuth 2.1 default pattern. Access tokens expire in minutes (5-15 minutes is typical);
+OAuth 2.1 requires authorization servers to detect refresh-token replay for public clients
+via sender-constrained refresh tokens or refresh-token rotation. Access tokens expire in minutes (5-15 minutes is typical);
 refresh tokens rotate on every use and are revoked on reuse detection. Token theft has a
 short useful lifetime and any attempt to extend it via the refresh token triggers
 revocation.

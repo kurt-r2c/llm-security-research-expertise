@@ -357,8 +357,9 @@ system("dig", host)               # argv-array; no shell
 Open3.capture3("dig", host)       # same
 ```
 
-Ruby's `system(cmd)` invokes `sh -c` when given a single string argument,
-but invokes `execve` directly when given an argv array. The "argv array
+Ruby's `system(cmd)` invokes `sh -c` when given a single string argument
+that contains shell metacharacters, keywords or builtins (otherwise it runs
+the command directly), but invokes `execve` directly when given an argv array. The "argv array
 when length > 1" rule is non-obvious; a developer rewriting `system("dig
 #{host}")` as `system("dig", host)` is making a security-significant
 change that does not look like one in code review.
@@ -462,7 +463,7 @@ But not every utility honors `--` the same way:
 | tar | yes | `--checkpoint-action=exec=` is the canonical post-`--`-misuse case |
 | sed | partial | `-e`/`-f` interaction with `--` is version-dependent |
 | awk | yes | `-f program-file` is the hazard before `--` |
-| perl | NO | `-e` `-M` etc. parse aggressively; argument injection in scripts that pass user input to `perl` is endemic |
+| perl | yes | `-e` `-M` etc. parse aggressively; argument injection in scripts that pass user input to `perl` is endemic |
 
 The "filename-as-flag" class deserves separate treatment: when the
 attacker controls a file's *name* (not its content), and that name
@@ -499,9 +500,9 @@ candidate:
   including `core.sshCommand`, `core.gitProxy`, `protocol.allow`,
   `uploadpack.allowFilter`. Setting `core.sshCommand=evil` and then
   attempting a clone over ssh is RCE.
-- `--exec=<cmd>` (`upload-pack`/`receive-pack`/`http-fetch`) — direct
+- `--exec=<cmd>` (`fetch-pack`) — same as `--upload-pack`; direct
   execution primitive.
-- `--ext::<cmd>` URL — git supports `ext::` URLs that execute external
+- `ext::<cmd>` URL — git supports `ext::` URLs that execute external
   commands as protocol handlers.
 - `--system`/`--global` config edits — write to global config.
 

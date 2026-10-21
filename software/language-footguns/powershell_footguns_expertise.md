@@ -874,8 +874,8 @@ unmanaged memory; encryption is gone, API unchanged, scripts depending
 on it for at-rest protection silently lose it cross-platform.
 `Marshal.SecureStringToBSTR` round-trip extracts plaintext into managed
 memory, defeating protection during use. Process-memory dumps (procdump,
-LSASS-style) capture the encrypted SecureString *plus* DPAPI key
-material for the running user, enabling offline decryption.
+LSASS-style) capture the encrypted SecureString buffer, which .NET Framework
+encrypts via `RtlEncryptMemory` (not technically DPAPI).
 
 .NET team's official guidance: don't use `SecureString` for new
 development on .NET (Core); instead use an opaque handle to credentials

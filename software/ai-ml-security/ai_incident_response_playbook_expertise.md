@@ -372,9 +372,9 @@ If your runtime captured full prompts (rare; usually OFF for cost), grep the cap
 
 **Anthropic.** `trust.anthropic.com` → "Contact Security." Request: data-deletion attestation for time window, retention override for forensic preservation, training-confirmation (Anthropic does not train on API inputs by default, but confirm in writing for your account). For active exploitation, mention "active incident response."
 
-**OpenAI.** `trust.openai.com` and `security@openai.com`. Request the same three items. Note: OpenAI's training opt-out is per-organization; verify your org-level setting.
+**OpenAI.** `trust.openai.com` and `disclosure@openai.com`. Request the same three items. Note: OpenAI does not use API data for training unless you explicitly opt in; verify your setting.
 
-**AWS Bedrock.** `abuse@aws.amazon.com` plus your AWS TAM (Technical Account Manager) if you have one. Bedrock does not train on inputs (model providers operate independently); confirm via your contract. Request CloudTrail data event retention extension if forensic preservation is needed beyond default.
+**AWS Bedrock.** `abuse@amazonaws.com` plus your AWS TAM (Technical Account Manager) if you have one. Bedrock does not train on inputs (model providers operate independently); confirm via your contract. Request CloudTrail data event retention extension if forensic preservation is needed beyond default.
 
 ### 6.3 What to ask each provider
 
@@ -511,27 +511,26 @@ Per-provider contact and disclosure norms.
 
 **Trust portal:** `trust.openai.com`
 **Security disclosure:** `openai.com/security` (Bugcrowd program)
-**Direct:** `security@openai.com`
+**Direct:** `disclosure@openai.com`
 **What they need:** Organization ID, API key prefix, time window, model, sample input.
 **Disclosure timing:** 90 days standard.
 
 ### 10.3 AWS Bedrock
 
-**Direct:** `abuse@aws.amazon.com` and `aws-security@amazon.com`
+**Direct:** `abuse@amazonaws.com` and `aws-security@amazon.com`
 **Plus:** your Technical Account Manager (TAM) if you have one.
 **SLA:** depends on Support tier; Enterprise Support targets 15 minutes for business-critical system down and 1 hour for production system down.
 **What they need:** AWS account ID, region, IAM principal ARN, CloudTrail event IDs if available, time window.
 
 ### 10.4 GitHub
 
-**Direct:** `security@github.com` (also `github.com/security`)
+**Direct:** GitHub Bug Bounty on HackerOne (`hackerone.com/github`, via `bounty.github.com`)
 **For Copilot specifically:** include "GitHub Copilot" in subject.
 **What they need:** repository (if public, link; if private, scoped access discussion), workflow names, action runner IDs if available.
-**Disclosure timing:** 90 days standard via GitHub Security Advisories.
 
 ### 10.5 Microsoft (Copilot for M365, Azure OpenAI)
 
-**MSRC:** `msrc.microsoft.com/report` or `secure@microsoft.com`
+**MSRC:** `msrc.microsoft.com/create-report` or `secure@microsoft.com`
 **Bounty:** the Microsoft Copilot (AI) Bounty Program covers consumer Copilot; Copilot-related online services such as M365 Copilot fall under the M365 Bounty Program.
 **What they need:** tenant ID, time window, affected service, sample input.
 

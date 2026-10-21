@@ -438,7 +438,7 @@ Cilium Cluster Mesh (Isovalent, now Cisco) offers eBPF-native multi-cluster serv
 
 ### 11.6 Linkerd compare/contrast `[unverified specifics]`
 
-William Morgan and Oliver Gould (Buoyant / Linkerd) designed Linkerd multi-cluster around a simpler model than Istio's: per-service mirror, explicit linking via the `linkerd multicluster link` command, a trust anchor shared across clusters. The trade-off is less flexibility but easier operational reasoning. Worth contrasting when designing Istio multi-cluster to understand the design space.
+Linkerd multi-cluster is built around a simpler model than Istio's: per-service mirror, explicit linking via the `linkerd multicluster link` command, a trust anchor shared across clusters. The trade-off is less flexibility but easier operational reasoning. Worth contrasting when designing Istio multi-cluster to understand the design space.
 
 ---
 

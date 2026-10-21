@@ -14,8 +14,7 @@ The structural insight is that GNAP is OAuth designed for the world OAuth was no
 - **Justin Richer** — RFC 9635 editor, primary protocol author, and the operator-historian of the OAuth-to-GNAP arc. Author of *OAuth 2 in Action* (Manning 2017) with Antonio Sanso. His pre-WG draft, **the XYZ proposal** (~2019-2020 `[unverified date]`), is the informal "OAuth 3" exploration that the IETF GNAP WG was chartered to formalize.
 - **Aaron Parecki** — OAuth + GNAP commentator, author of oauth.com, IETF participant. Practitioner-side documentation anchor.
 - **Fabien Imbault** — RFC 9635 and RFC 9767 co-author with Justin Richer.
-- **Tony Nadalin** — IETF veteran (Microsoft alumnus), GNAP WG contributor `[unverified specific role]`.
-- **Daniel Fett** — OAuth 2.0 Security BCP (RFC 9700) co-author, GNAP WG reviewer, formal security analysis lineage (TLS 1.3 formal verification, OAuth FAPI security analyses).
+- **Daniel Fett** — OAuth 2.0 Security BCP (RFC 9700) co-author, formal security analysis lineage (OAuth FAPI security analyses).
 - **Hannes Tschofenig** — former IETF OAuth and ACE WG co-chair; RATS draft author.
 - **Brian Campbell** — Ping Identity, **DPoP RFC 9449** author, OAuth long-time contributor. GNAP does not use DPoP; its key-proofing methods are HTTP Message Signatures, mTLS, and detached/attached JWS.
 - **Mike Jones** — JWT / OIDC primary author; adjacent IETF identity work. Cross-cutting reference for token formats.
@@ -76,7 +75,7 @@ The OAuth assumption that AS-RS coupling is informal — AS issues opaque token;
 
 - **RS-to-AS registration.** RS announces what kinds of resources it serves and what kinds of access descriptions it accepts.
 - **Token introspection.** The RS queries the AS to validate a presented token (pull model; proactive AS-to-RS signals are out of scope).
-- **RS-aware token issuance.** The AS issues tokens scoped to specific RS instances rather than a generic audience string.
+- **RS-specific introspection.** The AS checks a presented token against the identified RS and may filter the returned access rights for that RS; a token's audience can list one or more RSs.
 
 This piece is the most operationally important and the least mature. Production GNAP deployments need it; it was published as RFC 9767 in April 2025. Build with caution and plan to track the RFC.
 
@@ -98,9 +97,8 @@ The Financial-grade API working group at the OpenID Foundation produces the **FA
 
 The coordination story `[unverified specific status]`:
 
-- The OpenID Foundation FAPI WG has discussed GNAP alignment for the next FAPI generation.
 - GNAP subsumes many FAPI 2.0 features natively (PAR is an OAuth retrofit; GNAP grant requests are PAR-shaped by default).
-- Banking-sector adoption of FAPI 2.0 is concentrated in UK Open Banking, EU PSD2 (with national variations), Brazil Open Banking, and Australia Consumer Data Right.
+- Banking-sector FAPI adoption: UK Open Banking and Australia Consumer Data Right adopted FAPI 1.0; Brazil Open Finance mandates FAPI; Chile, Colombia, and the UAE are aligning on FAPI 2.0.
 - GNAP adoption in banking is research-grade as of 2026.
 
 A bank evaluating GNAP today should treat it as a 2027-2028 migration target, not a current rollout option. FAPI 2.0 is the production move; GNAP is the trajectory.
@@ -112,7 +110,7 @@ The honest picture:
 - **Reference implementations.** Academic and proof-of-concept libraries exist (GNAP-AS reference server, various Node/Python/Go client libraries `[unverified specific library names]`). None have the production-grade security-audit + maintenance track record of mature OAuth libraries.
 - **OAuth-to-GNAP migration.** Non-trivial. Different message model (JSON object vs form-encoded), different token format (bound vs bearer-default), different client library surface area. Coexistence is possible but each protocol carries its own ops.
 - **Cloud-provider IdP support.** AWS Cognito, Azure Entra ID, GCP Identity Platform all primarily on OAuth 2.1 + OIDC. No public GNAP support announcements as of 2026 `[unverified]`.
-- **Commercial IdP support.** Okta / Auth0, Microsoft Entra, Keycloak, Ory Hydra, ForgeRock — all OAuth 2.1 + OIDC primary. GNAP is on roadmaps to varying degrees but not GA.
+- **Commercial IdP support.** Okta / Auth0, Microsoft Entra, Keycloak, Ory Hydra, ForgeRock — all OAuth 2.1 + OIDC primary. GNAP is not GA.
 - **Library availability.** Filip Skokan's `node-oidc-provider` ecosystem is the gold standard for OAuth/OIDC; equivalent GNAP libraries are research-grade. Python `authlib` and Go `golang.org/x/oauth2` similarly OAuth-first.
 - **Spec readiness.** RFC 9635 is finalized; RS Connections was published as RFC 9767 (April 2025).
 
@@ -147,8 +145,8 @@ The wait-for-vendor-support pattern is the right call for ~99% of teams in 2026.
 - **RFC 9635 published October 2024**.
 - **RFC 9700 OAuth 2.0 Security BCP January 2025** — codifies OAuth 2.0 security hardening that OAuth 2.1 will incorporate.
 - **MCP authorization spec revisions (2025-03-26 through 2025-11-25)** — adopted OAuth 2.1 (2025-03-26), RFC 8707 audience-binding and the token-passthrough prohibition (2025-06-18), and mandatory PKCE-S256 (2025-11-25). Did not adopt GNAP. Most likely a multi-year delay before GNAP enters the MCP picture.
-- **Apple PCC, Anthropic Computer Use, OpenAI Operator, Google Project Mariner** — AI-agent products that would benefit from GNAP-style fine-grained delegation. Adoption pending; all currently use OAuth 2.1 + bespoke authorization layering.
-- **EU AI Act + agent-transparency requirements `[unverified specific provisions]`** — direction of regulation favors fine-grained auditable authorization, which aligns with GNAP's audit-trail and per-action grant model.
+- **Anthropic Computer Use, OpenAI Operator, Google Project Mariner** — AI-agent products that would benefit from GNAP-style fine-grained delegation. Adoption pending; Operator and Computer Use currently act inside the user's browser sessions, with the user taking over for logins and sensitive steps.
+- **EU AI Act Article 50 transparency obligations (applying from 2 August 2026)** — direction of regulation favors fine-grained auditable authorization, which aligns with GNAP's audit-trail and per-action grant model.
 - **NIST SP 800-63-4 publication** (July 2025) — adjacent identity-assurance updates referencing modern authorization protocols.
 - **FAPI 2.0 advanced profiles** — production deployments in UK / EU / Brazil / Australia banking through 2026. GNAP alignment discussions ongoing in the OIDF FAPI WG.
 

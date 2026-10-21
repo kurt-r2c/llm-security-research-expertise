@@ -253,7 +253,7 @@ classes from user input.
 user-controlled superclass via `const_get`, MRO is attacker-chosen.
 `obj.instance_variable_get(:@foo)` / `instance_variable_set` reach
 into receiver internals; user-controlled names are full state-
-mutation primitives. Brakeman flags as critical.
+mutation primitives.
 
 ---
 
@@ -488,8 +488,8 @@ safe form, not `params[user_string.to_sym]`.
 Open-classes default: any gem can redefine `to_s`/`inspect` to leak
 instance variables, env, or arbitrary state — string interpolation
 (`"value: #{obj}"`) invokes `to_s` implicitly. ActiveRecord's
-`filter_attributes` and Rails `params.inspect` redact known-sensitive
-keys; custom classes inherit `Object#inspect` which dumps everything
+`filter_attributes` redacts known-sensitive keys (Rails
+`params.inspect` does not filter); custom classes inherit `Object#inspect` which dumps everything
 including credentials stored in instance variables.
 
 ---
@@ -547,9 +547,6 @@ known root; the constraint was applied at the wrong layer.
   "../../../etc/*"` lists outside the root; `"**/{a,b,c,d,e,f,g}"`
   is glob-DoS via exponential branching. Defense: never let user
   input contribute glob metacharacters (`*`, `?`, `[`, `{`).
-- `FileUtils.cp_r(src, USER_DEST)`: follows symlinks at destination
-  by default. Attacker-controlled `dest/inner → /etc` writes into
-  `/etc`.
 - `Tempfile.new(USER_PREFIX)`: CVE-2021-28966 — pre-fix, prefix
   accepted `"..\\..\\.."` on Windows. Fix strips separator
   characters. Even with fix, user-controlled prefix appears in

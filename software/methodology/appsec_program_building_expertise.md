@@ -24,8 +24,8 @@
 >   the tl;dr sec newsletter, which is the de facto weekly reading list for AppSec
 >   practitioners. Author of "Lessons Learned from the DevSecOps Trenches" (AppSec
 >   California 2019) and "What I Learned Watching All 44 AppSec Cali 2019 Talks." Speaker
->   at BlackHat USA, AppSec USA/EU/Cali, BSidesSF, DevSecCon Seattle/London/Tel
->   Aviv/Singapore.
+>   at BlackHat USA, AppSec USA/EU/Cali, BSidesSF, DevSecCon
+>   Seattle/Singapore.
 > - **Ryan McGeehan** (`magoo`) — Former Director of Security Incident Response at
 >   Facebook; Director of Security at Coinbase (joined April 2014 to build the program
 >   from scratch). Maintains *Starting Up Security*

@@ -9,7 +9,7 @@
 > - **Michał Bentkowski (@SecurityMB), Securitum** — "Write-up of DOMPurify 2.0.0 bypass using mutation XSS" (research.securitum.com, 2019), canonical reference on mXSS defeat of HTML allowlists via parsing-context shifts (math/svg foreign content modes). Extensive published writeups on parser-class confusion across JSON/XML/HTML.
 > - **Frans Rosén (@fransrosen), Detectify Labs** — Detectify Security Advisor; blog corpus including SAML/OAuth chain disclosures.
 > - **Daniel Stenberg** — curl/libcurl maintainer; "Don't mix URL parsers" (2022). Stenberg's framing of WHATWG vs. RFC 3986 differentials is the canonical model for parser-spec gaps that the XML world inherits.
-> - **Snyk research team** — Liran Tal, Sam Sanoop, and the broader Snyk practice; ecosystem-wide disclosures across xmldom, libxmljs, libxmljs2, fast-xml-parser, xml2js, csv-parse, and the Java XML stack. security.snyk.io is the practical "which parser version is vulnerable to which class" reference.
+> - **Snyk research team** — Liran Tal and the broader Snyk practice. security.snyk.io is the practical "which parser version is vulnerable to which class" reference.
 > - **OWASP XML / XXE Working Group** — Maintainers of the XML External Entity Prevention Cheat Sheet and XML Security Cheat Sheet. Canonicalize the per-parser secure-by-default flags (Java JAXP `disallow-doctype-decl`, .NET `DtdProcessing.Prohibit`, lxml `resolve_entities=False`).
 > - **Kurt Boberg (GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Three publicly-credited CVEs in this cluster:
 >   - **CVE-2022-39353** — @xmldom/xmldom allows multiple root nodes in a DOM (GHSA-crh6-fp67-6883, CVSS 9.8 Critical). Parser accepts non-well-formed XML with multiple top-level elements without raising; downstream signature verifiers, SAML processors, and OOXML readers that assumed single-root validity now process attacker-injected elements. The canonical multi-root parser-differential CVE in the npm ecosystem; fixed in 0.7.7 / 0.8.4 / 0.9.0-beta.4.
@@ -53,11 +53,11 @@ The XXE attack surface is *every* XML parser invocation in *every* runtime. Per-
 | Ruby | Nokogiri, REXML, Ox | Nokogiri: NO by default; REXML: historically yes | `Nokogiri::XML(input) { \|c\| c.strict.nonet }` |
 | .NET | XmlDocument, XmlReader, XPathDocument, XDocument | XmlDocument: yes (.NET ≤ 4.5.1) | `XmlReaderSettings { DtdProcessing = Prohibit, XmlResolver = null }` |
 | Node.js | @xmldom/xmldom, libxmljs, libxmljs2, fast-xml-parser, xml2js | xmldom: no DTD eval (different bug surface — §3); libxmljs: yes | libxmljs: `{ noent: false, dtdload: false, dtdvalid: false, nonet: true }` |
-| PHP | DOMDocument, SimpleXML, XMLReader | Yes pre-8.0; default-off post-8.0 | `libxml_disable_entity_loader(true)` (deprecated 8.0+) |
-| Go | encoding/xml | No external entity resolution; quadratic-blowup possible | XXE-immune by design |
+| PHP | DOMDocument, SimpleXML, XMLReader | Yes with libxml < 2.9.0; entity substitution off by default from libxml 2.9.0 | `libxml_disable_entity_loader(true)` (deprecated 8.0+) |
+| Go | encoding/xml | No external entity resolution | XXE-immune by design |
 | Rust | quick-xml, xml-rs, serde-xml-rs | No external entity resolution | Same as Go |
 | Perl | XML::LibXML, XML::SAX | XML::LibXML: yes via libxml2 | `XML::LibXML->new(no_network=>1, load_ext_dtd=>0, expand_entities=>0)` |
-| Erlang/Elixir | xmerl (OTP), Saxy | xmerl: yes; Saxy: no | `xmerl_scan` with `fetch_fun` returning no_fetch |
+| Erlang/Elixir | xmerl (OTP), Saxy | xmerl: yes before xmerl 2.0 (OTP 27); Saxy: no | `xmerl_scan` with `{allow_entities, false}`; `xmerl_sax_parser` with `{external_entities, none}` (both default since xmerl 2.0) |
 
 The structurally immune parsers (Go, Rust quick-xml, Saxy) do not implement external entity resolution. Every spec-compliant parser ships the foot-gun.
 
@@ -206,11 +206,11 @@ Triage: signed-XML-validates-OK ≠ parsed-DOM-is-shaped-correctly. Both must ho
 
 ### OOXML — nested ZIP of nested XML
 
-`.docx`, `.xlsx`, `.pptx`, `.odt`, `.epub` are ZIPs containing multiple XML parts. OOXML (ECMA-376) defines ~25 content types parsed separately. Opening a `.docx` invokes ~10 XML parsers: `[Content_Types].xml`, `_rels/.rels`, `word/document.xml`, `word/styles.xml`, `word/settings.xml`, `word/numbering.xml`, `word/footnotes.xml`, `word/_rels/document.xml.rels`, `docProps/core.xml`, `docProps/app.xml`. Each is an independent attack surface.
+`.docx`, `.xlsx`, `.pptx`, `.odt`, `.epub` are ZIPs containing multiple XML parts. Opening a `.docx` invokes ~10 XML parsers: `[Content_Types].xml`, `_rels/.rels`, `word/document.xml`, `word/styles.xml`, `word/settings.xml`, `word/numbering.xml`, `word/footnotes.xml`, `word/_rels/document.xml.rels`, `docProps/core.xml`, `docProps/app.xml`. Each is an independent attack surface.
 
 OOXML XXE corpus: Apache POI (XMLBeans backing parser); docx4j; OpenXML SDK (.NET); python-docx; openpyxl; LibreOffice subprocess pipelines (`customXml/itemProps1.xml` slot has surfaced multiple times).
 
-Triage rule: an OOXML upload feature is *25 attack surfaces*, not one.
+Triage rule: an OOXML upload feature is *many* attack surfaces, not one.
 
 ### Comment-injection within signed XML
 
@@ -238,7 +238,7 @@ Bentkowski 2019 DOMPurify 2.0.0 bypass:
 
 DOMPurify's parser saw `<style>...</style>` closed inside `<a id="...">` (HTML-attribute context); the browser applied SVG foreign-content rules, terminated `<style>` early, and started a new HTML token stream containing the `<img>`. Different DOMs; sanitized output executed.
 
-DOMPurify 3.x added foreign-content awareness; subsequent bypasses moved to other mode boundaries. Arms race is structural.
+DOMPurify 2.x added foreign-content awareness; subsequent bypasses moved to other mode boundaries. Arms race is structural.
 
 ### `noscript`, `template`, `iframe srcdoc` edge cases
 
@@ -469,7 +469,7 @@ A protobuf-based authorization token that's signed by one implementation and ver
 
 ### Apache Arrow / Parquet / ORC parser differentials in data pipelines
 
-Data-engineering pipelines (Spark, Flink, Trino, DuckDB) consume Parquet and ORC files written by other implementations. Parser-differentials at the file-metadata layer have produced data-corruption and (rarely) RCE CVEs:
+Data-engineering pipelines (Spark, Flink, Trino, DuckDB) consume Parquet and ORC files written by other implementations. Parser-differentials at the file-metadata layer have produced denial-of-service and (rarely) RCE CVEs:
 
 - Parquet's footer-metadata is itself a Thrift-encoded binary structure; multiple Thrift parsers disagree on edge cases.
 - ORC's stripe-footer encodes column-statistic blobs; statistics-aware query planners may trust attacker-influenced statistics.

@@ -418,8 +418,7 @@ The reverse direction (Java's view of Kotlin code) also has footguns:
   Without it, Java sees `Companion.foo()` (two-level access). Does not work on
   `val` properties as a field — `val` compiles to a method.
 - **`@JvmField`** — Exposes a Kotlin property as a true Java field, bypassing
-  getters/setters and any Kotlin-side validation. Cannot combine with
-  `@JvmStatic`.
+  getters/setters and any Kotlin-side validation.
 - **`@JvmOverloads`** — Generates N overload methods (one per defaultable
   position) for Java callers. Changing a default parameter's nullability
   silently changes the generated Java overload signatures — source-
@@ -889,8 +888,8 @@ fun searchByPattern(query: SupportSQLiteQuery): List<User>
 
 ### `LiveData` vs `StateFlow`
 
-`LiveData.observe()` auto-unregisters at `STOPPED`; collecting `StateFlow`
-does not. Use `repeatOnLifecycle(STARTED) { flow.collect { } }` for
+`LiveData.observe()` stops notifying below `STARTED` and auto-removes the
+observer at `DESTROYED`; collecting `StateFlow` does not. Use `repeatOnLifecycle(STARTED) { flow.collect { } }` for
 lifecycle-aware StateFlow. Footgun: bare
 `lifecycleScope.launch { flow.collect { } }` keeps collecting when the UI
 is not visible — wasted battery and possible races with UI updates.

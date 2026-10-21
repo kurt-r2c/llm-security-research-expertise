@@ -560,7 +560,7 @@ Legacy access-control: EM4100, HID Prox, Indala. Cards have unique serial number
 
 Dominant access-control / payment / transit band.
 
-- **MIFARE Classic** (NXP): Crypto-1 stream cipher with 48-bit keys. Nohl + Plotz 2008 silicon-RE attack. Cipher has structural weaknesses (poor diffusion, recoverable LFSR) + weak RNG. Full key recovery in seconds with `mfoc` and `mfcuk`. Many transit cards still MIFARE Classic in 2026 because migration is expensive.
+- **MIFARE Classic** (NXP): Crypto-1 stream cipher with 48-bit keys. Nohl + Plotz 2007 silicon-RE attack. Cipher has structural weaknesses (poor diffusion, recoverable LFSR) + weak RNG. Full key recovery in seconds with `mfoc` and `mfcuk`. Many transit cards still MIFARE Classic in 2026 because migration is expensive.
 - **MIFARE DESFire (EV1/EV2/EV3)**: 3DES or AES (EV1 already supports AES). EV2+ is largely sound. Failure mode: key management (default keys, site-wide keys).
 - **HID iCLASS (legacy Standard Security)**: 2012 Garcia/de Koning Gans/Verdult/Meriac attack ("Dismantling iClass and iClass Elite") exposed system-wide master keys; broken. HID iCLASS SE / Seos uses AES + per-card diversified keys and is much better.
 - **ePassport (ICAO 9303)**: BAC key derived from passport number + DOB + expiration (all visible on the inside cover; brute-forceable for unconstrained number formats). PACE replaces BAC in newer passports — cryptographically sound. Read-at-distance demonstrated repeatedly (Adam Laurie).
@@ -769,7 +769,7 @@ Surfaces where public literature is thin and research is likely fruitful:
 **Cellular**:
 - Piqueras Jover publications: `http://rogerpiquerasjover.net/`
 - Nohl 31C3 SS7: `https://fahrplan.events.ccc.de/congress/2014/Fahrplan/system/attachments/2493/original/Mobile_Self_Defense-Karsten_Nohl-31C3-v1.pdf`
-- Nohl-Plotz Crypto-1: `https://media.frag-den-staat.de/files/foi/580223/Mifare.Cryptanalysis.pdf`
+- Nohl, Cryptanalysis of Crypto-1: `https://media.frag-den-staat.de/files/foi/580223/Mifare.Cryptanalysis.pdf`
 - SRLabs SnoopSnitch: `https://opensource.srlabs.de/projects/snoopsnitch`
 - ETSI / 3GPP TS 33.501 (5G Security): `https://www.etsi.org/`
 - IEEE Spectrum SS7: `https://spectrum.ieee.org/alarming-security-defects-in-ss7-the-global-cellular-networkand-how-to-fix-them`
