@@ -20,8 +20,7 @@
 
 Database infrastructure that doesn't page anyone is not boring: it's done right. The goal of
 database engineering is to make the data layer so reliable and predictable that engineers building
-products on top of it can take it for granted. "Boring technology doesn't have to mean not
-challenging."
+products on top of it can take it for granted.
 
 The value of database work is measured in business continuity, not in clever optimizations. A
 5-nines SLA on the write path is worth more than a 20% query speedup that only matters under
@@ -227,7 +226,7 @@ their connection count. Do not set `max_connections` to 10,000 hoping for the be
 MySQL asynchronous replication is eventually consistent by default. Replicas lag. The amount of
 lag depends on write throughput, replica hardware, and network — not on configuration alone. Any
 application that reads from a replica and expects to see its own writes must handle replication
-lag explicitly (read-your-writes via routing to primary, or `SELECT WAIT_FOR_EXECUTED_GTID`).
+lag explicitly (read-your-writes via routing to primary, or `SELECT WAIT_FOR_EXECUTED_GTID_SET`).
 
 ### GTID-based replication is non-negotiable for modern MySQL
 
@@ -258,7 +257,7 @@ replication to break on restart. This is not hypothetical — it happens.
 
 ### Row-based replication is safer than statement-based for most workloads
 
-Statement-based replication (SBR) is non-deterministic for queries that use `NOW()`, `RAND()`,
+Statement-based replication (SBR) is non-deterministic for queries that use `SYSDATE()`, `RAND()`,
 user-defined functions, or any non-deterministic behavior. Mixed-mode replication falls back to
 row-based when the statement is flagged as unsafe, but the logic is complex and edge cases exist.
 Default to row-based replication (`binlog_format=ROW`) unless you have a specific, measured
@@ -277,7 +276,7 @@ The best replication topology is a single primary with a read pool of replicas. 
   you have a concrete requirement (e.g., aggregating shards for reporting) and understand the
   failure modes.
 
-Use MySQL Orchestrator (now Orchestrator/raft) for automated topology management and failover.
+Use MySQL Orchestrator for automated topology management and failover.
 It provides a map of the replication graph, handles intermediate replica re-pointing after
 promotion, and can be configured for fully automated failover.
 
@@ -388,7 +387,7 @@ Key decisions:
 - **`pigz` over `gzip`:** Parallel gzip uses multiple cores; single-threaded gzip is the
   bottleneck on modern hardware with fast storage.
 - **Asymmetric encryption (GPG2 public key):** XtraBackup's built-in symmetric encryption has
-  known issues at scale (log block number mismatches causing restore failure at 1TB+). Asymmetric
+  known issues at scale (log block number mismatches causing backup failure at 1TB+). Asymmetric
   encryption with the private key stored separately (HashiCorp Vault or equivalent) means a
   compromised backup file does not expose the decryption key.
 
@@ -463,7 +462,7 @@ provisioning, and storage management. They do not eliminate:
 - Connection pool exhaustion
 - Compliance requirements (encryption at rest, audit logging, access control)
 
-"You still need the pager, it's just different things." Moving to managed MySQL means your
+Moving to managed MySQL means your
 incidents shift from "disk failure" to "Aurora reader endpoint not serving current data" or
 "Cloud SQL failover took 90 seconds and the app didn't handle it."
 
@@ -501,7 +500,7 @@ GitOps-style cluster management. However:
 Security and compliance requirements affect every layer of database architecture. Build compliance
 in from the start; retrofitting it onto an existing system is significantly more expensive.
 
-**Encryption at rest:** Enable InnoDB tablespace encryption (`innodb_encrypt_tables`) and encrypt
+**Encryption at rest:** Enable InnoDB tablespace encryption (`default_table_encryption`) and encrypt
 binary logs. For managed services, use provider-managed encryption with customer-managed keys
 (CMK) where compliance requires it (FedRAMP, some PCI DSS interpretations).
 
@@ -604,7 +603,6 @@ production MySQL environments:
 | Backup encryption | GPG2 (asymmetric) + HashiCorp Vault | SOC 2 compliant; avoids XtraBackup symmetric issues |
 | Query analysis | `pt-query-digest` | Slow log aggregation and ranking |
 | Query visualization | VividCortex / SolarWinds DPM | Real-time query metrics for non-DBA engineers |
-| Slow query visualization | Anemometer (Box) | UI for `pt-query-digest` output |
 | Configuration management | Chef (orchestrator cookbook) | Automated MySQL config + Orchestrator deployment |
 | Horizontal scale | Vitess | Sharding, VTGate routing, VTTablet sidecar |
 | Monitoring | Percona Monitoring and Management (PMM) | Prometheus + Grafana stack for MySQL |
@@ -626,13 +624,12 @@ A staff-level DBA of this caliber is distinguished not by deeper knowledge of My
    service. Influence is measured by how many teams improved their data layer practices.
 
 4. **Deliberate knowledge distribution:** Actively works to eliminate single points of expertise,
-   including themselves. Writes runbooks, mentors junior database engineers (1–2 per cohort,
-   alongside 1–2 experienced), and builds tooling others can operate.
+   including themselves. Writes runbooks, mentors junior database engineers, and builds tooling others can operate.
 
 5. **Compliance and security as technical constraints:** Treats compliance requirements (SOC 2,
    PCI DSS, GDPR) as first-class architectural inputs, not late-stage audit requirements.
 
-6. **Boring as the goal:** "Boring technology doesn't have to mean not challenging." The sign of
+6. **Boring as the goal:** The sign of
    excellent database infrastructure is that it is never in the incident log.
 
 ---
@@ -698,14 +695,14 @@ current with Vitess releases is itself a workstream.
 
 The §2 guidance to use `gh-ost` or `pt-online-schema-change` for online DDL on large tables
 still holds, but a third tool has matured into the same operational class. **Spirit** (originally
-**cashapp/spirit**, now under **block/spirit** after the Cash App → Block reorganization) is an
+**cashapp/spirit**, now under **block/spirit**) is an
 online schema change tool targeting MySQL 8.0+ exclusively. Three design points distinguish it
 from the prior generation:
 
-1. **Adaptive chunk sizing by target latency, not row count.** Spirit takes a target chunk-time
-   (e.g., 500ms) and dynamically tunes chunk size to hit that target. `pt-online-schema-change`
-   exposes `--chunk-size` and `--chunk-time` as tunables; Spirit defaults to closed-loop
-   adjustment.
+1. **Chunk sizing by byte budget, not row count.** Spirit's copier sizes chunks by a byte budget
+   (`--target-chunk-size`, default 16 MiB) rather than by measured chunk time, which is inflated
+   by waiting behind the write queue under load. `pt-online-schema-change` exposes
+   `--chunk-size` and `--chunk-time` as tunables.
 2. **Multi-threaded copy, leaning on MySQL 8.0's multi-threaded replication.** Single-threaded
    row copy was a real bottleneck on 5.7-era hardware; 8.0's replication subsystem makes parallel
    copy safe enough to ship.
@@ -715,9 +712,9 @@ from the prior generation:
    round-trip for the common cases (adding a nullable column at the end, dropping certain
    defaults).
 
-PlanetScale's own writeup ("The State of Online Schema Migrations in MySQL") makes the case that
-operating staff in 2026 should know which path (`gh-ost`, `pt-osc`, Spirit, or Vitess-native) is
-preferred for which scenario, rather than defaulting to whatever the team adopted years ago.
+PlanetScale's own writeup ("The State of Online Schema Migrations in MySQL") concludes that most
+use cases are "best served (or only well served) by 3rd party online schema change tools", with
+native `INSTANT` DDL used where it applies.
 Apply Botros's "test migrations in staging against production-scale data" rule to the tool
 selection itself: the right tool depends on table size, MySQL version, replication topology,
 and the operational cost of misbehavior.
@@ -733,8 +730,8 @@ the way you instrument any other service — has been concretized in 2024–2026
 dedicated DBM (Database Monitoring) products. **Datadog DBM** is the most visible: it now
 supports MySQL, Postgres, Oracle, SQL Server, MongoDB, DocumentDB, and ClickHouse with statement
 digests, query samples, blocking-query inspection, and (as of 2025) regression detection against
-historical baselines. The product's framing — "developers can troubleshoot slow queries without
-needing DBA expertise" — is a near-verbatim restatement of Botros's principle that the DBA's job
+historical baselines. The product's framing — "troubleshoot and optimize slow, inefficient queries across database environments
+without requiring deep database expertise" — is a near-verbatim restatement of Botros's principle that the DBA's job
 is to make the database observable to non-DBAs.
 
 The 2026 operating model the doc should now reflect:
@@ -771,9 +768,9 @@ matter:
    Service (atomic-clock-anchored) for ordering — i.e., AWS's answer to Spanner's TrueTime. The
    architectural signal is that AWS now sells distributed-SQL-as-a-service in the same posture as
    DynamoDB: the customer never operates the cluster.
-3. **PlanetScale Postgres + Metal (2024–2025)** marks the most visible vendor pivot. PlanetScale,
+3. **PlanetScale Postgres + Metal (2025)** marks the most visible vendor pivot. PlanetScale,
    which built its identity on Vitess-as-a-service for MySQL, shipped a Postgres offering on
-   bare-metal NVMe in 2024 and made the $50/mo Metal tier generally available for Postgres in
+   bare-metal NVMe in 2025 and made the $50/mo Metal tier generally available for Postgres in
    late 2025. Even the Vitess-anchored vendor now sells Postgres.
 
 Read together, these signals do not invalidate any guidance in this doc — Botros's principles
