@@ -22,12 +22,11 @@
 ## I. Researcher Profiles
 
 ### Patrick Wardle
-Director of Research at Objective-See Foundation; co-founder of DoubleYou (2024, with Mikhail Sosonkin, ex-Apple).
-Previously: NSA TAO (offensive), Synack (Principal Security Researcher), Digita Security (founder, acquired by Jamf 2019),
+Founder of the Objective-See Foundation; co-founder of DoubleYou (2024, with Mikhail Sosonkin, ex-Apple).
+Previously: NSA, Synack (Director of Research), Digita Security (founder, acquired by Jamf 2019),
 Jamf (Principal Security Researcher 2019–2021).
 
-**DEF CON presence:** 17 confirmed talks across DC22 (2014) through DC33 (2025) — 1–2 talks per year for 12 consecutive
-years. The most sustained single-topic presence in modern DEF CON history.
+**DEF CON presence:** 17 confirmed talks across DC22 (2014) through DC33 (2025).
 
 **Full DEF CON talk list:**
 
@@ -61,11 +60,11 @@ Vol. 2 (detection-focused) available in chapter PDFs at taomm.org/vol2/pdfs/.
 macOS implants); Tom McGuire (algorithm theft); Colby Moore / Synack (DropCam implant).
 
 ### Csaba Fitzl ("theevilbit")
-Security researcher; macOS course instructor at Offensive Security (EXP-312); formerly Jamf.
+Security researcher; macOS course instructor at Offensive Security (EXP-312); later Kandji.
 Primary research: TCC bypass techniques, macOS privilege escalation, XPC exploitation.
 Known for: "Beyond the Good Ol' LaunchAgents" blog series (30+ macOS persistence mechanisms cataloged);
 "20+ Ways to Bypass Your macOS Privacy Mechanisms" (Black Hat USA 2021, EU 2022, Asia 2024, with Wojciech Regula).
-CVEs: CVE-2020-9771, CVE-2021-1784, CVE-2021-30782, CVE-2021-30808, CVE-2021-30920 (all TCC bypass).
+CVEs: CVE-2020-9771, CVE-2021-1784, CVE-2021-30782 (all TCC bypass).
 
 ### Jaron Bradley
 Director of Jamf Threat Labs. Background in IR, threat hunting, APT investigation. Blog: themittenmac.com.
@@ -145,13 +144,13 @@ Introduced OS X 10.11 El Capitan (2015). Prevents modification of OS-owned paths
 
 | CVE | Year | Mechanism | Discoverer |
 |-----|------|-----------|------------|
-| CVE-2021-30892 "Shrootless" | 2021 | `system_installd` carries `com.apple.rootless.install.inheritable` entitlement; child processes (bash/perl) inherit SIP bypass via malicious post-install script in Apple-signed `.pkg` | Microsoft |
-| CVE-2022-22583 | 2022 | PackageKit → writes to SIP-protected paths via crafted installer package | Mickey Jin, Perception Point |
-| CVE-2022-26712 | 2022 | `screensharingd` / System Preferences custom URL scheme → arbitrary file writes to SIP-protected paths + TCC.db replacement. PoC fit in a single tweet. | Zhipeng Huo |
-| CVE-2023-32369 "Migraine" | 2023 | `systemmigrationd` same `inheritable` entitlement pattern as CVE-2021-30892; triggerable via Migration Assistant remotely | Microsoft |
-| CVE-2024-44243 | 2024 | SIP bypass via kernel extension loading mechanism | Microsoft |
+| CVE-2021-30892 "Shrootless" | 2021 | `system_installd` carries `com.apple.rootless.install.heritable` entitlement; child processes (bash/perl) inherit SIP bypass via malicious post-install script in Apple-signed `.pkg` | Microsoft |
+| CVE-2022-22583 | 2022 | PackageKit → writes to SIP-protected paths via crafted installer package | Ron Hass (Perception Point), Mickey Jin (Trend Micro) |
+| CVE-2022-26712 | 2022 | PackageKit `SystemShoveService.xpc` holds `com.apple.rootless.install` and accepts file-shove requests from any caller → file moves past SIP. PoC fit in a single tweet. | Mickey Jin |
+| CVE-2023-32369 "Migraine" | 2023 | `systemmigrationd` same `heritable` entitlement pattern as CVE-2021-30892; requires root | Microsoft |
+| CVE-2024-44243 | 2024 | `storagekitd` (`heritable` entitlement) launches a root-planted file-system bundle from `/Library/Filesystems`; enables loading third-party kernel extensions | Microsoft |
 
-**Core bypass pattern:** Apple-signed daemons with `com.apple.rootless.install.inheritable` spawn child processes
+**Core bypass pattern:** Apple-signed daemons with `com.apple.rootless.install.heritable` spawn child processes
 (interpreters, shell scripts) that inherit the SIP bypass privilege. Finding such daemons and triggering them
 via attacker-controlled input is the dominant modern SIP bypass methodology.
 
@@ -187,7 +186,7 @@ calendar, photos, location, accessibility (synthetic UI control), input monitori
 | Dylib injection into TCC-entitled app | Inject malicious dylib into app with TCC grants → inherit grants in same process context. | Telegram abuse case (2020) |
 | AppleScript injection into entitled app | AppleScript executed within context of app with TCC grants (e.g., Finder) → inherits grants. | Multiple |
 | NFSHomeDirectory manipulation | Change user home dir via `dscl` → `tccd` reads TCC.db from attacker-controlled path. | CVE-2020-27937, CVE-2021-30970 |
-| Mount over TCC directory | Mount crafted volume over `~/Library/Application Support/com.apple.TCC/` → replace TCC.db. | CVE-2021-1784, CVE-2021-30808 |
+| Mount over TCC directory | Mount crafted volume over `~/Library/Application Support/com.apple.TCC/` → replace TCC.db. | CVE-2021-1784 |
 | AppTranslocation abuse | Confuse `tccd` about app bundle identity via translocation path. | CVE-2021-30782 |
 | APFS snapshot mounting | Mount snapshot over TCC-protected path to expose older, attacker-modified TCC.db. | CVE-2020-9771 |
 | Synthetic click injection | Use pre-existing `kTCCServiceAccessibility` grant to click "Allow" on TCC dialogs via CGEventPost. | Wardle DC26 2018 |
@@ -216,11 +215,9 @@ Silent background updates; historically checked daily.
 - Update cadence: ~every 2 weeks via silent system update; can be pushed rapidly for zero-days.
 - **Limitation:** Signature-based; new malware families routinely fly under XProtect for months.
 
-**XProtect Behavior Service (macOS 14 Sonoma+):** Third XProtect component (alongside the YARA-based
-scanner and Remediator). Behavior-based; observes process activity for known-malicious patterns
-and feeds into the same telemetry pipeline. Detections surface as ESF events for EDR consumption
-(macOS 13 Ventura introduced the ESF surfacing of XProtect Remediator events; macOS 14+ extends to
-Behavior Service).
+**XProtect Behavior Service (macOS 13 Ventura+):** Third XProtect component (alongside the YARA-based
+scanner and Remediator). Behavior-based; observes process activity for known-malicious patterns.
+(macOS 13 Ventura introduced the ESF surfacing of XProtect Remediator events.)
 
 **Sequoia 15.2 delivery overhaul (December 2024):** Apple discontinued `softwareupdated`-based
 XProtect delivery in favor of an undocumented iCloud-direct service that activates approximately
@@ -236,7 +233,7 @@ update-helper utilities (SilentKnight) can no longer push XProtect updates on Se
   longstanding malware-installer technique of `spctl` disable is dead.
 - Finder right-click "Open" Gatekeeper override removed. The historical adware delivery technique
   ("right-click, choose Open" social engineering) is dead.
-- Unverified app first-run requires explicit Privacy & Security pane visit + password authentication.
+- Unverified app first-run requires explicit Privacy & Security pane visit.
 - ESF surfaces the Gatekeeper user-override event for centralized telemetry. Source:
   [SentinelOne — macOS Sequoia: What's New in Privacy and Security](https://www.sentinelone.com/blog/macos-sequoia-whats-new-in-privacy-and-security-for-enterprise/).
 
@@ -260,7 +257,7 @@ against embedded LC_CODE_SIGNATURE blob. Mismatch → task terminated. Policy de
 **Key codesign flags:**
 - `CS_ENFORCEMENT` — code signing enforced
 - `CS_REQUIRE_LV` — Library Validation: only Apple-signed or same-team-ID dylibs may load
-- `CS_HARD` — process cannot disable enforcement via ptrace
+- `CS_HARD` — don't load invalid pages
 - `CS_KILL` — process killed on any signature violation
 
 ---
@@ -296,8 +293,8 @@ Commercial EDRs (SentinelOne, CrowdStrike, Jamf Protect) consume ESF for all pro
 - Apple's
   [Deprecated Kernel Extensions and System Extension Alternatives](https://developer.apple.com/support/kernel-extensions/)
   page lists every IO family with its DriverKit replacement: IOAudioFamily → AudioDriverKit (deprecated
-  in Monterey 12.3), IOUSBFamily → USBDriverKit, IONetworkingFamily → NetworkExtension, IOHIDFamily →
-  HIDDriverKit, IOSCSIFamily → SerialDriverKit, IOPCIFamily → PCIDriverKit.
+  in Monterey 12.3), IOUSBFamily → USBDriverKit, IONetworkingFamily → NetworkingDriverKit, IOHIDFamily →
+  HIDDriverKit, IOSCSIParallelFamily → SCSIControllerDriverKit, IOPCIFamily → PCIDriverKit.
 - Third-party KEXTs on Apple Silicon require Reduced Security mode + user reboot + per-KEXT approval.
   In practice no enterprise EDR ships KEXTs in 2025; EDR vendors who held out (e.g., legacy
   CrowdStrike Falcon prior to 6.31) migrated to ESF System Extensions.
@@ -374,7 +371,6 @@ Security levels:
 **Kernel Integrity Protection (KIP):**
 - Hardware memory controller configured during boot to deny writes to kernel text + read-only data regions.
 - Hardware-level enforcement — not bypassable via kernel exploits modifying page tables.
-- Intel Macs used KTRR (software analog; exploitable during configuration window in some historical cases).
 
 **Impact on attackers:**
 
@@ -402,7 +398,7 @@ load value predictor) has produced a sustained series of side-channel disclosure
 collaboration and the MIT CSAIL CAP group. Each is unpatchable in microcode; mitigations are
 software-level (constant-time hardening, DIT bit, browser SOP changes, Lockdown Mode toggles).
 
-**PACMAN (Ravichandran, Wang, Saileshwar, Yan — MIT CSAIL, ISCA 2022):**
+**PACMAN (Ravichandran, Na, Lang, Yan — MIT CSAIL, ISCA 2022):**
 - Speculative-execution side-channel that distinguishes valid from invalid PAC values without triggering
   an authentication fault. Reduces PAC's 16-bit signature space from cryptographic to time-bounded
   brute-force per gadget.
@@ -425,25 +421,23 @@ software-level (constant-time hardening, DIT bit, browser SOP changes, Lockdown 
   December 2023; public 21 March 2024.
 - **Mitigation:** On M3, set the DIT bit (`PSTATE.DIT`) per-thread to force data-independent timing and
   disable DMP for that execution context. On M1/M2 the relevant control bit is `SYS_APL_HID11_EL1[30]`
-  (discovered by Hector Martin / Asahi Linux) but macOS does not expose it; full mitigation requires
-  algorithmic blinding/masking by the crypto library. OpenSSL, BoringSSL, Go crypto, and the post-quantum
-  reference implementations have shipped per-algorithm defenses.
+  but macOS does not expose it; full mitigation requires
+  algorithmic blinding/masking by the crypto library.
 
-**iLeakage (Kim, van Schaik, Genkin, Yarom — WiSec 2023 / arXiv 2305.12784):**
+**iLeakage (Kim, van Schaik, Genkin, Yarom — ACM CCS 2023):**
 - First Spectre-class transient-execution attack against Apple Silicon's Safari WebKit. A malicious
   webpage in one renderer reads cross-origin secrets from another renderer via a cache-timing gadget
   that does not require a high-resolution timer (uses race-condition primitives compatible with
   `performance.now()` clamping).
-- Demonstrated Gmail inbox recovery and password autofill extraction from Safari's credential manager.
+- Demonstrated Gmail inbox recovery and extraction of LastPass-autofilled credentials in Safari.
   Affects all A-series and M-series from 2020 onward. Source: [ileakage.com](https://ileakage.com/).
-- **Mitigation:** Opt-in `Swap Processes on Cross-Site Window Open` flag in Safari (macOS Ventura 13+).
-  Not enabled by default. Lockdown Mode disables JIT in WebKit, eliminating the speculative gadget surface.
+- **Mitigation:** Fixed in Safari 17.2 (iOS 17.2 / macOS 14.2). Lockdown Mode disables JIT in WebKit, eliminating the speculative gadget surface.
 
 **SLAP (Kim, Genkin, Yarom — IEEE S&P 2025):**
 - Exploits the Load Address Predictor (LAP) on Apple M2/A15+. LAP speculatively prefetches based on
   predicted next-load address; on misprediction the CPU performs computation on out-of-bounds data under
   speculative execution before squashing. Attacker recovers leaked computation via cache side-channel.
-- Demonstrated extraction of Proton Mail inbox content (sender / subject) from a sibling tab. Disclosed
+- Demonstrated recovery of email content and browsing behavior in Safari. Disclosed
   to Apple 24 May 2024; public January 2025. Source: [predictors.fail](https://predictors.fail/).
 
 **FLOP (Kim, Chuang, Genkin, Yarom — USENIX Security 2025):**
@@ -453,11 +447,10 @@ software-level (constant-time hardening, DIT bit, browser SOP changes, Lockdown 
 - Demonstrated recovery of location history, calendar events, and credit card data from cross-origin
   browser state. Disclosed 3 September 2024.
 
-**Operation Triangulation hardware bypass (Kaspersky GReAT, 28 December 2023 / Securelist follow-up
-20 November 2024):**
+**Operation Triangulation hardware bypass (Kaspersky GReAT, 27 December 2023):**
 - The four-CVE chain (CVE-2023-32434 XNU integer overflow, CVE-2023-38606 GPU MMIO bypass,
   CVE-2023-32435 Safari RCE, CVE-2023-41990 undocumented ADJUST TrueType instruction) used
-  *undocumented* MMIO registers at physical addresses `0x206040000`, `0x206140000`, `0x206150000` on
+  *undocumented* MMIO registers at physical addresses `0x206040000`, `0x206140008`, `0x206150020` on
   Apple A12–A16 to bypass Page Protection Layer (PPL) — the hardware mitigation Apple introduced to
   prevent kernel-write-after-LPE on iOS.
 - The bypass writes attacker-controlled `(data, address, hash)` triples to GPU coprocessor registers;
@@ -467,8 +460,8 @@ software-level (constant-time hardening, DIT bit, browser SOP changes, Lockdown 
   bypass through undocumented SoC features demonstrates that even hardware-enforced memory protection
   is only as strong as the auditability of the silicon. The "how did they find this?" question — whether
   via reverse engineering, leaked internal documentation, or a possible supply-chain channel — remains
-  open. Apple has since deprecated PPL in favor of SPTM (Secure Page Table Monitor) on iOS 17+ devices
-  with M-series / A17 silicon.
+  open. Apple has since replaced PPL with SPTM (Secure Page Table Monitor) on A15-or-later and
+  M2-or-later SoCs.
 
 **Net assessment:** Apple Silicon's microarchitectural attack surface is now the most-researched in any
 production silicon family outside Intel. Five distinct disclosure-coordinated papers in three years
@@ -488,7 +481,7 @@ Announced 10 June 2024 at WWDC. PCC is Apple's server-side AI inference platform
 requests too large to run on-device. Architecturally novel: the security claim is *verifiable transparency*
 rather than just confidential computing.
 
-**Security model claims (Apple Security Research blog, 13 June 2024 + 24 October 2024):**
+**Security model claims (Apple Security Research blog, 10 June 2024 + 24 October 2024):**
 
 1. **Stateless processing.** No request data, derived state, or logs are retained beyond the inference
    call. Memory is encrypted with per-boot ephemeral keys; nothing persists.
@@ -513,9 +506,9 @@ rather than just confidential computing.
   (device-side transparency enforcement), `splunkloggingd` (logging filter preventing accidental
   disclosure), and `srd_tools` (VRE tooling).
 - **Bounty program:** Maximum reward $1,000,000 for arbitrary code execution compromising request data;
-  $250,000 for arbitrary data exfiltration; tiered down to $50,000 for unattested code execution. Five
-  categories: remote attack on request data, privileged-network attacker, attestation bypass, accidental
-  data disclosure, unauthorized code execution. Source:
+  $250,000 for access to request data outside the trust boundary; $150,000 for attack on request data from a
+  privileged network position; $100,000 for unattested code execution; $50,000 for accidental data disclosure
+  from a deployment or configuration issue. Source:
   [security.apple.com/blog/pcc-security-research](https://security.apple.com/blog/pcc-security-research/).
 
 **Independent analysis:**
@@ -582,7 +575,7 @@ processes are reading the stream. OverSight does.
 
 Listens for Darwin notification `com.apple.coregraphics.eventTapAdded` (`kCGNotifyEventTapAdded`) broadcast
 whenever a new CGEventTap is created. CGEventTap (`CGEventTapCreate`) is the dominant macOS keylogging
-technique (used in EvilQuest, GMERA, etc.). On notification: identifies the installing process and alerts.
+technique (used in EvilQuest, etc.). On notification: identifies the installing process and alerts.
 Also provides on-demand scan of all currently installed event taps.
 
 ### ProcessMonitor / FileMonitor (ESF-based)
@@ -681,9 +674,8 @@ malicious profile → silently grant all TCC permissions to attacker-controlled 
 
 ### Threat Actor Breakdown
 
-**Nation-state (China):** APT41/Winnti (MacMa/CDDS, 2021), WINDSHIFT (WindTail, 2018),
+**Nation-state (China):** Daggerfly (MacMa/CDDS, 2021), WINDSHIFT (WindTail, 2018),
 pro-China watering holes (DazzleSpy, 2022). Delivery: watering holes + WebKit 0-days, social engineering.
-Infrastructure signature: Data Distribution Service (DDS) C2 framework used in both MacMa and DazzleSpy.
 
 **Nation-state (DPRK / Lazarus Group):** AppleJeus (2018–ongoing), RustBucket (2023), KandyKorn (2023),
 3CX supply chain (2023), Flutter-obfuscated malware (2024). Delivery: trojanized crypto apps, Discord/Telegram
@@ -704,16 +696,16 @@ GMERA (crypto trader Trojans, 2019–2020).
 - C2: AES-encrypted PHP endpoints; hardcoded key `æ$&łŁńŚŽ~Ę?|!~<Œ`
 - Wardle analysis: VB2019
 
-**OSX.MacMa / CDDS (APT41-adjacent, 2021):**
+**OSX.MacMa / CDDS (Daggerfly-linked, 2021):**
 - Delivery: watering hole (Hong Kong pro-democracy sites) + CVE-2021-1789 (WebKit RCE, n-day) + CVE-2021-30869 (XNU kernel LPE 0-day, Pangu Lab)
 - Persistence: `~/Library/LaunchAgents/com.UserAgent.va.plist`
-- C2: Data Distribution Service (DDS) publish-subscribe
+- C2: custom protocol initialized over TLS
 - Capabilities: 24+ commands including screen capture, audio recording, keylogging, file ops, terminal, shell
 
 **OSX.DazzleSpy (2022):**
-- Same exploit chain as MacMa (CVE-2021-1789 + CVE-2021-30869); same DDS C2 framework
+- Same exploit chain as MacMa (CVE-2021-1789 + CVE-2021-30869)
 - Persistence: `~/Library/LaunchAgents/com.apple.softwareupdate.plist` (masquerades as system)
-- Analysis: Wardle + Jamf Threat Labs (Bradley)
+- Analysis: ESET
 
 **Lazarus Group / AppleJeus (2018–ongoing):**
 - Delivery: trojanized cryptocurrency trading apps (Celas Trade Pro, JMT Trading, Union Crypto, etc.)
@@ -723,16 +715,14 @@ GMERA (crypto trader Trojans, 2019–2020).
 **RustBucket (BlueNoroff, 2023):**
 - Three-stage: AppleScript dropper → Objective-C "functional PDF viewer" (only malicious on specific booby-trapped PDF hash match) → Rust RAT (system profiling, file ops, download/execute, anti-VM)
 - Persistence: LaunchAgent plist
-- Attribution: RC4 key overlap with KandyKorn (Elastic)
 
 **KandyKorn (Lazarus, 2023):**
-- Discord social engineering (crypto arbitrage bot lure) → Python ZIP → `Watcher.py` → SUGARLOADER (from Google Drive) → HLOADER (Discord.app hijack) → KANDYKORN (Rust/C++ memory-resident RAT)
+- Discord social engineering (crypto arbitrage bot lure) → Python ZIP → `Watcher.py` → testSpeed.py / FinderTools (from Google Drive) → SUGARLOADER → HLOADER (Discord.app hijack) → KANDYKORN (memory-resident RAT)
 - Persistence: HLOADER replaces/hijacks Discord.app; executes at every Discord launch
-- Attribution: Elastic (RC4 key + infrastructure overlaps confirmed to Lazarus)
+- Attribution: Elastic (technique, network-infrastructure and code-signing-certificate overlaps with Lazarus)
 
 **OSX.GMERA (2019–2020):**
 - Delivery: trojanized Stockfolio/Kattana trading apps from fake websites
-- Keylogger: CGEventTap via `CGEventTapCreate` in background thread
 - Also: reverse shell, browser cookie theft, screenshots
 
 **OSX.FruitFly (2017):**
@@ -741,7 +731,7 @@ GMERA (crypto trader Trojans, 2019–2020).
 - Victims: biomedical institutions + ordinary US consumers (Ohio concentration)
 
 **Silver Sparrow (2021):**
-- First malware natively compiled for Apple Silicon (arm64 universal binary)
+- Second known malware natively compiled for Apple Silicon, after GoSearch22 (arm64 universal binary)
 - First use of macOS Installer JavaScript API for malicious persistence
 - C2: AWS S3 buckets; final payload never delivered; ~30,000 infected Macs, 153 countries
 - Co-discovered: Red Canary + Malwarebytes (Reed) + VMware Carbon Black
@@ -775,9 +765,9 @@ reported by Palo Alto Unit 42.
 |---|---|---|---|
 | AMOS / Atomic Stealer | mid-2023; mature 2024 | Malvertising via Google Ads + counterfeit Photoshop/Office/Tor; AppleScript password dialog → Keychain dump via Chainbreaker; XOR-obfuscated payload (key `0x91`); Telegram-marketed MaaS at ~$1k/month. Late-2024 variant added persistent backdoor. | [SpyCloud reverse-engineering writeup](https://spycloud.com/blog/reverse-engineering-atomic-macos-stealer/), [Picus dissection](https://www.picussecurity.com/resource/blog/atomic-stealer-amos-macos-threat-analysis) |
 | Poseidon | 2024 | AMOS-derived (former AMOS developer "Rodrigo4") with crypto-wallet, Notes, and Bitwarden module additions | Wardle 2024 review |
-| Cthulhu | 2024 | Cross-platform stealer; targets KeyChain, MetaMask, Wasabi wallets; macOS + Windows feature-parity | Cado Security |
+| Cthulhu | 2024 | Go-based stealer; targets KeyChain, MetaMask, Wasabi wallets | Cado Security |
 | Banshee | 2024 | Russian-marketed MaaS; bypassed XProtect for months via string-encryption mirroring Apple's own AV codebase | Check Point Research |
-| Cuckoo | 2024 | Spotlight-search-poisoning delivery; persistence via LaunchAgent + xattr quarantine strip | Kandji |
+| Cuckoo | 2024 | Delivered via fake music-converter download sites; persistence via LaunchAgent + xattr quarantine strip | Kandji |
 | CloudChat | 2024 | Trojanized chat client; credential harvest + clipboard theft | Wardle 2024 review |
 | PyStealer | 2024 | Python-implemented; targets browser autofill + crypto extensions | Wardle 2024 review |
 
@@ -791,11 +781,11 @@ exit-and-die — assumes re-infection is cheap), Telegram or Tor-hidden-service 
 | Family | Year | Attribution / Cluster | Notes |
 |---|---|---|---|
 | RustBucket | 2023 (continuing) | BlueNoroff | Three-stage; Objective-C trojan → Rust RAT; selective trigger on booby-trapped PDF SHA hash. ESET, Jamf, Elastic each tracked separate variants. |
-| KandyKorn | 2023 (continuing) | Lazarus | Discord-arbitrage-bot lure → SUGARLOADER → HLOADER → KANDYKORN Rust/C++ memory-resident RAT. RC4-key overlap with RustBucket. Elastic. |
-| ObjCShellz | Q4 2023 / 2024 | BlueNoroff | Lightweight Objective-C reverse-shell payload. SentinelLabs. |
+| KandyKorn | 2023 (continuing) | Lazarus | Discord-arbitrage-bot lure → SUGARLOADER → HLOADER → KANDYKORN memory-resident RAT. Elastic. |
+| ObjCShellz | Q4 2023 / 2024 | BlueNoroff | Lightweight Objective-C reverse-shell payload. Jamf Threat Labs. |
 | BeaverTail | 2023; Qt rewrite mid-2024 | DPRK (Contagious Interview cluster, separate from BlueNoroff) | LinkedIn-recruiter social engineering targeting developers; trojanized interview-coding apps. 2024 Qt rewrite produces same source compiling to Windows + macOS. Drops InvisibleFerret Python backdoor; targets 13 crypto wallet extensions. [Unit 42 Contagious Interview](https://unit42.paloaltonetworks.com/north-korean-threat-actors-lure-tech-job-seekers-as-fake-recruiters/), [The Hacker News update July 2024](https://thehackernews.com/2024/07/north-korean-hackers-update-beavertail.html) |
-| SpectralBlur | Jan 2024 | DPRK (Kandji + Wardle co-disclosure) | Cross-platform backdoor sharing code with KANDYKORN; shell, file transfer, configurable C2. |
-| ToDoSwift | mid-2024 | BlueNoroff | Swift-language Calendly-themed lure delivering second-stage payload. |
+| SpectralBlur | Jan 2024 | DPRK (Greg Lesnewich / Proofpoint disclosure; Wardle analysis) | Cross-platform backdoor sharing code with KANDYKORN; shell, file transfer, configurable C2. |
+| ToDoSwift | mid-2024 | BlueNoroff | Swift-language Bitcoin-themed PDF lure delivering second-stage payload. |
 | Hidden Risk | Q4 2024 | BlueNoroff | Crypto-themed PDF lure; novel `zshenv` persistence (loaded by every interactive zsh, bypasses BTM since `zshenv` is not a monitored persistence location). SentinelOne. |
 | RustyAttr | late 2024 | DPRK-suspected | Stores payload in extended attributes (`xattr`) of decoy files to evade signature scanners and casual binary inspection. |
 
@@ -803,9 +793,8 @@ exit-and-die — assumes re-infection is cheap), Telegram or Tor-hidden-service 
 
 | Family | Year | Notes |
 |---|---|---|
-| LightSpy macOS | 2024 | Modular surveillance RAT with APT41-adjacent attribution; ports the iOS LightSpy framework to macOS. Hooks WeChat, audio, keystrokes. Bitdefender + ThreatFabric. |
+| LightSpy macOS | 2024 | Modular surveillance RAT with APT41-adjacent attribution; ports the iOS LightSpy framework to macOS. Hooks WeChat, audio, keystrokes. Huntress + ThreatFabric. |
 | HZ RAT macOS | 2024 | Long-running Windows family acquired a macOS variant in 2024; persistence + targeted exfiltration. Kaspersky. |
-| MacMa / DazzleSpy successors | 2024–2025 | Continuing Data Distribution Service (DDS) C2 framework usage; updated WebKit n-day exploitation. |
 
 **Ransomware (still rare, but no longer absent):**
 
@@ -818,8 +807,8 @@ exit-and-die — assumes re-infection is cheap), Telegram or Tor-hidden-service 
 | Family | Year | Notes |
 |---|---|---|
 | Activator | 2024 | Distributed via cracked applications; LaunchAgent persistence; loads second-stage tooling. Kaspersky. |
-| Zuru | 2024 | LaunchAgent-persistent backdoor delivered via trojanized developer tools (iTerm2 lookalikes, etc.). Discovered by Wardle. |
-| CloudFake | 2024 | Tauri-framework malware deploying VShell agent. Cross-platform code reuse. |
+| Zuru | 2024 | LaunchAgent-persistent backdoor delivered via trojanized developer tools (iTerm2 lookalikes, etc.). 2024 variant reported by Jamf Threat Labs. |
+| Fake Cloudflare Authenticator | 2024 | Tauri-framework malware deploying VShell agent. Kandji. |
 
 **Trend takeaways:**
 
@@ -832,7 +821,7 @@ exit-and-die — assumes re-infection is cheap), Telegram or Tor-hidden-service 
 3. **DPRK's `zshenv` persistence (Hidden Risk) is the first major BTM bypass since Wardle's DC31
    research.** BTM does not monitor zsh dotfiles; KnockKnock v2 catalogues them but is point-in-time.
    Real-time defenders should add `~/.zshenv`, `~/.zprofile`, `/etc/zshenv` to ESF file-monitor lists.
-4. **DPRK groups have completely embraced Rust + Swift.** RustBucket, KANDYKORN core, and ToDoSwift
+4. **DPRK groups have completely embraced Rust + Swift.** RustBucket and ToDoSwift
    evidence sustained tooling investment; analysis difficulty has measurably increased (no
    Objective-C symbols, no `objc_msgSend` call graph anchors).
 
@@ -842,7 +831,7 @@ exit-and-die — assumes re-infection is cheap), Telegram or Tor-hidden-service 
 
 | CVE | Year | Discoverer | Description | Impact |
 |-----|------|------------|-------------|--------|
-| CVE-2015-1130 | 2015 | Wardle | RootPipe — sudo-related privesc in OS X | Root without password |
+| CVE-2015-1130 | 2015 | Emil Kvarnhammar (TrueSec) | RootPipe — Admin framework privesc in OS X | Root without password |
 | CVE-2021-30657 | 2021 | Cedric Owens | Script-based app bundle with no Info.plist bypasses Gatekeeper | Full Gatekeeper bypass; exploited by Shlayer as 0-day |
 | CVE-2021-30853 | 2021 | Gordon Long | Empty shebang line → macOS falls back to /bin/sh | Full Gatekeeper bypass |
 | CVE-2017-7150 | 2017 | Wardle | Keychain access without master password prompt in High Sierra | Credential extraction |
@@ -850,22 +839,20 @@ exit-and-die — assumes re-infection is cheap), Telegram or Tor-hidden-service 
 | CVE-2020-9771 | 2020 | Fitzl | TCC bypass via APFS snapshot mount | TCC bypass |
 | CVE-2021-1784 | 2021 | Fitzl | TCC bypass via mount over com.apple.TCC directory | TCC bypass |
 | CVE-2021-30782 | 2021 | Fitzl | TCC bypass via AppTranslocation | TCC bypass |
-| CVE-2021-30808 | 2021 | Fitzl | TCC bypass regression (Monterey beta) | TCC bypass |
 | CVE-2021-30892 "Shrootless" | 2021 | Microsoft | SIP bypass via system_installd inheritable entitlement | SIP bypass |
 | CVE-2021-30970 "powerdir" | 2021 | Microsoft / Jonathan Bar Or | TCC bypass via NFSHomeDirectory manipulation | TCC bypass |
-| CVE-2022-26712 | 2022 | Zhipeng Huo | SIP + TCC bypass via screensharingd URL scheme | SIP + TCC bypass; PoC in one tweet |
+| CVE-2022-26712 | 2022 | Mickey Jin | SIP + TCC bypass via PackageKit SystemShoveService (no client check) | SIP + TCC bypass; PoC in one tweet |
 | CVE-2023-32369 "Migraine" | 2023 | Microsoft | SIP bypass via systemmigrationd same entitlement pattern | SIP bypass |
-| CVE-2021-1789 | 2021 | Google Project Zero | WebKit RCE | Exploited by MacMa/CDDS and DazzleSpy watering holes |
-| CVE-2021-30869 | 2021 | Pangu Lab | XNU kernel LPE 0-day | Exploited in MacMa/CDDS and DazzleSpy chains |
+| CVE-2021-1789 | 2021 | @S0rryMybad (360 Vulcan Team) | WebKit RCE | Exploited by MacMa/CDDS and DazzleSpy watering holes |
+| CVE-2021-30869 | 2021 | Google TAG + Project Zero | XNU kernel LPE 0-day | Exploited in MacMa/CDDS and DazzleSpy chains |
 | CVE-2023-32434 | 2023 | Kaspersky GReAT | XNU integer overflow in memory-mapping syscalls | Operation Triangulation chain element |
-| CVE-2023-32435 | 2023 | Kaspersky GReAT | Safari arbitrary code execution | Operation Triangulation initial vector |
+| CVE-2023-32435 | 2023 | Kaspersky GReAT | Safari arbitrary code execution | Operation Triangulation Safari-stage exploit |
 | CVE-2023-38606 | 2023 | Kaspersky GReAT | Undocumented MMIO bypass of PPL via GPU coprocessor registers | Operation Triangulation PPL bypass — hardware-level |
 | CVE-2023-41990 | 2023 | Kaspersky GReAT | Undocumented `ADJUST` TrueType font instruction RCE | Operation Triangulation font-handling primitive |
 | CVE-2023-41991/41992/41993 | 2023 | Citizen Lab + Google TAG | Intellexa/Predator three-CVE iOS exploit chain | Active commercial mercenary spyware deployment |
 | CVE-2024-44243 | 2024 | Microsoft | SIP bypass via kernel-extension loading mechanism | Continuation of inheritable-entitlement pattern |
 | CVE-2025-31200 | 2025 | Apple | Sophisticated attack disclosure (CoreAudio) | Exploited in the wild — "extremely sophisticated attack against specific targeted individuals" |
 | CVE-2025-31201 | 2025 | Apple | RPAC bypass companion to CVE-2025-31200 | Same in-the-wild attack chain |
-| CVE-2025-42112 | 2025 | Citizen Lab + Google TAG | iOS 18.1 vulnerability | Mercenary spyware deployment |
 | CVE-2025-43529 | 2025 | Google TAG | WebKit emergency-patch zero-day | Active exploitation |
 | GoFetch | 2024 | Chen et al. (UIUC + UTA + GT + UCB + UW + CMU) | DMP side-channel key extraction | Microarchitectural; no CVE (architectural) |
 | SLAP | 2024/2025 | Kim, Genkin, Yarom | Load Address Predictor speculative-execution leak | M2/A15+; no CVE |
@@ -889,7 +876,7 @@ incoming-call gating, configuration profile installation, shared albums.
 Cross-link: `mobile_security_expertise.md` for full iOS coverage.
 
 **Operation Triangulation legacy (Kaspersky GReAT, disclosed June 2023, hardware-bypass detail
-published 27 December 2023, follow-up analysis 20 November 2024):**
+published 27 December 2023):**
 
 - The four-CVE chain (CVE-2023-32434 + CVE-2023-38606 + CVE-2023-32435 + CVE-2023-41990) is the most
   technically detailed iOS in-the-wild exploit publicly disclosed to date. Kaspersky obtained all stages
@@ -897,7 +884,7 @@ published 27 December 2023, follow-up analysis 20 November 2024):**
 - The undocumented-MMIO PPL bypass (CVE-2023-38606) is the load-bearing primitive: it demonstrates
   that even hardware-enforced memory protection can be bypassed via SoC-coprocessor surfaces that
   Apple itself did not publicly document.
-- Apple deprecated PPL in favor of SPTM (Secure Page Table Monitor) on A17 / M3+ silicon. SPTM is
+- Apple deprecated PPL in favor of SPTM (Secure Page Table Monitor) on A15 / M2+ silicon. SPTM is
   documented in the [Apple Platform Security Guide](https://support.apple.com/guide/security/welcome/web)
   as the successor mitigation.
 
@@ -913,7 +900,7 @@ published 27 December 2023, follow-up analysis 20 November 2024):**
 **2024–2025 in-the-wild zero-day pattern:**
 
 - Apple disclosed multiple "extremely sophisticated attack against specific targeted individuals"
-  emergency patches in 2024 and 2025 (CVE-2025-31200, CVE-2025-31201, CVE-2025-42112,
+  emergency patches in 2024 and 2025 (CVE-2025-31200, CVE-2025-31201,
   CVE-2025-43529 family). Reporter mix continues to be dominated by Citizen Lab and Google TAG; an
   increasing share is co-credited with Apple's own Security Engineering and Architecture team.
 - Source: [Google Cloud Threat Intelligence — 2024 zero-day trends](https://cloud.google.com/blog/topics/threat-intelligence/2024-zero-day-trends).
@@ -923,11 +910,11 @@ published 27 December 2023, follow-up analysis 20 November 2024):**
 
 **iOS 17 / iOS 18 hardening:**
 
-- iOS 17 (2023): Extended Lockdown Mode to additional surfaces; new requirements for cross-app
+- iOS 17 (2023): iMessage Contact Key Verification general availability (iOS 17.2). Extended Lockdown Mode to additional surfaces; new requirements for cross-app
   permission requests; tightened WebKit JIT exclusion in Lockdown Mode.
 - iOS 18 (2024): Apple Intelligence introduced as on-device-first with PCC fall-through;
-  expanded passkey adoption; iMessage Contact Key Verification general availability.
-- iOS 18 Stolen Device Protection: requires Face ID/Touch ID for sensitive operations even when
+  expanded passkey adoption.
+- iOS 17.3 Stolen Device Protection: requires Face ID/Touch ID for sensitive operations even when
   the passcode is known to the attacker, with a one-hour security delay for high-risk actions
   outside Familiar Locations. Direct hardening against the
   [Joanna Stern–reported pickpocket attack chain](https://www.wsj.com/articles/apple-iphone-security-theft-passcode-data-privacysafety-a4d99cbc).
@@ -945,7 +932,7 @@ push commands. Enrollment: DEP (Device Enrollment Program, now ABM — Apple Bus
 (PKG, App Store), lock/wipe/restart, query inventory, deploy LaunchDaemons via profile, enforce FileVault,
 enforce password policies.
 
-**DEP MitM attack (Jesse Endahl / Dropbox, 2018):** During DEP enrollment, the Mac contacts Apple, then
+**DEP MitM attack (Jesse Endahl of Fleetsmith / Max Bélanger of Dropbox, Black Hat USA 2018):** During DEP enrollment, the Mac contacts Apple, then
 the MDM server (URL not yet TLS-pinned at this point). Network attacker can intercept the MDM server URL and
 serve a malicious MDM configuration. Mitigation: ABM enrollment with pre-assigned MDM profile and server pinning.
 
@@ -953,8 +940,7 @@ serve a malicious MDM configuration. Mitigation: ABM enrollment with pre-assigne
 
 The `jamf` binary runs as a root LaunchDaemon and executes policies downloaded from the Jamf server. Research
 identified: root-privilege script execution via Jamf Pro policies as an escalation vector; `jamf` binary
-accepting commands executable as root; multiple TCC bypass CVEs discovered in Jamf's disk-mounting behavior
-(Mount(ain) of Bugs, OBTS v4.0 2021, Hacktivity).
+accepting commands executable as root.
 
 ### Malicious `.mobileconfig` Profiles
 
@@ -971,10 +957,9 @@ The macOS enterprise MDM market consolidated and matured in 2024–2026 around t
 federation pattern:
 
 - **Jamf Pro / Jamf Now / Jamf Protect.** The reference enterprise stack. Largest installed base in
-  Apple-heavy enterprises. Csaba Fitzl's *Mount(ain) of Bugs* (OBTS v4.0 2021, Hacktivity) remains
-  the canonical surface-mapping of Jamf-policy-as-root abuse.
+  Apple-heavy enterprises.
 - **Kandji.** Cloud-first ABM-tier MDM. Their Threat Research team (Kandji-published research on
-  Cuckoo stealer, BlueNoroff Hidden Risk, and others) is a credible defensive intelligence source
+  Cuckoo stealer and others) is a credible defensive intelligence source
   in addition to MDM vendor.
 - **Microsoft Intune (with Mac support).** Increasingly common in Microsoft 365-centric enterprises;
   uses Entra ID (formerly Azure AD) as user identity source.
@@ -990,11 +975,11 @@ different identity surface. See `cloud_iam_expertise.md` for the Entra side of t
 
 **Apple Business Manager (ABM) — the post-DEP enrollment trust root:**
 
-- ABM is the post-2019 evolution of DEP. Device-to-organization binding is established at hardware-
+- ABM is the 2018 evolution of DEP. Device-to-organization binding is established at hardware-
   reseller channel; devices acquired through Apple's authorized resellers are pre-bound to the
   purchasing organization's ABM tenant.
 - Historical DEP MitM concern (Endahl/Dropbox 2018, [Duo Security DEP serial-number weakness 2018](https://duo.com/blog/duo-labs-research-uncovers-apple-dep-authentication-weakness))
-  was that Apple's DEP server only required a 12-character device serial number to confirm
+  was that Apple's DEP server only required a device serial number to confirm
   enrollment-eligibility, with no per-organization secret. The
   [Threatpost summary](https://threatpost.com/weakness-in-apple-mdm-tool-allows-access-to-sensitive-corporate-info/137737/)
   catalogs the brute-force-by-serial-number attack: predictable serials + small key space + no
@@ -1002,17 +987,13 @@ different identity surface. See `cloud_iam_expertise.md` for the Entra side of t
   privileged-endpoint treatment.
 - ABM mitigations: MDM-side user-auth-before-enrollment enforcement (admin-configurable but not
   default), Account-Driven User Enrollment for BYOD separation, hardware-bound enrollment via
-  device-attestation primitives Apple ships with iOS 17+ / macOS 14+. Most production deployments
+  device-attestation primitives Apple ships with iOS 16+ / macOS 14+. Most production deployments
   still do not require user-auth-before-enrollment, leaving the historical attack surface
   partially open.
 
-**MDM-as-blast-radius (per Operation Triangulation lesson):** Nation-state actors increasingly view
+**MDM-as-blast-radius:** Nation-state actors increasingly view
 MDM servers as high-value targets because a compromised MDM yields silent, OS-level access to
-hundreds-to-thousands of high-value devices. The pattern is documented in commercial-spyware
-infrastructure attribution (Citizen Lab on Pegasus/Predator delivery infrastructure) and now appears
-in DPRK targeting (per SentinelOne's [2024 macOS Malware Review](https://www.sentinelone.com/blog/2024-macos-malware-review-infostealers-backdoors-and-apt-campaigns-targeting-the-enterprise/),
-which documents DPRK targeting of crypto and tech-sector MDM-managed workforces via the Contagious
-Interview cluster).
+hundreds-to-thousands of high-value devices.
 
 ---
 
@@ -1032,7 +1013,7 @@ Interview cluster).
 **Dynamic analysis:**
 - ProcessMonitor (ES NOTIFY_EXEC) for process tree; FileMonitor (ES file events) for persistence plist drops.
 - Network monitoring with LuLu (outbound interception) and Wireshark.
-- Isolated VMs (VMware Fusion, Parallels) — note: sophisticated malware (RustBucket Stage 3, KandyKorn) performs
+- Isolated VMs (VMware Fusion, Parallels) — note: sophisticated malware performs
   anti-VM checks.
 
 **Three core distinguishing ideas:**
@@ -1108,7 +1089,7 @@ Every macOS malware family establishes persistence — this is the universal det
 
 ### TCC Hygiene
 Minimize processes with Full Disk Access (`kTCCServiceSystemPolicyAllFiles`). Audit TCC database regularly
-(`tccutil list` or third-party tools). In enterprise: use PPPC profiles to grant only the minimum necessary;
+(third-party tools). In enterprise: use PPPC profiles to grant only the minimum necessary;
 never grant Accessibility (`kTCCServiceAccessibility`) broadly — it enables synthetic click injection.
 
 ### SIP Hardening
@@ -1148,7 +1129,7 @@ Operation Triangulation (Kaspersky GReAT,
 [Securelist hardware mystery](https://securelist.com/operation-triangulation-the-last-hardware-mystery/111669/));
 SentinelOne 2024 macOS Malware Review,
 [blog](https://www.sentinelone.com/blog/2024-macos-malware-review-infostealers-backdoors-and-apt-campaigns-targeting-the-enterprise/);
-Wardle's [Mac Malware of 2024](https://objective-see.org/blog/blog_0x7D.html); Google TAG
+Wardle's [Mac Malware of 2024](https://objective-see.org/blog/blog_0x7D.html); Google Threat Intelligence Group
 [2024 zero-day trends](https://cloud.google.com/blog/topics/threat-intelligence/2024-zero-day-trends);
 Unit 42 [Contagious Interview](https://unit42.paloaltonetworks.com/north-korean-threat-actors-lure-tech-job-seekers-as-fake-recruiters/);
 Duo Labs [DEP authentication weakness](https://duo.com/blog/duo-labs-research-uncovers-apple-dep-authentication-weakness);
