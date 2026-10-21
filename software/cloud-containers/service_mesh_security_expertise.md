@@ -34,7 +34,7 @@ Inject a userspace proxy (typically Envoy) into every pod. Application traffic i
 
 Move the proxy off the per-pod path. Either share a node-level proxy across all workloads on the node (Istio Ambient) or push enforcement into the kernel via eBPF (Cilium Service Mesh).
 
-**Istio Ambient Mesh:** ztunnel (Rust-written, L4-only, handles mTLS termination + identity) runs as a per-node DaemonSet. Optional waypoint proxy (Envoy-based, L7) handles per-tenant L7 policy. Reached GA in late 2024 `[unverified specific date]`.
+**Istio Ambient Mesh:** ztunnel (Rust-written, L4-only, handles mTLS termination + identity) runs as a per-node DaemonSet. Optional waypoint proxy (Envoy-based, L7) handles per-tenant L7 policy. Reached GA in Istio 1.24 (November 2024).
 
 **Cilium Service Mesh:** eBPF programs in the Linux kernel enforce L4 policy + mTLS; an embedded Envoy handles L7 features.
 
@@ -60,7 +60,7 @@ The most-deployed service mesh in production.
 
 ### 3.1 Origin
 
-Joint project of Google + IBM + Lyft, announced May 2017. Architectural lineage from Google's internal infrastructure (load-balancer mesh) and Lyft's Envoy. Lin Sun (IBM, then Tetrate) and Louis Ryan (Google) drove the early design alongside Eric Brewer (Google, of CAP-theorem fame). Donated to CNCF September 2022 after a long governance dispute.
+Joint project of Google + IBM + Lyft, announced May 2017. Architectural lineage from Google's internal infrastructure (load-balancer mesh) and Lyft's Envoy. Lin Sun (IBM, then Solo.io) and Louis Ryan (Google) drove the early design. Donated to CNCF September 2022 after a long governance dispute.
 
 ### 3.2 Architecture
 
@@ -73,7 +73,7 @@ Joint project of Google + IBM + Lyft, announced May 2017. Architectural lineage 
 
 The 2024 architectural shift, championed publicly by Christian Posta (Solo.io) and John Howard (Google, Istio):
 
-- **ztunnel** — Rust-written L4 proxy, runs as DaemonSet, one per node. Handles HBONE (HTTP-Based Overlay Network Encapsulation, an HTTP/2 CONNECT tunnel that carries the mTLS handshake). Identity-aware at L4 but does not parse L7.
+- **ztunnel** — Rust-written L4 proxy, runs as DaemonSet, one per node. Handles HBONE (HTTP-Based Overlay Network Environment, an HTTP/2 CONNECT tunnel that carries the mTLS handshake). Identity-aware at L4 but does not parse L7.
 - **waypoint proxy** — Envoy-based, opt-in, per-namespace or per-service-account. Handles L7 authorization, traffic management, complex routing. Sits on the node-to-node path when L7 policy is required.
 
 The security trade-off is explicit and new: ztunnel handles traffic for every workload on its node in one process. Memory-safety language choice (Rust) is a deliberate hedge against the historical Envoy CVE pattern, but does not eliminate logic bugs that cross tenants.
@@ -88,12 +88,10 @@ The precedence rules are operationally non-obvious. AuthorizationPolicy evaluati
 
 ### 3.5 CVE corpus
 
-- **CVE-2024-9026** — Envoy access-log truncation under certain conditions; observability bypass. Patched in Istio 1.22.4 / 1.23.1.
-- **CVE-2024-3727** — `containerd` image-tag-validation in the init container path; supply-chain class.
-- **CVE-2023-44487** — HTTP/2 Rapid Reset; cross-vendor (Envoy, nginx, HAProxy, every HTTP/2 implementation). Disclosed Oct 2023 by Cloudflare, Google, AWS jointly. Mesh impact: every Envoy-based proxy required emergency patching.
-- **CVE-2022-23635** — Istiod denial-of-service via crafted JWT during RequestAuthentication processing.
+- **CVE-2023-44487** — HTTP/2 Rapid Reset; cross-vendor (Envoy, nginx, and most HTTP/2 implementations). Disclosed Oct 2023 by Cloudflare, Google, AWS jointly. Mesh impact: every Envoy-based proxy required emergency patching.
+- **CVE-2022-23635** — unauthenticated Istiod denial-of-service via a specially crafted message to TLS port 15012.
 - **CVE-2022-21679** — auth-policy bypass class.
-- **CVE-2021-39156** — AuthorizationPolicy bypass via path-normalization confusion. Path `/admin/../public` could match an ALLOW for `/public` while landing on `/admin`. The fix forced normalization before policy evaluation.
+- **CVE-2021-39156** — AuthorizationPolicy bypass via URI fragments. A DENY on `/user/profile` did not stop `/user/profile#section1`. The fix strips the fragment before authorization and routing.
 
 The 2021-2024 CVE lineage shows the same shape repeatedly: a discrepancy between what the proxy parses (for policy matching) and what the application sees (after URL-decode, normalize, or strip). Audit any custom EnvoyFilter that touches headers or paths with this discrepancy in mind.
 
@@ -150,9 +148,9 @@ Matt Klein (Lyft, 2016) created Envoy. CNCF Graduated 2018. Every major mesh exc
 When Envoy patches, every Envoy-based mesh has to roll. The cadence is high: Envoy ships security advisories roughly monthly. Selected high-impact:
 
 - **CVE-2023-44487** (HTTP/2 Rapid Reset) — cross-vendor; the most consequential single CVE for service mesh in the last three years.
-- **CVE-2024-32974 / CVE-2024-32975 / CVE-2024-32976** — multi-CVE Envoy security release May 2024 `[unverified specific batch attribution]`.
-- **CVE-2022-29225 / -29226 / -29227 / -29228** — multi-CVE DoS class (decoding errors, hash-table collisions, oversized headers).
-- **CVE-2020-25018** — auth bypass via uppercase Host header; classic case-normalization discrepancy.
+- **CVE-2024-32974 / CVE-2024-32975 / CVE-2024-32976** — multi-CVE Envoy security release June 2024 (HTTP/3 / QUIC crashes, Brotli decompression loop).
+- **CVE-2022-29225 / -29226 / -29227 / -29228** — June 2022 release: decompressor zip bomb, OAuth filter bypass, internal-redirect crash, OAuth filter memory corruption.
+- **CVE-2020-25018** — unreleased Envoy master builds could fail to parse request URLs that require host canonicalization.
 
 ### 5.3 xDS as attack surface
 
@@ -258,7 +256,7 @@ Cilium supports WireGuard as a transparent transport-encryption layer between no
 
 ## 8. Kubernetes Gateway API (replacing Ingress)
 
-Kubernetes Gateway API reached GA in K8s 1.29 (December 2023). The Ingress resource is now legacy.
+Kubernetes Gateway API reached GA with its v1.0 release (October 2023). The Ingress resource is now legacy.
 
 ### 8.1 Resource model
 
@@ -276,7 +274,7 @@ Gateway API implementations vary widely:
 
 - **NGINX Gateway Fabric** — the new NGINX Gateway API implementation (distinct from NGINX Ingress Controller).
 - **Envoy Gateway** — CNCF-incubating, Envoy-native.
-- **Contour** — Bitnami/VMware, Envoy-based.
+- **Contour** — Heptio/VMware, Envoy-based.
 - **Kong Gateway** — Kong's commercial offering.
 - **Cilium Gateway** — eBPF + Envoy.
 - **Traefik** — Go-native.
@@ -288,7 +286,7 @@ Each has its own default TLS posture, default header sanitization, CVE patch cad
 
 The legacy NGINX Ingress Controller (`ingress-nginx`, the most-deployed K8s ingress controller historically) has the worst CVE history of any mesh-adjacent component.
 
-**IngressNightmare** (Wiz Research, March 2025): CVE-2025-1974, CVE-2025-1097, CVE-2025-1098, CVE-2025-1973. Wiz reported approximately 30% of all k8s clusters reachable from the internet had vulnerable NGINX Ingress controllers at disclosure `[unverified exact percentage]`.
+**IngressNightmare** (Wiz Research, March 2025): CVE-2025-1974, CVE-2025-1097, CVE-2025-1098, CVE-2025-24514. Wiz reported that about 43% of cloud environments were vulnerable.
 
 The pattern of the bug is general: the controller code parses Ingress annotations into NGINX config blocks via Go-template substitution. Untrusted Ingress annotations get rendered into nginx config. Annotation-injection → arbitrary nginx directives → full control-plane RCE because the controller has cluster-admin-ish privileges to read Secrets across namespaces.
 
@@ -403,8 +401,8 @@ What changed recently and what matters operationally:
 
 - **Istio Ambient Mesh GA, late 2024** `[unverified specific date]` — shifts the trust boundary from per-pod sidecar to node-level ztunnel. New attack surface, new threat model. If you are evaluating Ambient, re-read §2.2 and §3.3.
 - **HTTP/2 Rapid Reset cross-vendor patch (CVE-2023-44487, Oct 2023)** — every Envoy-based mesh patched. The episode demonstrated the operational reality: when Envoy patches a critical CVE, every downstream mesh ships an emergency release within days.
-- **IngressNightmare (Wiz Research, March 2025)** — CVE-2025-1974 et al.; NGINX Ingress Controller; ~30% of internet-reachable k8s clusters affected `[unverified specific percentage]`. The single highest-impact mesh-adjacent incident of 2025.
-- **Kubernetes Gateway API GA in K8s 1.29 (Dec 2023)** — Ingress is now legacy. Multi-controller surface expands the audit footprint.
+- **IngressNightmare (Wiz Research, March 2025)** — CVE-2025-1974 et al.; NGINX Ingress Controller; about 43% of cloud environments vulnerable per Wiz. The single highest-impact mesh-adjacent incident of 2025.
+- **Kubernetes Gateway API v1.0 GA (Oct 2023)** — Ingress is now legacy. Multi-controller surface expands the audit footprint.
 - **Cilium 1.16+ Gateway API + Service Mesh** — eBPF mesh maturing; Cisco acquisition of Isovalent (April 2024) accelerated this.
 - **Policy-as-CRD convergence across Istio + Linkerd + Cilium** — the operational pattern is stabilizing: declarative policy CRDs reviewed in pull requests, applied via GitOps. Cross-link to `[[reference-cicd-supply-chain]]`.
 - **mTLS adoption in serverless (Knative, AWS Lambda mTLS for VPC endpoints, Cloud Run service-to-service mTLS)** — the workload-identity story is following the mesh out of k8s into managed serverless. Cross-link to `[[reference-zero-trust-workload-identity]]` §10.
@@ -415,31 +413,30 @@ The incidents to know:
 
 ### 13.1 IngressNightmare (March 2025)
 
-**CVE-2025-1974, CVE-2025-1097, CVE-2025-1098, CVE-2025-1973.** Reported by Wiz Research. NGINX Ingress Controller (`ingress-nginx`). Annotation-injection in `nginx-snippets-annotations` and related fields rendered untrusted user input into nginx config, yielding RCE on the ingress controller pod. Because the ingress controller has cluster-wide Secret read access, the blast radius is *every secret in the cluster*.
+**CVE-2025-1974, CVE-2025-1097, CVE-2025-1098, CVE-2025-24514.** Reported by Wiz Research. NGINX Ingress Controller (`ingress-nginx`). Annotation-injection via `auth-url`, `auth-tls-match-cn`, and the mirror parser (via the Ingress UID), submitted to the unauthenticated admission controller, rendered untrusted user input into nginx config, yielding RCE on the ingress controller pod. Because the ingress controller has cluster-wide Secret read access, the blast radius is *every secret in the cluster*.
 
 **Lesson:** any controller that templates user-supplied annotations into a config DSL has this bug latent. Audit the controller's annotation handling code path. Disable snippet annotations by default if not needed.
 
 ### 13.2 HTTP/2 Rapid Reset (October 2023)
 
-**CVE-2023-44487.** Cloudflare, Google, AWS joint disclosure. Attacker abuses HTTP/2 stream-reset to force the server to allocate-then-free per-stream state at unbounded rate, exhausting CPU. Affected every HTTP/2 implementation: Envoy, nginx, HAProxy, Apache, Go net/http, .NET, Node.
+**CVE-2023-44487.** Cloudflare, Google, AWS joint disclosure. Attacker abuses HTTP/2 stream-reset to force the server to allocate-then-free per-stream state at unbounded rate, exhausting CPU. Affected most HTTP/2 implementations, including Envoy, nginx, Apache, Go net/http, .NET, Node.
 
 **Mesh impact:** every Envoy-based mesh shipped emergency patches within 5-7 days. The episode is the canonical example of "Envoy CVE = my-mesh CVE."
 
 ### 13.3 Istio AuthorizationPolicy bypass class
 
-**CVE-2021-39156** — path-normalization discrepancy: `/admin/../public` matched an ALLOW for `/public` while landing on `/admin`.
-**CVE-2022-23635** — Istiod DoS via crafted JWT during RequestAuthentication.
-**CVE-2024-9026** — Envoy access-log truncation; observability bypass.
+**CVE-2021-39156** — URI-fragment discrepancy: a `#fragment` in the path evaded path-based DENY rules.
+**CVE-2022-23635** — unauthenticated Istiod DoS via a crafted message to TLS port 15012.
 
 The pattern: any discrepancy between what the proxy parses for policy and what the application sees becomes a bypass primitive. Path normalization, header case, JWT validation, all share this shape.
 
 ### 13.4 NSA-CISA Service Mesh and Kubernetes guidance
 
-**NSA-CISA Kubernetes Hardening Guide** (Aug 2021, v1.2 Aug 2022); follow-up service-mesh-specific guidance `[unverified specific 2023-2024 update date]`. Federal-mandate baselines for service mesh deployment in regulated environments. Treat as a checklist, not a ceiling.
+**NSA-CISA Kubernetes Hardening Guide** (Aug 2021, v1.2 Aug 2022). Federal-mandate baselines for service mesh deployment in regulated environments. Treat as a checklist, not a ceiling.
 
 ### 13.5 Sysdig / Wiz / Aqua cloud-native threat reports
 
-Annual reports surface the mesh-related findings in the wild: misconfigured AuthorizationPolicies, PERMISSIVE mTLS lingering for years, public-internet-exposed istiod, ingress controllers with known CVEs in the wild `[unverified specific 2024-2025 stat]`.
+Annual reports surface the mesh-related findings in the wild: misconfigured AuthorizationPolicies, PERMISSIVE mTLS lingering for years, public-internet-exposed istiod, ingress controllers with known CVEs in the wild.
 
 ### 13.6 Istiod-exposed-to-internet pattern
 
@@ -449,7 +446,7 @@ Posture audit: enumerate every Service of type LoadBalancer in the cluster; cros
 
 ### 13.7 The Envoy header-handling lineage
 
-Quietly load-bearing: Envoy has shipped multiple header-handling CVEs over 2020-2024 that share a shape — case sensitivity, header injection via newline, header duplication semantics. CVE-2020-25018 (uppercase Host bypass), and several CVE-2021/CVE-2022 entries in the same family. The fix pattern is canonicalization-before-policy, and audit teams should treat any custom header-mutating filter as in-scope for the same class of bug.
+Quietly load-bearing: Envoy has shipped multiple header-handling CVEs over 2020-2024 that share a shape — case sensitivity, header injection via newline, header duplication semantics. Several CVE-2021/CVE-2022 entries fall in this family. The fix pattern is canonicalization-before-policy, and audit teams should treat any custom header-mutating filter as in-scope for the same class of bug.
 
 Cross-link to `[[reference-http-request-smuggling]]` — the request-smuggling primitive surface and the header-mutation surface overlap considerably at the mesh-proxy layer.
 
@@ -491,7 +488,7 @@ The Rust language choice for ztunnel is a deliberate hedge; it does not eliminat
 
 ### 14.7 CVE patch cadence on the data plane is high
 
-Envoy ships security advisories on a roughly monthly cadence. "Deploy mesh once, leave it" is a vulnerable mesh. Operational hygiene:
+Envoy publishes security releases on a 3-monthly cycle, plus emergency releases outside it. "Deploy mesh once, leave it" is a vulnerable mesh. Operational hygiene:
 
 - Pin the proxy image SHA to a recent build.
 - Have a rolling update process for sidecars that completes within days of a Critical CVE.
@@ -499,13 +496,13 @@ Envoy ships security advisories on a roughly monthly cadence. "Deploy mesh once,
 
 ### 14.8 Ingress controllers are the soft underbelly
 
-NGINX Ingress Controller has been the most-deployed K8s ingress controller and has the worst CVE history of any mesh-adjacent component. IngressNightmare (§13.1) was not the first NGINX Ingress controller CVE class and will not be the last.
+NGINX Ingress Controller has been one of the most popular K8s ingress controllers and has the worst CVE history of any mesh-adjacent component. IngressNightmare (§13.1) was not the first NGINX Ingress controller CVE class and will not be the last.
 
 If you can move to a Gateway API implementation with a smaller attack surface (Envoy Gateway, Cilium Gateway, Contour), the migration is a security win independent of the feature story.
 
 ### 14.9 eBPF-based meshes shift the trust boundary into the kernel
 
-A bug in an eBPF program plus a verifier limitation equals node compromise. The eBPF verifier is robust but not infallible — verifier bypasses have shipped (`[unverified specific CVE-XXXX-YYYY]`). Cross-link to `[[reference-linux-kernel-exploitation]]` for the kernel-side threat model.
+A bug in an eBPF program plus a verifier limitation equals node compromise. The eBPF verifier is robust but not infallible — verifier bypasses have shipped (e.g. CVE-2021-3490). Cross-link to `[[reference-linux-kernel-exploitation]]` for the kernel-side threat model.
 
 eBPF program supply chain (signing, BTF compatibility) is the new substrate to harden. Treat the eBPF program loader as security-critical.
 

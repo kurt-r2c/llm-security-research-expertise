@@ -29,11 +29,11 @@ The canonical reference. Authors: Scott Rose, Oliver Borchert, Stu Mitchell, Sea
 3. **Resource-portal-based** — application-layer broker (identity-aware proxy / IAP); the resource is published through a portal that does authn/authz before proxying.
 4. **Device-application-sandboxing** — workloads run inside a sandboxed runtime on a managed device that enforces policy locally.
 
-**NIST SP 800-207A (May 2023)** extends to multi-cloud / multi-network ZTA, addressing the practical gap where ZT principles must span AWS + GCP + Azure + on-prem with different identity substrates. Authors: Srinivas Mantha + Borchert + Rose [unverified specific author list — confirm before citing in published work]. This is the document to reach for when designing federated ZT across more than one cloud.
+**NIST SP 800-207A (Sept 2023)** extends to multi-cloud / multi-network ZTA, addressing the practical gap where ZT principles must span AWS + GCP + Azure + on-prem with different identity substrates. Authors: Ramaswamy Chandramouli and Zack Butcher. This is the document to reach for when designing federated ZT across more than one cloud.
 
 ### 2.2 BeyondCorp (Google, 2014-2019)
 
-Six-paper IEEE Computer series. Origin paper: Rory Ward and Betsy Beyer, "BeyondCorp: A New Approach to Enterprise Security" (`;login:` Vol 39 No 6, Dec 2014). Follow-on papers (Beyer / Spear / Saltonstall / Cittadini / Kanagala / Janosko / Escobar) extended through 2017-2019 covering migration patterns, device inventory service, access tier model, third-party device handling, and the access-proxy architecture.
+Six-paper USENIX `;login:` series. Origin paper: Rory Ward and Betsy Beyer, "BeyondCorp: A New Approach to Enterprise Security" (`;login:` Vol 39 No 6, Dec 2014). Follow-on papers (Beyer / Spear / Saltonstall / Cittadini / Janosko / Escobedo) extended through 2016-2018 covering design-to-deployment, the access-proxy architecture, migration, user experience, and fleet health.
 
 The load-bearing insight: Google's response to Operation Aurora (2009) was not to harden the perimeter further, but to assume the corporate network was already compromised and to require every internal-resource access to be authenticated against device + user identity with no implicit network trust. The "no internal network" formulation is BeyondCorp's contribution.
 
@@ -41,16 +41,16 @@ Tiered-trust model: each device is assigned a trust tier based on posture (manag
 
 ### 2.3 John Kindervag (Forrester, 2010)
 
-Term originator. Two Forrester reports in 2010: "No More Chewy Centers: Introducing The Zero Trust Model Of Information Security" and "Build Security Into Your Network's DNA: The Zero Trust Network Architecture." Kindervag's framing predates BeyondCorp publication and was independently arrived at by Google. Both share the observation that the trusted-interior model was an artifact of 1990s network economics and had become a liability by 2010.
+Term originator. Forrester report, 2010: "No More Chewy Centers: Introducing The Zero Trust Model Of Information Security." Kindervag's framing predates BeyondCorp publication and was independently arrived at by Google. Both share the observation that the trusted-interior model was an artifact of 1990s network economics and had become a liability by 2010.
 
-Kindervag later moved to ON2IT and then to Illumio (Field CTO) — much of the microsegmentation discourse traces back to his Forrester period.
+Kindervag later moved to Palo Alto Networks (Field CTO), then ON2IT, and then Illumio (Chief Evangelist) — much of the microsegmentation discourse traces back to his Forrester period.
 
 ### 2.4 US Federal mandate stack
 
 - **Executive Order 14028** (May 12, 2021), "Improving the Nation's Cybersecurity." §3 directs federal agencies toward Zero Trust architecture.
 - **OMB M-22-09** (Jan 26, 2022), "Moving the U.S. Government Toward Zero Trust Cybersecurity Principles." Sets specific FY24 milestones across 5 pillars (identity, devices, networks, applications and workloads, data).
 - **CISA Zero Trust Maturity Model v2.0** (April 2023). Replaces the v1.0 draft. Defines four maturity stages (Traditional / Initial / Advanced / Optimal) across 5 pillars + 3 cross-cutting capabilities (visibility and analytics, automation and orchestration, governance).
-- **DOD Zero Trust Reference Architecture v2.0** (July 2022) and **DOD Zero Trust Strategy** (Oct 2022). DOD ZT capabilities catalog: 152 capability outcomes [unverified exact count — confirm from current DOD ZT Portfolio Office publication before citing].
+- **DOD Zero Trust Reference Architecture v2.0** (July 2022) and **DOD Zero Trust Strategy** (Oct 2022). DOD ZT Strategy: 45 capabilities and 152 activities across 7 pillars.
 
 Read these as binding for federal/DIB work and as influential-but-non-binding for commercial deployments. The CISA ZTMM is the cleanest English-language operational ladder.
 
@@ -84,7 +84,7 @@ Workload identity is what makes ZT mechanically possible. Without a cryptographi
 
 ### 4.1 SPIFFE / SPIRE (CNCF graduated)
 
-**SPIFFE** (Secure Production Identity Framework For Everyone) is the spec; **SPIRE** is the reference implementation. CNCF graduated 2022. Originators: Diogo Mónica (Square / Anchorage), Evan Gilman (Scytale → HPE → independent), Doug Beal (Scytale → HPE). Gilman + Doug Barth co-authored *Zero Trust Networks* (O'Reilly, 2017) — the practitioner-grade book on the underlying concept.
+**SPIFFE** (Secure Production Identity Framework For Everyone) is the spec; **SPIRE** is the reference implementation. CNCF graduated 2022. Originated by Joe Beda in 2016; Scytale (acquired by HPE in 2020) was a founding contributor. Evan Gilman + Doug Barth co-authored *Zero Trust Networks* (O'Reilly, 2017) — the practitioner-grade book on the underlying concept.
 
 **SPIFFE ID** — URI-format `spiffe://<trust-domain>/<path>`. Example: `spiffe://prod.example.com/ns/payments/sa/billing-service`. The trust domain is a federation boundary; the path is workload-scoped (typically encoding namespace + service account + workload).
 
@@ -105,25 +105,25 @@ Workload identity is what makes ZT mechanically possible. Without a cryptographi
 
 **Federation** — multiple trust domains federate by exchanging trust bundles via SPIFFE Trust Domain Federation API. This is how `spiffe://prod.aws.example.com` and `spiffe://prod.gcp.example.com` workloads can mTLS to each other without sharing a CA.
 
-Production users (documented in SPIFFE/CNCF case studies): Bloomberg, Stripe, ByteDance, Pinterest, Anthem (now Elevance Health) [unverified — confirm current production posture from CNCF case study page before citing externally]. Bloomberg's Daniel Feldman has been a load-bearing community contributor.
+Production users (documented in SPIFFE/CNCF case studies): Bloomberg, ByteDance, Pinterest, Anthem (now Elevance Health).
 
 ### 4.2 Service-mesh mTLS
 
 The mesh is the most common place workload identity actually gets enforced in production today.
 
-- **Istio** — Lin Sun (Solo.io, formerly IBM), Louis Ryan (Google), Sven Mawson (Google). Sidecar Envoy proxy injected per pod; control plane (Istiod) issues SPIFFE-compatible identities via the secret discovery service (SDS). mTLS-by-default within the mesh.
+- **Istio** — Lin Sun (Solo.io, formerly IBM), Louis Ryan (Solo.io, formerly Google), Sven Mawson (Google). Sidecar Envoy proxy injected per pod; control plane (Istiod) issues SPIFFE-compatible identities via the secret discovery service (SDS). mTLS-by-default within the mesh.
 - **Linkerd** — Buoyant. William Morgan (CEO), Oliver Gould (CTO, ex-Twitter). The original service mesh (Linkerd 1.x was Scala; Linkerd 2.x rewrote in Rust as the `linkerd2-proxy` micro-proxy). Identity issued via Kubernetes ServiceAccount projected tokens; mTLS-by-default.
 - **Consul Connect** — HashiCorp. Armon Dadgar (cofounder, CTO). Sidecar-Envoy model; SPIFFE-compatible identities.
 - **Cilium Service Mesh** — Isovalent (acquired by Cisco, 2024). Thomas Graf (CTO). eBPF-based, sidecarless. Cross-link to `[[reference-linux-kernel-exploitation]]` §3 for the eBPF substrate.
-- **Istio Ambient Mesh** (GA 2024) — Christian Posta (Solo.io, ex-Red Hat), John Howard (Google). Sidecarless Istio; node-level ztunnel handles L4 + mTLS, optional waypoint proxies handle L7. Reduces sidecar memory overhead at the cost of weaker per-pod isolation.
+- **Istio Ambient Mesh** (GA 2024) — Christian Posta (Solo.io, ex-Red Hat), John Howard (Solo.io, formerly Google). Sidecarless Istio; node-level ztunnel handles L4 + mTLS, optional waypoint proxies handle L7. Reduces sidecar memory overhead at the cost of weaker per-pod isolation.
 
 The sidecar-vs-sidecarless tradeoff: sidecar gives per-pod isolation (a compromised sidecar in one pod cannot directly observe another pod's traffic); sidecarless gives lower overhead and simpler operations at the cost of node-level blast radius. For high-security workloads (PCI, HIPAA, FedRAMP-High), sidecar is the conservative choice.
 
 ### 4.3 Cloud-native workload identity
 
-- **AWS IAM Roles Anywhere** (GA July 2022) — IAM credentials issued via X.509 client certificates to non-EC2 workloads. The CA can be ACM Private CA or external. Bridges on-prem and AWS-resident IAM. [unverified specific GA date — confirm].
+- **AWS IAM Roles Anywhere** (GA July 2022) — IAM credentials issued via X.509 client certificates to non-EC2 workloads. The CA can be ACM Private CA or external. Bridges on-prem and AWS-resident IAM.
 - **GCP Workload Identity Federation** — exchanges external OIDC / SAML tokens for short-lived GCP service-account credentials via STS. The pattern that makes GitHub Actions OIDC → GCP authentication work without long-lived service-account keys.
-- **Azure Workload Identity** (formerly AAD Pod Identity, deprecated 2023). Uses Kubernetes ServiceAccount projected tokens + OIDC discovery; federated to an Azure AD application registration.
+- **Azure Workload Identity** (formerly AAD Pod Identity, deprecated Oct 2022). Uses Kubernetes ServiceAccount projected tokens + OIDC discovery; federated to an Azure AD application registration.
 - **Kubernetes ServiceAccount projected token + OIDC discovery** — every Kubernetes cluster ≥1.21 can expose an OIDC discovery endpoint (`/.well-known/openid-configuration`) signing JWTs for projected ServiceAccount tokens. Cloud providers consume these as a federated identity source. This is the OIDC trusted-publishing primitive that `cicd_supply_chain_expertise.md` §7 references and that PyPI / npm trusted publishing depends on.
 
 The OIDC trusted-publishing pattern is load-bearing for modern ZT CI/CD: the CI runner authenticates as a workload via OIDC, exchanges that for short-lived cloud credentials, performs the deploy, and never holds a long-lived key. Any architecture that still uses long-lived AWS access keys in CI/CD is one disclosure incident away from a SolarWinds-shape problem.
@@ -132,12 +132,12 @@ The OIDC trusted-publishing pattern is load-bearing for modern ZT CI/CD: the CI 
 
 ## 5. ZTNA vendor landscape
 
-Zero Trust Network Access (ZTNA) is the vendor product category. The Gartner definition (2019) emphasized client-initiated and service-initiated variants; in practice the market split along the lines below.
+Zero Trust Network Access (ZTNA) is the vendor product category. The Gartner definition (2019) emphasized endpoint-initiated and service-initiated variants; in practice the market split along the lines below.
 
 ### 5.1 Cloud-broker style
 
 - **Zscaler ZPA** (Zscaler Private Access) — Jay Chaudhry (founder, CEO). Cloud-broker model; client agent + cloud edge + connector inside the customer environment. Resources are never exposed inbound.
-- **Cloudflare Access** (part of Cloudflare One) — Matthew Prince (cofounder, CEO), John Graham-Cumming (CTO). Identity-aware proxy at Cloudflare edge; integrates with Cloudflare Tunnel (formerly Argo Tunnel) for outbound-only resource connectivity.
+- **Cloudflare Access** (part of Cloudflare One) — Matthew Prince (cofounder, CEO), John Graham-Cumming (CTO until 2025, now on the board). Identity-aware proxy at Cloudflare edge; integrates with Cloudflare Tunnel (formerly Argo Tunnel) for outbound-only resource connectivity.
 - **Palo Alto Prisma Access** — formerly GlobalProtect Cloud Service. Nir Zuk (founder, CTO).
 - **Cisco Duo Network Gateway + Cisco Secure Access** — Cisco's ZT push post Duo acquisition (2018).
 - **Netskope Private Access** — Sanjay Beri (founder, CEO).
@@ -161,7 +161,7 @@ Zero Trust Network Access (ZTNA) is the vendor product category. The Gartner def
 ### 5.4 Specialty
 
 - **StrongDM** — Justin McCarthy. Audit-first, just-in-time database / SSH / Kubernetes access broker.
-- **Banyan Security** — acquired by SonicWall (2023) [unverified exact date].
+- **Banyan Security** — acquired by SonicWall (Dec 2023).
 - **Appgate SDP** — single-packet authorization (SPA) variant of ZTNA; the resource is invisible (no TCP handshake) until the client proves identity via a UDP single-packet token. SDP roots trace to the Cloud Security Alliance specification, ca. 2014.
 
 ### 5.5 How to read the vendor pitches
@@ -196,7 +196,7 @@ Common deployment topology: OPA as sidecar to each service, with policies bundle
 
 ### 6.2 Cedar — AWS
 
-Open-sourced April 2023 from AWS Verified Permissions. Designed for formal verification of policies — the language is intentionally restricted so policies can be analyzed for equivalence, redundancy, and "does policy A subsume policy B." Cousot-influenced abstract-interpretation lineage. Authoring team includes Mike Hicks, Aaron Eline, Emina Torlak [unverified specific team composition — confirm from current Cedar GitHub maintainers list before citing].
+Open-sourced May 2023 from AWS Verified Permissions. Designed for formal verification of policies — the language is intentionally restricted so policies can be analyzed for equivalence, redundancy, and "does policy A subsume policy B." Authoring team includes Mike Hicks, Aaron Eline, Emina Torlak.
 
 Cedar's structural choice: separating principal / action / resource as first-class concepts (vs OPA Rego which is general-purpose datalog). The tradeoff is less expressiveness in exchange for stronger analysis guarantees.
 
@@ -266,7 +266,7 @@ The PDP consumes risk score as a PIP attribute and triggers step-up (re-MFA, pas
 The strongest device-posture signal is cryptographic — the device proves what it is using hardware-backed keys.
 
 - **Windows Attestation** — TPM 2.0 + Windows Hello for Business; the TPM attests boot state and Windows configures Conditional Access on the result.
-- **Apple Managed Device Attestation** (2022+ for iOS 16 / macOS 13 Ventura) — Secure Enclave-backed device identity; MDM platforms request attestations for use as authn factors. The attestation chains to Apple's CA.
+- **Apple Managed Device Attestation** (2022+ for iOS 16; macOS 14 Sonoma) — Secure Enclave-backed device identity; MDM platforms request attestations for use as authn factors. The attestation chains to Apple's CA.
 - **Android Play Integrity API** + **hardware-backed key attestation** — StrongBox-backed (Titan M / Titan M2) attestation on supported Pixel devices.
 - **Apple iCloud Private Relay** / **Anonymous Cloud Tokens** — adjacent privacy-preserving attestation primitives.
 
@@ -323,14 +323,14 @@ The federation hard problem is policy translation across trust domains. SPIFFE f
 
 Major developments since the 2020-2022 standardization wave. Confirm specific dates against primary sources before citing in published work — many are date-sensitive.
 
-- **NIST SP 800-207A** (May 2023) — multi-cloud / multi-network ZTA. The companion document to 800-207 that addresses the practical multi-cloud gap.
+- **NIST SP 800-207A** (September 2023) — multi-cloud / multi-network ZTA. The companion document to 800-207 that addresses the practical multi-cloud gap.
 - **CISA Zero Trust Maturity Model v2.0** (April 2023) — supersedes the v1.0 draft. Four maturity stages × five pillars.
-- **DOD Zero Trust Strategy** (Oct 2022) + **DOD ZT Reference Architecture v2.0** (July 2022). DOD ZT Portfolio Management Office stood up post-strategy.
-- **OMB M-24-04** (Dec 2023) — FedRAMP modernization; not strictly ZT but ZT-adjacent in cloud-resource authorization.
+- **DOD Zero Trust Strategy** (Nov 2022) + **DOD ZT Reference Architecture v2.0** (July 2022). DOD ZT Portfolio Management Office stood up post-strategy.
+- **OMB M-24-15** (July 2024) — FedRAMP modernization; not strictly ZT but ZT-adjacent in cloud-resource authorization.
 - **EU NIS2 Directive** — transposition deadline Oct 17 2024. ZT-shaped controls implicit in Article 21 cybersecurity risk-management measures. Member-state transposition has been uneven [unverified specific transposition status as of 2026 — confirm before citing].
-- **OpenID Federation 1.0** — under draft 2024-2025 [unverified current draft status]; addresses B2B federated identity at scale, relevant for workforce-of-workforces ZT (e.g., government agency federations).
+- **OpenID Federation 1.0** — approved as a Final Specification in February 2026; addresses B2B federated identity at scale, relevant for workforce-of-workforces ZT (e.g., government agency federations).
 - **AI-agent ZT** — AI agents are workloads with API capabilities. They need SPIFFE IDs, scoped IAM, audit telemetry, and policy enforcement at every tool call. Cross-link `[[reference-ai-orchestration-harnessing]]` §5 (8-concern harness design) for the agent-runtime side. Most ZT deployments as of mid-2026 do not yet treat AI agents as first-class workloads — they live under shared service-account credentials. This is the single biggest ZT gap in current production deployments. The shape of the corrective: (a) each agent invocation gets a SPIFFE ID encoding agent name + version + invoking human; (b) tool calls go through PEPs that evaluate agent identity, invoking human identity, and the requested tool against a PDP; (c) audit logs structure so agent actions and human actions are distinguishable; (d) MCP-allowlists become policy artifacts under the same review and rollback discipline as any other policy.
-- **Vendor M&A and ZT-buzzword-creep** — Cisco acquired Isovalent (2024). HashiCorp acquired by IBM (announced April 2024) [unverified exact close date]. Banyan acquired by SonicWall (2023) [unverified date]. SonicWall acquired by Francisco Partners (private 2023). VMware NSX → Broadcom integration ongoing. The market is consolidating around hyperscaler-bundled ZT (AWS Verified Access, Azure Conditional Access + Defender, GCP BeyondCorp Enterprise) plus three or four major independents (Zscaler, Cloudflare, Palo Alto, Cisco).
+- **Vendor M&A and ZT-buzzword-creep** — Cisco acquired Isovalent (2024). HashiCorp acquired by IBM (announced April 2024, closed February 2025). Banyan acquired by SonicWall (closed December 2023, announced January 2024). SonicWall acquired by Francisco Partners and Elliott Management (private 2016, from Dell). VMware NSX → Broadcom integration ongoing. The market is consolidating around hyperscaler-bundled ZT (AWS Verified Access, Azure Conditional Access + Defender, GCP BeyondCorp Enterprise) plus three or four major independents (Zscaler, Cloudflare, Palo Alto, Cisco).
 
 ---
 
@@ -352,7 +352,7 @@ Russia-attributed (APT29 / NOBELIUM-successor designation). Initial access via p
 
 The notable ZT lesson: Microsoft is one of the most-resourced organizations on the planet for ZT, and they still had a legacy non-prod tenant with weaker controls that allowed initial access; OAuth app abuse then provided the lateral movement. Confirms that ZT is a property of every component (legacy systems included), not a property of the new shiny components.
 
-Cross-reference: Microsoft CRSB (Cyber Safety Review Board) report (April 2024) [unverified — confirm exact CRSB document title and date before citing].
+Cross-reference: CSRB (Cyber Safety Review Board) report *Review of the Summer 2023 Microsoft Exchange Online Intrusion* (April 2024; covers Storm-0558, with Midnight Blizzard outside its scope).
 
 ### 11.3 Okta sub-processor breaches (2022-2023)
 
@@ -387,9 +387,9 @@ CL0P ransomware operator exploited CVE-2023-34362 (SQLi → arbitrary file read 
 
 ### 11.8 LastPass (2022)
 
-Two-stage compromise: August 2022 initial access (source code + technical docs from dev environment), then November-December 2022 second incident where the attacker used credentials from the first incident to reach customer vault backups in an AWS S3 bucket. Backups were encrypted but contained vault metadata (URLs, usernames) in cleartext and the encrypted-vault blobs were encrypted under user-derived keys with iteration counts that varied widely (some accounts had as few as 5,000 PBKDF2 iterations against the documented default).
+Two-stage compromise: August 2022 initial access (source code + technical docs from dev environment), then August-October 2022 second incident where the attacker used credentials from the first incident to reach customer vault backups in an AWS S3 bucket. Backups were encrypted but contained vault metadata (URLs, usernames) in cleartext and the encrypted-vault blobs were encrypted under user-derived keys with iteration counts that varied widely (some accounts had as few as 5,000 PBKDF2 iterations against the documented default).
 
-**ZT lesson:** the attack succeeded because credentials from environment A (dev) provided access to environment B (production backup storage) without re-authentication, posture re-check, or behavioral-anomaly detection on the cross-environment access. ZT tenet 6 (per-request authn/authz) was violated structurally — long-lived AWS credentials persisted from the first breach allowed the second. The corrective is short-lived federated credentials with continuous validation, not long-lived AWS access keys.
+**ZT lesson:** the attack succeeded because credentials from environment A (dev) provided access to environment B (production backup storage) without re-authentication, posture re-check, or behavioral-anomaly detection on the cross-environment access. ZT tenet 6 (per-request authn/authz) was violated structurally — long-lived AWS credentials allowed the second. The corrective is short-lived federated credentials with continuous validation, not long-lived AWS access keys.
 
 The secondary lesson is about the encryption-not-being-uniform problem: a ZT property of "encrypted at rest" is meaningless if the key-derivation parameters vary across user accounts. Vault encryption was technically present; the cryptographic strength was unevenly applied, and the legacy accounts (sub-100,000 iterations) became practically brute-forceable for high-value targets.
 
