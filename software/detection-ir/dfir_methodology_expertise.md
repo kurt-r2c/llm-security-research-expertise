@@ -6,7 +6,7 @@
 >   Labs and Cyber Triage) — Author of *File System Forensic Analysis* (Addison-Wesley,
 >   2005), the canonical text on FAT, NTFS, ext, and UFS forensic analysis. Maintainer
 >   of The Sleuth Kit (TSK) and Autopsy, the dominant open-source disk-forensics
->   tooling. Honorary board member, Digital Forensics Research Workshop (DFRWS).
+>   tooling.
 > - **Eoghan Casey** (Ph.D.; Professor of Digital Forensic Science, Ecole des Sciences
 >   Criminelles, Université de Lausanne) — Author of *Digital Evidence and Computer
 >   Crime: Forensic Science, Computers, and the Internet* (Academic Press, 3rd ed.
@@ -17,7 +17,7 @@
 >   *The Art of Memory Forensics: Detecting Malware and Threats in Windows, Linux, and
 >   Mac Memory* (Wiley, 2014) and core developers of Volatility. Walters is founder
 >   and lead developer of Volatility and President of the Volatility Foundation; Case
->   is Director of Research at Volexity; Levy was Senior Researcher at Volexity. The
+>   is Director of Research at Volexity. The
 >   Volatility 3 framework (Python 3, modular plugins) is the dominant open-source
 >   memory-forensics tooling for Windows, Linux, and macOS.
 > - **Hal Pomeranz** (Principal Consultant, Deer Run Associates; SANS Faculty Fellow)
@@ -37,7 +37,7 @@
 >   experience; "Earn the Tool" doctrine — operate the device, then the tool, then
 >   trust the output.
 > - **Lenny Zeltser** (CISO, Axonius; SANS Faculty Fellow) — Founder and primary
->   maintainer of REMnux, the Linux distribution for malware analysis (200+ tools).
+>   maintainer of REMnux, the Linux distribution for malware analysis (hundreds of tools).
 >   Author of SANS FOR610 *Reverse-Engineering Malware*. Practitioner voice on
 >   static/dynamic analysis pipelines and on scaling security programs.
 > - **Lesley Carhart** (Director of Incident Response — North America, Dragos) —
@@ -56,14 +56,14 @@
 >   (Syngress, 2014); author of *Practical Packet Analysis* (multiple editions, No
 >   Starch). Practitioner voice on accessible NSM training and on analyst-facing
 >   evidence-reading tradecraft.
-> - **Ryan McGeehan** (*@magoo*; scrty.io; formerly Director of Security, Facebook;
+> - **Ryan McGeehan** (*@magoo*; scrty.io; formerly Director of Security Incident Response, Facebook;
 >   founding security at Coinbase) — *Starting Up Security* essays codify IR for
 >   small / early-stage teams. *An Incident Response Plan for Startups*, *Security
 >   Breach 101*, and the annual *Learning from a Year of Security Breaches* essays
 >   are standard reading on small-team breach comms and operational discipline.
 > - **MITRE Engenuity Center for Threat-Informed Defense (CTID)** — Authors of the
->   Cyber Analytics Repository (CAR), Adversary Emulation Library, and the ATT&CK
->   Workbench. CAR formalizes detection analytics as ATT&CK-mapped pseudocode; the
+>   Adversary Emulation Library and the ATT&CK Workbench; the Cyber Analytics
+>   Repository (CAR) is a MITRE project. CAR formalizes detection analytics as ATT&CK-mapped pseudocode; the
 >   bridge between ATT&CK as taxonomy and CAR/Sigma as detection IR.
 >
 > **Sources:** Carrier, *File System Forensic Analysis* (2005); Casey, *Digital
@@ -81,7 +81,7 @@
 > Microsoft MSRC Midnight Blizzard posts (Jan + Mar 2024) and CISA ED 24-02;
 > CrowdStrike Channel File 291 RCA (Aug 2024); Synnovis / NHS Qilin coverage
 > (Jun 2024-Nov 2025); Change Healthcare ALPHV/BlackCat coverage and
-> Congressional testimony (Feb-Apr 2024); CDK Global BlackSuit coverage (Jun-Jul
+> Congressional testimony (Feb-May 2024); CDK Global BlackSuit coverage (Jun-Jul
 > 2024); SEC Form 8-K Item 1.05 final rule (Dec 2023) and Gerding staff statement
 > (May 2024); EU CRA Regulation 2024/2847 and Commission CRA reporting guidance
 > (effective Sep 11 2026); OCSF schema and Linux Foundation governance
@@ -116,9 +116,7 @@ plus the rise of ransomware-as-an-industry. Rev. 3 explicitly *withdraws* the ri
 four-phase lifecycle model from Rev. 2 (Preparation → Detection & Analysis →
 Containment, Eradication, Recovery → Post-Incident Activity) and replaces it with a
 mapping of incident-response activities to the six CSF 2.0 Functions: Govern,
-Identify, Protect, Detect, Respond, Recover. NIST's framing is that "incident
-response is not a standalone activity; it is the continuous operational application
-of cybersecurity risk management" — Govern + Identify + Protect cover ongoing
+Identify, Protect, Detect, Respond, Recover. In this mapping, Govern + Identify + Protect cover ongoing
 preparation work; Detect surfaces incidents; Respond + Recover handle the active
 event; the cycle is continuous, not phased. NIST published Rev. 3 as a CSF 2.0
 Community Profile rather than a procedural handbook — operational details that were
@@ -304,7 +302,7 @@ memory. Modern IR without memory forensics is missing half the attacker.
 Volatility (`volatilityfoundation.org`) is the dominant open-source memory-forensics
 framework. Volatility 3 (2.x branch as of May 2026, Python 3, modular plugin
 architecture, ISF — Intermediate Symbol Format — for OS-version handling) superseded
-Volatility 2 (Python 2, profile-based) in 2020. Layered architecture: memory layers
+Volatility 2 (Python 2, profile-based) in 2025. Layered architecture: memory layers
 handle address-space translation, symbol tables provide OS-specific structures,
 plugins query and present. Canonical plugins:
 
@@ -313,23 +311,22 @@ plugins query and present. Canonical plugins:
   processes that `pslist` (walks `_EPROCESS` doubly-linked list) misses.
 - **DLL / SO walking** — `windows.dlllist`, `linux.proc.Maps`. Reveals injected
   libraries.
-- **Network** — `windows.netscan`, `linux.netstat`, `mac.netstat`.
+- **Network** — `windows.netscan`, `linux.sockstat`, `mac.netstat`.
 - **Injection detection** — `windows.malfind` (executable private memory regions),
-  `windows.hollowfind` (process hollowing via `_EPROCESS.SectionBaseAddress` vs
-  in-memory image header), `windows.ldrmodules` (PEB module-list mismatches).
+  `windows.hollowprocesses` (process hollowing), `windows.ldrmodules` (PEB module-list mismatches).
 - **Registry** — `windows.registry.printkey`, `windows.registry.hivelist`.
 - **Credentials** — `windows.hashdump` (NTLM), `windows.lsadump` (LSA secrets),
   `windows.cachedump` (cached domain creds). Mimikatz-in-memory artifact patterns
   (specific RWX regions in `lsass.exe`) are detectable.
-- **Timeline** — `windows.timeliner` produces a memory-resident event CSV.
+- **Timeline** — `timeliner` produces a memory-resident event CSV.
 
 ### Memory acquisition
 
 By platform:
 
 - **Windows: WinPmem** (Velocidex, originally Google Rekall, `winpmem.velocidex.com`)
-  — AFF4 / RAW / ELF output; live acquisition via PCILeech (DMA), kernel driver
-  (standard), or userland fallback. F-Response and FTK Imager are commercial
+  — RAW output (the AFF4 imager is yet to be updated to the new driver); kernel
+  driver with three independent physical-memory reading methods. F-Response and FTK Imager are commercial
   alternatives.
 - **Linux: AVML** (Microsoft, `github.com/microsoft/avml`) — Rust binary, statically
   linked, single-binary deployable. Uses `/proc/kcore`, `/dev/crash`, or `/dev/mem`.
@@ -346,26 +343,25 @@ By platform:
 As of mid-2026, Volatility 3 macOS support has *not* reached parity with Windows /
 Linux on Apple Silicon. The
 [Volatility 3 macOS tutorial](https://volatility3.readthedocs.io/en/latest/getting-started-mac-tutorial.html)
-documents that "Apple has locked third parties out of the kernel, making memory
-acquisition of modern Apple systems in on-demand situations not feasible";
+states that "As of the Volatility 3 parity release, macOS analysis support is no
+longer actively maintained";
 practical analysis tops out at older macOS versions on Intel hardware. Apple
 Silicon — M1 (2020) through M4 (2024) — uses System Coprocessor and System
 Integrity Protection memory isolation primitives that block userland DMA paths
 the historical osxpmem / Intel-Mac kext approaches relied on. The Volatility
 Foundation's
 [Official Parity Release announcement](https://volatilityfoundation.org/announcing-the-official-parity-release-of-volatility-3/)
-covered Windows and Linux feature parity; macOS remains a separate roadmap.
+covered Windows and Linux; it states that "Volatility 3 does not support macOS."
 Operational implication for IR teams investigating Apple Silicon endpoints:
 
 1. **Pre-deployment third-party drivers via MDM** are the only practical
    acquisition path. Enterprise managed devices can enroll a vendor (Volexity
-   Surge Collect, Magnet RAM Capture for Mac, etc.) via MDM-distributed signed
+   Surge Collect, etc.) via MDM-distributed signed
    kernel extension or system extension; consent + entitlement happens
    pre-incident. Unmanaged or BYOD Apple Silicon devices are effectively memory-
    forensic dark.
-2. **Volatility 3 Intel-Mac coverage** remains the developer-tested path; the
-   highest macOS version with reliable analysis as of mid-2026 is in the macOS
-   10.x / 11.x window. macOS Sonoma (14.x, 2023), Sequoia (15.x, 2024), and the
+2. **Volatility 3 Intel-Mac coverage** is no longer actively maintained as of
+   the parity release. macOS Sonoma (14.x, 2023), Sequoia (15.x, 2024), and the
    2025/2026 successor are increasingly off-bench.
 3. **Lateral compensation:** unified-log forensics (`log show --predicate` on the
    host; sysdiagnose for offline analysis), endpoint-agent in-memory scan output
@@ -397,7 +393,7 @@ preparation work, not response work.
 - **Reflective DLL injection** — DLL mapped into private RWX memory. `malfind` flags
   via VAD enumeration of PAGE_EXECUTE_READWRITE regions with no backing file.
 - **Process hollowing** — legitimate process started suspended, original image
-  unmapped, attacker payload mapped. `hollowfind` detects.
+  unmapped, attacker payload mapped. `windows.hollowprocesses` detects.
 - **IAT hooking** — function pointers redirected. `windows.modules` plus manual IAT
   inspection.
 - **Inline patching** — function-prologue bytes overwritten with `JMP <hook>`.
@@ -577,7 +573,7 @@ field names across sources is the dominant operational tax.
 ### Modern log-forensics workbenches
 
 ELK / Elastic Stack (Elasticsearch, Logstash, Kibana, Beats; Elastic Security as the
-SIEM/XDR layer); OpenSearch (AWS-maintained fork); Splunk (dominant commercial
+SIEM/XDR layer); OpenSearch (AWS-originated fork, Linux Foundation-governed since 2024); Splunk (dominant commercial
 enterprise SIEM); Microsoft Sentinel (cloud-native, Azure-hosted, KQL); Google
 Chronicle (cloud-native, high-volume); Devo, Sumo Logic, Datadog Security, Panther,
 Hunters; Timesketch (investigation-specific timeline analysis beside the SIEM). DFIR
@@ -591,8 +587,9 @@ minutes, 90 days to 1 year); cold / archive (queryable in hours, 1 to 7 years; S
 Glacier, GCS Coldline, Azure Archive). Compliance overlay sets minimums (PCI-DSS 1
 year; HIPAA up to 6 years per jurisdiction; SOC 2 typically 1 year). IR overlay
 sets practical minimums based on attacker dwell time — median has compressed from
-200+ days (M-Trends 2013) to single-digit for ransomware and 10–30 for targeted
-espionage (M-Trends 2024/2025), but the team needs enough history to investigate a
+200+ days (M-Trends 2013) to a 10–11-day global median, ~5 days when the adversary
+notifies (notably ransomware) (M-Trends 2024/2025); espionage still ran 122 days
+(M-Trends 2026), but the team needs enough history to investigate a
 discovered intrusion that started months earlier. Hot 90 days, warm 1 year is a
 reasonable default for mid-size environments.
 
@@ -603,7 +600,7 @@ signed channel; tampering on the host is detected by absence on the central stor
 append-only stores (S3 Object Lock, immutable tiers — cross-link
 `cloud_iam_expertise.md`); cryptographic log signing per entry; HSM-attested log
 streams (higher-assurance, cross-link `cryptography_expertise.md`); log-tampering
-detection rules (Sysmon EID 1102 security log cleared, auditd anomalies, log-source
+detection rules (Windows Security EID 1102 security log cleared, auditd anomalies, log-source
 gaps).
 
 ### Cloud audit-log forensics
@@ -714,7 +711,7 @@ matches (`ab`, `ac`, or `c` alone). The community-maintained
 between fingerprints and applications, malware families, certificate authorities,
 libraries, and operating systems. Tooling integrations: Cloudflare ships JA4 +
 JA4H in its analytics platform
-([Cloudflare blog Oct 2024](https://blog.cloudflare.com/ja4-signals/)); Google
+([Cloudflare blog Aug 2024](https://blog.cloudflare.com/ja4-signals/)); Google
 Cloud Threat Intelligence integrates JA4
 ([GCTI deep dive](https://security.googlecloudcommunity.com/community-blog-42/ja4-fingerprinting-in-gti-deep-dive-6043));
 TheHive integrates JA4+ via observable enrichment
@@ -732,8 +729,8 @@ encrypted-traffic networks.
 
 ### DNS forensics
 
-Artifact sources: internal DNS query logs (`EnableLoggingForChange` on Windows DNS,
-`query-log on` on BIND, Pi-hole / Unbound on small networks); passive DNS (Farsight,
+Artifact sources: internal DNS query logs (debug / analytical logging on Windows DNS,
+`querylog yes` / `rndc querylog on` on BIND, Pi-hole / Unbound on small networks); passive DNS (Farsight,
 Microsoft Defender TI, DomainTools, SecurityTrails, Validin — third-party corpora
 for historical resolution); DNS-over-HTTPS / DNS-over-TLS endpoints (when clients
 bypass internal DNS, visibility moves to network-flow metadata only). Patterns: DGA
@@ -845,14 +842,13 @@ detection patterns, §11 forensic-logging architecture.
 
 The
 [Open Cybersecurity Schema Framework (OCSF)](https://ocsf.io/) — launched in
-August 2022 by AWS, Splunk, and 18 founding partners and transitioned to Linux
+August 2022 with 18 founding organizations led by AWS and Splunk and transitioned to Linux
 Foundation governance in November 2024 — is the dominant emerging vendor-
 agnostic schema for security telemetry. OCSF defines normalized event classes
 across categories including System Activity, Findings, Identity & Access
 Management, Network Activity, Discovery, and Application Activity, with
-extensible attributes per event. By mid-2026 the project tracks ~200
-organizations with production deployments and Linux Foundation-managed Technical
-Advisory Committee governance via formal RFC process.
+extensible attributes per event. At its November 2024 move to the Linux Foundation the project
+reported 900+ contributors and ~200 participating organizations.
 
 Forensic-relevance: OCSF is the canonical schema for
 [AWS Security Lake](https://docs.aws.amazon.com/security-lake/latest/userguide/open-cybersecurity-schema-framework.html),
@@ -999,8 +995,8 @@ most-cited practitioner reference. Three structural differences from PC forensic
 ### Commercial tooling
 
 **Cellebrite UFED / Inseyets / Premium** (industry standard; logical, file-system,
-and physical acquisition where supported; Inseyets rebranded successor to UFED
-Touch). **Magnet AXIOM** (cross-domain forensic platform with strong mobile, plus
+and physical acquisition where supported; Inseyets is the successor suite combining UFED and
+Premium extraction with Physical Analyzer decoding). **Magnet AXIOM** (cross-domain forensic platform with strong mobile, plus
 computer and cloud). **Oxygen Forensic Detective** (Russian-origin; LE and
 enterprise; mobile + cloud + IoT). **MSAB XRY** (European, LE-focused).
 **Elcomsoft** (offline backup analysis, password recovery, cloud acquisition). The
@@ -1039,8 +1035,7 @@ published IOC methodology and released **MVT** (Mobile Verification Toolkit;
 Pegasus and similar mercenary-spyware traces on iOS and Android. MVT operation:
 acquire backup (or full file-system dump where available) → run MVT against the
 artifact with a STIX2 IOC bundle → MVT parses dozens of artifact types (DataUsage,
-network logs, manifest cache, shutdown.log, Safari history, Webkit cache,
-sysdiagnose) and matches against the bundle → report on matched indicators and
+network logs, manifest cache, Safari history, Webkit cache) and matches against the bundle → report on matched indicators and
 timeline. The methodology is the model for civil-society-facing forensic work:
 open-source tooling, public IOC publication, signed-evidence chains, named-victim
 consent, named operators.
@@ -1054,7 +1049,7 @@ networks → acquire forensic backups with informed consent → run MVT plus cus
 pipelines → confirm via Apple-Threat-Notifications cross-reference where applicable
 → publish with named victims (consent-attested), named operators (attributed via
 infrastructure intel), full evidence chains → cross-publish with Amnesty Tech and
-partners. The 2021 Pegasus Project (Citizen Lab + Amnesty Tech + Forbidden Stories)
+partners. The 2021 Pegasus Project (Forbidden Stories + Amnesty Tech, with Citizen Lab peer review)
 is the canonical civil-society-targeted-spyware forensic investigation; cross-link
 `mobile_security_expertise.md` §13.
 
@@ -1096,13 +1091,13 @@ and [Cellebrite advisory](https://cellebrite.com/en/blog/ios-stolen-device-prote
    transport. Both require pre-incident or arrest-scene cooperation that is often
    unavailable.
 4. **Legal compulsion** of biometric authentication remains jurisdictionally
-   varied. Fifth-Amendment doctrine on passcode compulsion (Doe v. US, Riley v.
-   California, and successor cases) does not translate cleanly to biometric
+   varied. Fifth-Amendment doctrine on passcode compulsion (Doe v. US and successor cases) does not translate cleanly to biometric
    compulsion; the federal-circuit split as of 2025 has not resolved cleanly.
 5. **Commercial-tool support** — Cellebrite Premium, Magnet AXIOM, GrayKey, and
-   Elcomsoft have advisory documentation on SDP impact but cannot bypass SDP
-   biometric gates; the protection is rooted in Secure Enclave and is not
-   bypassable by software methods accessible to commercial forensic suites.
+   Elcomsoft have advisory documentation on SDP impact; Cellebrite reports SDP
+   blocks iTunes-protocol (Advanced Logical) extraction without the owner's
+   biometrics but does not affect Inseyets UFED full-file-system extraction when
+   the passcode is known.
 
 The Stolen Device Protection regime is the most-significant tightening of
 mobile-forensic access since the introduction of File-Based Encryption / Data
@@ -1114,17 +1109,16 @@ longer a same-day option.
 
 The
 [Kaspersky GReAT methodology disclosure (January 2024)](https://securelist.com/shutdown-log-lightweight-ios-malware-detection-method/111734/)
-identified `Shutdown.log` (per-shutdown event log in `/private/var/db/diagnostics`)
+identified `Shutdown.log` (per-reboot log inside sysdiagnose archives, under
+`system_logs.logarchive/Extra`)
 as a previously-unexplored forensic artifact that retains Pegasus / Reign /
 Predator infection evidence even when other artifacts are sanitized. The
 discovery: spyware processes that fail to terminate during user-initiated shutdown
-get logged with their path — `/private/var/db/...` paths appear consistently in
-infected devices across the three commercial-spyware families. MVT integrated
-shutdown-log parsing into its analysis pipeline in 2024; the artifact is now a
-standard MVT triage signal alongside DataUsage.sqlite, locationd cache, and
-sysdiagnose archives. Operational note: shutdown.log requires the user to have
-shut the device down at least once during the infection window; reboots from
-crashes or thermal events also generate entries. Cross-link
+get logged with their path — `/private/var/db/...` paths appeared across the
+infections reviewed (Predator used `/private/var/tmp/`). Kaspersky released
+standalone Python scripts to extract and parse it; MVT's `check-sysdiagnose`
+ships no built-in sysdiagnose modules. Operational note: shutdown.log requires the user to have
+rebooted the device at least once during the infection window. Cross-link
 `mobile_security_expertise.md` §13 for the broader Pegasus / Predator forensic
 literature.
 
@@ -1165,15 +1159,13 @@ and customized).
 - **Scribe.** Maintains the incident timeline; often rotated; always present. The
   timeline is the source of truth for postmortem and any legal proceedings.
 
-Carhart's ICS-IR writing adds the **Safety Officer** (ensures investigation doesn't
+ICS/OT incident response adds the **Safety Officer** (ensures investigation doesn't
 compromise process safety) and the **Process Engineer** (interprets OT-system
 behavior alongside cybersecurity investigation).
 
 ### McGeehan's Starting-Up-Security tradition
 
-For small / early-stage teams without dedicated IR staff, the core advice from *An
-Incident Response Plan for Startups*, *Security Breach 101*, and *Learning from a
-Year of Security Breaches*:
+For small / early-stage teams without dedicated IR staff, the core advice:
 
 1. Have a plan, in writing, before you need it. Even a one-pager.
 2. Pre-establish relationships — legal, IR firm, breach-coach, PR. The 2 AM call
@@ -1277,8 +1269,7 @@ Constrained by legal obligation (jurisdiction-specific — see §12), contractua
 obligation (customer contracts often impose 24-72 hour windows for B2B SaaS), and
 reputational consideration (the cover-up that gets discovered is worse than the
 incident). Principle: tell customers the truth, as soon as you have it, in language
-they can act on. McGeehan's writing on this — "the breach itself is rarely the
-trust event; the comms is" — repeats across cases. Avoid weasel language ("some
+they can act on. Avoid weasel language ("some
 users may have been affected" when you know which), burying the lede, apologizing
 without specifics, talking about the attacker in heroic terms ("sophisticated
 nation-state actor" often means "phishing email landed").
@@ -1290,7 +1281,7 @@ nation-state actor" often means "phishing email landed").
 ### GDPR 72-hour breach notification
 
 Under GDPR Article 33, controllers must notify the supervisory authority of a
-personal-data breach within 72 hours of becoming aware of it, "unless the breach is
+personal-data breach within 72 hours of becoming aware of it, "unless the personal data breach is
 unlikely to result in a risk to the rights and freedoms of natural persons."
 Article 34 imposes data-subject notification when high-risk. The 72-hour clock is
 from *awareness* — not breach occurrence. The IR program's internal awareness-
@@ -1315,7 +1306,7 @@ reporting companies June 15, 2024). The trigger is the *materiality determinatio
 a public-company registrant determines a cybersecurity incident is material under
 Form 8-K Item 1.05, the disclosure clock runs four business days. The disclosure
 must cover the "material aspects of the nature, scope, and timing of the
-cybersecurity incident, and the material impact or reasonably likely material
+incident, and the material impact or reasonably likely material
 impact" — explicitly including financial-condition and operating-results impact.
 SEC staff (Director Erik Gerding, May 2024) clarified that Item 1.05 disclosures
 are reserved for incidents *determined* material; voluntarily-disclosed incidents
@@ -1506,7 +1497,7 @@ time — UnitedHealth disclosed 190 million affected records in 2025, dwarfing t
 prior Anthem 2015 (78.8M) maximum. Initial access via a Citrix remote-access
 service without MFA enabled; nine-day dwell time before ransomware deployment;
 $22M ransom paid by UnitedHealth (CEO Andrew Witty confirmed in Congressional
-testimony, April 2024). IR-lessons literature highlights: the missing-MFA
+testimony, May 2024). IR-lessons literature highlights: the missing-MFA
 remote-access gateway is the single load-bearing precondition; the nine-day
 dwell window indicates inadequate east-west detection (lateral movement, AD
 recon, exfiltration prep should all have been visible). Per
@@ -1600,8 +1591,7 @@ and sensitive HIV / STI / cancer test results, were leaked to the Qilin
 dark-web leak site after Synnovis (with NHS partnership) declined the reported
 $50M ransom demand. King's College Hospital NHS Foundation Trust subsequently
 [linked a patient death](https://www.bitdefender.com/en-us/blog/hotforsecurity/patient-death-cyberattack-british-pathology-clinic-synnovis)
-to a delay in blood-test results caused by the cyberattack — the first
-publicly-attributed patient death linked to a ransomware incident in the UK.
+to a delay in blood-test results caused by the cyberattack.
 Synnovis took 18 months to complete data-reconstruction and breach
 notifications, with notifications still arriving in late 2025. Teaching
 points: healthcare-sector ransomware can cause loss of life and the
@@ -1654,8 +1644,7 @@ The
 [MGM Resorts ransomware incident](https://www.cybersecuritydive.com/news/mgm-resorts-cybersecurity-incident-cyber/) (Sep 2023, ALPHV/BlackCat affiliate Scattered Spider) is treated as a 2024-2026
 teaching case because the public postmortem and lawsuit-discovery materials
 appeared through 2024-2025. Initial access via a vishing call to the MGM IT
-service desk, where the help-desk agent reset MFA for a senior employee at
-attacker request. Ten days of operational disruption; estimated $100M financial
+service desk. Ten days of operational disruption; estimated $100M financial
 impact. Teaching points: help-desk and identity-system social engineering is
 the most-effective initial-access vector against mature programs; out-of-band
 verification protocols for credential / MFA resets are the structural defense.
@@ -1747,10 +1736,7 @@ autonomous triage of low-severity alerts. The discipline's operating model:
    target. Cross-link `llm_agent_security_expertise.md` and
    `adversarial_ml_model_security_expertise.md`.
 
-NIST published guidance on AI use in incident response in 2025 alongside the
-Rev. 3 SP 800-61 publication; the principle stated is "AI augments human
-decision-making in incident response; humans remain responsible for incident-
-response decisions and outcomes." Operational implication: regulators (SEC,
+Regulators (SEC,
 EU CRA, NIS2) will hold human decision-makers accountable for incident-response
 choices, not the AI. Tooling that obscures the decision audit trail is a
 liability, not an asset.
@@ -1943,7 +1929,7 @@ investigation than traditional digital-forensics; cross-link
 ### 2024-2026 incident case-study references
 
 - Change Healthcare ransomware:
-  [Mandiant / threat-intel writeup](https://www.threatintelreport.com/2024/12/20/incident_reports/change-healthcare-ransomware-attack-unitedhealth-optum-alphv-blackcat-disruption-and-mass-phi-exposure/) —
+  [ThreatIntelReport writeup](https://www.threatintelreport.com/2024/12/20/incident_reports/change-healthcare-ransomware-attack-unitedhealth-optum-alphv-blackcat-disruption-and-mass-phi-exposure/) —
   [AHA survey](https://www.aha.org/change-healthcare-cyberattack-underscores-urgent-need-strengthen-cyber-preparedness-individual-health-care-organizations-and) —
   [IBM ransom disclosure](https://www.ibm.com/think/news/change-healthcare-22-million-ransomware-payment) —
   [HIPAA Journal](https://www.hipaajournal.com/change-healthcare-responding-to-cyberattack/).
