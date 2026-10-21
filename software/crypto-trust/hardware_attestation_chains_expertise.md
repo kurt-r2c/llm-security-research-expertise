@@ -26,13 +26,13 @@ Key primitives:
 - **TPM2_Seal / TPM2_Unseal:** binds data (a wrapping key) to a PCR-state precondition. Unsealing only succeeds if PCRs match. The BitLocker key-protector pattern depends on this primitive. Cross-link to `[[reference-secrets-management-discipline]]`.
 - **TSS 2.0 (TPM Software Stack):** ESYS (Enhanced System API) + FAPI (Feature API) + SYS (System API) layers. Intel-led OSS `tpm2-tools` is the canonical user-space utility set. `tpm2-tss` is the library.
 
-The TPM is a slow co-processor. A `TPM2_Quote` round-trip is on the order of 100ms `[unverified specific timing]` depending on the chip. Production deployments cache attestations rather than verifying per-request.
+The TPM is a slow co-processor. A `TPM2_Quote` round-trip takes roughly 100ms to several hundred ms depending on the chip. Production deployments cache attestations rather than verifying per-request.
 
 **Hierarchies and ownership:** TPM 2.0 has four hierarchies — endorsement, storage, platform, and null. Each has its own owner password and authorization policy. The platform hierarchy is owned by the firmware (BIOS/UEFI) and not accessible to the OS in practice. The endorsement hierarchy is the privacy-sensitive one (holds the EK); creation of AKs is anchored there. The storage hierarchy is where user-level wrapping happens. Operational mistake to avoid: TPM clear operations zero the storage hierarchy, breaking BitLocker key sealing — recovery keys exist for this reason.
 
 **Discrete vs firmware TPM vs vTPM.** Discrete TPMs are physical chips on the motherboard (Infineon SLB 9670, Nuvoton NPCT75x, ST33). Firmware TPMs (fTPM) run inside CPU firmware — Intel PTT (Platform Trust Technology) and AMD fTPM. Virtual TPMs (vTPM) are hypervisor-emulated TPMs bound to a VM. The security properties differ: discrete TPMs are physically isolated but slower and on a bus the adversary can probe (LPC / SPI sniffing on some boards); fTPMs share fate with CPU firmware (TPM-Fail anchor); vTPMs anchor in the hypervisor's host attestation rather than physical hardware.
 
-**Direct Anonymous Attestation (DAA).** Ernie Brickell + Jan Camenisch + Liqun Chen introduced DAA at ACM CCS 2004. The privacy problem DAA solves: in the Privacy-CA model, a CA learns which EK is attached to which application identity (the AK). DAA produces signatures verifiable as "from a legitimate TPM" without revealing which TPM. TPM 2.0 supports ECDAA (Elliptic-Curve DAA) using Pedersen commitments + Camenisch-Lysyanskaya signatures with bilinear pairings (BN curves). The FIDO Alliance specified ECDAA for use in FIDO2 authenticator attestation. Operational adoption is limited. Most enterprise TPM deployments still use the Privacy CA model — the privacy/anonymity guarantees of DAA are not load-bearing for enterprise device identity. Consumer ecosystems care more (FIDO authenticators), but Apple Anonymous Attestation took a different design path (per-batch keys, where a batch of devices shares an attestation key, providing K-anonymity at the batch level) and Google Play Integrity is a service-mediated model rather than DAA. ECDAA deployments at scale are rare `[unverified — researchers cite the gap repeatedly]`. The structural insight on why DAA stays academic: enterprise IT *wants* the device-to-user mapping for inventory and IR. The privacy property DAA delivers conflicts with the audit property enterprise wants. The consumer FIDO ecosystem, which would benefit, has converged on batch-anonymous attestation as a "good enough" privacy posture without DAA's cryptographic complexity. This is a recurring pattern in security: theoretical optima lose to operational pragmatics, and that loss is sometimes correct.
+**Direct Anonymous Attestation (DAA).** Ernie Brickell + Jan Camenisch + Liqun Chen introduced DAA at ACM CCS 2004. The privacy problem DAA solves: in the Privacy-CA model, a CA learns which EK is attached to which application identity (the AK). DAA produces signatures verifiable as "from a legitimate TPM" without revealing which TPM. TPM 2.0 supports ECDAA (Elliptic-Curve DAA) using Pedersen commitments + Camenisch-Lysyanskaya signatures with bilinear pairings (BN curves). The FIDO Alliance specified ECDAA for use in FIDO2 authenticator attestation. Operational adoption is limited. Most enterprise TPM deployments still use the Privacy CA model — the privacy/anonymity guarantees of DAA are not load-bearing for enterprise device identity. Consumer ecosystems care more (FIDO authenticators), but Apple Anonymous Attestation took a different design path (Apple issues a certificate for each credential public key, chained to Apple's WebAuthn Root CA) and Google Play Integrity is a service-mediated model rather than DAA. ECDAA deployments at scale are rare `[unverified — researchers cite the gap repeatedly]`. The structural insight on why DAA stays academic: enterprise IT *wants* the device-to-user mapping for inventory and IR. The privacy property DAA delivers conflicts with the audit property enterprise wants. The consumer FIDO ecosystem, which would benefit, has converged on batch-anonymous attestation as a "good enough" privacy posture without DAA's cryptographic complexity. This is a recurring pattern in security: theoretical optima lose to operational pragmatics, and that loss is sometimes correct.
 
 ## 3. Measured Boot vs Secure Boot
 
@@ -56,7 +56,7 @@ The event log is integrity-bound to the PCR but not itself authenticated. A priv
 
 **DRTM (Dynamic Root of Trust for Measurement)** is the third leg. SRTM (Static RoT) measures from power-on through bootloader and OS — the chain anchored at the platform firmware. DRTM (Intel TXT via SENTER, AMD via SKINIT) lets a late launch establish a clean measurement environment without rebooting, by resetting PCRs 17-22 and re-measuring the loaded code. Intel TXT underlies the Trusted Boot reference architecture; AMD's equivalent underlies the SKINIT-based SVM secure-launch flows. DRTM is operationally rare today; Microsoft System Guard (in some Windows 10/11 SKUs) uses it, but most server fleets do not.
 
-**TPM Reset attacks (`TPM Genie` / interposer-class):** physical attacks on the TPM-to-CPU bus (LPC / SPI / I2C) allow an interposer to substitute TPM responses, including TPM2_Quote outputs. Discrete TPMs on exposed buses are vulnerable. Trammell Hudson's research on TPM-Genie and bus interposers `[unverified specific attribution]` demonstrated this for several common motherboards. fTPMs avoid this since the bus is internal to the CPU package.
+**TPM Reset attacks (`TPM Genie` / interposer-class):** physical attacks on the TPM-to-CPU bus (LPC / SPI / I2C) allow an interposer to substitute TPM responses, including TPM2_Quote outputs. Discrete TPMs on exposed buses are vulnerable. Jeremy Boone's TPM Genie research (NCC Group, 2018), an I2C bus interposer for discrete TPMs, demonstrated this. fTPMs avoid this since the bus is internal to the CPU package.
 
 ## 4. Remote attestation protocols and verification models
 
@@ -77,7 +77,7 @@ The trade-off: passport is simpler but pushes complexity to every RP. Background
 
 **TCG TAP (Trusted Attestation Protocol):** information model for attestation data flowing between attester and verifier. TCG-specific complement to RATS.
 
-**DICE (Device Identifier Composition Engine):** TCG specification for hardware-rooted device identity in resource-constrained devices. CDI (Compound Device Identifier) derived from UDS (Unique Device Secret) + the measurement of the next-stage firmware: `CDI_n = HMAC(CDI_{n-1}, hash(stage_n))`. The next stage derives its own CDI from the previous CDI + its measurement. The chain produces a hardware-rooted identity that changes when any layer changes. DICE is the IoT / embedded analog of TPM-based attestation, intended for microcontrollers too small for a TPM. Microsoft Project Cerberus (server BMC), Azure Sphere (consumer IoT MCU), and ARM PSA Certified Level 2 build on DICE. Cross-link to `[[reference-rtos-embedded-os]]` and `[[reference-embedded-device-hardening-playbook]]`.
+**DICE (Device Identifier Composition Engine):** TCG specification for hardware-rooted device identity in resource-constrained devices. CDI (Compound Device Identifier) derived from UDS (Unique Device Secret) + the measurement of the next-stage firmware: `CDI_n = HMAC(CDI_{n-1}, hash(stage_n))`. The next stage derives its own CDI from the previous CDI + its measurement. The chain produces a hardware-rooted identity that changes when any layer changes. DICE is the IoT / embedded analog of TPM-based attestation, intended for microcontrollers too small for a TPM. Cross-link to `[[reference-rtos-embedded-os]]` and `[[reference-embedded-device-hardening-playbook]]`.
 
 **Endorsement vs attestation evidence — clarify terminology.** Endorsement is the manufacturer's claim about the hardware itself (the EK cert is an endorsement). Attestation evidence is what the device produces at runtime (the TPM2_Quote is evidence). RATS keeps these separate because verifiers consume both: they validate the endorsement chain once at provisioning + cache the resulting public key, then validate each piece of fresh evidence against that public key. Conflating them is a common architectural mistake — it leads to designs that fetch manufacturer certs on every verification.
 
@@ -103,13 +103,13 @@ Sibling section to `[[reference-confidential-computing]]` for full context; this
 
 **Intel SGX:** `EREPORT` instruction generates an SGX `REPORT` structure containing MRENCLAVE (the SHA-256 measurement of the enclave's code and data pages at load) + MRSIGNER (the signer's identity) + ISVPRODID + ISVSVN + attributes + a 64-byte report_data field that the enclave fills (typically a public key bound to a session). The REPORT is consumed by Intel's Quoting Enclave (QE), which converts it into a `QUOTE` signed with an EPID (legacy) or ECDSA (modern) key.
 
-Intel Attestation Service (IAS) was Intel's first-party attestation backend; it has been deprecated in favor of DCAP (Data Center Attestation Primitives), where the service operator runs its own Provisioning Certification Caching Service (PCCS) and verifier. DCAP-based attestation is the modern default for Azure Confidential Computing and AWS Nitro Enclaves operations against SGX `[unverified — DCAP is dominant on Azure; AWS Nitro is a different stack entirely]`.
+Intel Attestation Service (IAS) was Intel's first-party attestation backend; it has been deprecated in favor of DCAP (Data Center Attestation Primitives), where the service operator runs its own Provisioning Certification Caching Service (PCCS) and verifier. DCAP-based attestation is the modern default for Azure Confidential Computing operations against SGX.
 
-**Intel TDX:** TDREPORT → TDQUOTE pattern. Module TDX 1.0 / 1.5 / 2.0 are the milestone versions; TDX 1.5 introduced the modern attestation flow with VLEK/PCK certs. Quote includes TDX module measurement + MRTD (initial measurement of the TD) + RTMRs (Runtime Measurement Registers, 4 of them, analog of PCRs).
+**Intel TDX:** TDREPORT → TDQUOTE pattern. Module TDX 1.0 / 1.5 / 2.0 are the milestone versions; TD attestation uses Intel SGX quoting enclaves and the SGX (PCK) certificate infrastructure. Quote includes TDX module measurement + MRTD (initial measurement of the TD) + RTMRs (Runtime Measurement Registers, 4 of them, analog of PCRs).
 
-**AMD SEV-SNP:** `snp_guest_request` HV-call from the guest returns an `ATTESTATION_REPORT` containing chip-id + launch measurement + report_data + TCB version + platform info. Verified via the AMD Key Distribution Service (KDS) for the public chip endorsement key; or via VLEK (Versioned Loaded Endorsement Key) for fine-grained per-chip keys that allow CSP-mediated key issuance. The launch measurement covers initial guest memory + vCPU state.
+**AMD SEV-SNP:** `snp_guest_request` HV-call from the guest returns an `ATTESTATION_REPORT` containing chip-id + launch measurement + report_data + TCB version + platform info. Verified via the AMD Key Distribution Service (KDS) for the public chip endorsement key; or via VLEK (Versioned Loaded Endorsement Key), derived from seeds allocated to an enrolled cloud service provider rather than unique per chip. The launch measurement covers initial guest memory + vCPU state.
 
-**ARM CCA (Confidential Compute Architecture):** Realm Management Monitor (RMM) attestation. CCA Token format defined in TCG-aligned CBOR encoding. RMM signs a token covering Realm Initial Measurement (RIM) + Realm Extensible Measurements (REMs). Implementations in early stages as of 2026 `[unverified specific deployment maturity]`.
+**ARM CCA (Confidential Compute Architecture):** Realm Management Monitor (RMM) attestation. CCA Token format defined as a profile of the IETF Entity Attestation Token (EAT) in CBOR/COSE encoding. RMM signs a token covering Realm Initial Measurement (RIM) + Realm Extensible Measurements (REMs). Implementations in early stages as of 2026 `[unverified specific deployment maturity]`.
 
 **Apple Private Cloud Compute (PCC):** stateless inference across hardware + Apple secure boot chain. Each request includes attestation evidence that the PCC node runs a specific signed PCC image. Not TPM-based; bespoke to Apple silicon. Apple publishes the signed images via the Apple Transparency Log — clients can verify the running image is in the public log before submitting requests. The public-build property is the load-bearing claim Apple makes about PCC.
 
@@ -117,7 +117,7 @@ Intel Attestation Service (IAS) was Intel's first-party attestation backend; it 
 
 ## 7. Mobile platform attestation
 
-**Apple Managed Device Attestation (iOS 16+ / macOS 13+, 2022):**
+**Apple Managed Device Attestation (iOS 16+ / macOS 14+):**
 - **DeviceCheck App Attest** (iOS 14+): per-app keypair generated in the Secure Enclave; provides a token that says "this is from a legitimate iOS device" + "from this app instance" (the app's bundle ID is bound to the key). Token verified by the RP against Apple's public-key endpoint. The key is anonymous to Apple — Apple cannot identify which device, only that some legitimate device produced the assertion.
 - **Managed Device Attestation** extends App Attest to ACME challenges for MDM scenarios — device enrolls a cert with the MDM CA, and the CSR is bound to a hardware attestation. Cross-link to `[[reference-zero-trust-workload-identity]]` for device posture in ZT enrollment.
 
@@ -126,7 +126,7 @@ Intel Attestation Service (IAS) was Intel's first-party attestation backend; it 
 - **Attestation certificate chain:** rooted in Google's root attestation key. When an app calls `KeyStore.getCertificateChain(alias)`, the chain includes Google's root → manufacturer → device certificate with an attestation extension. The extension contains hardware-enforced properties (key purpose / algorithm / origin / OS version / patch level / boot state) and software-enforced properties.
 - **Play Integrity API:** replaced SafetyNet Attestation. Deprecation announced 2022; full sunset by January 2025 `[unverified specific final deprecation date]`. Play Integrity provides device-integrity (MEETS_DEVICE_INTEGRITY / MEETS_BASIC_INTEGRITY / MEETS_STRONG_INTEGRITY) + app-integrity + account-integrity claims. Google-mediated; backed by Play Protect telemetry rather than purely cryptographic.
 
-**Pixel StrongBox:** dedicated secure element in Pixel 3 onward. FIDO-certified at L2 `[unverified specific level]`. The StrongBox attestation chain is rooted in a Google-signed certificate; verifiers extract the AAGUID and validate via FIDO MDS for FIDO-related use, or via Google's attestation roots for keystore-related use.
+**Pixel StrongBox:** dedicated secure element in Pixel 3 onward. The StrongBox attestation chain is rooted in a Google-signed certificate; verifiers extract the AAGUID and validate via FIDO MDS for FIDO-related use, or via Google's attestation roots for keystore-related use.
 
 **Samsung Knox attestation:** TIMA (TrustZone-based Integrity Measurement Architecture) on Knox-enabled Samsung devices. Provides measured-boot equivalent in the TrustZone secure world. Samsung-signed attestation. Less commonly used outside enterprise MDM scenarios.
 
@@ -150,13 +150,13 @@ WebAuthn attestation statement formats (registered in IANA WebAuthn registry):
 - **`packed`:** generic format. Signed attestation statement with AAGUID + signature over the authenticator data + client data hash. The default for most modern security keys.
 - **`fido-u2f`:** legacy U2F attestation format, used for first-gen YubiKeys and similar pre-WebAuthn devices.
 - **`android-key`:** Android hardware-backed Keystore attestation chain. The full Google-rooted cert chain with the attestation extension.
-- **`android-safetynet`:** legacy; migrated to `android-key` + Play Integrity by 2024 `[unverified specific deprecation date]`.
-- **`apple`:** Apple anonymous attestation (App Attest variant) for Apple platform authenticators.
-- **`tpm`:** TPM 2.0 attestation format. Windows Hello uses this — the Windows Hello credential is bound to the device's TPM and the WebAuthn attestation is a TPM2_Quote-style signature.
+- **`android-safetynet`:** legacy; marked deprecated in the WebAuthn spec in 2024 following Google's SafetyNet deprecation.
+- **`apple`:** Apple Anonymous Attestation for Apple platform authenticators (distinct from App Attest).
+- **`tpm`:** TPM 2.0 attestation format. Windows Hello uses this — the Windows Hello credential is bound to the device's TPM and the WebAuthn attestation is a TPM2_Certify signature over the credential key (`certInfo`).
 
 **AAGUID:** 128-bit identifier for the authenticator model. FIDO MDS (Metadata Service) endpoint resolves AAGUID → model metadata, certification status, supported algorithms, transports, and certification history. RPs that care about authenticator quality pin allowed AAGUID lists; RPs that don't (most consumer deployments) accept all AAGUIDs including AAGUID=zero for privacy.
 
-The structural insight: WebAuthn attestation formats abstract over the underlying hardware-attestation substrate. A `tpm`-format WebAuthn attestation is a TPM2_Quote; an `android-key`-format is an Android Keystore chain; an `apple`-format is App Attest. The format is the wire encoding; the substrate is the hardware-rooted chain.
+The structural insight: WebAuthn attestation formats abstract over the underlying hardware-attestation substrate. A `tpm`-format WebAuthn attestation is a TPM2_Certify output; an `android-key`-format is an Android Keystore chain; an `apple`-format is an Apple Anonymous Attestation certificate. The format is the wire encoding; the substrate is the hardware-rooted chain.
 
 ## 9. Cloud-side platform attestation
 
@@ -172,7 +172,7 @@ The structural insight: WebAuthn attestation formats abstract over the underlyin
 
 **GCP Shielded VMs:** vTPM + Measured Boot + Secure Boot for VMs. Similar shape to Azure Trusted Launch; Google-attested rather than customer-attested for the host layer.
 
-**Org-internal verifier alternatives:** Veraison (Linux Foundation project, Mike Bursell + community) is an open-source attestation verifier that supports SGX / TDX / SEV-SNP / TPM / CCA evidence formats. Profian commercialized Veraison `[unverified current commercial status]`. Org-internal verifiers reduce the cloud-provider as trust root, at the cost of operating verifier infrastructure.
+**Org-internal verifier alternatives:** Veraison (founded within Arm, now a Confidential Computing Consortium project in the Linux Foundation) is an open-source attestation verifier that supports PSA / CCA / TPM evidence formats. Org-internal verifiers reduce the cloud-provider as trust root, at the cost of operating verifier infrastructure.
 
 ## 10. Verification discipline
 
@@ -216,7 +216,7 @@ Reference-value management is the soft underbelly of attestation programs. When 
 ## 11. 2024-2026 currency
 
 - **IETF RATS RFC 9334 (Jan 2023 `[unverified exact month]`):** canonical modern terminology.
-- **DICE adoption growing in IoT:** Microsoft Cerberus (server BMC), Azure Sphere, and ARM PSA Certified Level 2+ push DICE as the IoT identity primitive for parts too small for full TPM.
+- **DICE adoption growing in IoT:** DICE is the IoT identity primitive for parts too small for full TPM.
 - **Apple Private Cloud Compute (June 2024 announcement):** stateless inference + per-request attestation against the Apple Transparency Log. The public-build property is the unique design choice; cross-link to `[[reference-confidential-computing]]` §"Apple PCC" for full architecture.
 - **Android Play Integrity supersedes SafetyNet:** full sunset by January 2025 `[unverified specific final date]`. App developers must migrate to Play Integrity API.
 - **NVIDIA H100 Confidential Computing GA:** GPU attestation as a new substrate. Confidential AI inference depends on this for protecting model weights from cloud-operator inspection.
@@ -225,25 +225,25 @@ Reference-value management is the soft underbelly of attestation programs. When 
 
 ## 12. Real attack corpus
 
-- **TPM-Fail (CVE-2019-11090, CVE-2019-16863, Moghimi + Sunar + Lukasiewicz + Genkin et al., 2019):** ECDSA timing side-channel in Intel fTPM and STMicroelectronics ST33TPHF2ESPI. Recovered TPM-resident ECDSA private keys via timing measurements on attestation operations. Anchor for "TPM is not a magic root of trust; specific implementations have specific bugs." Affected fTPM patched via Intel microcode updates; ST33 patched via firmware update. Cross-link to `[[reference-hardware-side-channels]]`.
+- **TPM-Fail (CVE-2019-11090, CVE-2019-16863, Moghimi + Sunar + Eisenbarth + Heninger, 2019):** ECDSA timing side-channel in Intel fTPM and STMicroelectronics ST33TPHF2ESPI. Recovered TPM-resident ECDSA private keys via timing measurements on attestation operations. Anchor for "TPM is not a magic root of trust; specific implementations have specific bugs." Affected fTPM patched via Intel Management Engine firmware update; ST33 patched via firmware update. Cross-link to `[[reference-hardware-side-channels]]`.
 
-- **EUCLEAK (August 2024, NinjaLab — Thomas Roche):** Infineon SLE78 / SLE97 family — used in some FIDO2-certified hardware tokens including older YubiKey 5-series and TPM modules. ECDSA private-key recovery via EM emanations during signing. Roche's paper "EUCLEAK Side-Channel Attack on the YubiKey 5 Series" demonstrates ~$11k equipment cost + physical access. Cross-link to `[[reference-webauthn-fido2-passkeys]]` and `[[reference-hardware-side-channels]]`. Implication for attestation: hardware-rooted does not mean physically-secure against side channels.
+- **EUCLEAK (September 2024, NinjaLab — Thomas Roche):** Infineon SLE78 family — used in some FIDO2-certified hardware tokens including older YubiKey 5-series and TPM modules. ECDSA private-key recovery via EM emanations during signing. Roche's paper "EUCLEAK Side-Channel Attack on the YubiKey 5 Series" demonstrates ~$11k equipment cost + physical access. Cross-link to `[[reference-webauthn-fido2-passkeys]]` and `[[reference-hardware-side-channels]]`. Implication for attestation: hardware-rooted does not mean physically-secure against side channels.
 
-- **ROCA / Return Of Coppersmith's Attack (CVE-2017-15361, Matus Nemec + Marek Sys + Petr Svenda et al., Masaryk University, 2017):** Infineon RSA key-generation algorithm produced factorable keys. Affected TPM RSA EK / AK / SRK on many Infineon chips. Practical key-recovery in days-to-weeks of CPU time depending on key size. Massive industry response — Estonian ID-card replacement, Microsoft / HP / Lenovo BIOS updates issuing new EK certs.
+- **ROCA / Return Of Coppersmith's Attack (CVE-2017-15361, Matus Nemec + Marek Sys + Petr Svenda et al., Masaryk University, 2017):** Infineon RSA key-generation algorithm produced factorable keys. Affected TPM RSA EK / AK / SRK on many Infineon chips. Practical key-recovery: ~97 CPU-days for 1024-bit and ~140.8 CPU-years for 2048-bit keys. Massive industry response — Estonian ID cards affected, Microsoft / HP / Lenovo TPM firmware updates.
 
-- **Faulty Intel Boot Guard (Intel-SA-00075, 2017):** firmware-rooted attestation bypass via Intel ME / AMT vulnerability. Allowed bypass of measured boot's foundation.
+- **Intel AMT privilege escalation (INTEL-SA-00075, CVE-2017-5689, 2017):** escalation-of-privilege flaw in Intel Active Management Technology / Standard Manageability / Small Business Technology firmware versions 6.x-11.6.
 
 - **Intel ME activation primitive (Goryachy + Ermolov 2017-2018):** Maxim Goryachy and Mark Ermolov (Positive Technologies) demonstrated Intel Management Engine activation primitives allowing firmware modification. ME runs below the OS and below the measured-boot point of reference — modifications can in principle subvert the measurement chain itself.
 
-- **BootHole (CVE-2020-10713, July 2020):** GRUB2 grub.cfg buffer overflow allowing Secure Boot bypass. Affected nearly every Linux distribution shipping with Secure Boot. dbx update rollout was painful — the dbx list grew so large it broke older UEFI implementations. Recovery took 1+ year across the ecosystem.
+- **BootHole (CVE-2020-10713, July 2020):** GRUB2 grub.cfg buffer overflow allowing Secure Boot bypass. Affected nearly every Linux distribution shipping with Secure Boot. dbx update rollout was painful — updating dbx before the shim / bootloader left systems unable to boot, and Red Hat's initial fix packages caused systems to hang.
 
-- **LogoFAIL (December 2023, Binarly — Alex Matrosov et al.):** UEFI image-parsing vulnerabilities in vendor BIOS firmware. Boot-logo parsers in firmware from AMI, Insyde, Phoenix had memory-corruption bugs exploitable by a UEFI-accessible BMP / PNG / PCX file. Bypasses Secure Boot before Measured Boot can record. Cross-link to `[[reference-vulnerability-research-methodology]]` for the variant-analysis angle Binarly applied.
+- **LogoFAIL (December 2023, Binarly):** UEFI image-parsing vulnerabilities in vendor BIOS firmware. Boot-logo parsers in firmware from AMI, Insyde, Phoenix had memory-corruption bugs exploitable by a UEFI-accessible crafted image file (e.g. BMP). Bypasses Secure Boot before Measured Boot can record. Cross-link to `[[reference-vulnerability-research-methodology]]` for the variant-analysis angle Binarly applied.
 
 - **BlackLotus UEFI bootkit (March 2023, ESET — Martin Smolár):** first publicly-confirmed UEFI bootkit bypassing Secure Boot via Baton Drop (CVE-2022-21894, Microsoft). Persistent across reinstall + secure-boot-enabled. Available as a $5k commercial kit on cybercrime forums.
 
-- **TPM-Carte-Blanche / TPM sniffing on commodity laptops (2021, Dolos Group — Tom Hughes):** demonstrated bus-sniffing the LPC bus between a discrete TPM and the CPU on a Lenovo ThinkPad, recovering BitLocker key material during boot. Anchor for "discrete TPM on exposed bus is not adversary-resistant against physical access." Mitigation: pre-boot PIN + virtual TPM in CPU (fTPM via Intel PTT / AMD fTPM, with their own caveats).
+- **TPM sniffing on commodity laptops (2021, Dolos Group):** demonstrated bus-sniffing the SPI bus between a discrete TPM and the CPU on a Lenovo laptop, recovering BitLocker key material during boot. Anchor for "discrete TPM on exposed bus is not adversary-resistant against physical access." Mitigation: pre-boot PIN + virtual TPM in CPU (fTPM via Intel PTT / AMD fTPM, with their own caveats).
 
-- **PixieFAIL (Quarkslab + Binarly, January 2024) `[unverified specific attribution]`:** UEFI PXE / TCP/IP network stack vulnerabilities. Pre-boot remote code execution, before Secure Boot's signature-checking even applies to the loaded code. Bypasses attestation by occurring before the measurement chain begins.
+- **PixieFAIL (Quarkslab, January 2024):** nine vulnerabilities in the UEFI (TianoCore EDK II) PXE / TCP/IP network stack. Pre-boot remote code execution, before Secure Boot's signature-checking even applies to the loaded code. Bypasses attestation by occurring before the measurement chain begins.
 
 - **GitHub Actions attestation supply-chain class (broader Shai-Hulud / TJ-actions corpus, 2024-2025):** not a TPM attack but a parallel — when build-system attestations (sigstore / SLSA) are themselves emitted by compromised CI runners, the attestation says "this artifact built in this CI" which is true and useless. Cross-link to `[[reference-cicd-supply-chain]]` and `[[reference-supply-chain-provenance]]`. The lesson generalizes: attestation tells you what signed, not whether the signing context was clean.
 
@@ -269,7 +269,7 @@ This section is where the doc earns its keep. Most failures are not in the crypt
 
 - **Reference-value rotation lags reality.** When new firmware ships, golden values must update. The lag is typically weeks-to-months during which fleet attestation fails until ops catches up. Plan for staged rollout matching the firmware rollout cadence.
 
-- **Verifying an attestation costs CPU and adds latency.** A `TPM2_Quote` round-trip is ~100ms `[unverified specific timing]`; an SGX QUOTE verification involves PCK certificate fetches. Production deployments verify-on-first-use + cache. The cache becomes the attack surface — an attacker who games the cache attacks systems past the attestation window. Cache invalidation policy must respond to TCB recovery, key rotation, and policy change.
+- **Verifying an attestation costs CPU and adds latency.** A `TPM2_Quote` round-trip on hardware TPMs has been measured at hundreds of milliseconds; an SGX QUOTE verification involves PCK certificate fetches. Production deployments verify-on-first-use + cache. The cache becomes the attack surface — an attacker who games the cache attacks systems past the attestation window. Cache invalidation policy must respond to TCB recovery, key rotation, and policy change.
 
 - **Measured Boot does not measure runtime behavior.** Once the OS is booted and recorded, what the OS does afterward is not in the measurement chain. Runtime integrity (IMA-appraisal, eBPF runtime sensors, EDR) is a separate discipline. Cross-link to `[[reference-detection-engineering]]`.
 
@@ -294,9 +294,9 @@ This section is where the doc earns its keep. Most failures are not in the crypt
 Concrete sequence for enrolling a corporate laptop into a zero-trust device-identity program using TPM attestation. Sibling to `[[reference-zero-trust-workload-identity]]` §7.
 
 **Step 1 — provisioning (one-time, factory or IT depot):**
-- Confirm TPM 2.0 present + enabled in firmware. Most enterprise platforms ship with TPM disabled in OEM defaults `[unverified — varies by vendor]`.
-- Pull the manufacturer EK certificate. On Windows: `tpm.msc` → "TPM Manufacturer Information." On Linux: `tpm2_getekcertificate`.
-- Validate the EK certificate chain to the TCG root via the manufacturer-published intermediate certificates. Infineon, Nuvoton, ST, Intel, AMD publish these. Cache the validated EK public key in the provisioning database.
+- Confirm TPM 2.0 present + enabled in firmware.
+- Pull the manufacturer EK certificate. On Windows: `Get-TpmEndorsementKeyInfo` (`ManufacturerCertificates`). On Linux: `tpm2_getekcertificate`.
+- Validate the EK certificate chain to the manufacturer root CA via the manufacturer-published intermediate certificates. Infineon, Nuvoton, ST, Intel, AMD publish these. Cache the validated EK public key in the provisioning database.
 - Create an AK using `tpm2_createak` (or platform-equivalent). Optionally, request a Privacy CA to issue an AK cert that the verifier will accept. The AK is the durable cryptographic identity for this device.
 
 **Step 2 — baseline measurement (golden values):**
@@ -362,7 +362,7 @@ Concrete sequence for enrolling a corporate laptop into a zero-trust device-iden
 
 This doc anchors hardware attestation as a cross-cutting discipline. It does not redo TEE attestation, FIDO attestation, or HSM custody — those siblings are referenced, not duplicated. The center of gravity is verification discipline (§10) and honest failure modes (§13): most attestation programs ship the cryptography correctly and break on operations.
 
-Primary sources cited: Brickell + Camenisch + Chen (DAA); Zohar + Sailer (IMA, USENIX 2004); Grawrock (Intel TXT book); Arthur + Challener + Goldman ("A Practical Guide to TPM 2.0", Apress 2015); Moghimi + Sunar + Lukasiewicz + Genkin (TPM-Fail); Roche (EUCLEAK 2024); Nemec + Sys + Svenda (ROCA); Goryachy + Ermolov (Intel ME); Matrosov + Binarly (LogoFAIL); Smolár / ESET (BlackLotus); Regenscheid (NIST RoT-M); Birkholz (RATS RFC 9334 lead); Bursell (Veraison / Confidential Computing Consortium). Trammell Hudson's Heads / coreboot research is referenced indirectly via the measured-boot ecosystem `[unverified specific attribution]`.
+Primary sources cited: Brickell + Camenisch + Chen (DAA); Sailer + Zhang + Jaeger + van Doorn (IMA, USENIX Security 2004); Grawrock (Intel TXT book); Arthur + Challener + Goldman ("A Practical Guide to TPM 2.0", Apress 2015); Moghimi + Sunar + Eisenbarth + Heninger (TPM-Fail); Roche (EUCLEAK 2024); Nemec + Sys + Svenda (ROCA); Goryachy + Ermolov (Intel ME); Binarly (LogoFAIL); Smolár / ESET (BlackLotus); Regenscheid (NIST RoT-M); Birkholz (RATS RFC 9334 lead); Arm (Veraison, donated to the Confidential Computing Consortium). Trammell Hudson's Heads / coreboot research is referenced indirectly via the measured-boot ecosystem `[unverified specific attribution]`.
 
 Gaps surfaced for future revisions:
 - A separate doc on **reference-value management at fleet scale** (operational playbook). Currently §10 is the only treatment; deserves its own ~30KB sibling.
