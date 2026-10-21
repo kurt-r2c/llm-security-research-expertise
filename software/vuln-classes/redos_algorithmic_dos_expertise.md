@@ -2,16 +2,16 @@
 ## Synthesized from Scott Crosby & Dan Wallach, James C. Davis, Cristian-Alexandru Staicu, Michael Pradel, Yeting Li, Nicolaas Weideman & Brink van der Merwe, Russ Cox, Alexander Klink & Julian Wälde, John Graham-Cumming and Cloudflare engineering, Liran Tal and the Snyk research team, and Kurt Boberg
 
 > **Researchers:**
-> - **Scott A. Crosby and Dan S. Wallach (Rice University, 2003)** — "Denial of Service via Algorithmic Complexity Attacks," 12th USENIX Security Symposium. Foundational paper for the class. Demonstrated that any data structure engineered for average-case performance leaves a worst-case exploitable when the attacker controls input distribution: Perl 5.6.1 hash table (~6000x slowdown), Bro IDS pattern matching, Squid's hash-table DoS. The "computational complexity as attack surface" framing is the lineage every later paper inherits from.
-> - **James C. Davis (Purdue ECE; formerly Virginia Tech)** — First author of "The Impact of Regular Expression Denial of Service (ReDoS) in Practice: An Empirical Study at the Ecosystem Scale" (ESEC/FSE 2018, with Coghlan, Servant, Lee). Quantified ReDoS at ecosystem scale: extracted regexes from 448,402 npm and PyPI modules (>50% of each registry), classified by complexity, demonstrated existing CI tooling failed to catch them. Maintains `davisjam/vuln-regex-detector`, the canonical static+dynamic scanner. Also authored "SoK: A Literature and Engineering Review of ReDoS."
-> - **Cristian-Alexandru Staicu (CISPA; formerly TU Darmstadt with Michael Pradel)** — First author of "Freezing the Web: A Study of ReDoS Vulnerabilities in JavaScript-based Web Servers" (USENIX Security 2018). Identified 25 previously unknown ReDoS vulnerabilities and tested 2,846 of the most popular websites; 339 (12%) were exploitable. Discovered CVE-2017-16042 (growl), CVE-2017-16119 (`fresh`, ships with Express), CVE-2017-15010 (`tough-cookie`).
+> - **Scott A. Crosby and Dan S. Wallach (Rice University, 2003)** — "Denial of Service via Algorithmic Complexity Attacks," 12th USENIX Security Symposium. Foundational paper for the class. Demonstrated that any data structure engineered for average-case performance leaves a worst-case exploitable when the attacker controls input distribution: Perl 5.6.1 hash table (three orders of magnitude slowdown), Bro IDS port-scan-detector hash table, Squid's hash-table DoS. The "computational complexity as attack surface" framing is the lineage every later paper inherits from.
+> - **James C. Davis (Purdue ECE; formerly Virginia Tech)** — First author of "The Impact of Regular Expression Denial of Service (ReDoS) in Practice: An Empirical Study at the Ecosystem Scale" (ESEC/FSE 2018, with Coghlan, Servant, Lee). Quantified ReDoS at ecosystem scale: extracted regexes from 448,402 npm and PyPI modules (>50% of each registry), classified by complexity, showed that conventional super-linear regex anti-pattern heuristics have many false positives. Maintains `davisjam/vuln-regex-detector`, the canonical static+dynamic scanner. Also authored "SoK: A Literature and Engineering Review of ReDoS."
+> - **Cristian-Alexandru Staicu (CISPA; formerly TU Darmstadt with Michael Pradel)** — First author of "Freezing the Web: A Study of ReDoS Vulnerabilities in JavaScript-based Web Servers" (USENIX Security 2018). Identified 25 previously unknown ReDoS vulnerabilities and tested 2,846 of the most popular websites; 339 (12%) were exploitable. Discovered CVE-2017-16119 (`fresh`, ships with Express), CVE-2017-15010 (`tough-cookie`).
 > - **Michael Pradel (University of Stuttgart Software Lab; formerly TU Darmstadt)** — Co-author on "Freezing the Web" and PI of the Software Lab. Broader research program in JavaScript security (Synode, Nodest); the lab produced the largest set of ReDoS-PoC npm CVEs in 2017-2018.
-> - **Yeting Li (Institute of Software, Chinese Academy of Sciences)** — First author of "ReDoSHunter" (USENIX Security 2021) and "RegexScalpel: ReDoS Defense by Localize-and-Fix" (USENIX Security 2022). Among 448 vulnerable regexes from production code, RegexScalpel repaired 443 (98.88%); prior state-of-the-art repaired 95 (21.20%). First work to handle backreferences and lookarounds — the features that put regexes outside RE2's regular-language frontier.
+> - **Yeting Li (Institute of Software, Chinese Academy of Sciences)** — First author of "ReDoSHunter" (USENIX Security 2021) and "RegexScalpel: ReDoS Defense by Localize-and-Fix" (USENIX Security 2022). Among 448 vulnerable regexes from production code, RegexScalpel repaired 443 (98.88%); prior state-of-the-art repaired 95 (21.20%).
 > - **Nicolaas Weideman and Brink van der Merwe (University of Stellenbosch)** — Authors of "Analyzing Matching Time Behavior of Backtracking Regular Expression Matchers by Using Ambiguity of NFA" (CIAA 2016) and "Turning Evil Regexes Harmless" (SAICSIT 2017). Automata-theoretic foundation of static ReDoS detection: classify an NFA by ambiguity (finite, polynomially-ambiguous, exponentially-ambiguous) to determine worst-case matching time. Tool: `github.com/NicolaasWeideman/RegexStaticAnalysis`. Most production ReDoS scanners are downstream of this lineage.
 > - **Russ Cox (Google)** — Author of the "Regular Expression Matching" series at swtch.com/~rsc/regexp/ (2007-2010). Designer of RE2, the Thompson-NFA-based regex engine adopted by Go, Rust, and Cloudflare (post-2019). The canonical argument that backtracking engines are an engineering mistake whenever attacker influence on pattern or input is possible.
 > - **Alexander Klink and Julian Wälde (n.runs AG, 2011)** — Presented "Efficient Denial of Service Attacks on Web Application Platforms" at 28C3. Demonstrated that nearly every server-side web platform (PHP, Java, ASP.NET, Python, Ruby, V8) processed HTTP POST parameters into a fixed-seed hash table with predictable collisions, leaving every platform vulnerable to single-request CPU-exhaustion. CVE-2011-4885 (PHP), CVE-2011-3414 (ASP.NET, MS11-100), and the ecosystem-wide migration to randomized hash seeds (Python PEP 456, Ruby 1.9.3, Perl 5.18) and treeified buckets (Java 8 JEP 180).
 > - **John Graham-Cumming and Cloudflare engineering (2019)** — "Details of the Cloudflare outage on July 2, 2019." Canonical public-incident-of-record for ReDoS in a production WAF: a single regex deployed globally in simulate mode caused 27 minutes of near-total outage, 80%+ traffic loss, CPU pinned at ~100% across the edge. The trailing fragment `.*(?:.*=.*)` exhibited catastrophic backtracking on benign inputs. Remediation: replace PCRE-based Lua WAF with RE2 or Rust-regex; staged rollouts; emergency kill-switch.
-> - **Liran Tal and Snyk Research** — Director of Developer Relations at Snyk; author of "Regular Expression Denial of Service and Catastrophic Backtracking" and annual "State of Open Source Security" reports quantifying ReDoS prevalence in npm year-over-year. Snyk's vulnerability database is the de-facto canonical ReDoS CVE catalogue.
+> - **Liran Tal and Snyk Research** — Director of Developer Relations at Snyk. Snyk publishes annual "State of Open Source Security" reports quantifying ReDoS prevalence in npm year-over-year. Snyk's vulnerability database is the de-facto canonical ReDoS CVE catalogue.
 > - **Kurt Boberg (GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Six publicly-credited CVEs in the cluster: **CVE-2018-3739** `https-proxy-agent` (GHSA-8g7p-74h8-hg48); **GHSA-7wwv-vh3v-89cq** `highlight.js` (ReDoS across 35+ grammars); **CVE-2022-29546** NekoHtml (GHSA-6jmm-mp6w-4rrg); **CVE-2022-33082** Open Policy Agent (GHSA-2m4x-4q9j-w97g); **CVE-2022-26924** Microsoft YARP (GHSA-8xc6-g8xw-h2c4); **CVE-2022-40151** XStream (GHSA-3mq5-fq9h-gj7j).
 >
 > Sources: usenix.org/legacy/events/sec03; davisjam.github.io; staicu.org; software-lab.org; yetingli.github.io; github.com/NicolaasWeideman/RegexStaticAnalysis; swtch.com/~rsc/regexp/; fahrplan.events.ccc.de/congress/2011; blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/; snyk.io/blog/redos-and-catastrophic-backtracking/; github.com/advisories; nvd.nist.gov; x-stream.github.io/CVE-2022-40151.html.
@@ -50,7 +50,7 @@ Normal performance bugs — unindexed queries, N+1 fetches — degrade gracefull
 
 PCRE, Perl, Python `re`, Java `java.util.regex`, Ruby `Regexp` (pre-3.2), JavaScript V8, .NET `Regex` — all implement regex matching by simulating an NFA via depth-first backtracking. When a pattern reaches a choice point (alternation, quantifier), the engine tries one branch, and on failure backtracks. For patterns where choices overlap and the input maximizes failed attempts before final rejection, the engine explores exponentially many paths.
 
-The Russ Cox 2007 essay (swtch.com/~rsc/regexp/regexp1.html) is the canonical demonstration: matching `a?a?a?...a?aaa...a` (n `a?` followed by n `a`) against `aaaa...a` (n `a`s) against backtracking Perl takes time `2^n`. Against Thompson's NFA-simulation (RE2's foundation), it completes in linear time. The Thompson construction (1968) is older than every shipping backtracking engine; the engineering choice to use backtracking was driven by feature compatibility (backreferences, lookarounds) rather than performance.
+The Russ Cox 2007 essay (swtch.com/~rsc/regexp/regexp1.html) is the canonical demonstration: matching `a?a?a?...a?aaa...a` (n `a?` followed by n `a`) against `aaaa...a` (n `a`s) against backtracking Perl takes time `2^n`. Against Thompson's NFA-simulation (RE2's foundation), it completes in polynomial time — O(mn) for a pattern of length m on text of length n. The Thompson construction (1968) is older than every shipping backtracking engine; the engineering choice to use backtracking was driven by feature compatibility (backreferences, lookarounds) rather than performance.
 
 ### The three vulnerable patterns
 
@@ -64,8 +64,8 @@ Davis, Weideman, and Li converge on the same taxonomy:
 
 ### Polynomial vs exponential
 
-- **Exponential ReDoS**: `O(2^n)` or `O(c^n)`. Triggered by nested or overlapping quantifiers without anchoring. Rare in practice (Davis: ~3% of vulnerable regexes); devastating — ~50 chars of input takes hours.
-- **Polynomial ReDoS**: `O(n^k)` for `k >= 2`. Most real-world vulnerable regexes (~97% per Davis). ~100KB of input takes seconds; with worker pools, sufficient for service-wide DoS.
+- **Exponential ReDoS**: `O(2^n)` or `O(c^n)`. Triggered by nested or overlapping quantifiers without anchoring. Rare in practice (Davis: nearly 300 of 4,000+ super-linear regexes); devastating — ~50 chars of input takes hours.
+- **Polynomial ReDoS**: `O(n^k)` for `k >= 2`. Most real-world vulnerable regexes (per Davis). ~100KB of input takes seconds; with worker pools, sufficient for service-wide DoS.
 
 **Defensive implication: do not assume "only exponential ReDoS matters."** A `k=3` regex on a 100KB input field is a working primitive. Most ReDoS CVEs in npm and PyPI are polynomial.
 
@@ -73,11 +73,11 @@ Davis, Weideman, and Li converge on the same taxonomy:
 
 | Runtime | Engine | Algorithm | Timeout? | Notes |
 |---|---|---|---|---|
-| JavaScript V8 (Node, Chrome) | Irregexp | Backtracking | No built-in | Lookbehind 2018 (ES2018); no per-match timeout API. Cloudflare wrote `re2` Node bindings; most apps don't. |
-| JavaScript SpiderMonkey (Firefox 78+) | Irregexp (forked) | Backtracking | No built-in | Replaced YARR in Firefox 78 (2020). Same algorithmic profile as V8. |
+| JavaScript V8 (Node, Chrome) | Irregexp | Backtracking | No built-in | Lookbehind 2018 (ES2018); no per-match timeout API. The `re2` npm package (uhop/node-re2) provides RE2 bindings; most apps don't use it. |
+| JavaScript SpiderMonkey (Firefox 78+) | Irregexp (upstream V8, via shim) | Backtracking | No built-in | Replaced SpiderMonkey's 2014 Irregexp fork in Firefox 78 (2020). Same algorithmic profile as V8. |
 | Python `re` (CPython) | Custom backtracker | Backtracking | No built-in | `re.compile` does not help — compilation caches the NFA, not the matching strategy. |
-| Python `regex` (PyPI 3rd-party) | Custom | Backtracking with better cutoffs | `timeout` keyword (2025+) | Strict superset of `re` features; partial ReDoS mitigation. |
-| Java `java.util.regex` | Custom | Backtracking | No built-in for `Matcher` itself; `InterruptibleCharSequence` workaround | OpenJDK enhancement requests JDK-8268854 and JDK-8234713 remain open. Use `InterruptibleCharSequence` + thread interrupt for timeout. |
+| Python `regex` (PyPI 3rd-party) | Custom | Backtracking with better cutoffs | `timeout` keyword | Strict superset of `re` features; partial ReDoS mitigation. |
+| Java `java.util.regex` | Custom | Backtracking | No built-in for `Matcher` itself; `InterruptibleCharSequence` workaround | OpenJDK enhancement request JDK-8234713 (`InterruptibleMatcher`) remains open; JDK-8268854 was closed as a duplicate. Use `InterruptibleCharSequence` + thread interrupt for timeout. |
 | Ruby `Regexp` (pre-3.2) | Onigmo | Backtracking | No | |
 | Ruby `Regexp` (3.2+, Dec 2022) | Memoized backtracker | Memoization-based | `Regexp.timeout=` global; `timeout:` keyword per-regex | ~90% of regexes become linear-time via memoization; remainder bounded by timeout. Backreferences and some lookarounds excluded from memoization. |
 | PHP PCRE | PCRE2 | Backtracking | `pcre.backtrack_limit`, `pcre.recursion_limit` | INI-tunable. Partial mitigation: limits the worst case but doesn't prevent slow-but-bounded ReDoS. |
@@ -118,7 +118,7 @@ Six publicly-credited CVEs / GHSAs span the cluster from classical ReDoS through
 
 **Exploit.** Widely deployed in client-side rendering of user-submitted content. `hljs.highlightAuto(userContent)` iterates through registered grammars trying each. A single user-submitted code block that hits the exponential worst case in any registered grammar freezes the rendering thread. In SSR contexts (Next, SvelteKit, Astro), this is the request handler.
 
-**Why the multi-grammar surface matters.** The case study for "your DoS surface is the union of every regex you transitively load." The `highlight.min.js` bundle registers all 190+ grammars by default. The attacker doesn't need to know which grammar contains the bad regex; `highlightAuto` tries every one.
+**Why the multi-grammar surface matters.** The case study for "your DoS surface is the union of every regex you transitively load." Requiring `highlight.js` in Node registers all languages by default (the CDN `highlight.min.js` bundles a common subset). The attacker doesn't need to know which grammar contains the bad regex; `highlightAuto` tries every one.
 
 **Fix.** 10.4.1 rewrote vulnerable regexes — anchored-non-greedy form, or replacing regex-based parsing with hand-written state machines (e.g. JavaScript template literals).
 
@@ -126,25 +126,25 @@ Six publicly-credited CVEs / GHSAs span the cluster from classical ReDoS through
 
 ### CVE-2022-29546 — NekoHtml processing-instruction OOM (GHSA-6jmm-mp6w-4rrg, CVSS 7.5)
 
-**Pattern.** NekoHtml 2.60.0 and earlier allocated unbounded heap memory when parsing crafted XML processing instructions (`<?target data?>`). The PI-handling path accumulated content into a growable buffer without bounding max size or max PI count per document.
+**Pattern.** NekoHtml 2.60.0 and earlier allocated unbounded heap memory when parsing crafted XML processing instructions (`<?target data?>`).
 
 **Exploit.** A single HTML document containing a large or deeply-nested PI causes `OutOfMemoryError` and kills the JVM. Per-request, independent — every request hitting a NekoHtml path is its own kill.
 
-**Why this matters.** NekoHtml is widely embedded in Java content-extraction pipelines: Apache Nutch, multiple SAST tools, several Atlassian products. Transitive-dependency blast radius. Structurally identical to billion-laughs entity expansion — different XML construct being amplified.
+**Why this matters.** NekoHtml is widely embedded in Java content-extraction pipelines. Transitive-dependency blast radius. Structurally identical to billion-laughs entity expansion — different XML construct being amplified.
 
-**Fix.** 2.61.0 added bounded-buffer logic to the PI parser.
+**Fix.** Upgrade to 2.61.0.
 
 **Lesson.** Every parser construct that accumulates input is a candidate for resource-exhaustion DoS. Input-size limits, depth limits, allocation-count limits belong at the parser layer, not the application layer. Cross-link `xml_parser_differential_expertise.md`.
 
 ### CVE-2022-33082 — Open Policy Agent AST-parser DoS (GHSA-2m4x-4q9j-w97g, CVSS 7.5)
 
-**Pattern.** OPA <0.42.0 had algorithmic complexity in `ast/compile.go`. Crafted Rego policy triggered exponential time in the compiler. Anyone able to submit policies (OPA's HTTP API, partial-evaluation requests, any code path compiling attacker-influenced Rego) could consume unbounded compile-time CPU.
+**Pattern.** OPA <0.42.0 had a denial-of-service issue in the AST parser (`ast/compile.go`) triggerable by crafted input. Anyone able to submit policies (OPA's HTTP API, partial-evaluation requests, any code path compiling attacker-influenced Rego) could consume unbounded compile-time CPU.
 
 **Exploit.** OPA is the de-facto policy engine for Kubernetes admission control (Gatekeeper), service-mesh authz (Istio, Linkerd), CI/CD policy checks. Surface depends on deployment: Gatekeeper policies are admin-controlled; OPA's REST API accepts policies from anyone with API access; in some test/dev configurations the API is unauthenticated. A single malicious policy pins the evaluator.
 
 **Why this matters.** Rego is Turing-complete-adjacent (recursive references through the rule graph); the compiler must do non-trivial graph analysis. "User-supplied policy" plus "complex compiler" looks like ReDoS but operates one level up the abstraction stack. Treat policy engines like compilers — they are.
 
-**Fix.** 0.42.0 added validation checks earlier; rejected certain Rego shapes before the exponential codepath.
+**Fix.** Upgrade to 0.42.0.
 
 **Lesson.** Any service that accepts user-defined logic (DSLs, expression languages, policy engines, GraphQL, SQL) inherits the complexity of its compiler. Cross-link `llm_agent_security_expertise.md` — LLM-generated tool-call DSLs are user-influenced policy.
 
@@ -160,13 +160,13 @@ Six publicly-credited CVEs / GHSAs span the cluster from classical ReDoS through
 
 ### GHSA-3mq5-fq9h-gj7j / CVE-2022-40151 — XStream uncontrolled-recursion parser crash
 
-**Pattern.** XStream 1.4.19 and earlier had no depth tracking in `TreeUnmarshaller.startElement`, the recursive XML-element callback. Any deserialization entry point (`fromXML`, `unmarshal`, etc.) could be DoS'd via a deeply-nested document that exhausted the JVM call stack and threw `StackOverflowError`.
+**Pattern.** XStream 1.4.19 and earlier had no nesting-depth bound during unmarshalling. Any deserialization entry point (`fromXML`, `unmarshal`, etc.) could be DoS'd via a deeply-nested document that exhausted the JVM call stack and threw `StackOverflowError`.
 
-**Exploit.** `<a><a><a>...</a></a></a>` with ~10,000-50,000 levels overflows the default 256KB JVM thread stack. Bytes-per-stack-frame ratio favors the attacker: 3 bytes per `<a>` opening tag vs 100-200 bytes per stack frame. A 100KB payload overflows multi-megabyte stacks.
+**Exploit.** `<a><a><a>...</a></a></a>` with ~10,000-50,000 levels overflows the default 1MB (x86_64) JVM thread stack. Bytes-per-stack-frame ratio favors the attacker: 3 bytes per `<a>` opening tag vs 100-200 bytes per stack frame. A 100KB payload overflows multi-megabyte stacks.
 
 **Why this matters.** XStream is widely deployed in Jenkins, JIRA, and a long tail of enterprise Java. Many deployments accept untrusted XML — and have already-published deserialization gadget chains. This DoS is the lower-severity sibling of the XStream RCE class; same broken trust assumption. Cross-link `deserialization_expertise.md`.
 
-**Fix.** 1.4.20 added explicit depth tracking with a configurable maximum (default 1024).
+**Fix.** Upgrade to 1.4.20.
 
 **Lesson.** Recursive parsers without depth bounds are stack-overflow primitives. The fix pattern (configurable depth limit) applies uniformly: `java.beans.XMLDecoder`, Jackson polymorphic types, Kryo, Hessian all share the structural vulnerability if depth isn't bounded.
 
@@ -176,16 +176,16 @@ Six publicly-credited CVEs / GHSAs span the cluster from classical ReDoS through
 
 ### The Crosby/Wallach original framing
 
-The 2003 paper's headline was not regex — it was hash flooding. Perl 5.6.1's hash table slowed by ~6000x when populated with keys hashing to the same bucket. Perl's hash function was deterministic and public; an attacker computing colliding keys offline could submit a request populating an internal table (route lookup, parameter map) and force every insertion to walk the bucket's collision list, converting `O(1)` insert to `O(n)` and total population to `O(n^2)`. This structural shape recurs across every dynamic-language platform.
+The 2003 paper's headline was not regex — it was hash flooding. Perl 5.6.1's hash table slowed by three orders of magnitude when populated with keys hashing to the same bucket. Perl's hash function was deterministic and public; an attacker computing colliding keys offline could submit a request populating an internal table (route lookup, parameter map) and force every insertion to walk the bucket's collision list, converting `O(1)` insert to `O(n)` and total population to `O(n^2)`. This structural shape recurs across every dynamic-language platform.
 
 ### Klink/Wälde 2011 — the rerun
 
-Eight years later, Klink and Wälde at 28C3 demonstrated PHP, Java (Tomcat/Jetty), ASP.NET, Python, Ruby, V8 were all still vulnerable through HTTP POST parameter parsing. The mechanism was identical to 2003; **none of the major platforms had patched it**. A single POST with ~1MB of crafted parameter names consumed minutes of CPU.
+Eight years later, Klink and Wälde at 28C3 demonstrated PHP, Java (Tomcat/Jetty), ASP.NET, Python, Ruby, V8 were all still vulnerable through HTTP POST parameter parsing. The mechanism was identical to 2003; **of the major platforms only Perl (fixed in 5.8.1, 2003) was deployed safe, and Ruby 1.9 had a patch**. A single POST with ~1MB of crafted parameter names consumed minutes of CPU.
 
 CVEs and fixes:
 - **CVE-2011-4885 (PHP)** — fixed in 5.3.9 via `max_input_vars` (default 1000) — capping parameter count rather than addressing hash determinism.
 - **CVE-2011-3414 (ASP.NET, MS11-100)** — emergency MS advisory; parameter-count cap.
-- **CVE-2011-5034 (Jetty), CVE-2011-5035 (Tomcat)** — similar caps.
+- **CVE-2011-4461 (Jetty), CVE-2011-4858 (Tomcat)** — similar caps.
 - **PEP 456 / Python 3.4+** — SipHash-based randomized hashing for `str`/`bytes`/`datetime`. Proper structural fix.
 - **Ruby 1.9.3** — randomized hash seed.
 - **Java 8 / JEP 180** — HashMap treeification: buckets >8 collisions promote to Red-Black trees, converting `O(n)` collision-walk to `O(log n)`. Mitigation, not structural fix.
@@ -197,7 +197,7 @@ Stdlib randomization is near-universal, but the broader class survives in:
 - **Crypto primitives misused as keys** — tables keyed by SHA-1/MD5 prefixes remain vulnerable even when the table uses SipHash internally.
 - **Some high-performance JSON parsers** — `simdjson`, `RapidJSON` may not randomize internal object-key tables.
 - **HTTP/2 HPACK** — multiple 2020-2022 CVEs exploit HPACK state explosion; adjacent class.
-- **QUIC connection-ID tables** — NCC Group's 2023 advisory documented hash-flooding across multiple QUIC implementations. New protocols re-introduce the old bug class.
+- **QUIC connection-ID tables** — NCC Group's 2025 advisory documented hash-flooding across multiple QUIC implementations. New protocols re-introduce the old bug class.
 
 ### The "compute-bound input" framing
 
@@ -217,7 +217,7 @@ The pattern: **any input-driven loop, parse, or table-lookup whose worst-case co
 2. **Classification** — query the ambiguity-analysis tool from the Weideman lineage; returns `safe`, `polynomial`, or `exponential`.
 3. **Dynamic validation** — for flagged regexes, generate an attack string and run against the regex with a timeout. Bridges "structurally bad shape" to "demonstrated exploit."
 
-Davis 2018 applied this to 448,402 npm and PyPI modules: 12,000+ vulnerable regexes found; ~50% extractable statically; runtime-constructed regexes remained a measurement blind spot.
+Davis 2018 applied this to 448,402 npm and PyPI modules: over 4,000 unique super-linear regexes found.
 
 ### The Weideman/van der Merwe lineage — ambiguity-based classification
 
@@ -280,7 +280,7 @@ Both lanes are required for defense-in-depth. **Developer-time** (pre-commit, CI
 
 ### Worker isolation + CPU budget per request
 
-Architectural defense: every request gets a hard CPU budget. If any path exceeds it, the worker is killed and the request fails. Cloudflare Workers (`cpu-time` limit, default 10ms). Lambda/GCF/Azure Functions (per-invocation runtime limits). Node Workers (main thread enforces setTimeout-based kill). Go (`context.WithTimeout` — cooperative; RE2 doesn't check context but external goroutine kills work). Java application servers (per-request thread budget, Loom virtual-thread cancellation).
+Architectural defense: every request gets a hard CPU budget. If any path exceeds it, the worker is killed and the request fails. Cloudflare Workers (CPU-time limit: 10ms on Free; 30s default on Paid). Lambda/GCF/Azure Functions (per-invocation runtime limits). Node Workers (main thread enforces setTimeout-based kill). Go (`context.WithTimeout` — cooperative; RE2 doesn't check context but external goroutine kills work). Java application servers (per-request thread budget, Loom virtual-thread cancellation).
 
 ### Observability — alert on the tail
 
@@ -302,7 +302,7 @@ Defense: parameterize **query parameters**, not just **values**. Whitelist allow
 
 ### GraphQL query depth/breadth DoS
 
-Nested-resolver model permits arbitrarily-deep nesting by default. Depth `d` with branching factor `N` yields `N^d` resolver invocations. Defenses: max query depth (`graphql-depth-limit`, default 7); max complexity scoring (`graphql-cost-analysis`); persisted queries in production (only allow build-time-registered query hashes); aliased-field count caps (the `{a: foo a2: foo ...}` pattern bypasses depth limits).
+Nested-resolver model permits arbitrarily-deep nesting by default. Depth `d` with branching factor `N` yields `N^d` resolver invocations. Defenses: max query depth (`graphql-depth-limit`); max complexity scoring (`graphql-cost-analysis`); persisted queries in production (only allow build-time-registered query hashes); aliased-field count caps (the `{a: foo a2: foo ...}` pattern bypasses depth limits).
 
 ### JSON Schema validator complexity
 
@@ -316,7 +316,7 @@ b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a,*a]
 c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b,*b]
 ```
 
-Each alias multiplies content; logarithmic input expands to exponential output. The billion-laughs lineage ported to YAML. Modern parsers (`PyYAML`'s `safe_load`, `js-yaml` v4 default, `yaml.v3` with depth limits) reject or bound this. Custom loaders don't. Cross-link `xml_parser_differential_expertise.md`.
+Each alias multiplies content; logarithmic input expands to exponential output. The billion-laughs lineage ported to YAML. `yaml.v3` bounds this with an excessive-aliasing guard; `PyYAML` and `js-yaml` leave it to the caller. Custom loaders don't. Cross-link `xml_parser_differential_expertise.md`.
 
 ### Cryptographic cost amplification
 
@@ -328,7 +328,7 @@ Three structural conditions for exploitable amplification: (1) input-to-compute 
 
 ### Serverless billing as money-DoS
 
-In per-invocation-billed serverless (Lambda, Workers paid, Vercel, Cloud Functions), every algorithmic-DoS converts to billing-DoS. Mitigations: cost-alerts at the billing layer; per-IP rate limits even pre-auth; max invocation time tuned to actual worst-case workload, not platform maximum. Real incidents: Workers users have reported thousands-of-dollars single-day bills from regex DoS via misconfigured `re2`-free regex on user input.
+In per-invocation-billed serverless (Lambda, Workers paid, Vercel, Cloud Functions), every algorithmic-DoS converts to billing-DoS. Mitigations: cost-alerts at the billing layer; per-IP rate limits even pre-auth; max invocation time tuned to actual worst-case workload, not platform maximum.
 
 ---
 
@@ -340,11 +340,11 @@ In per-invocation-billed serverless (Lambda, Workers paid, Vercel, Cloud Functio
 
 ### Linear-time regex engines — when available
 
-Prefer linear-time engines for untrusted-input regex: Go stdlib `regexp` (RE2, free); Rust `regex` crate (Thompson-NFA); Java `re2j` (Google's Java port); Node `re2` npm bindings (no backreferences/lookbehinds — covers ~90% of production use); .NET 7+ `RegexOptions.NonBacktracking`. Python has no mature RE2 binding — closest is the `regex` module with timeout. Fall back to timeouts when backreferences/lookbehinds are required.
+Prefer linear-time engines for untrusted-input regex: Go stdlib `regexp` (RE2, free); Rust `regex` crate (Thompson-NFA); Java `re2j` (Google's Java port); Node `re2` npm bindings (no backreferences/lookbehinds); .NET 7+ `RegexOptions.NonBacktracking`. Python has Google's `google-re2` binding, or the `regex` module with timeout. Fall back to timeouts when backreferences/lookbehinds are required.
 
 ### Regex timeouts — language-native
 
-See Section 6. Set globally where supported (Ruby `Regexp.timeout`, .NET `Regex.MatchTimeout`); wrap per-call otherwise.
+See Section 6. Set globally where supported (Ruby `Regexp.timeout`, .NET `AppDomain.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", ...)`); wrap per-call otherwise.
 
 ### Test regexes against pathological inputs in CI
 
@@ -352,7 +352,7 @@ See Section 6. Set globally where supported (Ruby `Regexp.timeout`, .NET `Regex.
 
 ### Bound parser depth and content size
 
-Recursive parsers are stack-overflow primitives. Bound: XML (depth, entity-expansion, attribute count, namespace count); JSON (depth — `jackson-databind` defaults 1000; tune down for untrusted); YAML (alias-expansion, depth, document size); HTML (depth, attribute count, PI count — the NekoHtml CVE); custom DSLs (almost always lack bounds by default).
+Recursive parsers are stack-overflow primitives. Bound: XML (depth, entity-expansion, attribute count, namespace count); JSON (depth — `jackson-core` 2.15+ `StreamReadConstraints` defaults 1000; tune down for untrusted); YAML (alias-expansion, depth, document size); HTML (depth, attribute count, PI count — the NekoHtml CVE); custom DSLs (almost always lack bounds by default).
 
 ### WAF rules + worker isolation + per-request CPU budget
 
@@ -362,7 +362,7 @@ Every production handler should run with a hard platform-level CPU budget (Worke
 
 ### Migrate away from backtracking engines
 
-Strategic direction: Go stdlib is RE2; Rust stdlib is Thompson-NFA; .NET 7+ has `NonBacktracking`; Ruby 3.2+ has memoization. Python, Node, Java haven't made the structural move — plan migrations for untrusted-input regex paths.
+Strategic direction: Go stdlib is RE2; Rust's `regex` crate is finite-automata-based; .NET 7+ has `NonBacktracking`; Ruby 3.2+ has memoization. Python, Node, Java haven't made the structural move — plan migrations for untrusted-input regex paths.
 
 ### Code-review checklist
 
@@ -390,7 +390,7 @@ When reviewing code that includes regex or other complexity-bounded parsing:
 
 ### ReDoS in AI tool outputs
 
-When an LLM generates a regex used to parse other LLM output (common agentic pattern), the regex is in scope for ReDoS. Two failure modes: (1) the LLM generates a vulnerable shape because training corpora are full of them (informal measurements: 5-15% of LLM-generated regexes are polynomial-vulnerable); (2) downstream LLM output is constructed adversarially (by another agent, by prompt-injection) to hit the worst case. Defense: never let an LLM-generated regex run unbounded; wrap in timeout; prefer parsers over regexes when structure is known. Cross-link `llm_agent_security_expertise.md`.
+When an LLM generates a regex used to parse other LLM output (common agentic pattern), the regex is in scope for ReDoS. Two failure modes: (1) the LLM generates a vulnerable shape because training corpora are full of them; (2) downstream LLM output is constructed adversarially (by another agent, by prompt-injection) to hit the worst case. Defense: never let an LLM-generated regex run unbounded; wrap in timeout; prefer parsers over regexes when structure is known. Cross-link `llm_agent_security_expertise.md`.
 
 ### ReDoS in regex-based prompt-injection defenses
 
@@ -406,7 +406,7 @@ Cosine-similarity search over high-dim embeddings has known worst-cases: queries
 
 ### WebSocket handshake parsing ReDoS
 
-The WS handshake is HTTP-style header parsing. CVEs in `ws` npm and `websockets` Python (older versions) involve parser state-machine DoS via crafted headers. Pre-auth; attack budget is "open a TCP connection." Position-of-trust amplification.
+The WS handshake is HTTP-style header parsing. CVE-2021-32640 in `ws` npm is a ReDoS via a crafted `Sec-Websocket-Protocol` header. Pre-auth; attack budget is "open a TCP connection." Position-of-trust amplification.
 
 ### Log-parsing ReDoS
 
@@ -414,7 +414,7 @@ The Cloudflare 2019 incident is in this class — a WAF rule processing every re
 
 ### CI/CD pipeline ReDoS
 
-GitHub Actions expressions, GitLab CI rules, Jenkins pipeline scripts evaluate regex over per-build context. A vulnerable regex applied to user-controlled commit messages, branch names, or PR bodies converts CI minutes into a budget-DoS. Cross-link `cicd_supply_chain_expertise.md`.
+GitLab CI rules and Jenkins pipeline scripts evaluate regex over per-build context. A vulnerable regex applied to user-controlled commit messages, branch names, or PR bodies converts CI minutes into a budget-DoS. Cross-link `cicd_supply_chain_expertise.md`.
 
 ### Static-analysis-tool ReDoS
 
@@ -447,7 +447,7 @@ When LLM agents construct prompt templates dynamically (regex-driven substitutio
 - CVE-2011-4885 (PHP HashDoS). https://nvd.nist.gov/vuln/detail/CVE-2011-4885
 - Python PEP 456 — Secure and interchangeable hash algorithm. https://peps.python.org/pep-0456/
 - JEP 180: Handle Frequent HashMap Collisions with Balanced Trees. https://openjdk.org/jeps/180
-- NCC Group. "Technical Advisory – Hash Denial-of-Service Attack in Multiple QUIC Implementations." 2023. https://www.nccgroup.com/research/technical-advisory-hash-denial-of-service-attack-in-multiple-quic-implementations/
+- NCC Group. "Technical Advisory – Hash Denial-of-Service Attack in Multiple QUIC Implementations." https://www.nccgroup.com/research/technical-advisory-hash-denial-of-service-attack-in-multiple-quic-implementations/
 
 ### Public incidents
 - Graham-Cumming, J. "Details of the Cloudflare outage on July 2, 2019." Cloudflare Blog. https://blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/
@@ -457,7 +457,7 @@ When LLM agents construct prompt templates dynamically (regex-driven substitutio
 - Weideman, N. `RegexStaticAnalysis`. https://github.com/NicolaasWeideman/RegexStaticAnalysis
 - Google. RE2 — fast, safe, thread-friendly regex engine. https://github.com/google/re2
 - Google. RE2/J — RE2 for Java. https://github.com/google/re2j
-- Cloudflare. `re2` Node.js bindings. https://github.com/uhop/node-re2
+- `uhop`. `re2` Node.js bindings. https://github.com/uhop/node-re2
 
 ### Per-language regex documentation
 - Ruby 3.2 release notes (Regexp.timeout). https://www.ruby-lang.org/en/news/2022/12/25/ruby-3-2-0-released/
@@ -471,13 +471,12 @@ When LLM agents construct prompt templates dynamically (regex-driven substitutio
 - GHSA-7wwv-vh3v-89cq `highlight.js` multi-grammar ReDoS. https://github.com/advisories/GHSA-7wwv-vh3v-89cq
 - CVE-2022-29546 NekoHtml. https://github.com/advisories/GHSA-6jmm-mp6w-4rrg
 - CVE-2022-33082 Open Policy Agent. https://github.com/advisories/GHSA-2m4x-4q9j-w97g
-- CVE-2022-26924 Microsoft YARP. https://github.com/microsoft/reverse-proxy/security/advisories/GHSA-8xc6-g8xw-h2c4
-- CVE-2022-40151 XStream / GHSA-3mq5-fq9h-gj7j. https://x-stream.github.io/CVE-2022-40151.html
+- CVE-2022-40151 XStream / GHSA-f8cc-g7j8-xxpm. https://x-stream.github.io/CVE-2022-40151.html
 
 ### Standards and surveys
 - OWASP. "Regular expression Denial of Service - ReDoS." https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS
 - Snyk Research. "Regular Expression Denial of Service (ReDoS) and Catastrophic Backtracking." https://snyk.io/blog/redos-and-catastrophic-backtracking/
-- Davis, J. C. "SoK: A Literature and Engineering Review of Regular Expression Denial of Service (ReDoS)." https://davisjam.medium.com/sok-a-literature-and-engineering-review-of-regular-expression-denial-of-service-redos-e6b10ef547c7
+- Bhuiyan, M. H. M., Çakar, B., Burmane, E. H., Davis, J. C. & Staicu, C.-A. "SoK: A Literature and Engineering Review of Regular Expression Denial of Service (ReDoS)." ASIA CCS 2025. https://arxiv.org/abs/2406.11618
 
 ### Cross-references within ~/ai/expertise
 - `xml_parser_differential_expertise.md` — XML-parser DoS taxonomy (XXE, billion laughs, entity expansion).
@@ -486,5 +485,5 @@ When LLM agents construct prompt templates dynamically (regex-driven substitutio
 - `semgrep_rule_authoring.md` — rule patterns for ReDoS detection in CI.
 - `vulnerability_research_methodology_expertise.md` — scaled-corpus discovery patterns (Davis-style).
 - `llm_agent_security_expertise.md` — LLM-generated regex and prompt-injection-defense ReDoS variants.
-- `cicd_supply_chain_expertise.md` — CI/CD pipeline ReDoS (GitHub Actions, GitLab CI).
+- `cicd_supply_chain_expertise.md` — CI/CD pipeline ReDoS (GitLab CI).
 - `cryptography_expertise.md` — cryptographic-cost amplification (PBKDF2, bcrypt iteration parameters).

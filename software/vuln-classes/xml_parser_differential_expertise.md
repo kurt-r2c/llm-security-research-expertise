@@ -3,12 +3,12 @@
 
 > **Researchers:**
 > - **Timothy D. Morgan (Virtual Security Research / VSR)** — "XML Schema, DTD, and Entity Attacks: A Compendium of Known Techniques" (2014) and "What You Didn't Know About XML External Entities Attacks" (OWASP AppSec USA 2013). The canonical taxonomy of XXE primitives — internal/external/parameter entities, file-disclosure handler enumeration, blind-XXE-via-parameter-entities. The OWASP XXE Prevention Cheat Sheet leans directly on this corpus.
-> - **Juraj Somorovsky** — Ruhr-University Bochum / Hackmanit GmbH. First author of "On Breaking SAML: Be Whoever You Want to Be" (USENIX Security 2012, with Mainka, Schwenk, Jensen et al.). Demonstrated 11-of-14 commercial SAML stacks vulnerable to XML Signature Wrapping. Built WS-Attacker. Co-author of "How to Break XML Encryption" (CCS 2011). XSW is the textbook parser-differential exploit: signer and consumer see different elements; the trust gap is the bypass.
-> - **Mario Heiderich** — Cure53 (Berlin) founder. First author of "mXSS Attacks: Attacking Well-Secured Web-Applications by Using innerHTML Mutations" (ACM CCS 2013, with Kotowicz, Schwenk, Heinrich, Schramm, Aichroth). Defined the mutation-XSS subclass: browsers mutate strings written to innerHTML so post-parse, post-serialize output differs from input; round-trip differential bypasses every server-side allowlist sanitizer. Cure53 maintains DOMPurify (current canonical HTML sanitizer).
-> - **Gareth Heyes (@garethheyes), PortSwigger Research** — File-upload XXE corpus in PortSwigger's Web Security Academy (notably "Exploiting XXE via image file upload" — SVG carrying DTD into image-processing pipelines). "The Fragile Lock: Novel Bypasses for SAML Authentication" (2024), a contemporary XSW catalogue. Author of "JavaScript for Hackers" (2022).
-> - **Michał Bentkowski (@SecurityMB), Securitum** — "Write-up of DOMPurify 2.0.0 bypass using mutation XSS" (research.securitum.com, 2020), canonical reference on mXSS defeat of HTML allowlists via parsing-context shifts (math/svg foreign content modes). Extensive published writeups on parser-class confusion across JSON/XML/HTML.
-> - **Frans Rosén (@fransrosen), Detectify Labs** — Detectify Security Advisor; blog corpus of XML/SOAP attack chains, including SSRF via WSDL ingestion, exposed-WSDL enumeration, and SAML/OAuth chain disclosures. HackerOne all-time top earner; the Detectify Labs back-catalogue is the working field-record of SOAP/WSDL XXE/SSRF in production.
-> - **Daniel Stenberg** — curl/libcurl maintainer; "The URL Interop Situation" and the "Don't mix URL parsers" series. Stenberg's framing of WHATWG vs. RFC 3986 differentials — "every implementer handles WHATWG, RFC 3986, and everything in between" — is the canonical model for parser-spec gaps that the XML world inherits.
+> - **Juraj Somorovsky** — Ruhr-University Bochum / Hackmanit GmbH. First author of "On Breaking SAML: Be Whoever You Want to Be" (USENIX Security 2012, with Mayer, Schwenk, Kampmann, Jensen). Demonstrated 11-of-14 commercial SAML stacks vulnerable to XML Signature Wrapping. Built WS-Attacker. Co-author of "How to Break XML Encryption" (CCS 2011). XSW is the textbook parser-differential exploit: signer and consumer see different elements; the trust gap is the bypass.
+> - **Mario Heiderich** — Cure53 (Berlin) founder. First author of "mXSS Attacks: Attacking Well-Secured Web-Applications by Using innerHTML Mutations" (ACM CCS 2013, with Schwenk, Frosch, Magazinius, Yang). Defined the mutation-XSS subclass: browsers mutate strings written to innerHTML so post-parse, post-serialize output differs from input; round-trip differential bypasses every server-side allowlist sanitizer. Cure53 maintains DOMPurify (current canonical HTML sanitizer).
+> - **Gareth Heyes (@garethheyes), PortSwigger Research** — File-upload XXE corpus in PortSwigger's Web Security Academy (notably "Exploiting XXE via image file upload" — SVG carrying DTD into image-processing pipelines). Author of "JavaScript for Hackers" (2022).
+> - **Michał Bentkowski (@SecurityMB), Securitum** — "Write-up of DOMPurify 2.0.0 bypass using mutation XSS" (research.securitum.com, 2019), canonical reference on mXSS defeat of HTML allowlists via parsing-context shifts (math/svg foreign content modes). Extensive published writeups on parser-class confusion across JSON/XML/HTML.
+> - **Frans Rosén (@fransrosen), Detectify Labs** — Detectify Security Advisor; blog corpus including SAML/OAuth chain disclosures.
+> - **Daniel Stenberg** — curl/libcurl maintainer; "Don't mix URL parsers" (2022). Stenberg's framing of WHATWG vs. RFC 3986 differentials is the canonical model for parser-spec gaps that the XML world inherits.
 > - **Snyk research team** — Liran Tal, Sam Sanoop, and the broader Snyk practice; ecosystem-wide disclosures across xmldom, libxmljs, libxmljs2, fast-xml-parser, xml2js, csv-parse, and the Java XML stack. security.snyk.io is the practical "which parser version is vulnerable to which class" reference.
 > - **OWASP XML / XXE Working Group** — Maintainers of the XML External Entity Prevention Cheat Sheet and XML Security Cheat Sheet. Canonicalize the per-parser secure-by-default flags (Java JAXP `disallow-doctype-decl`, .NET `DtdProcessing.Prohibit`, lxml `resolve_entities=False`).
 > - **Kurt Boberg (GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Three publicly-credited CVEs in this cluster:
@@ -113,10 +113,6 @@ URI schemes a parser resolves are the per-implementation attack surface. Key han
 The 2018-2026 corpus demonstrates the class is not dead — every new file-upload feature, SOAP integration, and SAML stack is a fresh parser-construction site.
 
 - **CVE-2019-0228 (Apache PDFBox)** — Kurt Boberg. PDFBox 2.0.14 constructs an FDF parser without `disallow-doctype-decl`; XFDF as Stamp annotation triggers XXE. Severity 9.8. Triage lesson: PDFBox is XML-shaped at multiple layers (XFDF, AcroForms, XMP); each is independent parser construction. Fixed in 2.0.15.
-- **CVE-2024-29849 (Veeam Backup Enterprise Manager)** — XXE in mgmt console SAML/auth-bridge; credential theft + lateral movement on backup infra.
-- **CVE-2022-44877 (CWP / CentOS Web Panel)** — XXE in preauth XML parser; combined with adjacent command injection for preauth RCE.
-- **CVE-2021-44832 (Apache Log4j)** — XML-config-file XXE in `XmlConfiguration`.
-- **Confluence corpus** (CVE-2021-26086, CVE-2020-36239) — XML parsing in SOAP/REST endpoints continues to harbor XXE classes.
 
 ### File upload as the modern XXE vector
 
@@ -127,7 +123,7 @@ The classic SOAP entry point is no longer dominant. Modern surface is *file uplo
 - **EPUB upload** → ZIP unpacked, META-INF/container.xml + OPF + NCX + per-chapter XHTML each parsed.
 - **XFDF / FDF upload** (PDF forms, e-signature) → PDF library parses the XML side-data. Kurt's CVE-2019-0228 lives here.
 - **SAML POST** → SAML response is XML, parsed *before* signature verification in most legacy stacks. Preauth primitive.
-- **WSDL/SOAP ingestion** (Frans Rosén corpus) → exposed WSDL endpoints pass full XML payloads to dom4j / JAX-WS / Axis.
+- **WSDL/SOAP ingestion** → exposed WSDL endpoints pass full XML payloads to dom4j / JAX-WS / Axis.
 
 Engineering lesson: hardening the parser library is insufficient if application code re-constructs parsers in 12 upload handlers with 12 default-unsafe factory invocations. Centralize parser construction in one hardened factory.
 
@@ -140,8 +136,6 @@ Engineering lesson: hardening the parser library is insufficient if application 
 Two parsers operate on the same bytes. Parser A — *validator*, *signature-verifier*, *security-checker* — sees one document. Parser B — *consumer*, *processor*, *renderer* — sees a different document. Adversarial bytes in the gap between A's and B's grammars bypass A's policy and reach B's behavior.
 
 Not XML-specific — same structural class as HTTP request smuggling (Kettle), URL parser confusion (Stenberg / Orange Tsai), JSON duplicate-key handling, protobuf encoding ambiguities. XML's corpus is larger and older because its grammar is richer (DTD, namespaces, XInclude, foreign content modes), so the per-parser cone of accepted-but-non-conformant bytes is correspondingly larger.
-
-Stenberg's framing: "every implementer handles the spec, the legacy spec, and everything in between." The "everything in between" is where differentials live.
 
 ### Kurt's CVE-2022-39353: @xmldom/xmldom multi-root parser-differential
 
@@ -158,7 +152,7 @@ Now feed multi-root: `<Envelope>...legit_signed...</Envelope><Envelope>...attack
 
 Same shape as SAML XSW (§4) but at the parser layer rather than the XPath/canonicalization layer. The CVE made this trivially reachable in every npm app that parses signed XML — SAML libraries, SOAP clients, signed-OOXML readers, signed-RSS aggregators.
 
-Fix in 0.7.7 / 0.8.4: raise on multi-root in strict mode; warn in non-strict. Workaround: "search for elements only in `documentElement`, or reject documents with more than 1 childNode."
+Fix in 0.7.7 / 0.8.4: the non-well-formed part (e.g. a second root) becomes an escaped text node instead of DOM elements; 0.9.0 throws an error instead. Workaround: "only search in the `documentElement`", or reject a document with more than 1 `childNode`.
 
 ### Parser-differential exploit framing in three steps
 
@@ -172,9 +166,9 @@ Fix in 0.7.7 / 0.8.4: raise on multi-root in strict mode; warn in non-strict. Wo
 
 ### Signature canonicalization differentials
 
-XML Canonicalization (C14N) is itself a parser. RFC 3076 / 6090 specify how to convert a node-set into a unique byte sequence so signature hashes are stable across implementations. C14N has its own parser-differential CVE history:
+XML Canonicalization (C14N) is itself a parser. RFC 3076 specifies how to convert a node-set into a unique byte sequence so signature hashes are stable across implementations. C14N has its own parser-differential CVE history:
 
-- **Comment inclusion/exclusion** — `c14n` (comments excluded) vs `c14n-with-comments`. Signer/verifier mismatch has caused bypass CVEs in libxml2 and Apache Santuario.
+- **Comment inclusion/exclusion** — `c14n` (comments excluded) vs `c14n-with-comments`.
 - **Namespace context inheritance** — Inherited `xmlns:foo` serializes differently across impls; canonicalization bytes differ; signatures don't verify cross-implementation on identical DOMs.
 - **Exclusive vs inclusive C14N (xml-exc-c14n)** — Mismatched modes between SignedInfo declaration and verifier default produced SAML/WS-Security bypasses 2010-2015.
 
@@ -193,9 +187,9 @@ XSW is the textbook parser-differential attack. The shape:
 3. SP signature verifier walks DOM, finds `Reference URI="#assertion_id"`, locates original signed Assertion, validates — *pass*.
 4. SP auth logic *separately* walks DOM looking for "the Assertion," finds the attacker's unsigned one (the XPath differs from the verifier's), authenticates as `admin`.
 
-Somorovsky's 2012 USENIX paper enumerated 8 distinct XSW shapes (XSW-1 through XSW-8), now the standard taxonomy in SAML test suites. The class persists in 2024+ (Heyes "Fragile Lock") because the structural cause — two distinct DOM walks in the trust chain — has not been eliminated. Mature libraries (OpenSAML, SimpleSAMLphp, ITfoxtec) pin the signed element to a specific XPath, enforce exactly-one-Assertion, reject `Extensions` outside SignedInfo. Every new SAML stack re-derives the bug surface.
+Somorovsky's 2012 USENIX paper enumerated 8 distinct XSW shapes (XSW-1 through XSW-8), now the standard taxonomy in SAML test suites. The class persists in 2025 (Fedotkin "Fragile Lock") because the structural cause — two distinct DOM walks in the trust chain — has not been eliminated. Mature libraries (OpenSAML, SimpleSAMLphp, ITfoxtec) pin the signed element to a specific XPath, enforce exactly-one-Assertion, reject `Extensions` outside SignedInfo. Every new SAML stack re-derives the bug surface.
 
-Heyes 2024 "Fragile Lock" XSW variants in contemporary SAML: comment-injection inside signed elements; DOCTYPE-injected entities; namespace prefix re-declaration; xs:anyType slot abuse. Each is a parser-differential at a different XML-stack layer (element / attribute / comment / namespace tree).
+Fedotkin 2025 "Fragile Lock" bypasses in Ruby and PHP SAML libraries: attribute pollution, namespace confusion, and Void Canonicalization. Each exploits a parser-level inconsistency in the XML stack.
 
 ### xmldom multi-root applied to SAML
 
@@ -206,7 +200,7 @@ Kurt's CVE-2022-39353 lands here directly. Many Node.js SAML stacks (passport-sa
 <saml:Response>...attacker (subject=admin)...</saml:Response>
 ```
 
-If the verifier walks `documentElement` only and auth walks `childNodes`, the attacker's Response wins. xmldom 0.7.7+ rejects this; SAML stacks pinned to older versions or that didn't validate DOM-shape post-parse inherited the bug.
+If the verifier walks `documentElement` only and auth walks `childNodes`, the attacker's Response wins. xmldom 0.7.7+ no longer inserts the second root as elements (it becomes an escaped text node); SAML stacks pinned to older versions or that didn't validate DOM-shape post-parse inherited the bug.
 
 Triage: signed-XML-validates-OK ≠ parsed-DOM-is-shaped-correctly. Both must hold.
 
@@ -220,7 +214,7 @@ Triage rule: an OOXML upload feature is *25 attack surfaces*, not one.
 
 ### Comment-injection within signed XML
 
-A 2018 Cure53 audit (DUO, OneLogin, Clever) demonstrated comment-injection inside signed SAML username/email elements. Email like `attacker@evil.com<!---->@target.com` canonicalizes such that signature validates (comments inside signed element), but consumer text extraction (`element.textContent`) returns *different text* depending on whether the consumer DOM treats `<!---->` as a node split or as inline character data. Attacker signs as `evil.com`, consumer reads as `evil.com` while server logic accepts `target.com` user. Fix: pre-strip comments before signing AND before extraction; reject assertions whose pre/post-canonicalization forms differ.
+A 2018 Duo Labs disclosure (OneLogin, Clever, Shibboleth and others) demonstrated comment-injection inside signed SAML username/email elements. Email like `attacker@evil.com<!---->@target.com` canonicalizes such that signature validates (comments inside signed element), but consumer text extraction (`element.textContent`) returns *different text* depending on whether the consumer DOM treats `<!---->` as a node split or as inline character data. Attacker signs as `evil.com`, consumer reads as `evil.com` while server logic accepts `target.com` user. Fix: pre-strip comments before signing AND before extraction; reject assertions whose pre/post-canonicalization forms differ.
 
 ---
 
@@ -228,7 +222,7 @@ A 2018 Cure53 audit (DUO, OneLogin, Clever) demonstrated comment-injection insid
 
 ### HTML5 tree construction is intentionally permissive
 
-The HTML5 spec describes a state-machine tree-construction algorithm designed to accept *any* bytes and produce *some* DOM — no "rejected" output. Complexity: 23 insertion modes, ~200 states, foreign-content modes for SVG/MathML, per-element token overrides.
+The HTML5 spec describes a state-machine tree-construction algorithm designed to accept *any* bytes and produce *some* DOM — no "rejected" output. Complexity: 21 insertion modes, 80+ tokenizer states, foreign-content modes for SVG/MathML, per-element token overrides.
 
 Server-side sanitizers (DOMPurify, kses, sanitize-html, HTML Purifier) *approximate* the HTML5 parser. Approximation is the bug surface — every sanitizer is more-permissive or more-restrictive than the spec.
 
@@ -236,10 +230,10 @@ Server-side sanitizers (DOMPurify, kses, sanitize-html, HTML Purifier) *approxim
 
 The single largest mXSS surface is the HTML → SVG/MathML → HTML mode transition. In HTML mode, `<![CDATA[ ]]>` is treated as a comment-like delimiter; inside `<svg>` or `<math>`, CDATA is a special construct and `<style>` is closed differently. Same bytes tokenize two ways.
 
-Bentkowski 2020 DOMPurify 2.0.0 bypass:
+Bentkowski 2019 DOMPurify 2.0.0 bypass:
 
 ```html
-<svg><p><style><a id="</style><img src=x onerror=alert(1)>">
+<svg></p><style><a id="</style><img src=1 onerror=alert(1)>">
 ```
 
 DOMPurify's parser saw `<style>...</style>` closed inside `<a id="...">` (HTML-attribute context); the browser applied SVG foreign-content rules, terminated `<style>` early, and started a new HTML token stream containing the `<img>`. Different DOMs; sanitized output executed.
@@ -254,7 +248,7 @@ DOMPurify 3.x added foreign-content awareness; subsequent bypasses moved to othe
 
 ### Recent CVE corpus
 
-- **CVE-2024-45801 / -47875 (DOMPurify)** — mXSS via prototype pollution + foreign content; cross-link `prototype_pollution_expertise.md`.
+- **CVE-2024-45801 / -47875 (DOMPurify)** — nesting-depth-check bypass (weakenable via prototype pollution) and nesting-based mXSS; cross-link `prototype_pollution_expertise.md`.
 - **sanitize-html historical** — Multiple 2018-2023 bypasses; each closes one primitive, structural class remains.
 - **CVE-2022-29546 (HtmlUnit NekoHtml)** — Kurt Boberg. DoS sibling: PI handling triggers unbounded memory growth. Same parser, different bug shape. Fixed in 2.61.0.
 
@@ -272,11 +266,11 @@ XML is the historical anchor of parser-differential attacks, but the same struct
 
 ECMA-404 says nothing definite about duplicate keys. `{"a": 1, "a": 2}` is well-formed JSON; implementations choose. Last-wins (V8, Python, Go, Jackson default, .NET, Ruby, PHP), first-wins (Erlang `jsone`), or list-preserved (OCaml `yojson`).
 
-The differential is the bug: Microsoft 2018 "Industry-Wide Vulnerability in JSON Parsers" — a JSON authz policy parsed first-wins then re-parsed last-wins. Attacker sends `{"role": "user", "role": "admin"}`; validator sees `user`, consumer sees `admin`. Bishop Fox writeup broadened the corpus to four cross-runtime triples. Recommendation: sign canonicalized JSON only (RFC 8785).
+The differential is the bug: a JSON authz policy parsed first-wins then re-parsed last-wins. Attacker sends `{"role": "user", "role": "admin"}`; validator sees `user`, consumer sees `admin`. Bishop Fox's JSON interoperability writeup tested 49 parsers and found risky behavior in at least one parser per language. Recommendation: sign canonicalized JSON only (RFC 8785).
 
 ### YAML 1.1 vs 1.2 boolean parsing
 
-YAML 1.1 (PyYAML, snakeyaml, js-yaml ≤ 3.x default) interprets unquoted `y`, `Y`, `yes`, `no`, `on`, `off`, etc. as booleans. YAML 1.2 restricts to `true`/`false`.
+YAML 1.1 (PyYAML, snakeyaml) interprets unquoted `y`, `Y`, `yes`, `no`, `on`, `off`, etc. as booleans. YAML 1.2 restricts to `true`/`false`.
 
 The Norway Problem: list of country codes containing `NO` parses as `[<bool: false>]` under 1.1, `["NO"]` under 1.2. A YAML authz policy with `allow_admin: yes` parses differently across versions; mixing 1.1 and 1.2 parsers in one trust chain creates a config-bypass primitive.
 
@@ -308,13 +302,13 @@ A PDF is a binary object graph with multiple embedded XML payloads: XMP metadata
 
 ### CVE-2019-0228 in detail
 
-PDFBox 2.0.14's `PDAnnotationStamp` includes FDF/XFDF import. The parser was constructed via `SAXParserFactory.newInstance().newSAXParser()` — no `setFeature("disallow-doctype-decl")`. A Stamp annotation referencing XFDF with `<!DOCTYPE xfdf [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>` triggers external-entity dereferencing during parse. Exfiltration channel = wherever parsed XFDF surfaces (annotation tooltip, exported metadata, error reflection). In Solr/Tika pipelines exposing metadata via REST, exfil is direct.
+PDFBox 2.0.14's Stamp annotation FDF parser (`FDFAnnotationStamp`) relied on Java's default XML parser configuration — no `setFeature("disallow-doctype-decl")`. A Stamp annotation referencing XFDF with `<!DOCTYPE xfdf [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>` triggers external-entity dereferencing during parse. Exfiltration channel = wherever parsed XFDF surfaces (annotation tooltip, exported metadata, error reflection). In Solr/Tika pipelines exposing metadata via REST, exfil is direct.
 
-PDFBOX-4505 fix added `disallow-doctype-decl=true`. Fixed in 2.0.15. Structural lesson: PDFBox has many XML construction sites; subsequent CVE-2021-31811, CVE-2021-31812 were further XXE/DoS variants in adjacent paths.
+PDFBOX-4505 fix moved parsing onto PDFBox's hardened `XMLUtil`. Fixed in 2.0.15. Structural lesson: PDFBox has many XML construction sites.
 
 ### PDF JavaScript and PDF.js
 
-PDFs can embed JavaScript (Adobe Acrobat extension); historically a major Reader CVE surface (2007-2014). PDF.js (Firefox's pure-JS reader) implements a subset of Acrobat's dialect; engine mismatches are parser-differentials. CVE-2024-4367 (April 2024) escaped PDF.js's sandbox via a font-handling path performing `Function(...)` on attacker bytes — parser-differential RCE in the browser viewer.
+PDFs can embed JavaScript (Adobe Acrobat extension); historically a major Reader CVE surface (2007-2014). PDF.js (Firefox's pure-JS reader) implements a subset of Acrobat's dialect; engine mismatches are parser-differentials. CVE-2024-4367 (May 2024) gave arbitrary JavaScript execution in PDF.js via unvalidated font-matrix values used in JavaScript code generation.
 
 ### Type-confusion in PDF object dictionaries
 
@@ -369,8 +363,6 @@ This is a "negation of a hardening configuration" rule — the dangerous pattern
 **Round-trip parser-mismatch**: detect two distinct parsers in one trust chain. Pattern: `$PARSER_A.parse($INPUT)` → `$TRANSFORMER.transform(...)` → `$PARSER_B.parse(...)`. High FP rate (legitimate validation does this), so severity WARNING with metadata steering toward "is this signed-XML processing?"
 
 **XInclude-enabled detection** is a separate sink class — the standard XXE defense doesn't cover it. Direct rule: `$FACTORY.setXIncludeAware(true)`.
-
-**Unhardened OOXML parsers**: `new XSSFWorkbook($PATH)` without `POIXMLProperties.SaxHelper.disableEntityResolver = true`. Apache POI default-unsafe pre-patch.
 
 **Two-parsers-in-one-process hygiene rule**: flag projects that import multiple XML parser libraries (e.g., both `xmldom` and `libxmljs`; both `dom4j` and `JAXP`). Configuration smell worth auditing; not a vuln by itself.
 
@@ -430,7 +422,7 @@ For substrates that *must* be XML (SAML, OOXML, SOAP, XMP/PDF metadata), accept 
 For features that accept XML-shaped uploads (.docx, .svg, .pdf, .xfdf, .saml-response):
 
 1. **Treat the upload as untrusted ZIP-of-untrusted-XML** for office formats. Unpack in a temp directory with restricted FS permissions; never let the unpack pipeline follow zip-slip-style relative paths into application directories.
-2. **Render server-side images of SVGs**, don't serve them inline. Use ImageMagick, librsvg, or rsvg-convert with `--disable-extern-entities` (rsvg-convert) or `-define "svg:xml-parse-huge=false"` (ImageMagick). Strip XML metadata from PDFs before re-serving.
+2. **Render server-side images of SVGs**, don't serve them inline. Use ImageMagick, librsvg, or rsvg-convert; leave ImageMagick's `svg:xml-parse-huge` option off (`-define "svg:xml-parse-huge=false"`) and do not pass rsvg-convert `--unlimited`, which turns off its XML-parser safety limits. Strip XML metadata from PDFs before re-serving.
 3. **Reject Content-Types you don't accept.** A user uploading a profile picture should not be able to upload `application/xml`. Validate MIME type AND magic-byte signature AND parse-once-to-confirm-shape (server-side, with hardened parser).
 4. **Sandbox parser invocation.** Run the parsing step in a process or container with no network egress and minimal FS read access. Even a successful XXE then only reads what the sandbox exposes.
 
@@ -453,7 +445,7 @@ For any PR that touches XML parsing, signature processing, file upload, or SAML/
 9. [ ] Are DOCTYPE declarations explicitly disabled?
 10. [ ] Is the parser library's CVE history reviewed for the version pinned in dependencies?
 11. [ ] For SAML/signed XML: is the signed-element XPath pinned and verified against the consumer's XPath?
-12. [ ] For OOXML: is each of the ~25 internal parse points hardened, not just the main `document.xml`?
+12. [ ] For OOXML: is each internal parse point hardened, not just the main `document.xml`?
 13. [ ] For file uploads: are sandboxes, MIME validation, and magic-byte checks in place?
 14. [ ] For PDF: are XFDF, XMP, and AcroForm parser construction sites all hardened?
 15. [ ] For HTML sanitization: is the sanitizer's parser the same one that will render the output? If not — is the round-trip differential gap measured and mitigated?
@@ -498,7 +490,7 @@ Cross-link to `llm_agent_security_expertise.md` for the broader AI-output-trust-
 
 ### SVG-in-AI-generated-content
 
-Image-generation models (Stable Diffusion XL, DALL-E variants, MidJourney) that support SVG output produce vector graphics that may contain `<foreignObject>`, embedded scripts (if not properly sandboxed in the model's output pipeline), or DTD references. Downstream consumers — chat clients, document editors, browsers — parse these SVGs with rendering pipelines that vary in mXSS-resistance.
+Image-generation models that support SVG output produce vector graphics that may contain `<foreignObject>`, embedded scripts (if not properly sandboxed in the model's output pipeline), or DTD references. Downstream consumers — chat clients, document editors, browsers — parse these SVGs with rendering pipelines that vary in mXSS-resistance.
 
 The full chain: prompt injection → LLM emits SVG → consumer parses SVG → mXSS in consumer. Each step is a known class; the composition is novel.
 
@@ -512,11 +504,11 @@ This is the static-analysis-meta version of the parser-differential class. It's 
 
 A subtle variant: XML namespaces can be declared with arbitrary prefix mappings. `<ns1:Element xmlns:ns1="http://example/foo">` and `<ns2:Element xmlns:ns2="http://example/foo">` are semantically identical; a canonicalization-aware signer treats them as the same. A *consumer* that walks DOM by literal prefix (`element.getElementsByTagName("ns1:Element")`) sees them as different.
 
-Several pre-2015 SAML CVEs exploited exactly this: signer canonicalizes correctly; consumer walks by literal prefix; attacker introduces a namespace-rewritten element that survives the signature check but appears in the consumer's processing under a different prefix. The fix in modern SAML libraries: walk DOM by namespace URI + local name, never by literal prefix.
+The fix: walk DOM by namespace URI + local name, never by literal prefix.
 
 ### Polyglot files (XML + JS + image)
 
-A file that is *simultaneously* a valid SVG, JS file, and JPEG can be uploaded under any of three Content-Types and produce different behavior depending on how the consumer interprets it. PortSwigger's Heyes published canonical polyglot research (PolyglotJPG); the XML/SVG/JS triple is the modern instance. A CSP that allows `script-src 'self'` and an SVG that's also a JS file uploaded to the same origin = CSP-compliant XSS.
+A file that is *simultaneously* a valid SVG, JS file, and JPEG can be uploaded under any of three Content-Types and produce different behavior depending on how the consumer interprets it. PortSwigger's Heyes published canonical polyglot research ("Bypassing CSP using polyglot JPEGs", 2016); the XML/SVG/JS triple is the modern instance. A CSP that allows `script-src 'self'` and an SVG that's also a JS file uploaded to the same origin = CSP-compliant XSS.
 
 ---
 
@@ -526,15 +518,13 @@ A file that is *simultaneously* a valid SVG, JS file, and JPEG can be uploaded u
 
 - CVE-2022-39353 — @xmldom/xmldom multi-root: <https://github.com/advisories/GHSA-crh6-fp67-6883>
 - CVE-2022-39353 NVD entry: <https://nvd.nist.gov/vuln/detail/CVE-2022-39353>
-- CVE-2022-29546 — HtmlUnit NekoHtml processing-instruction OOM: <https://github.com/HtmlUnit/htmlunit-neko/security/advisories/GHSA-6jmm-mp6w-4rrg>
-- CVE-2022-29546 NVD entry: <https://nvd.nist.gov/vuln/detail/CVE-2022-29546>
 - CVE-2019-0228 — Apache PDFBox XFDF XXE: <https://issues.apache.org/jira/browse/PDFBOX-4505>
 - CVE-2019-0228 oss-security disclosure: <https://www.openwall.com/lists/oss-security/2019/04/12/1>
 - CVE-2019-0228 NVD entry: <https://nvd.nist.gov/vuln/detail/CVE-2019-0228>
 
 ### Foundational XXE references
 
-- Timothy Morgan, "XML Schema, DTD, and Entity Attacks: A Compendium of Known Techniques" (2014): <https://research.nccgroup.com/wp-content/uploads/2014/05/xml_schema_dtd_and_entity_attacks-a_compendium_of_known_techniques.pdf>
+- Timothy D. Morgan and Omar Al Ibrahim, "XML Schema, DTD, and Entity Attacks: A Compendium of Known Techniques" (2014): <https://www.nccgroup.com/research/whitepaper-xml-schema-dtd-and-entity-attacks-a-compendium-of-known-techniques/>
 - OWASP XML External Entity Prevention Cheat Sheet: <https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html>
 - OWASP XML Security Cheat Sheet: <https://cheatsheetseries.owasp.org/cheatsheets/XML_Security_Cheat_Sheet.html>
 - OWASP XXE community page: <https://owasp.org/www-community/vulnerabilities/XML_External_Entity_(XXE)_Processing>
@@ -546,8 +536,7 @@ A file that is *simultaneously* a valid SVG, JS file, and JPEG can be uploaded u
 
 - Somorovsky et al., "On Breaking SAML: Be Whoever You Want to Be" (USENIX Security 2012): <https://www.usenix.org/system/files/conference/usenixsecurity12/sec12-final91.pdf>
 - USENIX Sec12 presentation page: <https://www.usenix.org/conference/usenixsecurity12/technical-sessions/presentation/somorovsky>
-- Gareth Heyes, "The Fragile Lock: Novel Bypasses for SAML Authentication" (2024): <https://portswigger.net/research/the-fragile-lock>
-- Hackmanit blog on XML Signature Validation Bypass: <https://hackmanit.de/en/blog-en/82-xml-signature-validation-bypass-in-simplesamlphp-and-xmlseclibs/>
+- Zakhar Fedotkin, "The Fragile Lock: Novel Bypasses for SAML Authentication" (2025): <https://portswigger.net/research/the-fragile-lock>
 - NCC Group "SAML XML Injection": <https://research.nccgroup.com/2021/03/29/saml-xml-injection/>
 
 ### Mutation XSS and HTML parser differentials
@@ -586,7 +575,7 @@ A file that is *simultaneously* a valid SVG, JS file, and JPEG can be uploaded u
 
 ### JSON / YAML parser-differentials
 
-- Microsoft, "An Industry-Wide Vulnerability in JSON Parsers" (2018) — see Bishop Fox writeup: <https://bishopfox.com/blog/json-interoperability-vulnerabilities>
+- Jake Miller (Bishop Fox), "An Exploration & Remediation of JSON Interoperability Vulnerabilities" (2021): <https://bishopfox.com/blog/json-interoperability-vulnerabilities>
 - RFC 8785 JSON Canonicalization Scheme: <https://www.rfc-editor.org/rfc/rfc8785>
 - YAML 1.1 vs 1.2 spec: <https://yaml.org/spec/>
 
