@@ -321,7 +321,7 @@ For the canonical "I want users to run untrusted code in my product" problem, th
 3. Run in `wasmtime`, `wasmer`, or `WasmEdge`.
 4. Expose host capabilities explicitly via WASI or `wit-bindgen` bindings.
 
-In production at Cloudflare Workers (Wasm path), Fastly Compute@Edge, Shopify Functions, Vercel Edge, Fermyon Spin. Durable, inspectable, regulator-defensible.
+In production at Cloudflare Workers (Wasm path), Fastly Compute (formerly Compute@Edge), Shopify Functions, Vercel Edge, Fermyon Spin. Durable, inspectable, regulator-defensible.
 
 ### Limitations
 

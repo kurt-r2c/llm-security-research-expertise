@@ -29,7 +29,7 @@
 
 **Key publications**:
 - KNOB (USENIX 2019, CVE-2019-9506) — MITM downgrade of Bluetooth Classic encryption key entropy down to 1 byte via LMP_encryption_key_size_req manipulation; brute-force online in real time. Every certified BR/EDR chipset in scope pre-fix.
-- BIAS (S&P 2020, CVE-2020-10135) — master/slave role switch + Legacy Secure Connections downgrade impersonates either side of an existing pairing.
+- BIAS (S&P 2020, CVE-2020-10135) — lack of mandatory mutual authentication + permissive master/slave role switching + authentication-procedure downgrade impersonates either side of an existing pairing.
 - BLURtooth (ASIACCS 2022, CVE-2020-15802) — Cross-Transport Key Derivation lets BR/EDR pairing overwrite BLE keys (and vice versa) without consent.
 - BLUFFS (CCS 2023, CVE-2023-24023) — six attacks on session-key derivation breaking both forward and future secrecy; fix requires a Bluetooth Core Spec change.
 
@@ -347,12 +347,12 @@ Bluetooth Secure Simple Pairing (SSP, since 2.1) defines four association models
 3. **Passkey Entry**: one device displays a 6-digit code, user types into the other. MITM-resistant.
 4. **OOB**: pairing material delivered via another channel (NFC tap, QR). Best when OOB channel is secure.
 
-ECDH (P-192 in 2.1, P-256 since 4.2) establishes a shared secret. The LTK (BLE) / Link Key (Classic) derives from that + the pairing model's verification step.
+ECDH (P-192 in 2.1, P-256 since 4.1 for BR/EDR and 4.2 for LE) establishes a shared secret. The LTK (BLE) / Link Key (Classic) derives from that + the pairing model's verification step.
 
 ### KNOB / BIAS / BLURtooth / BLUFFS (Antonioli)
 
 - **KNOB** (CVE-2019-9506, USENIX 2019): MITM downgrades BR/EDR key entropy via `LMP_encryption_key_size_req` rewrites. Each side thinks the other requested 1-byte entropy; the resulting key has ~256 effective values; brute force in ms. Fix: enforce ≥7-byte minimum. Most major chipsets now do.
-- **BIAS** (CVE-2020-10135, S&P 2020): two structural quirks combined — master/slave role-switchable after pairing, and Legacy Secure Connections auth is unilateral. Attacker takes master role (target authenticates against attacker); role-switches to slave (no further auth required). Fix: mandate Secure Connections (4.2+); many IoT devices still don't.
+- **BIAS** (CVE-2020-10135, S&P 2020): structural flaws combined — master/slave role-switchable after pairing, no mandatory mutual authentication, and an authentication-procedure downgrade. Attacker takes master role (target authenticates against attacker); role-switches to slave (no further auth required). Fix: mandate Secure Connections (4.1+); many IoT devices still don't.
 - **BLURtooth** (CVE-2020-15802, ASIACCS 2022): CTKD lets a fresh pairing on one transport overwrite the other transport's keys *without user consent*. Attacker pairs Just-Works BLE against a target, then derives Classic keys without going through Classic pairing. Fix: only allow CTKD if the new pairing is at least as authenticated.
 - **BLUFFS** (CVE-2023-24023, CCS 2023): BR/EDR session-key derivation uses a deterministic function of link key + attacker-influenceable nonces. Link Key compromise breaks both forward and future secrecy. Fix requires Core Spec changes; rollout is slow.
 

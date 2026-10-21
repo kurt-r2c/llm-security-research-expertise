@@ -1212,10 +1212,7 @@ approach end-to-end:
 2. **Per-language reasoning prompts** (`prompts/user_reasoning/<lang>.j2`):
    the prompt sees the sanitizer evidence and decides FP/TP.
 3. **Exploitability rescorer**: a separate prompt that adjusts severity
-   based on additional context. **The composer CVE-2022-24828 result**
-   demonstrated the failure mode: the rescorer trusted `escapeshellcmd`
-   as a strong sanitizer, downgrading a real TP. The fix (carried as
-   a follow-up): label `escapeshellcmd` weak in the sanitizer catalog.
+   based on additional context.
 
 ---
 

@@ -442,7 +442,7 @@ AgentFlayer demonstrated the *connector-pivot* primitive: prompt-inject the agen
 
 ## 6. Detection and Rule-Authoring Patterns
 
-The static-analysis lens is where Semgrep contributes uniquely. Most of the rules below have viable Semgrep implementations; some are in Boberg's prompt-injection workflow in the `workflows` repo today, others are roadmap.
+The static-analysis lens is where Semgrep contributes uniquely. Most of the rules below have viable Semgrep implementations.
 
 ### 6.1 The sink catalog — where LLM calls happen
 
@@ -479,14 +479,14 @@ The most productive rule shapes in the prompt-injection workflow:
 - **`prompt_concat_untrusted`**: pattern matches `messages=[..., {"role": "user", "content": <untrusted> + "..."}]` or `f"You are a helpful assistant. The user said: {untrusted}"` or `system_prompt + user_input` concatenation.
 - **`rag_retrieve_to_llm_no_sanitize`**: pattern matches `docs = vector_store.similarity_search(...); chain.invoke({"context": docs, ...})` with no intermediate transform.
 - **`tool_output_to_next_prompt`**: pattern matches the "agent loop" idiom — tool_result fed back into a subsequent `messages.create` call without intermediate validation. Indicator: same `messages` array appended to in a loop.
-- **`output_to_security_sink` (P2Xi)**: pattern matches `response = llm.invoke(...); html = f"<div>{response.content}</div>"` — LLM output flowing into HTML, eval, SQL, shell, file write. *This is the dual problem*: prompt injection lets the attacker write the output; the output then attacks the next stage. The Semgrep workflow currently detects three real cases of this on `semgrep-app` (XML-tag-bounded summarization, recursive chunked summarization where summaries feed forward as prompts, and PR-code-review where SCM-fetched code is unsanitized markdown).
+- **`output_to_security_sink` (P2Xi)**: pattern matches `response = llm.invoke(...); html = f"<div>{response.content}</div>"` — LLM output flowing into HTML, eval, SQL, shell, file write. *This is the dual problem*: prompt injection lets the attacker write the output; the output then attacks the next stage.
 - **`tool_with_irreversible_side_effect_no_confirmation`**: pattern matches `@tool` definitions for `send_email`, `transfer`, `delete`, `execute` without an explicit confirmation gate. Heuristic but high-leverage.
 - **`mcp_server_path_traversal`**: pattern matches MCP server `resources/read` handlers that join user-controlled paths without canonicalization.
 - **`agent_card_unsigned`**: A2A-specific. Match agent cards published without a signature (the a2a-sdk signs cards via `a2a.utils.signing.create_agent_card_signer`).
 
 ### 6.4 Grep-discoverable site discovery
 
-For LLM-output-to-security-sink rules, a grep-first discovery phase is more accurate than language-server-driven taint. The Semgrep prompt-injection workflow uses `subprocess`-invoked grep across the working tree for canonical LLM call patterns, then hands the file list to an AST-aware sink-discovery tool. The two-phase shape is faster than naive AST traversal and catches non-Python frameworks (JS/TS LangChain.js, Go SDKs) that the AST analyzer does not yet support.
+For LLM-output-to-security-sink rules, a grep-first discovery phase is more accurate than language-server-driven taint.
 
 ### 6.5 What rule authoring will not catch
 
@@ -1111,6 +1111,5 @@ Operating consequence for 2026 H1 security review: every agent deployment should
 - `~/ai/expertise/software/deserialization_expertise.md` — the pickle-model attack class is a deserialization gadget chain at heart
 - `~/ai/expertise/software/http_web_security.md` — Web-2.0 attack surface on MCP servers
 - `~/ai/expertise/software/agentic_web_capabilities_expertise.md` — capability-based design for MCP, A2A, and Component-Model agent interconnects; the MCP 2025-11-25 authorization spec (OAuth 2.1 + RFC 8707 + PKCE-S256 + token-passthrough prohibition) is treated in detail in §6.5 there. **Boundary:** this doc covers MCP/agent attack primitives, exfil channels, detection rules, and the OWASP/MITRE/NIST taxonomy cross-walks; the sister doc covers the capability-discipline architectural framing, capability-typed tool interfaces (WIT/Component Model), and the authorization-spec normative requirements.
-- `project_prompt_injection_workflow.md` (memory) — Semgrep workflow `kb/prompt-injection-workflow`; grep-discoverable site discovery; three real findings on semgrep-app
 - `[[reference-anti-fraud-abuse-engineering]]` — commercial-bias / recommendation-laundering frame for memory-poisoning attacks at the *user-account* economic layer (Microsoft AI Recommendation Poisoning, section 2.5)
 - `[[reference-cicd-supply-chain]]` — marketplace-publisher trust model that applies equally to MCP server, Claude Plugin, and Cursor Plugin marketplaces; signing posture for `.mcpb` bundles is currently optional
