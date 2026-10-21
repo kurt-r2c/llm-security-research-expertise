@@ -15,14 +15,13 @@
 >   original went unmaintained in 2017.
 > - **Konstantin (Kostya) Serebryany** — Software Engineer at Google since 2007. Author and
 >   tech lead for **libFuzzer**, **AddressSanitizer (ASan)**, **MemorySanitizer (MSan)**,
->   **ThreadSanitizer (TSan)**, and **UndefinedBehaviorSanitizer (UBSan)** in LLVM;
+>   and **ThreadSanitizer (TSan)** in LLVM;
 >   co-author of OSS-Fuzz (USENIX Security 2017). The "Sanitize, Fuzz, and Harden Your C++
 >   Code" Enigma 2016 talk is the canonical statement of the in-process fuzzing-plus-
 >   sanitizers paradigm.
-> - **Robert Swiecki** — Software Engineer at Google; author of **honggfuzz** (2010-);
->   currently leads Google's AI/ML Systems Security team. Honggfuzz is the feedback-driven,
->   evolutionary, multi-mode fuzzer favored for browser engines and long-running daemons;
->   two-time Pwnie nominee (2016, 2017).
+> - **Robert Swiecki** — Software Engineer at Google; author of **honggfuzz** (2010-).
+>   Honggfuzz is the feedback-driven, evolutionary, multi-mode fuzzer favored for browser
+>   engines and long-running daemons.
 > - **Dmitry Vyukov** — Software Engineer at Google; creator of **syzkaller** (2015), the
 >   coverage-guided system-call fuzzer that has filed thousands of bugs against the Linux
 >   kernel and ports to FreeBSD, NetBSD, OpenBSD, Fuchsia, and Windows. Author of
@@ -35,16 +34,17 @@
 >   practitioner of snapshot-restoration fuzzing at hypervisor granularity.
 > - **Cornelius Aschermann** — PhD researcher at Ruhr-Universität Bochum; co-author with
 >   Schumilo of Nyx; primary author of **REDQUEEN** (NDSS 2019) — input-to-state
->   correspondence for solving magic-byte and checksum tests — and **GRIMOIRE** (USENIX
+>   correspondence for solving magic-byte and checksum tests — and co-author of **GRIMOIRE** (USENIX
 >   Security 2019) — fully-automated coverage-guided grammar-like input synthesis without
->   pre-supplied grammars. REDQUEEN's instrumentation is now a default mode in AFL++.
+>   pre-supplied grammars. REDQUEEN's instrumentation is now the opt-in CmpLog mode (`-c`)
+>   in AFL++.
 > - **Marcel Böhme** — Faculty at Max Planck Institute for Security and Privacy (MPI-SP);
 >   previously Monash. Author of **AFLGo** (CCS 2017) — directed greybox fuzzing via
 >   simulated annealing — and the foundational "Coverage-based Greybox Fuzzing as Markov
 >   Chain" (CCS 2016) statistical model. Co-author of **AFLNet** (ICST 2020), the canonical
 >   stateful protocol fuzzer. *Fuzzing: on the Exponential Cost of Vulnerability Discovery*
 >   (FSE 2020) is the reference for "how long should I fuzz?"
-> - **Brendan Dolan-Gavitt (moyix)** — Associate Professor at NYU Tandon; author of
+> - **Brendan Dolan-Gavitt (moyix)** — NYU Tandon faculty; author of
 >   **PANDA** (Platform for Architecture-Neutral Dynamic Analysis), the QEMU+LLVM record-
 >   replay platform; co-author of **LAVA** (IEEE S&P 2016) — large-scale automated
 >   vulnerability addition for ground-truth fuzzing-benchmark corpora.
@@ -55,7 +55,7 @@
 > - **Abhishek Arya, Oliver Chang, and the Google OSS-Fuzz team** — Founding Chrome
 >   Security member (Arya) and ClusterFuzz / OSS-Fuzz tech lead (Chang). **OSS-Fuzz**
 >   (2016-) and underlying **ClusterFuzz** (open-sourced 2019) have found >16,000 bugs in
->   Chrome and >11,000 bugs across >700 OSS projects on >25,000 cores. The reference
+>   Chrome and >11,000 bugs across >160 OSS projects on >25,000 cores. The reference
 >   architecture for production-scale continuous fuzzing.
 >
 > **Sources:** AFL technical whitepaper (`lcamtuf.coredump.cx/afl/`); AFL++ docs
@@ -92,7 +92,7 @@ over program inputs, where inputs are individuals, mutations are genetic operato
 keep mutants that exercise new control-flow edges. New coverage = new fitness = save.
 
 This mechanism distinguishes coverage-guided fuzzing from random testing. Miller's 1990
-Wisconsin study used pure random input ("fuzz") and crashed 24-33% of UNIX utilities —
+Wisconsin study used pure random input ("fuzz") and crashed 25-33% of UNIX utilities —
 proof that hardened code's input space is sparse enough for random sampling to find
 bugs. But random sampling cannot find the bug behind a four-byte magic number, a
 checksum, or a state-machine state: no feedback, no gradient. Coverage feedback turns
@@ -202,8 +202,8 @@ Harness and target compile into a single executable; the harness runs in a tight
 at 10k-1M iter/sec. The architectural win: **in-process + sanitizer integration**.
 ASan, MSan, UBSan, TSan all instrument the same binary; any sanitizer crash is captured
 with the triggering input. Oracle goes from "did the process die" to "did any sanitizer
-fire." Now in maintenance mode (last major changes ~2023); LLVM encourages migration
-to **Centipede** (Google's successor) and AFL++. Remains the de-facto in-process fuzzer
+fire." Now in maintenance mode; its original authors switched to working on
+**Centipede** (Google's successor). Remains the de-facto in-process fuzzer
 for hundreds of OSS-Fuzz projects.
 
 ### honggfuzz (Swiecki / Google, 2010-)
@@ -211,7 +211,7 @@ for hundreds of OSS-Fuzz projects.
 Multi-mode fuzzer favored for long-running daemons and browsers. Multiple
 instrumentation backends (software, Intel PT, Linux perf-events, ptrace); persistent
 mode + net mode; built-in crash analysis (stack-hash dedup, sanitizer parsing,
-reproducer minimization). The workhorse at Google for browser-engine fuzzing.
+reproducer minimization).
 
 ### The sanitizer corpus
 
@@ -268,8 +268,7 @@ for X.509. Coverage feedback still drives the search; the mutator constrains it.
 **3. Grammar inference (GRIMOIRE, Nautilus).** The fuzzer learns grammar from coverage
 feedback at runtime: inputs that exercise new code paths reveal substructure (a
 "function call" looks different from a "variable assignment"); GRIMOIRE composes larger
-inputs from observed substructure. **No human-authored grammar required**. GRIMOIRE
-outperforms hand-written grammars on PHP, mruby, Lua, and JavaScript-Core targets.
+inputs from observed substructure. **No human-authored grammar required**.
 
 ### Fuzzilli (Groß / Project Zero, 2018-)
 
@@ -281,7 +280,7 @@ FuzzIL program generates well-formed JS — whereas mutating JS source directly 
 always produces invalid JS. FuzzIL's static typing of variables encodes type-confusion
 preconditions implicitly; mutating types is one of the most productive operations.
 
-Supports V8, SpiderMonkey, JavaScriptCore, JerryScript; hundreds of CVEs since 2019.
+Supports V8, SpiderMonkey, JavaScriptCore, JerryScript; hundreds of bugs since 2019.
 The "REPRL" execution mode (engine forks once, receives scripts over a pipe, resets
 state) gives 10k-100k iter/sec. Doyensec's *Fuzzing JavaScript Engines with Fuzzilli*
 (2020) is the integration tutorial.
@@ -290,8 +289,8 @@ state) gives 10k-100k iter/sec. Doyensec's *Fuzzing JavaScript Engines with Fuzz
 
 Ivan Fratric's **Domato** (Project Zero) is the canonical DOM-fuzzer. The grammar
 describes valid DOM trees, CSS, HTML, and JS that manipulates the DOM; the fuzzer
-generates them in combination. Hundreds of browser layout-engine bugs across Chromium,
-Firefox, Safari, Edge. The Domato discipline: **grammar fuzzers find semantic bugs
+generates them in combination. Its 2017 debut found 33 bugs across Chrome, Firefox,
+Internet Explorer, Edge, and Safari. The Domato discipline: **grammar fuzzers find semantic bugs
 (use-after-free in layout, race conditions in event handling, JIT type confusion);
 coverage-guided fuzzers find buffer-overflow-class bugs (in font parsers, image
 decoders). Industrial-strength browser fuzzing runs both continuously.**
@@ -299,7 +298,7 @@ decoders). Industrial-strength browser fuzzing runs both continuously.**
 ### Atheris, Jazzer, cargo-fuzz
 
 The libFuzzer model has been ported to managed runtimes: **Atheris** (Python, coverage
-via `sys.settrace`); **Jazzer** (JVM, with Java-specific sanitizers for JNDI/SSRF/SQL
+via bytecode instrumentation); **Jazzer** (JVM, with Java-specific sanitizers for JNDI/SSRF/SQL
 injection); **cargo-fuzz** + **libFuzzer-sys** (Rust). The libFuzzer harness model has
 become the cross-language lingua franca.
 
@@ -335,7 +334,7 @@ the finding.**
 The canonical differential fuzzer. Generates random *valid* C programs — free of
 undefined behavior, so all compliant compilers must agree on runtime output. Compile
 with multiple compilers; disagreement = wrong-code bug. >325 previously-unknown bugs
-in three years, including bugs in proved-correct parts of CompCert. Methodological
+in three years, including bugs in unproved parts of CompCert. Methodological
 contributions: **valid-by-construction generation** (the generator's grammar excludes
 UB-prone constructs — harder than it sounds); **test-case reduction** matters as much
 as generation (C-Reduce reduces a 1000-line program to ~10 lines while preserving the
@@ -353,7 +352,7 @@ TLS has many implementations (OpenSSL, BoringSSL, LibreSSL, wolfSSL, mbedTLS, NS
 GnuTLS, s2n, rustls, schannel, JSSE); differential fuzzing has been particularly
 productive. **frankencerts** (Brubaker et al., 2014) generates random X.509 certs
 from real-world fragments; **TLS-Attacker** (RUB) for protocol-state-machine testing;
-**tlspuffin** (Cristiano et al., ESORICS 2022) for symbolic Dolev-Yao-style fuzzing.
+**tlspuffin** (Gouville, Ammann, Hirschi, Kremer, IEEE S&P 2024) for symbolic Dolev-Yao-style fuzzing.
 Pattern: when the spec leaves room for implementation discretion, differential
 fuzzing eats the divergence.
 
@@ -363,9 +362,8 @@ Parser differentials are an entire vulnerability class — see
 `xml_parser_differential_expertise.md`. The fuzzer generates inputs well-formed by the
 spec; runs them through multiple implementations; flags parse-tree disagreements.
 
-The CVE-2022-39353 class — "two top-level XML elements parse as one element, with the
-second silently discarded" — was discovered through differential testing. The class
-generalizes to JSON (integer-precision differentials, duplicate-key differentials),
+The CVE-2022-39353 class — xmldom accepting a document with multiple top-level
+elements and adding every one as a root node without an error — generalizes to JSON (integer-precision differentials, duplicate-key differentials),
 YAML (the "Norway problem"), URL (schema-handling, percent-encoding, IPv6-bracket
 differentials — see `ssrf_url_parsing_expertise.md` §4), email (RFC 5322 differentials
 between validator and SMTP server), cookie (SameSite enforcement differentials). Every
@@ -409,8 +407,8 @@ the negation — most powerful, slowest, most fragile).
 KLEE is the foundational symbolic-execution engine for security testing.
 LLVM-IR-level symbolic execution; STP/Z3 constraint solving; on every branch over a
 symbolic value, KLEE queries the solver for both sides and forks if both satisfiable.
-Tested on GNU coreutils, achieved >90% line coverage and found 56 bugs (three latent
->15 years).
+Tested on GNU coreutils, achieved >90% average per-tool line coverage; across 452
+applications found 56 serious bugs (three in coreutils latent >15 years).
 
 Limitations: state explosion (exponential state-fork growth; heuristics help but don't
 solve it); environment modeling (every syscall on a symbolic input must be modeled
@@ -434,7 +432,7 @@ The hybrid pattern: greybox (AFL/AFL++) as workhorse; symbolic execution only on
 **stuck** inputs (mutating without coverage progress). Symbolic engine solves one hard
 branch; hands the input back to greybox for deep search behind it.
 
-- **Driller** (Shoshitaishvili et al., NDSS 2016) — AFL + angr; DARPA CGC finalist.
+- **Driller** (Stephens et al., NDSS 2016) — AFL + angr; DARPA CGC finalist.
 - **QSYM** (Yun et al., USENIX Security 2018) — concolic with concrete fallback;
   optimized for fuzzing-specific workloads (no full path-constraint tracking).
 - **SymCC** (Poeplau, Francillon / EURECOM, USENIX Security 2020) — compiles symbolic
@@ -482,9 +480,9 @@ without instrumenting the kernel; decode trace to coverage; feed back to mutator
 (Windows, macOS) become fuzzable. Up to 17,000 executions/sec on commodity hardware.
 
 Nyx (USENIX Security 2021) extended to **fast-snapshot-restoration fuzzing**. Target
-VM snapshotted at harness entry; each iteration restores via modified KVM (snapshot
-restore in ~100us); test-case bytecode runs (Nyx's mutation engine operates on a
-DAG-shaped IL with affine types). Throughput 50k-100k iter/sec on hypervisor targets.
+VM snapshotted at harness entry; each iteration restores via modified KVM; test-case bytecode runs (Nyx's mutation engine operates on a
+DAG-shaped IL with affine types). Snapshot restoration reloads the target thousands of
+times per second.
 
 Intel PT (no-recompile coverage) + KVM snapshot (fast reset) + affine-type bytecode
 mutation is the modern state-of-the-art for hypervisor and OS fuzzing. Microsoft's
@@ -495,8 +493,8 @@ OneFuzz and several commercial platforms have adopted variants.
 2021-2025 kernel-fuzzing concentrated on three Linux subsystems with rich syscall
 surface: **io_uring** (async-IO syscall family from Linux 5.1; hundreds of bugs;
 Project Zero's Jann Horn 2022-2023 series); **eBPF** (in-kernel bytecode VM; verifier
-bugs translate directly to kernel arbitrary read/write; Manfred Paul's Pwn2Own 2024
-exploits); **netfilter / nf_tables** (UAF and double-free CVEs throughout 2022-2024).
+bugs translate directly to kernel arbitrary read/write; Manfred Paul's Pwn2Own 2020
+exploit); **netfilter / nf_tables** (UAF and double-free CVEs throughout 2022-2024).
 Google's **kernelCTF** (since 2023) pays for working exploits of n-day and 0-day Linux
 kernel bugs; submitted exploits become public reference. General lesson: **any new
 kernel subsystem with non-trivial state and rich attacker-controlled input is a
@@ -528,8 +526,7 @@ The first coverage-guided protocol fuzzer. Seeded with a recorded session; acts 
 client; replays variations of the original sequence; state feedback via server
 response codes (each code identifies a state); state-coverage added to code-coverage
 as fitness; mutates per-message and per-sequence (drop, duplicate, mutate bytes,
-splice from a different sequence). Found bugs in Live555, ProFTPD, OpenSSH, openssl-
-tls, dnsmasq, exim. The 2025 follow-up *AFLNet Five Years Later* reviews
+splice from a different sequence). Found bugs in Live555. The 2025 follow-up *AFLNet Five Years Later* reviews
 methodological lessons. The de-facto reference for stateful protocol fuzzing.
 
 ### boofuzz, Nyx-Net, FitM
@@ -539,8 +536,8 @@ recorded session; user models in Python; useful for proprietary protocols with s
 but no source. **Nyx-Net** (EuroSys 2022) applies Nyx's snapshot model to network
 protocols — runs the target in a VM, snapshots after each received message, uses the
 snapshot pool as the search frontier. Up to 300x throughput improvement over AFLNet;
-70% coverage improvement. **FitM** (Bochum 2022) — binary-only coverage-guided for
-stateful protocols using QEMU's fork-and-restore. For new projects, snapshot-based is
+70% coverage improvement. **FitM** (TU Berlin, BAR 2022) — binary-only coverage-guided for
+stateful protocols, built on AFL++'s qemuafl with CRIU userspace snapshots. For new projects, snapshot-based is
 the right starting point; AFLNet remains relevant for protocols with established
 harnesses (HTTP, FTP, RTSP, SMTP, IMAP, MQTT).
 
@@ -548,8 +545,8 @@ harnesses (HTTP, FTP, RTSP, SMTP, IMAP, MQTT).
 
 A special case worth calling out: extreme spec complexity, many implementations, high
 stakes. TLS-Attacker (RUB) for manual + fuzz state-machine testing; tlspuffin for
-symbolic Dolev-Yao-style protocol fuzzing (found wolfSSL CVE-2022-25638 signature-
-confusion); Project Wycheproof (Google) — *test vectors* for cryptographic libraries
+symbolic Dolev-Yao-style protocol fuzzing (rediscovered wolfSSL CVE-2022-25638, an
+authentication bypass); Project Wycheproof (Google) — *test vectors* for cryptographic libraries
 (curated corpus of known-tricky inputs that any compliant library should handle
 correctly).
 
@@ -594,7 +591,7 @@ implementations, disagreements routinely exploitable as SSRF or open-redirect. S
 `ssrf_url_parsing_expertise.md` §4. Methodology: generate URLs with combinations of
 scheme, userinfo, host, port, path, query, fragment; parse with multiple
 implementations; flag disagreement on the parsed authority component. Orange Tsai's *A
-New Era of SSRF* (BHEU 2017) and James Kettle's research are the canonical writeups.
+New Era of SSRF* (BHUSA 2017) and James Kettle's research are the canonical writeups.
 
 ---
 
@@ -615,9 +612,8 @@ harness; **validation pipeline** compiles, runs for a short period, measures cov
 **promotion** of harnesses achieving significant new coverage into the OSS-Fuzz
 project's harness set.
 
-Google reported absolute coverage increases up to 35% across >160 projects; >30
-previously-unknown bugs. Economics: ~$10s of LLM inference per generated harness;
-~$1000s of fuzzing CPU per harness-tested; cheaper than human harness-writing at scale.
+Google reported line coverage increases up to 29% over existing human-written targets
+across 160 C/C++ projects; 30 new bugs/vulnerabilities reported.
 
 ### Fuzz4All (Xia et al., ICSE 2024)
 
@@ -667,9 +663,9 @@ that doc; the second is this section.
 
 The reference architecture for continuous fuzzing of OSS. The deal: OSS projects write
 a libFuzzer-compatible harness and a build script (a few hours of engineering for a
-typical C/C++ library); Google runs the fuzzers (>25,000 cores, free to OSS); bugs are
+typical C/C++ library); Google runs the fuzzers (free to OSS); bugs are
 auto-filed with a 90-day disclosure window; bisection and reproducer auto-generated.
-OSS-Fuzz statistics (2026): >700 projects, >11,000 bugs, >6,000 vulnerabilities. Cost
+OSS-Fuzz statistics (May 2025): 1,000 projects, >50,000 bugs, >13,000 vulnerabilities. Cost
 per bug far lower than any human-driven research model.
 
 ### ClusterFuzz (open-sourced 2019)
@@ -683,8 +679,8 @@ Actions" version — the right starting point for single-project deployments.
 
 ### Mayhem, Sapienz
 
-**Mayhem** (ForAllSecure, 2014-) — commercial platform built on the DARPA CGC winning
-team's research; hybrid concolic-greybox; binary-only; common in regulated industries.
+**Mayhem** (ForAllSecure) — commercial platform built on the DARPA CGC winning
+team's research; hybrid concolic-greybox; supports uninstrumented binaries as well as libFuzzer targets; common in regulated industries.
 
 **Sapienz** (Meta, 2017-) — Android-app fuzzing platform; search-based test generation
 drives UI flows. Methodological contribution: **fuzzing applied at the UI/app level**,
@@ -695,7 +691,7 @@ instrumentation.
 
 OSS-Fuzz is hard to beat for OSS, but most enterprise code is not open-source. Patterns:
 **ClusterFuzzLite** in GitHub Actions; **OneFuzz** (Microsoft, archived 2023);
-**GitLab Fuzz Testing**; bespoke at Google/Meta/Amazon/Apple. Discipline: **fuzz the
+**GitLab Fuzz Testing** (deprecated in GitLab 18.0); bespoke at Google/Meta/Amazon/Apple. Discipline: **fuzz the
 diff**. Don't re-fuzz the entire codebase on every PR; fuzz the changed-function call
 paths with the existing corpus as seed. Cross-link `cicd_supply_chain_expertise.md`.
 
@@ -715,7 +711,7 @@ residual crashes triage cannot classify.
 
 ### The harness is the bottleneck
 
-Zalewski's discipline: **a bad harness either never reaches the interesting code or
+**A bad harness either never reaches the interesting code or
 cannot distinguish a crash from a benign exit**. A good harness calls into the target's
 parsing function with attacker-controlled bytes; sets up state *outside* the fuzz loop;
 cleans up between iterations to prevent drift; exposes the maximum meaningful attack
@@ -747,9 +743,7 @@ directly, or remove it from the fuzz path (fuzz `process_validated` with raw byt
 
 Good seeds cover diverse code paths, are small, are valid by the target's standards.
 Sources: target's own test suite; real-world corpus (public web for image decoders;
-real HTTP traces); prior OSS-Fuzz corpora; hand-crafted edge cases. The Böhme
-empirical finding: **seed corpus quality often matters more than mutation engine
-quality**.
+real HTTP traces); prior OSS-Fuzz corpora; hand-crafted edge cases.
 
 AFL/AFL++/libFuzzer accept dictionary files: byte sequences to preferentially insert.
 For format-rich targets (XML tags, SQL keywords, JS reserved words), a dictionary cuts
@@ -799,7 +793,7 @@ the same disclosure cycle, not a separate one).
 ### The OSS-Fuzz auto-disclosure model
 
 OSS-Fuzz operates a **90-day disclosure window**: when a bug is filed, the project has
-90 days to fix before public visibility. Most are fixed in 1-30 days; laggards become
+90 days to fix before public visibility. Most are fixed quickly; laggards become
 public, pressuring maintainers. Pre-2016, vendor disclosure windows were negotiated
 bug-by-bug; bugs sat in vendor queues for years. OSS-Fuzz's auto-disclosure is now the
 de-facto industry standard for OSS security bugs.
@@ -830,8 +824,8 @@ fuzzing in the literature; the methodological similarity is strong.
 
 **Cloud IAM-policy fuzzing.** AWS IAM, Azure RBAC, GCP IAM are policy languages. A
 bug is a permission grant granting more than the author thought. Mutate policies;
-evaluate against a corpus of test actions; flag unintended grants. Tools (Pacu,
-ScoutSuite, Cloudsplaining) do static analysis; few do true mutation-based fuzzing.
+evaluate against a corpus of test actions; flag unintended grants. Tools (ScoutSuite,
+Cloudsplaining) do static analysis; few do true mutation-based fuzzing.
 Open opportunity.
 
 **Smart contract fuzzing.** Echidna (Trail of Bits) for property-based testing of
@@ -976,10 +970,10 @@ methodology where another is the right fit.
 
 - Pham, V.-T., Böhme, M., Roychoudhury, A., *AFLNET*, ICST 2020:
   https://mboehme.github.io/paper/ICST20.AFLNet.pdf
-- Pham, V.-T., et al., *AFLNet Five Years Later*, IEEE TSE 2025:
+- Meng, R., Pham, V.-T., Böhme, M., Roychoudhury, A., *AFLNet Five Years Later*, IEEE TSE 2025:
   https://abhikrc.com/pdf/TSE25.pdf
 - Schumilo, S., et al., *Nyx-Net*, EuroSys 2022
-- *tlspuffin*, ESORICS 2022
+- *tlspuffin*, IEEE S&P 2024
 
 ### LAVA / benchmarking
 

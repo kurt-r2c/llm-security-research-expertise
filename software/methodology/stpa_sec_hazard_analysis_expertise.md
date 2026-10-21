@@ -23,13 +23,12 @@ Audience: AI agents + safety-critical systems engineers (aviation, automotive, m
 - **Nancy Leveson**, *Engineering a Safer World: Systems Thinking Applied to Safety* (MIT Press 2011). Foundational text introducing STAMP and STPA. Reframes accidents from chain-of-events causation to control-structure inadequacy. Free-PDF release from MIT Press is the standard distribution.
 - **William Young + Nancy Leveson**, "An integrated approach to safety and security based on systems theory," *Communications of the ACM* 57(2), February 2014. The CACM paper that introduces STPA-Sec as a security extension to STPA. Argues that strategic security analysis should start from "what must not happen" rather than "what could attack us."
 - **Nancy Leveson + John Thomas**, *STPA Handbook* (MIT, March 2018). Operational manual for STPA practitioners. The four-UCA-type catalog (providing, not-providing, wrong-timing, wrong-duration) and the loss-scenario causal-factor taxonomy are codified here.
-- **William Young**, *A System-Theoretic Security Analysis Methodology for Assuring Complex Operations Against Cyber Disruptions*, PhD thesis, MIT 2014. The formal development of STPA-Sec. Less cited than the CACM paper but contains the worked examples.
 - **MIT SafeWare laboratory** (Leveson, Thomas, Young, and collaborators). Ongoing research output through MIT's Department of Aeronautics and Astronautics. Annual STAMP/STPA Workshop has run since 2012.
 - **RTCA DO-326A** *Airworthiness Security Process Specification* (2014) + **DO-356A** *Airworthiness Security Methods and Considerations* (2018) + **DO-355A** *Information Security Guidance for Continuing Airworthiness* (2020) `[unverified specific publication year]`. The FAA/EASA-recognized cybersecurity framework for commercial aircraft. Reference STPA-Sec-compatible hazard-analysis methods without prescribing STPA-Sec by name.
 - **ISO/SAE 21434:2021** *Road vehicles — Cybersecurity engineering*. Mandates TARA (Threat Analysis and Risk Assessment) and uses systems-theoretic vocabulary throughout. UNECE R155 + R156 reference 21434 for vehicle type approval.
 - **FDA Premarket Cybersecurity Guidance** (2014, 2018 draft, 2023 final update `[unverified exact date]`). Compatible with STPA-Sec hazard framing; pre-market submission expects a hazard analysis covering cybersecurity.
-- **NIST SP 800-160 Vol. 1** *Systems Security Engineering* (Ron Ross et al., 2016 with 2018 update). Explicit STAMP/STPA-Sec citation in Appendix F. The clearest US-government endorsement of systems-theoretic security analysis.
-- **IAEA Nuclear Security Series 17-T** *Computer Security at Nuclear Facilities* (2011, revision in progress) — compatible framing for nuclear-cyber.
+- **NIST SP 800-160 Vol. 1** *Systems Security Engineering* (Ron Ross et al., 2016 with 2018 update).
+- **IAEA Nuclear Security Series 17-T** *Computer Security at Nuclear Facilities* (2011; Rev. 1 published 2021) — compatible framing for nuclear-cyber.
 - **DOE OE-417** electricity-incident reporting + **NERC CIP** standards — cyber-physical regulations for the US bulk electric system.
 
 Aphorism: Leveson's framing — "safety is a control problem, not a failure problem" — is the load-bearing claim of the entire methodology. If you reject it, you reject STPA-Sec.
@@ -156,7 +155,7 @@ The intent-free framing is the methodology's most-misunderstood feature. Practit
 
 **5.2 Coupling with adversary analysis.** Mature programs run STPA-Sec to enumerate structurally-possible UCAs, then a separate adversary-prioritization pass to rank by capability + cost + likelihood. The STRIDE-elements analysis, the kill-chain decomposition, or a red-team exercise feeds the prioritization. STPA-Sec without prioritization is a complete-but-unranked defense backlog; prioritization without STPA-Sec is a ranked-but-incomplete one. Both inputs are required.
 
-**5.3 Worked-example anchors throughout the literature.** Young's PhD thesis (MIT 2014) develops the Iran-stuxnet-class attack on centrifuge controllers as an STPA-Sec exemplar. Subsequent literature applies STPA-Sec to aviation cockpit security (cross-link `[[reference-aviation-aerospace-security]]`), automotive ECU networks (cross-link `[[reference-automotive-security]]`), and SCADA control-center operations.
+**5.3 Worked-example anchors throughout the literature.** The literature applies STPA-Sec to aviation cockpit security (cross-link `[[reference-aviation-aerospace-security]]`), automotive ECU networks (cross-link `[[reference-automotive-security]]`), and SCADA control-center operations.
 
 ---
 
@@ -276,15 +275,15 @@ Mature programs run multiple methodologies in parallel. ISO/SAE 21434 explicitly
 
 ## 9. STPA-Sec adoption in regulated industries
 
-**Aviation.** RTCA DO-326A *Airworthiness Security Process Specification* (2014) defines a security-airworthiness process compatible with STPA-Sec hazard framing. DO-356A (2018) provides methods and considerations. DO-355A (2020 `[unverified date]`) covers continuing airworthiness. The FAA Special Conditions process for Boeing 787 and Airbus A350 explicitly required hazard-based cybersecurity analysis. Tim McGarvey at FAA `[unverified specific authorship]` and EASA equivalents drove the regulatory framework. MITRE supported method development.
+**Aviation.** RTCA DO-326A *Airworthiness Security Process Specification* (2014) defines a security-airworthiness process compatible with STPA-Sec hazard framing. DO-356A (2018) provides methods and considerations. DO-355A (2020 `[unverified date]`) covers continuing airworthiness. The FAA Special Conditions process for Boeing 787 and Airbus A350 explicitly required hazard-based cybersecurity analysis. MITRE supported method development.
 
-**Automotive.** ISO/SAE 21434:2021 *Road vehicles — Cybersecurity engineering* uses systems-theoretic vocabulary throughout. The TARA (Threat Analysis and Risk Assessment) process in 21434 admits STPA-Sec-style analysis as one of several compatible methods. UNECE Regulation 155 (CSMS — Cyber Security Management System) and R156 (SUMS — Software Update Management System) mandate cybersecurity engineering practices for vehicle type approval in Europe, UK, Japan, Korea, and other UNECE adopters. ISO/SAE 21434 became the de facto reference standard. Phillip Koopman at CMU has written extensively on embedded-systems safety methodology compatible with STPA-Sec `[unverified specific STPA-Sec endorsement]`.
+**Automotive.** ISO/SAE 21434:2021 *Road vehicles — Cybersecurity engineering* uses systems-theoretic vocabulary throughout. The TARA (Threat Analysis and Risk Assessment) process in 21434 admits STPA-Sec-style analysis as one of several compatible methods. UNECE Regulation 155 (CSMS — Cyber Security Management System) and R156 (SUMS — Software Update Management System) mandate cybersecurity engineering practices for vehicle type approval in Europe, UK, Japan, Korea, and other UNECE adopters. ISO/SAE 21434 became the de facto reference standard. Philip Koopman at CMU has written extensively on embedded-systems safety methodology compatible with STPA-Sec `[unverified specific STPA-Sec endorsement]`.
 
 **Medical devices.** FDA *Premarket Cybersecurity Guidance* (2014 initial, 2018 draft revision, 2023 final `[unverified exact dates]`) expects a cybersecurity hazard analysis as part of premarket submission. STPA-Sec is compatible; many manufacturers use it alongside ISO 14971 risk management for medical devices. The 2023 update emphasizes Software Bill of Materials (SBOM) and threat modeling. Cross-link `[[reference-medical-device-security]]`.
 
-**Nuclear.** IAEA *Nuclear Security Series 17-T* *Computer Security at Nuclear Facilities* (2011, revision pending) recommends hazard-based analysis of digital instrumentation and control systems. NRC RG 5.71 (USA) is the comparable US regulatory guide. STPA-Sec maps cleanly onto the I&C-cybersecurity hazard analysis these regulations require.
+**Nuclear.** IAEA *Nuclear Security Series 17-T* *Computer Security at Nuclear Facilities* (2011; Rev. 1 published 2021) recommends hazard-based analysis of digital instrumentation and control systems. NRC RG 5.71 (USA) is the comparable US regulatory guide. STPA-Sec maps cleanly onto the I&C-cybersecurity hazard analysis these regulations require.
 
-**NIST SP 800-160 Vol. 1** *Systems Security Engineering* (Ron Ross, Michael McEvilley, Janet Oren, 2016, Update 1 2018) explicitly cites STAMP/STPA-Sec in Appendix F as compatible with the security-engineering framework. This is the clearest US-government endorsement.
+**NIST SP 800-160 Vol. 1** *Systems Security Engineering* (Ron Ross, Michael McEvilley, Janet Oren, 2016, Update 1 2018).
 
 **Electric power.** NERC CIP-005, CIP-007, CIP-010, CIP-013 standards mandate cybersecurity programs for the North American bulk electric system. DOE OE-417 covers incident reporting. STPA-Sec applies to control-center analysis but is not explicitly mandated.
 
@@ -294,7 +293,7 @@ Common pattern across regulated industries: STPA-Sec is not mandated by name, bu
 
 **9.1 The DO-326A pattern is the template.** A regulator wants a hazard-based analysis that addresses cybersecurity within the existing airworthiness safety framework. The regulation specifies what artifacts to produce (security risk assessment, security architecture, security operational concept, security verification) but not the analytical method. STPA-Sec produces conforming artifacts; STRIDE + an asset-based risk assessment also conforms. Multiple methods compete in a method-neutral framework. The same pattern repeats in ISO/SAE 21434 (TARA is a process; STPA-Sec / STRIDE / EVITA-derived methods all conform) and FDA premarket cybersecurity (hazard analysis is required; specific method is not specified).
 
-**9.2 STPA-Sec automotive applications.** Hamed Salim Mokhtari and others `[unverified specific authorship of STPA-Sec automotive case studies]` have published case studies applying STPA-Sec to specific automotive subsystems (steering, braking, infotainment-to-CAN-gateway architectures). The SAE J3061 *Cybersecurity Guidebook for Cyber-Physical Vehicle Systems* (2016) was an early predecessor to ISO/SAE 21434 and referenced systems-theoretic methods.
+**9.2 STPA-Sec automotive applications.** Researchers have published case studies applying STPA-Sec to specific automotive subsystems (e.g., hybrid-vehicle battery management, autonomous emergency braking). The SAE J3061 *Cybersecurity Guidebook for Cyber-Physical Vehicle Systems* (2016) was an early predecessor to ISO/SAE 21434.
 
 **9.3 The crossover into safety-critical software development standards.** DO-178C (airborne software), ISO 26262 (automotive functional safety), IEC 62304 (medical-device software), and IEC 61508 (general functional safety) all assume a hazard-analysis input. STPA-Sec produces that input with a security-augmented hazard set. Programs that integrate functional-safety and security hazard analyses in a single STPA-Sec pass report tooling and review-cycle savings compared to running separate STPA (safety) and STRIDE (security) workstreams.
 
@@ -335,23 +334,23 @@ Adversarial causal factors:
 
 Defenses derived: permission gating (cannot invoke shell without confirmation), tool allowlist (cannot invoke arbitrary commands), session-bound capability tokens (capability-based-security primitive — cross-link `[[reference-agentic-web-capabilities]]`), audit logging (forensic substrate), and outbound-egress allowlisting (limits exfil even if UCA succeeds).
 
-**10.2 Mary Cummings' framing.** Mary Cummings (Duke, formerly MIT) writes extensively on human-machine systems and has argued that the controller-process-model abstraction needs extension to account for human-controller cognitive load. Her framing complements STPA-Sec for systems where human operators are critical controllers and adversaries target the human's process model (the classic phishing-of-the-operator pattern).
+**10.2 Mary Cummings' framing.** Mary Cummings (George Mason University, formerly Duke and MIT) writes extensively on human-machine systems. Her work complements STPA-Sec for systems where human operators are critical controllers and adversaries target the human's process model (the classic phishing-of-the-operator pattern).
 
 ---
 
 ## 11. Tooling
 
-**XSTAMPP** (TU Stuttgart, originated with Asim Abdulkhaleq, continued by Stefan Wagner's group and others including Carl Sandström `[unverified specific authorship attribution]`). Open-source academic tool. Visual editor for control-structure diagrams + UCA tables + loss-scenario tables. Java/Eclipse-based. The widely-used reference implementation. Successor and variant tools include A-STPA and STPA-Tool.
+**XSTAMPP** (University of Stuttgart, Asim Abdulkhaleq and Stefan Wagner). Open-source academic tool. Visual editor for control-structure diagrams + UCA tables + loss-scenario tables. Java/Eclipse-based. The widely-used reference implementation. Its predecessor was A-STPA, from the same group.
 
 **MIT SafeWare research tools.** Internal MIT tooling supports the STPA Handbook examples; less production-deployed than XSTAMPP. The annual STAMP/STPA Workshop output occasionally yields new tools but few have reached production maturity.
 
 **CAST** (Causal Analysis based on STAMP) — Leveson's incident-analysis methodology applied **post-incident** to derive systems-theoretic causal explanations from real losses. Compatible with STPA-Sec pre-deployment use: deploy STPA-Sec proactively, apply CAST to losses that occur anyway. CAST has been applied to Macondo / Deepwater Horizon, Air France 447, Tesla Autopilot incidents `[unverified specific CAST publications]`.
 
-**Commercial tooling sparse.** RAM Software's STAMP Studio `[unverified specific vendor product]` and similar commercial offerings exist; most STPA-Sec consulting engagements use Excel/Visio/Confluence with custom artifact templates. The lack of a strong commercial tooling ecosystem reflects STPA-Sec's concentration in regulated-industry consulting rather than mass-market software.
+**Commercial tooling sparse.** A few commercial offerings exist; most STPA-Sec consulting engagements use Excel/Visio/Confluence with custom artifact templates. The lack of a strong commercial tooling ecosystem reflects STPA-Sec's concentration in regulated-industry consulting rather than mass-market software.
 
 **LLM-augmented STPA-Sec.** Emerging 2024-2026 research uses LLMs to generate UCA candidates. Useful for known-pattern enumeration; regresses on novel UCAs. Same limitation as LLM-augmented STRIDE/attack-tree work. Accelerator for the routine 80%; humans hunt the unusual 20%.
 
-**MBSE integration.** STPA-Sec control structures can be kept consistent with SysML / Capella / Cameo artifacts. Aerospace and automotive programs increasingly automate this check. Carl Sandström `[unverified specific recent work]` and the SafeWare group have published prototypes.
+**MBSE integration.** STPA-Sec control structures can be kept consistent with SysML / Capella / Cameo artifacts. Aerospace and automotive programs increasingly automate this check. The SafeWare group has published prototypes.
 
 ---
 

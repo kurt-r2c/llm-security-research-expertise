@@ -13,11 +13,11 @@
 >   Career" alongside Rami McCarthy, Lea Snyder, and Hasnain Lakhani. Publishes under the
 >   handle `lapt0r`.
 > - **Rami McCarthy** — Cloud and AppSec engineer; contributor to tl;dr sec; author at
->   `ramimac.me` ("High Signal Security"). Conducted the *Staff-Eng Security Stories*
+>   `ramimac.me`. Conducted the *Staff-Eng Security Stories*
 >   interview with Kurt. His own writing covers AppSec program scaling, paved roads,
 >   secure defaults, "How to Say 'No' Well," and a fwd:cloudsec EU talk distilling
 >   program-building, vulnerability and asset management, IAM, detection, and deployment.
->   Co-author of an extension to Scott Piper's *AWS Security Maturity Roadmap*.
+>   Speaker on "Beyond the AWS Security Maturity Roadmap" (fwd:cloudsec 2023), an extension of Scott Piper's *AWS Security Maturity Roadmap*.
 >   Co-panelist with Kurt at BSidesSF 2023.
 > - **Clint Gibler** — Head of Security Research at r2c (Semgrep); previously Research
 >   Director at NCC Group. Ph.D. in Computer Science (UC Davis). Founder and maintainer of
@@ -25,10 +25,10 @@
 >   practitioners. Author of "Lessons Learned from the DevSecOps Trenches" (AppSec
 >   California 2019) and "What I Learned Watching All 44 AppSec Cali 2019 Talks." Speaker
 >   at BlackHat USA, AppSec USA/EU/Cali, BSidesSF, DevSecCon Seattle/London/Tel
->   Aviv/Singapore. Kurt's manager at Semgrep.
+>   Aviv/Singapore.
 > - **Ryan McGeehan** (`magoo`) — Former Director of Security Incident Response at
 >   Facebook; Director of Security at Coinbase (joined April 2014 to build the program
->   from scratch); founder/advisor at HackerOne. Maintains *Starting Up Security*
+>   from scratch). Maintains *Starting Up Security*
 >   (`scrty.io`, `magoo.medium.com`) — a curated set of essays aimed at new leadership
 >   building new security teams. Recent focus is quantitative risk measurement aimed at
 >   making forecasting and estimation practical for engineers.
@@ -45,8 +45,7 @@
 >   Interos, and NIST's Information Security and Privacy Advisory Board. His personal
 >   blog (`philvenables.com`) is the most-cited contemporary source on running a security
 >   *program* (rather than a security *technology*) and on the economics and governance
->   of the CISO function — "from artisanal to industrial," "shift down not left," "fire
->   stations to flywheels."
+>   of the CISO function — "from artisanal to industrial" and "shift down not left."
 > - **Jeremiah Grossman** — Founder of WhiteHat Security (2001); former information
 >   security officer at Yahoo! Co-founder of the Web Application Security Consortium
 >   (WASC). Currently at Root Evidence; previously Chief of Security Strategy at
@@ -67,8 +66,7 @@
 >   work is the standing reference for "which numbers actually mean something in an
 >   AppSec program, and which are vanity metrics that drive bad behavior."
 > - **Justine Bone** — Former CEO of MedSec; former Global CISO at Dow Jones (News Corp).
->   Began her career as a vulnerability researcher at ISS X-Force after training with the
->   NSA. Now Executive Director of the Crypto ISAC and on HP Inc.'s Security Advisory
+>   Began her career as a vulnerability researcher at ISS X-Force. Now Executive Director of the Crypto ISAC and on HP Inc.'s Security Advisory
 >   Board. Provides the model for the CISO arc that evolves from internal-only
 >   responsibility to a public, industry-shaping role.
 >
@@ -107,9 +105,7 @@ finds. Trust earned at the org level is the substrate; tools, scanners, rule set
 findings are deposits made into that substrate. A program that has not built the
 substrate is a program that runs scanners no one acts on.
 
-Kurt's "People To Know" post is the load-bearing short-form statement of this thesis. He
-opens by stating it plainly: "An AppSec program is a function of the engineering
-organization's trust in the security team. Buy the trust before you buy the scanner."
+Kurt's "People To Know" post is the load-bearing short-form statement of this thesis.
 Everything else in this doctrine flows from there.
 
 This document is the program-side counterpart to
@@ -171,7 +167,7 @@ and friendly — sit in on a roadmap review, offer to threat-model an upcoming f
 what they wish security would help with. The relationship is the deliverable.
 
 **2. QA Lead.** Kurt calls the QA Lead "Mirror World You." The framing is exact:
-security testing and quality testing share more than ninety percent of their machinery.
+security testing and quality testing share much of their machinery.
 Both run the application in test environments. Both write regression suites that catch
 classes of issue post-fix. Both maintain coverage dashboards. Both have to negotiate with
 engineering for time on the CI pipeline. The QA function is the closest organizational
@@ -215,8 +211,8 @@ aligned in the absence of relationship-building.
 
 ### What's missing — deliberately
 
-The post does not name engineering leadership. Kurt notes this is intentional:
-"Engineering is already the focus of every DevSecOps resource." The omission is the
+The post does not name engineering leadership. Kurt addresses this directly,
+asking "why these people and not Engineering Leadership?" The omission is the
 thesis statement. Tooling-first AppSec programs are essentially programs that build
 relationships with engineering and call it a program. The under-covered work is
 *everywhere else in the org chart.*
@@ -260,9 +256,8 @@ synthesis of the three.
 
 **DocuSign — AppSec engineering and external research.** Kurt's DocuSign tenure spans
 the period in which he is credited with CVE-2019-0228, the Apache PDFBox XXE
-vulnerability ("Kurt Boberg of DocuSign reported a possible XML External Entity (XXE)
-attack" — Apache advisory, openwall oss-security, 12 Apr 2019). The CVE is a blind XXE
-in the FDF (Forms Data Format) parser when processing crafted XFDF — a CVSS 9.8 issue
+vulnerability ("This issue was discovered by Kurt Boberg from DocuSign" — Apache advisory, openwall oss-security, 12 Apr 2019). The CVE is an XXE
+caused by improper XML parser initialization when processing crafted XFDF — a CVSS 9.8 issue
 in a widely-deployed Java PDF library. Reporting a high-severity CVE in an open-source
 dependency that your employer uses is a particular kind of program-building work: it
 turns the AppSec engineer into an upstream contributor, builds reputational currency
@@ -346,7 +341,7 @@ org) to portable tools and rules (audience: the global AppSec community).
 The session abstract for "From Blind Spots to Insights: Building AppSec Visibility" at
 the Wallarm 2024 API and Application Security Summit in Seattle reads:
 
-> Kurt addresses common pain points in early AppSec programs and discusses
+> Kurt will discuss common pain points in early AppSec programs and
 > low-effort, high-ROI methods to boost visibility and effectiveness using
 > open-source or existing commercial tools. He explains that AppSec engineers,
 > often outnumbered by developers and product teams, receive minimal
@@ -709,7 +704,7 @@ manager at year ten if the practitioner's preferences shift.
 
 ### When to switch companies
 
-Kurt's arc shows two company transitions in roughly eight years. The tl;dr sec
+Kurt's arc shows two company transitions. The tl;dr sec
 interview frames the network-and-mentorship side ("Hands down the most important
 contributor to achieving a Staff title was my network and peer/mentor group") but the
 companion question — *when* to switch — is doctrinally important.
@@ -802,7 +797,7 @@ Modern AppSec has many tooling categories. The ones worth naming, in approximate
 order of how often they show up in a program-building conversation:
 
 - **SAST** (Static Application Security Testing) — Semgrep, CodeQL, Checkmarx,
-  Fortify, Veracode, SonarQube.
+  Fortify, Veracode, SonarQube, ZeroPath.
 - **SCA** (Software Composition Analysis) — Snyk, Dependabot, Mend, Sonatype,
   GitLab/GitHub native, Semgrep Supply Chain.
 - **DAST** (Dynamic Application Security Testing) — Burp Suite Enterprise, Invicti,
@@ -810,9 +805,9 @@ order of how often they show up in a program-building conversation:
 - **IAST** (Interactive Application Security Testing) — Contrast, Seeker.
 - **RASP** (Runtime Application Self-Protection) — Imperva, Contrast.
 - **ASPM** (Application Security Posture Management) — the aggregator category;
-  ArmorCode, Apiiro, OX Security, ZeroPath, plus offerings from existing vendors.
+  ArmorCode, Apiiro, OX Security, plus offerings from existing vendors.
 - **AVMS** (Application Vulnerability Management Systems) — Brinqa, Vulcan,
-  Kenna/Qualys VMDR.
+  Kenna (Cisco), Qualys VMDR.
 - **EDR** / **XDR** (endpoint, extended detection and response) — CrowdStrike,
   SentinelOne, Microsoft Defender. AppSec-adjacent.
 - **CSPM** / **CIEM** (Cloud Security Posture Management / Cloud Infrastructure
@@ -866,11 +861,10 @@ it is the Kurt-Semgrep self-coherent argument. The argument runs:
   can write rules outperforms a program with a black-box scanner and the same
   practitioner.
 
-The self-coherence is intentional. Kurt's program-building work at Chegg (the
-authorization framework) became Semgrep rules at the next job; the rule-authoring
+The self-coherence is intentional. The rule-authoring
 expertise that made the Chegg work valuable is the same expertise that makes the
 Semgrep era productive. The Semgrep-blog post on MCP security extends the pattern:
-the MCP security cheat-sheet is a Semgrep-shaped artifact — a set of detections an
+the MCP Security Checklist is a Semgrep-shaped artifact — a set of detections an
 engineer can run, audit, and modify, not a vendor's opaque verdict.
 
 The argument has a steelman counter worth naming: an early-stage AppSec team without
@@ -1104,7 +1098,7 @@ directly onto incident-response decision discipline.
 ### The metrics vs vanity numbers distinction
 
 Caroline Wong's *Security Metrics: A Beginner's Guide* (McGraw-Hill, 2012;
-Cybersecurity Canon Hall of Fame, 2022) is the standing reference. Her
+Cybersecurity Canon Hall of Fame, 2022) is the standing reference. The
 operative distinction: **a metric is a number that supports a decision; a
 vanity number is one that looks impressive but does not change behavior**.
 
@@ -1149,7 +1143,7 @@ metric whose definition shifts quarter over quarter cannot show a trend.
 
 ### What NOT to measure
 
-Caroline Wong's standing list of antipatterns:
+A standing list of antipatterns:
 
 - **Tickets closed without a quality bar.** "We closed 1,200 tickets" is
   meaningless if half of them were closed as "won't fix" with no
@@ -1529,7 +1523,7 @@ specifics that apply to both closed-source and OSS workloads.
 - **Personal site.** https://www.jeremiahgrossman.com/
 - **AppSec California keynotes** — vendor accountability and program
   advocacy.
-- **WhiteHat Security history** (1999-2018).
+- **WhiteHat Security history** (founded by Grossman in 2001; he left in 2016).
 
 ### Primary sources — Tanya Janca (SheHacksPurple)
 
@@ -1571,7 +1565,7 @@ specifics that apply to both closed-source and OSS workloads.
 - **OWASP SAMM (Software Assurance Maturity Model).**
   https://owaspsamm.org/ — the canonical formal model.
 - **BSIMM (Building Security In Maturity Model).**
-  https://www.bsimm.com/ — Synopsys's empirical benchmark of
+  https://www.bsimm.com/ — Black Duck's (formerly Synopsys's) empirical benchmark of
   observed practices across hundreds of programs.
 - **Google's *Building Secure and Reliable Systems*** (O'Reilly,
   2020). The Google-internal program-building doctrine, made
@@ -1643,8 +1637,7 @@ A practitioner using this doctrine should not treat it as a script. The order of
 operations differs at each company, the stakeholders that matter most differ, the
 metrics that move differ. Use the doctrine as the *frame* — the question is
 always "for this org, in this phase, what is the leverage point?" — and let the
-specifics emerge from the practitioner's reading of the org. Kurt's post is one
-hundred sentences long. The frame is the deliverable. The execution is local.
+specifics emerge from the practitioner's reading of the org. The frame is the deliverable. The execution is local.
 
 The final discipline: when the program-building work succeeds, the security
 function disappears into the engineering organization's structural posture. The

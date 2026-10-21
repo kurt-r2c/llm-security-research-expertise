@@ -37,11 +37,11 @@ Introduced the **monotonicity assumption** that makes scalable attack-graph gene
 
 The Ammann-Wijesekera-Kaushik paper is the citation that every subsequent scalability-focused attack-graph paper builds on.
 
-**Sheyner + Jha + Wing + Lippmann + Cunningham — the model-checking paper.** Oleg Sheyner, Somesh Jha, Jeannette M. Wing, Richard P. Lippmann, Joshua W. Haines `[unverified exact author list — sometimes Cunningham listed]`, "Automated generation and analysis of attack graphs," *Proceedings of the 2002 IEEE Symposium on Security and Privacy* (S&P 2002), pp. 273-284. CMU + MIT Lincoln Labs collaboration. Used the NuSMV symbolic model checker to generate exhaustive attack graphs from a formal system model. Foundational for the model-checking-based generation approach (§4). Exponential worst-case but produces sound and complete graphs.
+**Sheyner + Haines + Jha + Lippmann + Wing — the model-checking paper.** Oleg Sheyner, Joshua W. Haines, Somesh Jha, Richard P. Lippmann, Jeannette M. Wing, "Automated generation and analysis of attack graphs," *Proceedings of the 2002 IEEE Symposium on Security and Privacy* (S&P 2002), pp. 254-265. CMU + MIT Lincoln Labs collaboration. Used the NuSMV symbolic model checker to generate exhaustive attack graphs from a formal system model. Foundational for the model-checking-based generation approach (§4). Exponential worst-case but produces sound and complete graphs.
 
 **Jajodia + Noel — TVA and the GMU lineage.** Sushil Jajodia and Steven Noel at George Mason University's Center for Secure Information Systems (CSIS) produced a large body of attack-graph research from the early 2000s onward. Noel + Jajodia, "Managing attack graph complexity through visual hierarchical aggregation," *Proceedings of the 2004 ACM Workshop on Visualization and Data Mining for Computer Security* (VizSEC/DMSEC 2004), introduced visual aggregation techniques (§5). Subsequent papers developed **Topological Vulnerability Analysis (TVA)** — the GMU attack-graph platform — and **Cauldron**, the commercialized product `[unverified specific commercialization timeline]`. The Jajodia-Noel lineage is the single largest body of attack-graph academic work.
 
-**Ou + Govindavajhala + Appel — MulVAL.** Xinming Ou, Sudhakar Govindavajhala, Andrew W. Appel, "MulVAL: A Logic-based Network Security Analyzer," *Proceedings of the 14th USENIX Security Symposium* (USENIX Security 2005), pp. 113-128. Princeton + Kansas State. **Multi-host, multi-stage Vulnerability Analysis**: a Datalog-based reasoning engine that takes facts (network topology, host vulnerabilities from OVAL/NVD, service connectivity) and produces attack graphs via logic-programming inference. Polynomial-time generation. Scales to thousands of hosts. Remains the most-cited open-source attack-graph generator. The MulVAL approach (§4) is the practical alternative to model-checking-based generation.
+**Ou + Govindavajhala + Appel — MulVAL.** Xinming Ou, Sudhakar Govindavajhala, Andrew W. Appel, "MulVAL: A Logic-based Network Security Analyzer," *Proceedings of the 14th USENIX Security Symposium* (USENIX Security 2005), pp. 113-128. Princeton. **Multi-host, multi-stage Vulnerability Analysis**: a Datalog-based reasoning engine that takes facts (network topology, host vulnerabilities from OVAL/NVD, service connectivity) and produces attack graphs via logic-programming inference. Polynomial-time generation. Scales to thousands of hosts. Remains the most-cited open-source attack-graph generator. The MulVAL approach (§4) is the practical alternative to model-checking-based generation.
 
 **Ingols + Lippmann + Piwowarski — NetSPA and the MP graph.** Kyle Ingols, Richard Lippmann, Keith Piwowarski, "Practical Attack Graph Generation for Network Defense," *Annual Computer Security Applications Conference* (ACSAC 2006), pp. 121-130. MIT Lincoln Labs. Introduced the **multiple-prerequisite (MP) attack graph** (§5), which tracks attacker progress through prerequisites and produces smaller graphs than the full bipartite state-vulnerability form. NetSPA — Network Security Planning Architecture — is the Lincoln Labs operational system. Predecessor to the commercial sector that followed.
 
@@ -135,9 +135,9 @@ The basic bipartite state-exploit DAG has been refined into several variants, ea
 
 **Microservice / mesh attack graph.** Nodes are pods or workloads; edges are network reachability + service-account permissions + mesh-policy traversal. Cross-link to `[[reference-container-k8s-security]]`, `[[reference-service-mesh-security]]`, `[[reference-multi-cluster-istio-topologies]]`. Tools: kube-hunter, kubectl-who-can, Falco rule corpus (cross-link to `[[reference-falco-tetragon-runtime-detection]]`), commercial Wiz / Orca / Cisco-Hypershield-Panoptica.
 
-**Supply-chain attack graph.** Nodes are build steps, package versions, signing keys; edges are dependency and trust relationships. Cross-link to `[[reference-cicd-supply-chain]]`, `[[reference-supply-chain-provenance]]`. The supply-chain variant is younger and the standardized graph model is less mature than the network or cloud-IAM variants `[unverified claim of relative maturity]`. The Shai-Hulud npm worm 2024-2025 and the xz-utils CVE-2024-3094 backdoor are recent canonical supply-chain incidents that retrospectively benefit from attack-graph reconstruction.
+**Supply-chain attack graph.** Nodes are build steps, package versions, signing keys; edges are dependency and trust relationships. Cross-link to `[[reference-cicd-supply-chain]]`, `[[reference-supply-chain-provenance]]`. The supply-chain variant is younger and the standardized graph model is less mature than the network or cloud-IAM variants `[unverified claim of relative maturity]`. The Shai-Hulud npm worm 2025 and the xz-utils CVE-2024-3094 backdoor are recent canonical supply-chain incidents that retrospectively benefit from attack-graph reconstruction.
 
-**Adversarial-AI attack graph.** Initial state: attacker controls untrusted input that reaches an agent's context. Exploit nodes: tool-call invocations that move the agent into more-privileged states (MCP tool execution, shell command, file read). Goal states: exfiltration or destructive action. Cross-link to `[[reference-ai-agent-session-management]]`. The variant is research-grade in 2026 but the 7-incident corpus (EchoLeak, ShadowLeak, CurXecute, Comment-and-Control, PwnedRabbit, Clinejection, MCPoison) is amenable to retrospective attack-graph reconstruction.
+**Adversarial-AI attack graph.** Initial state: attacker controls untrusted input that reaches an agent's context. Exploit nodes: tool-call invocations that move the agent into more-privileged states (MCP tool execution, shell command, file read). Goal states: exfiltration or destructive action. Cross-link to `[[reference-ai-agent-session-management]]`. The variant is research-grade in 2026 but the 6-incident corpus (EchoLeak, ShadowLeak, CurXecute, Comment-and-Control, Clinejection, MCPoison) is amenable to retrospective attack-graph reconstruction.
 
 ---
 
@@ -206,7 +206,7 @@ Beyond Bayesian probability, attack-graph analysis can be cast as sequential dec
 
 **Computational complexity — PSPACE-hard worst case.** MDPs over realistic attack graphs are PSPACE-hard in the worst case. POMDPs are undecidable in general. Production approximations use bounded-horizon search (only consider paths of length ≤ k), Monte Carlo Tree Search (anchored in AlphaZero-style approaches `[unverified` direct deployment to attack-graph analysis), or reinforcement learning with deep function approximation.
 
-**Academic centers.** Tanmoy Chakraborty, Yair Zick, Branislav Bošanský, and others publish on MDP/POMDP/Stackelberg formulations over attack graphs `[unverified specific paper attributions]`. The Game Theory and Security workshop series (GameSec, founded 2010) is the canonical venue. Production deployment is sparse — most operational tools stop at unweighted DAG.
+**Academic centers.** Branislav Bošanský and others publish on MDP/POMDP/Stackelberg formulations over attack graphs `[unverified specific paper attributions]`. The Game Theory and Security workshop series (GameSec, founded 2010) is the canonical venue. Production deployment is sparse — most operational tools stop at unweighted DAG.
 
 **When MDP/POMDP/Stackelberg formulations earn their complexity.** Adversarial reinforcement learning research (academic); Moving Target Defense policy optimization (when defender strategy is dynamic — rotate keys, shuffle configs, deploy decoys); cyber-insurance pricing (when the insurer needs attacker-optimal-behavior risk estimates). For day-to-day defender planning, MDP overhead is rarely worth it. Use the simpler frameworks in §6 and §7.
 
@@ -216,20 +216,20 @@ Beyond Bayesian probability, attack-graph analysis can be cast as sequential dec
 
 Where attack graphs actually run in production.
 
-**NIST SP 800-30 Rev. 1 (Guide for Conducting Risk Assessments, September 2012)** references attack-graph-based risk analysis as one technique. NIST does not mandate attack graphs but legitimizes them. Subsequent NIST publications including SP 800-30 supplements and SP 800-39 reinforce the framing.
+**NIST SP 800-30 Rev. 1 (Guide for Conducting Risk Assessments, September 2012)** references graph-based analysis techniques (e.g., attack tree analysis) as one way to conduct more rigorous analysis. NIST does not mandate attack graphs but legitimizes them.
 
-**MITRE NetSPA and Lincoln Labs work.** The MIT Lincoln Labs NetSPA system (Ingols + Lippmann + Piwowarski 2006) was deployed in DoD and intelligence-community contexts `[unverified specific deployments]`. Lincoln Labs continues attack-graph research in classified settings.
+**MIT Lincoln Laboratory NetSPA work.** The MIT Lincoln Labs NetSPA system (Ingols + Lippmann + Piwowarski 2006) generates multiple-prerequisite attack graphs.
 
-**GMU CSIS Cauldron.** Jajodia's George Mason CSIS produced TVA and its commercialized successor Cauldron, deployed in U.S. federal civilian and DoD environments `[unverified specific customer list and current commercial status]`.
+**GMU CSIS Cauldron.** Jajodia's George Mason CSIS produced TVA and its commercialized successor Cauldron.
 
-**Skybox and RedSeal — enterprise network vendors.** Skybox built a commercial network-attack-graph + ASM platform combining firewall-policy, vulnerability data, and network topology `[unverified 2026 product feature set]`. RedSeal Networks built an adjacent network-mapping platform.
+**Skybox and RedSeal — enterprise network vendors.** Skybox built a commercial network-attack-graph + ASM platform combining firewall-policy, vulnerability data, and network topology (Skybox ceased operations in February 2025). RedSeal Networks built an adjacent network-mapping platform.
 
 **Continuous-attack-emulation vendors.** AttackIQ, SafeBreach, Cymulate use attack-graph reasoning to chain attack-technique tests into multi-step scenarios. Output is "you are vulnerable to this attack chain" rather than "you are vulnerable to this CVE."
 
 **Cloud-IAM attack graphs — the most active production area.** Cloud-IAM permission graphs are the natural attack-graph substrate in 2024-2026.
 
-- **AWS IAM Access Analyzer** (`[unverified specific feature set as of 2026]`) produces cross-account access findings via attack-graph-style reasoning.
-- **Wiz, Orca Security, Lightspin** (acquired by Cisco, 2023 `[unverified`), CrowdStrike Falcon Cloud Security, Sysdig, Lacework — all CNAPP vendors that compute cloud-IAM attack graphs as part of their product.
+- **AWS IAM Access Analyzer** produces public and cross-account access findings via automated reasoning (Zelkova, an SMT-based policy analysis engine).
+- **Wiz, Orca Security, Lightspin** (acquired by Cisco, 2023), CrowdStrike Falcon Cloud Security, Sysdig, Lacework — all CNAPP vendors that compute cloud-IAM attack graphs as part of their product.
 - **PMapper** (NCC Group) — open-source AWS permission-graph generator + Neo4j-based analysis.
 - **Cloudsplaining** (Salesforce) — IAM-policy linter that surfaces permission-graph anti-patterns.
 
@@ -237,7 +237,7 @@ Where attack graphs actually run in production.
 
 **Kubernetes attack graphs.** Pod-to-pod reachability + service-account permissions + admission-control-policy traversal. Tools: kube-hunter, kubectl-who-can, kubescape, Wiz / Orca / Sysdig / Aqua / Falco-rule corpus (cross-link to `[[reference-falco-tetragon-runtime-detection]]`). Cisco Hypershield + Panoptica (post-Isovalent acquisition, 2024) marketed cluster-attack-graph reasoning + automated mitigation `[unverified specific Hypershield feature set as of 2026]`.
 
-**MITRE Engenuity Center for Threat-Informed Defense.** Produces attack-graph-aligned threat-modeling outputs at the ATT&CK technique level. The "Attack Flow" specification (Center for Threat-Informed Defense, approximately 2022) defines a STIX-compatible attack-graph format `[unverified specific publication date]`.
+**MITRE Engenuity Center for Threat-Informed Defense.** Produces attack-graph-aligned threat-modeling outputs at the ATT&CK technique level. The "Attack Flow" specification (Center for Threat-Informed Defense, 2022; v2.0 released October 2022) defines an attack-graph format built as a STIX 2.1 extension.
 
 ---
 
@@ -275,9 +275,9 @@ The state of practice as of 2026.
 
 **AI-augmented attack graph generation.** LLM-assisted exploit-rule generation, path enumeration, and explanation are research-grade as of 2026. Pattern: feed the LLM a network configuration; ask for likely attack paths; the LLM produces plausible-looking output. The output is not yet trustworthy for unsupervised use (LLM regresses on novelty — same failure mode as in `[[reference-threat-modeling-discipline]]` §12 and `[[reference-attack-trees]]` §12.7).
 
-**Adversarial-AI attack graphs.** A novel application: model AI-agent tool-call paths as attack graph nodes. Initial state is "attacker controls untrusted input that reaches the agent's context"; exploit nodes are tool-call invocations; goal states are exfiltration or destructive actions. Cross-link to `[[reference-ai-agent-session-management]]` §9 — the EchoLeak, ShadowLeak, CurXecute, Comment-and-Control, PwnedRabbit, and Clinejection incidents are amenable to attack-graph reconstruction. This application is research-grade in 2026.
+**Adversarial-AI attack graphs.** A novel application: model AI-agent tool-call paths as attack graph nodes. Initial state is "attacker controls untrusted input that reaches the agent's context"; exploit nodes are tool-call invocations; goal states are exfiltration or destructive actions. Cross-link to `[[reference-ai-agent-session-management]]` §9 — the EchoLeak, ShadowLeak, CurXecute, Comment-and-Control, and Clinejection incidents are amenable to attack-graph reconstruction. This application is research-grade in 2026.
 
-**MITRE Engenuity Attack Flow.** STIX-compatible attack-graph format published ~2022 `[unverified specific publication date]`. Adoption is uneven; format mature enough for cross-vendor interoperation but tooling is sparse.
+**MITRE Engenuity Attack Flow.** Attack-graph format built as a STIX 2.1 extension; v2.0 published October 2022. Adoption is uneven; format mature enough for cross-vendor interoperation but tooling is sparse.
 
 **OpenC2 and ATT&CK-aligned automation.** OASIS OpenC2 is a standardized command language for orchestrating mitigations. Combined with ATT&CK techniques, OpenC2 enables attack-graph-driven mitigation orchestration: identify the path, deploy mitigations along it. Production adoption is early `[unverified 2026 adoption breadth]`.
 
