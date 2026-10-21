@@ -47,9 +47,8 @@
 >   footgun
 > - **Herb Sutter** — Chair emeritus, ISO C++ Standards Committee; co-editor of the
 >   C++ Core Guidelines; author of "Exceptional C++" series (Addison-Wesley)
->   that codified the strong vs. basic vs. nothrow exception-safety taxonomy;
->   2024-onward author of the C++ Safety Profiles / "Carbon-adjacent" successor
->   proposals
+>   covering the strong vs. basic vs. nothrow exception-safety guarantees;
+>   author of P3081 "Core safety profiles for C++26" (2024)
 > - **Chris Lattner** — Founder of LLVM, Clang, Swift, and Mojo; the canonical
 >   "what does the optimizer assume about UB" voice; the 2011 LLVM blog series
 >   "What Every C Programmer Should Know About Undefined Behavior" (3 parts) is

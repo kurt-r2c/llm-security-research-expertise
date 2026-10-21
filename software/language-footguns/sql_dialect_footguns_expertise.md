@@ -839,8 +839,8 @@ vs dynamic authorization analysis."
 
 ### 9.3 `PUBLIC` default privileges
 
-- PostgreSQL: `EXECUTE` on many built-ins; `CREATE`/`USAGE` on
-  `public` schema.
+- PostgreSQL: `EXECUTE` on many built-ins; `USAGE` on `public`
+  schema (`CREATE` too before PG 15).
 - Oracle: `EXECUTE` on hundreds of packages historically including
   `UTL_FILE`, `UTL_HTTP`, `DBMS_LDAP`. Hardening guides spend most
   of their text on `REVOKE FROM PUBLIC`.

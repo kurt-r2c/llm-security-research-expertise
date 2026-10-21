@@ -778,8 +778,7 @@ The 2024-2025 follow-up:
    DP-FL on small models to *guide* large-model training rather than train the large model
    directly under DP — is the operationally important contribution.
 
-The Apple production stack runs the same shape: federated learning with local-DP noise for
-keyboard / on-device personalization. Cross-link to
+Cross-link to
 [`privacy_engineering_expertise.md`](privacy_engineering_expertise.md) for the broader
 privacy-engineering treatment; the model-security framing in this document is the
 adversarial-defense lens (DP-SGD as MIA defense), and the privacy-engineering doc covers the

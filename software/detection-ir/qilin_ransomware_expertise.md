@@ -268,7 +268,7 @@ Observed exfil tooling:
 
 **Recovery posture:** RSA-4096-protected AES-256-CTR / ChaCha20 is unbreakable without operator cooperation. Backup-restore is the only recovery path that does not involve paying.
 
-**Ransom demands:** $50,000 to $800,000 (Trend Micro 2022 baseline); Synnovis was reported at **$50 million** (Group-IB Revisited, claim not independently confirmed in The Record's coverage `[unverified specific $50M figure]`).
+**Ransom demands:** $50,000 to $800,000 (Trend Micro 2022 baseline); Synnovis was reported at **$50 million** (Bloomberg).
 
 ---
 

@@ -354,7 +354,7 @@ After the payload runs, it typically loads **Hekate** (bootloader/launcher) whic
 
 Atmosphere is the most engineering-rigorous CFW in the console-hacking ecosystem — tracks Nintendo's monthly updates within days, codebase quality comparable to commercial firmware.
 
-**Picofly / Hwfly modchips (March 2023+)**: open-source RP2040-based (Raspberry Pi Pico) modchips that voltage-glitch the Tegra X1's BCT signature verification, allowing untethered CFW boot without RCM entry. ~$3 in components. Works on any Switch model, including Mariko-based Switches and patched V1 Switches. Bypasses Nintendo's mid-2018 silicon revision that patched Fusée Gelée.
+**Picofly / Hwfly modchips (March 2023+)**: open-source RP2040-based (Raspberry Pi Pico) modchips that voltage-glitch the Tegra X1's BCT signature verification, allowing untethered CFW boot without RCM entry. ~$3 RP2040-Zero board; under $10 total in components. Works on any Switch model, including Mariko-based Switches and patched V1 Switches. Bypasses Nintendo's mid-2018 silicon revision that patched Fusée Gelée.
 
 **Trinket M0 / DragonInjector**: pre-Picofly internal payload injectors. SAMD21-based microcontroller (Adafruit Trinket M0 or clone) soldered to joy-con rail + USB lines; auto-enters RCM on boot and injects payload from on-chip storage. Cheaper than Picofly but requires the original Fusée Gelée bug (only V1 hardware).
 
@@ -519,7 +519,7 @@ Cross-link: [cryptography_expertise.md](./cryptography_expertise.md) on ECDSA / 
 
 Modchips persist; software exploits don't. Most users want "set and forget."
 
-**Picofly / Hwfly (Switch, 2023+)**: Open-source RP2040-based modchip. ~$3 in components, ~15 soldered wires to specific motherboard pads. Voltage-glitches Tegra X1 during BCT signature verification, then injects payload. The Picofly's existence is ironic — it's a hardware mod for a hardware bug fix. Fusée Gelée worked without any hardware mod (just a paperclip), but Nintendo's silicon revision closed Fusée Gelée. Picofly works around the silicon fix via a *different* hardware bug (BCT-glitch path).
+**Picofly / Hwfly (Switch, 2023+)**: Open-source RP2040-based modchip. ~$3 RP2040-Zero board, under $10 total in components; soldered to specific motherboard pads. Voltage-glitches Tegra X1 during BCT signature verification, then injects payload. The Picofly's existence is ironic — it's a hardware mod for a hardware bug fix. Fusée Gelée worked without any hardware mod (just a paperclip), but Nintendo's silicon revision closed Fusée Gelée. Picofly works around the silicon fix via a *different* hardware bug (BCT-glitch path).
 
 **Trinket M0 / DragonInjector**: Pre-Picofly internal injector. SAMD21 microcontroller soldered to joy-con rail + USB lines. Auto-enters RCM and injects Fusée Gelée payload. Only works on V1 Switch (pre-2018 silicon).
 
