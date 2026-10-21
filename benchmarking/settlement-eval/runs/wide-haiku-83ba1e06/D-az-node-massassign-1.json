@@ -1,0 +1,137 @@
+{
+ "arm": "D",
+ "repo": "az-node-massassign",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01176816,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Bash": 1,
+   "Read": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-_fqbk6ag/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me mass-assigns the entire request body onto the persisted user object, letting an authenticated user set any stored field (e.g. role/isAdmin, if present in the user model).",
+    "source": "req.body (attacker-controlled JSON body on an authenticated PUT /me request)",
+    "sink": "Object.assign(req.user, req.body) at users.js:5, then req.store.save(req.user) at users.js:6",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "router.put('/me') route accepts the request; auth middleware not in directory, req.user assumed set upstream"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies all body keys onto req.user with no filtering"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "mutated req.user persisted via req.store.save"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "mutated object echoed back in response, confirming the write"
+     }
+    ],
+    "guards_checked": "No allowlist, schema validation, or key filter in users.js. Auth middleware, body parser, user model and store not present in directory, so their effect is unverified. Object.assign also copies __proto__ keys, which could alter req.user's prototype."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js; no allowlist, schema validation, or key filter at users.js:5. Auth middleware, body parser, user model and store are not in the directory, so their effect is unknown.",
+    "reason": "The trace matches users.js:4-7 (Object.assign(req.user, req.body) at line 5, then req.store.save at line 6), and no filter exists in this file, but whether this is exploitable depends on whether the user model has privileged fields (e.g., role/isAdmin) or identity fields like id that the store trusts, and neither the model nor the store is in the directory to check. The attacker is an authenticated user editing their own record, which is the right threat model, but the impact is unestablished."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "BIZ-1",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile assigns undefined to displayName/bio when omitted from the body, so the save erases those stored fields.",
+    "source": "req.body.displayName / req.body.bio (omitted keys)",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12, persisted at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "destructures displayName and bio from req.body"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "assigns both keys even when undefined"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "req.store.save persists the cleared values"
+     }
+    ],
+    "guards_checked": "No check for missing keys. Impact limited to the caller's own profile (no cross-user effect)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:11 destructures req.body without checking key presence, users.js:12 passes both keys to Object.assign (which copies own properties even when their value is undefined), and users.js:13 saves unconditionally. No validation or merge-only logic appears in users.js. The request handler only reads req.user, and the candidate's own note limits the effect to the caller's profile.",
+    "reason": "The trace matches users.js:11-13: omitted displayName/bio are passed to Object.assign as undefined and then saved at users.js:13, so the stored values are cleared. The attacker is any authenticated user acting on their own profile, and no guard in users.js blocks this. The impact is low: it is a partial-update data-loss bug confined to the caller's own record, not a cross-user or privilege issue."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTH-2",
+    "file": "users.js",
+    "line": 11,
+    "claim": "displayName and bio are accepted with no type or length validation, so non-string values or very large strings are stored.",
+    "source": "req.body.displayName / req.body.bio on PUT /me/profile",
+    "sink": "Object.assign at users.js:12, persisted at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "values taken from req.body unchecked"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "assigned to req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "persisted via req.store.save"
+     }
+    ],
+    "guards_checked": "None in this file. Rendering or DoS impact depends on consumers outside the directory."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:11 destructures displayName and bio from req.body with no type or length check, users.js:12 passes them straight into Object.assign(req.user, ...), and users.js:13 persists via req.store.save with no check between them.",
+    "reason": "The trace matches the code: users.js:11-13 store unchecked req.body.displayName and bio into req.user and save them, and no guard exists in this file, so any authenticated user can store non-string or oversized values in their own record (users.js:11-13). Impact is limited to the attacker's own profile and depends on consumers outside the directory, and the same file's PUT /me at users.js:5 already allows broader unvalidated Object.assign, so this is a weak standalone finding rather than a meaningful vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00946718
+}

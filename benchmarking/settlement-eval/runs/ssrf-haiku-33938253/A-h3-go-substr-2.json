@@ -1,0 +1,67 @@
+{
+ "arm": "A",
+ "repo": "h3-go-substr",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00508853,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-fimpmjv6/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches an attacker-supplied URL. Its only check is strings.Contains(raw, \"example.io\"), which matches anywhere in the string, so it does not restrict the host. Redirects are followed and the response is streamed back to the caller, so this is a non-blind SSRF that can reach loopback, internal, and cloud metadata addresses.",
+    "source": "r.FormValue(\"logo\") in the /logo handler (query string or POST body), main.go:31",
+    "sink": "http.Get(raw) using the default client (redirects followed, no timeout), main.go:36, with the response copied to the client via io.Copy at main.go:38",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw := r.FormValue(\"logo\") takes the attacker-controlled string"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "strings.Contains(raw, \"example.io\") is the only validation; it is a substring match, not a hostname check"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) fetches the full attacker-supplied URL; resp error is discarded"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "defer resp.Body.Close(); a nil resp here would panic on error"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy(w, resp.Body) reflects the internal response body to the attacker"
+     }
+    ],
+    "guards_checked": "strings.Contains substring check at main.go:32 is insufficient: it does not parse the URL or check the hostname, so fragments, paths, and query strings can satisfy it (e.g. http://127.0.0.1:8081/cdn#example.io or http://169.254.169.254/latest/meta-data/?example.io). No scheme allowlist beyond what http.Get accepts (http/https). No private, loopback, or link-local IP blocking. Redirects are not disabled, so an allowed host can 302 to an internal address. No timeout."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is the substring match strings.Contains(raw, \"example.io\") at main.go:32, which does not parse the URL or check the hostname, so it closes nothing. The /cdn handler's exact-hostname check at main.go:20 is on a different route and does not apply to /logo.",
+    "reason": "The trace matches the code: main.go:31 reads the attacker-controlled logo parameter via r.FormValue, main.go:32 is a substring-only check, main.go:36 calls http.Get(raw) on the default client, which follows redirects and has no timeout, and main.go:38 streams the response body back to the caller, so the SSRF is non-blind and unauthenticated."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00225431
+}

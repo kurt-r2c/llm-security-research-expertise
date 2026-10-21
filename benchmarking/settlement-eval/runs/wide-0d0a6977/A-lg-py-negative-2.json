@@ -1,0 +1,154 @@
+{
+ "arm": "A",
+ "repo": "lg-py-negative",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.049769200000000006,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "/transfer never checks that amount is positive. A negative amount passes the balance check and reverses the transfer, so the attacker takes funds from any existing account. Non-numeric JSON values such as strings or null cause errors, but the negative case is the exploit.",
+    "source": "request.json['amount'] and request.json['to'] from an authenticated user's POST body",
+    "sink": "BAL[g.user] -= amount and BAL[to] += amount (lines 13-14), which mutate balances",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to is taken from the body with no validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount is taken from the body with no type or sign validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < amount is false for a negative amount, so the check passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "BAL[g.user] -= (-X) increases the attacker's balance by X"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] += (-X) decreases the victim's balance by X, which can take it negative"
+     }
+    ],
+    "guards_checked": "The only guard is the insufficient-funds check at line 11. /withdraw has an amount <= 0 check at line 21, but /transfer does not. No victim consent or authorization check exists. No type check or schema validation exists. The victim's balance is not checked against going negative."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the insufficient-funds check at bank.py:11 (BAL[g.user] < amount), which a negative amount passes. No sign, type, or consent check. /withdraw's amount <= 0 check at line 21 is absent from /transfer.",
+    "reason": "bank.py:11 only tests BAL[g.user] < amount, which is false for a negative amount, so lines 13-14 move funds from the target `to` account to the caller, and no sign check like the one at bank.py:21 exists in /transfer."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the insufficient-funds check at bank.py:11 (BAL[g.user] < amount), which a negative amount bypasses; no sign/type check, no auth decorator beyond upstream identity. /withdraw has amount <= 0 check at line 21 but /transfer does not.",
+    "reason": "bank.py:11 only tests BAL[g.user] < amount, so a negative amount passes and lines 13-14 move funds from `to` to the authenticated caller with no sign validation, unlike /withdraw at line 21."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "The balance check and the debit in /transfer and /withdraw are a non-atomic check-then-act on shared global state with no lock or transaction. Concurrent requests can each pass the check against the same balance and then each debit it. The result is an overdraft or double-spend. Under a threaded or multi-process server, a multi-process deployment also gives each worker its own BAL.",
+    "source": "Concurrent POST requests to /transfer or /withdraw from the same user",
+    "sink": "BAL[g.user] -= amount (lines 13 and 23)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "Balance is read and compared in /transfer"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "The debit happens after the check, with no lock between the two"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "/withdraw has the same check-then-act pattern"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "The debit happens after the check, with no lock between the two"
+     }
+    ],
+    "guards_checked": "No threading.Lock, database transaction or atomic operation is used. The Flask development server is threaded by default, so the race is reachable. The window is narrow in CPython because of the GIL, but it is not eliminated."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 checks BAL[g.user] and bank.py:13 debits it, and bank.py:21 and 23 repeat the pattern, with no lock, transaction or atomic operation between check and debit. Flask's threaded dev server can interleave two requests there, so the race is reachable by any authenticated user acting on their own balance, though the window is narrow under the GIL."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11-13 and 21-23 check BAL[g.user] and then debit it with no lock or transaction, so any authenticated user can send concurrent requests that all pass the check before any debit. The race window is narrow under the GIL, but it is not closed."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "No authentication is visible in this file. g.user is read in both endpoints but nothing here sets it: there is no before_request hook or auth decorator. If the app is deployed as-is, requests fail with a 500 AttributeError. If g.user is populated by external middleware, that middleware is the only control, and it is not in scope here. Also, to is never validated. A nonexistent recipient raises KeyError at line 14 after the sender has already been debited at line 13. In-memory state is not rolled back, so funds vanish.",
+    "source": "Any unauthenticated HTTP request to /transfer or /withdraw",
+    "sink": "BAL[g.user] access (lines 11, 13, 21, 23) and the partial update at lines 13-14",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 3,
+      "note": "The app is created with no auth hook"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "g.user is used but never assigned in this codebase"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "The sender is debited first"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "KeyError for an unknown recipient aborts the request after the debit, leaving the debit applied"
+     }
+    ],
+    "guards_checked": "Searched the only file in the directory (bank.py) for before_request, login or auth handling and found none. Possibly handled by code outside this directory, so this is lower confidence."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:3 creates the app with no before_request or auth hook, and g.user is read at lines 11/21 but never assigned. bank.py:13 debits the sender before bank.py:14 `BAL[to] += amount` raises KeyError for an unknown recipient, with no rollback or try/except. bank.py is the only file in the directory, so no external auth could be checked. As written, the missing-auth part is a 500 AttributeError rather than a bypass, so it is real only if deployed as-is. The funds-loss bug at lines 13-14 is reachable by any authenticated user."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Identity (g.user) is set by trusted upstream middleware outside this directory, per the maintainer facts. No in-file guard exists, and none is needed for the claimed missing-auth issue.",
+    "reason": "The lines match the trace (bank.py:11, 13, 14), but the \"unauthenticated attacker\" premise fails because g.user comes from trusted upstream middleware. The remaining bug is that an unknown `to` raises KeyError at bank.py:14 after the debit at bank.py:13. That only costs the authenticated sender their own funds, so it is a robustness bug and not the claimed auth vulnerability. Separately, /transfer has no `amount <= 0` check (bank.py:11), so a negative amount would move funds from the recipient to the sender. That is a different and more serious issue than this finding describes."
+   }
+  }
+ ],
+ "verify_cost": 0.09018879999999999,
+ "verify_facts_cost": 0.0902998
+}

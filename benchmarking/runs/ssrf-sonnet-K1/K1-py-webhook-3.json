@@ -1,0 +1,105 @@
+{
+ "arm": "K1",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "851c79bd",
+ "status": "success",
+ "gen_cost": 0.0542445,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-2llcrw9i/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview fetches any URL supplied in the `url` query parameter with no validation, so an attacker can reach internal services, loopback and cloud metadata (169.254.169.254). The first 500 bytes of the response body and the status code are returned, so this is a full-read SSRF.",
+    "source": "request.args.get('url') in preview() (app.py:15)",
+    "sink": "requests.get(target, timeout=5) (app.py:16)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "@app.route('/preview') with no auth decorator"
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get('url', '') taken straight from the query string"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) follows redirects by default, with no scheme, host or IP check"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "resp.text[:500] and the status code are returned to the caller"
+     }
+    ],
+    "guards_checked": "No scheme allowlist, host allowlist, private/loopback/link-local IP block, or redirect restriction. No auth or middleware in the file. ALLOWED_HOSTS is only used in /partner."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15 takes `url` from request.args and app.py:16 passes it to requests.get with no auth, host or scheme check, and app.py:17 returns the status and first 500 bytes. The ALLOWED_HOSTS check at app.py:24 applies only to /partner. app.py is the only file, so there is no middleware."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "The /partner host allowlist is checked on the host from urlparse(), but the request is made by requests/urllib3 with its own parser, and redirects are followed. A crafted URL such as `http://evil.com\\@api.partner.example/` can pass the check and make urllib3 connect to a different host, depending on the urllib3 version. Independently, redirects are followed by default, so any open redirect on an allowlisted partner host leads to arbitrary internal fetches. Only the status code is returned (blind SSRF). This is lower confidence than ssrf-1 and I did not confirm the parser differential against the installed urllib3.",
+    "source": "request.args.get('url') in partner() (app.py:22)",
+    "sink": "requests.get(target, timeout=5) (app.py:26)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target taken from the query string"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname, where the validator parses the string"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "host must be in ALLOWED_HOSTS, but only this parsed hostname is checked"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "the original unparsed target string is passed to requests.get, with redirects followed, no IP pinning, and no re-validation after redirects"
+     }
+    ],
+    "guards_checked": "Exact-match hostname allowlist on the urlparse hostname. This is a decent guard, but the validator and fetcher use different parsers, and the allowlist is not re-applied after redirects (allow_redirects is not disabled). No scheme check, no IP pinning."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact set membership of urlparse(target).hostname in ALLOWED_HOSTS (app.py:23-25), returning 400 otherwise.",
+    "reason": "The trace is accurate and the source is attacker-controlled (app.py:22), but app.py:23-25 applies exact hostname set membership, which is a closing guard. The parser-differential and redirect claims rest on unconfirmed urllib3 behavior and an external open redirect not present in this single-file codebase (app.py:26). Redirect-following with no re-validation is still a hardening gap, but it is not a confirmed SSRF."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0613022
+}

@@ -1,0 +1,71 @@
+{
+ "arm": "D",
+ "repo": "py-mirror",
+ "rep": 2,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.10721230000000001,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 2,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-hzkd05vp/r/mirror.py",
+   "/tmp/egf-hzkd05vp/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "The /mirror endpoint fetches a caller-supplied URL. The only check is `host.endswith(\"example.com\")`, a suffix test with no leading dot, so it doesn't restrict the host to example.com. An attacker can register or use a host such as `evilexample.com` or `example.com.attacker.net`, and it passes. The server then makes the request to the attacker-controlled host. The `.example.com` ALLOWED_SUFFIX constant on line 7 is never used. The check also never validates the scheme or the resolved IP. Impact: the server can be made to send GET requests to an attacker-chosen external host. The caller learns the response body length, which is a limited oracle. The attacker can also observe the server's egress IP and headers. Redirects are not followed in the httpx version I assumed, because `follow_redirects` defaults to False. So pointing the URL at an internal address needs a host the attacker controls whose DNS resolves to an internal IP. Examples are a name like `x-example.com` that the attacker registers and points at 169.254.169.254, or DNS rebinding. That path is plausible but not confirmed in this code. Severity: MEDIUM to HIGH. The endpoint has no authentication, but only the body length is returned.",
+    "source": "`url` query parameter of GET /mirror (FastAPI function argument), mirror.py:11",
+    "sink": "httpx.AsyncClient().get(url) at mirror.py:16",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "`url: str` is read from the query string of the unauthenticated GET /mirror route"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "`host = urlparse(url).hostname or \"\"` extracts the hostname"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "Check `host.endswith(\"example.com\")` is a suffix match with no leading dot and no exact set membership. `evilexample.com` and `example.com.attacker.net` pass. The unused ALLOWED_SUFFIX (line 7) would have been stricter but is not referenced"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "`c.get(url)` is called with the original attacker-supplied URL string. The scheme is unchecked, and the IP the host resolves to is unchecked"
+     },
+     {
+      "file": "mirror.py",
+      "line": 17,
+      "note": "Only `len(r.text)` is returned, so this is semi-blind SSRF with a length oracle"
+     }
+    ],
+    "guards_checked": "Looked at mirror.py:13. The hostname suffix check `endswith(\"example.com\")` does not close SSRF under the skill's rules, since suffix checks are bypassable and strict set membership is required. No scheme restriction, no IP or CIDR egress blocking, and no auth middleware were found. Redirects: httpx does not follow them by default, and no `follow_redirects=True` is set, so redirect-based bypass is not available here. The /ping endpoint (mirror.py:23) uses a hardcoded URL and is not a finding."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none closing; only the suffix check host.endswith(\"example.com\") at mirror.py:13 (ALLOWED_SUFFIX at line 7 is unused)",
+    "reason": "The unauthenticated `url` query param (mirror.py:11) passes only the bypassable suffix check at mirror.py:13 (e.g. evilexample.com) and is then fetched by c.get(url) at mirror.py:16, with no scheme, IP, or auth guard."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0329508
+}

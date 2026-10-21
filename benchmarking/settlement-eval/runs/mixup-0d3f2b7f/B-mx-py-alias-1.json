@@ -1,0 +1,144 @@
+{
+ "arm": "B",
+ "repo": "mx-py-alias",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.0608311,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 18,
+    "claim": "DELETE /files/<fid> never enforces authorization. The route calls `require_allowed`, which is an alias for the boolean `is_allowed`. Its return value is discarded, so no 403 is raised and any caller can delete any file. The name `require_allowed` suggests it enforces the check, which makes this easy to miss. The rename route correctly uses `ensure_allowed`.",
+    "source": "Any unauthenticated or unprivileged HTTP client sending DELETE /files/<fid> with a known or guessed fid",
+    "sink": "`del STORE[fid]` (file deletion)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 4,
+      "note": "`is_allowed` is imported under the alias `require_allowed`"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "File is looked up by attacker-supplied fid, with no ownership check"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "`require_allowed(...)` returns a bool that is ignored; `abort(403)` is never called"
+     },
+     {
+      "file": "acl.py",
+      "line": 4,
+      "note": "`is_allowed` only returns True/False and has no side effects"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "`del STORE[fid]` runs unconditionally"
+     }
+    ],
+    "guards_checked": "Looked for ensure_allowed/abort on the delete path and found none. Checked for a decorator or a before_request authz check: before_request only loads the user (views.py:10-12). Checked the return-value usage: it is discarded."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: before_request load_user (views.py:10-12) only reads a header into g.user; require_allowed is an alias for the bool-returning is_allowed (views.py:4, acl.py:4-5) and its result is discarded at views.py:18; ensure_allowed (acl.py:8-10) aborts but is not called on delete",
+    "reason": "views.py:18 calls require_allowed, which is the aliased boolean is_allowed (views.py:4, acl.py:4-5), as a bare statement, so `del STORE[fid]` at views.py:19 runs for any caller. The only difference is that a nonexistent fid raises KeyError at views.py:17."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: before_request only loads the user (views.py:10-12); require_allowed is an alias of the bool-returning is_allowed whose result is discarded",
+    "reason": "views.py:4 aliases is_allowed (acl.py:4-5, returns bool, never aborts) as require_allowed, views.py:18 calls it as a bare statement, so views.py:19 `del STORE[fid]` runs for any client, unlike rename_file which uses ensure_allowed (views.py:26, acl.py:8-10)."
+   }
+  },
+  {
+   "finding": {
+    "file": "views.py",
+    "id": "F2",
+    "line": 12,
+    "claim": "The user identity is taken directly from a client-supplied HTTP header, `X-Session-User-Verified`. There is no session or signature validation in this code. If the app is reachable without a trusted proxy that strips and sets this header, any client can impersonate any user named in a resource's grants. This is conditional on the deployment: it is exploitable when the header is not stripped at the edge.",
+    "source": "Request header X-Session-User-Verified, set by the attacker",
+    "sink": "`ensure_allowed(g.user, f, \"write\")` in the rename route, which becomes the identity used for the grants lookup; this gives write access, e.g. file rename, as the spoofed user",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user is set from the raw request header"
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "ensure_allowed uses g.user as the principal"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "`resource['grants'].get(user)` is matched against the attacker-chosen string"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "`f[\"name\"]` is overwritten"
+     }
+    ],
+    "guards_checked": "No authentication middleware, signature or HMAC verification, or header-stripping logic exists in the repo. A reverse proxy outside the repo may strip the header, but that cannot be verified here."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "ensure_allowed (acl.py:8-10) aborts 403 when the user lacks the grant, so the rename route is gated. But the identity it checks comes from an unauthenticated header. No auth middleware, signature check or header stripping exists in the repo.",
+    "reason": "The trace is accurate (views.py:12 reads the raw header, views.py:26 calls ensure_allowed, acl.py:5 matches the grants key, views.py:27 writes the name), and nothing in the repo authenticates the header. Whether it is exploitable depends on whether an out-of-repo trusted proxy strips and sets X-Session-User-Verified, which can't be decided from this code. Unrelated to this finding: views.py:18 calls the non-throwing is_allowed (aliased as require_allowed) and discards the result, so the DELETE route has no effective authorization check."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Trusted upstream identity middleware (per the project facts) supplies the X-Session-User-Verified header. In-code, rename_file calls ensure_allowed (acl.py:8-10), which aborts with 403 when the grant is missing.",
+    "reason": "The trace lines match (views.py:12 sets g.user from the header, views.py:26 calls ensure_allowed, acl.py:5 does the grants lookup). However, the project facts say request identity is populated by trusted upstream middleware, so views.py:12 only relays a verified identity. The spoofing premise therefore depends on an unstated deployment failure, and rename is correctly guarded by the aborting ensure_allowed at acl.py:10."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "views.py",
+    "line": 17,
+    "claim": "Low severity. `STORE[fid]` raises an unhandled KeyError for an unknown fid, which gives a 500 response and lets a caller probe for valid ids. The same lookup runs before any authorization check, so existence is distinguishable from access denial (404/500 versus 403). It is also a minor robustness and DoS issue if debug mode is enabled.",
+    "source": "fid path parameter",
+    "sink": "dict lookup before authz, in both the delete and rename routes",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "Unchecked lookup in delete_file"
+     },
+     {
+      "file": "views.py",
+      "line": 25,
+      "note": "Unchecked lookup in rename_file"
+     }
+    ],
+    "guards_checked": "No .get() or 404 handling and no error handler. Checked for authorization before the lookup: none."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none for the lookup. There is no .get(), no 404 handling and no errorhandler in views.py. load_user (views.py:12) only reads a header and never rejects a request. ensure_allowed (acl.py:8-10) aborts with 403 but runs after the lookup, at views.py:26.",
+    "reason": "views.py:17 and views.py:25 do an unchecked STORE[fid] before any authorization call, so an unknown fid gives a KeyError and a 500 while a known fid on rename gives a 403 (acl.py:10), which lets any caller, even an unauthenticated one, tell valid ids apart. Separately, views.py:18 calls require_allowed, which is the bool-returning is_allowed (views.py:4, acl.py:4-5), and discards the result. So delete is not authorized at all; that is a more serious, distinct bug."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none for this finding. There is no .get(), no 404 handling and no error handler, and the lookup runs before authz. ensure_allowed aborts with 403 in rename_file. In delete_file, require_allowed is an alias for the bool-returning is_allowed whose result is discarded (views.py:18, acl.py:4). That is a separate, more severe issue.",
+    "reason": "views.py:17 and views.py:25 do `STORE[fid]` before any authz check, so an unknown fid gives an unhandled KeyError and a 500 while a known fid goes on to a 403 or success. Any caller who can send a request can use this to probe for valid ids. The impact is low."
+   }
+  }
+ ],
+ "verify_cost": 0.104716,
+ "verify_facts_cost": 0.10043179999999999
+}

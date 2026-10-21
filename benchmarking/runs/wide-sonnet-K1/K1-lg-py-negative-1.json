@@ -1,0 +1,104 @@
+{
+ "arm": "K1",
+ "repo": "lg-py-negative",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "wide",
+ "config_id": "6ff1d5bb",
+ "status": "success",
+ "gen_cost": 0.046989600000000006,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-j9s6lm_t/r/bank.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "/transfer does not validate amount. A negative amount passes the balance check (BAL[g.user] < amount is false) and then BAL[g.user] -= amount increases the caller's balance while BAL[to] -= |amount| debits the victim. An authenticated attacker can steal funds from any account or mint money, e.g. by transferring a negative amount to a victim, or to themselves to inflate their own balance. /withdraw has the amount <= 0 check but /transfer does not. Non-numeric amounts (strings, bool, NaN) are also unchecked.",
+    "source": "request.json['amount'] and request.json['to'] (authenticated user's POST body)",
+    "sink": "BAL[g.user] -= amount; BAL[to] += amount (balance mutation)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount taken from JSON with no type or sign validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "check BAL[g.user] < amount is satisfied by any negative amount"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "caller balance increased by |amount|"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "recipient balance decreased by |amount|; no check that the recipient has sufficient funds"
+     }
+    ],
+    "guards_checked": "Compared with /withdraw, which has amount <= 0. /transfer has no sign, type or zero check, and no before_request or auth middleware is visible in the file. g.user is assumed to be set elsewhere."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (no before_request/auth hook or validation in bank.py; only the balance check at line 11, which a negative amount passes)",
+    "reason": "bank.py:10-14 takes amount unvalidated, so a negative value passes `BAL[g.user] < amount` (line 11), raises the caller's balance at line 13 and lowers the recipient's at line 14, unlike /withdraw's `amount <= 0` check at line 21. Caveat: a self-transfer nets to zero, so the \"inflate own balance\" example is wrong, but stealing from another existing account works."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "The balance check and the debit are not atomic (check-then-act with no lock or transaction) in both /transfer and /withdraw. Concurrent requests can all pass the check against the same balance and each debit it, so an attacker can spend or withdraw more than they hold. Under multi-threaded or multi-process serving, the read-modify-write on the BAL dict is also racy.",
+    "source": "Concurrent authenticated POSTs to /transfer or /withdraw",
+    "sink": "BAL[g.user] -= amount after the unlocked balance check",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "balance read and compared"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "balance decremented later, with no lock or atomic operation between check and write"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "same pattern in /withdraw"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "decrement after the check"
+     }
+    ],
+    "guards_checked": "No lock, transaction or atomic update present. The GIL does not make the check-then-subtract sequence atomic across the two statements."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (no lock, transaction, or atomic update; the only check is the non-atomic balance comparison itself)",
+    "reason": "bank.py:11-13 and bank.py:21-23 check BAL[g.user] and then decrement it in separate statements with no lock. Threaded Flask workers can interleave between them, and any user who holds a balance can trigger it. Caveats: g.user is never set in this file, so authentication presumably lives elsewhere, and the race window is narrow."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0657638
+}

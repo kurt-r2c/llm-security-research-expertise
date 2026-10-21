@@ -1,0 +1,169 @@
+{
+ "arm": "K2",
+ "repo": "mail-other",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.02557496,
+ "trace": {
+  "tools": {
+   "Read": 14,
+   "Glob": 1,
+   "Grep": 9,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-xbu9hot7/expertise/INDEX.md",
+   "/tmp/egf-xbu9hot7/r/lib/mail/network/delivery_methods/sendmail.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/network/delivery_methods/exim.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/yaml.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/attachments_list.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/message.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/utilities.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/encodings.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/field.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/fields/content_disposition_field.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/elements/content_disposition_element.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/network/delivery_methods/file_delivery.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/message.rb",
+   "/tmp/egf-xbu9hot7/r/lib/mail/message.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lib/mail/message.rb",
+    "line": 1851,
+    "claim": "Mail::Message.from_yaml on attacker-controlled YAML can install an attacker-chosen delivery_method object; a later deliver! runs that object's delivery code, which can append to an arbitrary path or execute an arbitrary binary.",
+    "source": "Untrusted YAML string passed to Mail::Message.from_yaml(str) at message.rb:1850-1851.",
+    "sink": "message.rb:1865-1866 instance_variable_set for any '@'-prefixed key, then message.rb:267-269 delivery_method.deliver!(self), dispatching to file_delivery.rb:34-36 File.open(path,'a') or sendmail.rb:63-80 IO.popen(command).",
+    "trace": [
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1851,
+      "note": "Mail::YAML.load(str) parses the attacker string."
+     },
+     {
+      "file": "lib/mail/yaml.rb",
+      "line": 6,
+      "note": "safe_load with permitted_classes including Mail::Sendmail (13), Mail::Exim (14), Mail::FileDelivery (15) and Mail.delivery_method.class."
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1865,
+      "note": "Any '@'-prefixed key is accepted."
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1866,
+      "note": "instance_variable_set sets @delivery_method to an attacker-built FileDelivery or Sendmail object with attacker-chosen settings[:location]."
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 269,
+      "note": "deliver! calls delivery_method.deliver!(self); delivery_method reads @delivery_method (line 276)."
+     },
+     {
+      "file": "lib/mail/network/delivery_methods/file_delivery.rb",
+      "line": 34,
+      "note": "Path is join(settings[:location], basename(to+ext)), opened in append mode at line 36; location is unrestricted."
+     },
+     {
+      "file": "lib/mail/network/delivery_methods/sendmail.rb",
+      "line": 63,
+      "note": "Alternative: settings[:location] is executed via IO.popen with an argv array (no shell) at lines 72-80, so an attacker-chosen binary runs with the message on stdin."
+     }
+    ],
+    "guards_checked": "safe_load restricts classes, so no arbitrary-object gadgets. Sendmail uses an argv array, not a shell. FileDelivery applies File.basename only to the recipient name, not to location. No check restricts @-keys or delivery_method values in from_yaml. Precondition: the application deserializes untrusted YAML with Message.from_yaml and then delivers. Not confirmed at runtime."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lib/mail/attachments_list.rb",
+    "line": 44,
+    "claim": "Attachment filenames are interpolated into a quoted Content-Disposition/Content-Type parameter without escaping ASCII quotes, semicolons or CR/LF, so an attacker-controlled filename can add header parameters or break the part header block.",
+    "source": "Attacker-controlled filename used as the key in mail.attachments[name] = ... (attachments_list.rb:42-43).",
+    "sink": "attachments_list.rb:44-46 builds 'filename=\"#{encoded_name}\"' with no escaping; serialized at content_disposition_field.rb:34-36 and parameter_hash.rb:45-52.",
+    "trace": [
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 42,
+      "note": "name is the caller's filename key."
+     },
+     {
+      "file": "lib/mail/encodings.rb",
+      "line": 110,
+      "note": "decode_encode returns ASCII strings unchanged, so quotes and CR/LF pass through."
+     },
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 44,
+      "note": "Interpolated directly into content_type, content_transfer_encoding and content_disposition strings."
+     },
+     {
+      "file": "lib/mail/fields/common_field.rb",
+      "line": 69,
+      "note": "ensure_filename_quoted only wraps an unquoted filename; it does not escape."
+     },
+     {
+      "file": "lib/mail/fields/parameter_hash.rb",
+      "line": 45,
+      "note": "encoded uses Utilities.quote_token, which does not strip CR/LF."
+     },
+     {
+      "file": "lib/mail/utilities.rb",
+      "line": 68,
+      "note": "dquote escapes only backslash and double quote; CR/LF are not removed."
+     }
+    ],
+    "guards_checked": "ContentDispositionElement re-parses the value and ParameterHash re-serializes it, which may normalize some cases. Not confirmed whether a CR/LF inside the quoted value survives parsing and serialization. Non-ASCII names are RFC2047/param-encoded and not affected. Impact is limited to MIME part headers, not top-level headers. Not verified at runtime."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lib/mail/message.rb",
+    "line": 1768,
+    "claim": "add_file(String) and attachments[name] = {filename: path} open whatever path they are given and attach the contents; a caller passing a user-controlled path exfiltrates arbitrary local file contents into an email.",
+    "source": "Caller-supplied path string (message.rb:1767) or :filename hash value (attachments_list.rb:49).",
+    "sink": "message.rb:1769 File.open(values,'rb'); attachments_list.rb:50 File.open(path,'rb').",
+    "trace": [
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1767,
+      "note": "String path is opened without restriction; only File.basename is kept as the attachment name."
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1769,
+      "note": "File.open(values,'rb') reads the full file."
+     },
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 49,
+      "note": "Same behavior for the :filename option."
+     },
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 50,
+      "note": "File.open(path,'rb') reads the full file."
+     }
+    ],
+    "guards_checked": "No library-level restriction. This is the documented API for attaching local files, so it is an application-level precondition rather than a library bug."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

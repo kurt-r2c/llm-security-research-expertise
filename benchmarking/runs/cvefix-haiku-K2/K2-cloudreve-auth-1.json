@@ -1,0 +1,396 @@
+{
+ "arm": "K2",
+ "repo": "cloudreve-auth",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.10258278,
+ "trace": {
+  "tools": {
+   "Read": 23,
+   "Glob": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-t96mzsg6/expertise/INDEX.md",
+   "/tmp/egf-t96mzsg6/r/routers/router.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/share.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/file.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/callback.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/slave.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/webdav.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/wopi.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/oauth.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/user.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/admin.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/directory.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/workflow.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/main.go",
+   "/tmp/egf-t96mzsg6/r/routers/controllers/site.go",
+   "/tmp/egf-t96mzsg6/expertise/cases/01-perm-result-ignored.md",
+   "/tmp/egf-t96mzsg6/expertise/cases/09-idor-find-by-id.md",
+   "/tmp/egf-t96mzsg6/expertise/cases/27-decoy-scoped-by-session.md",
+   "/tmp/egf-t96mzsg6/expertise/cases/13-mass-assignment.md",
+   "/tmp/egf-t96mzsg6/expertise/cases/20-zip-slip.md",
+   "/tmp/egf-t96mzsg6/expertise/cases/23-tenant-filter-missing.md",
+   "/tmp/egf-t96mzsg6/expertise/cases/12-ssrf-resolve-then-fetch.md",
+   "/tmp/egf-t96mzsg6/expertise/cases/15-check-then-act-balance.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "routers/controllers/callback.go",
+    "line": 83,
+    "claim": "Upyun callback handler does not stop the chain when signature verification fails. The 401 is written without return or Abort, then c.Next() runs ProcessCallback, which completes the upload session. Confirmed in code; impact depends on service/callback, which is not in the tree.",
+    "source": "Unauthenticated POST to /api/v4/callback/upyun/:sessionID/:key with attacker-chosen body; sessionID and key come from the attacker's own CreateUploadSession response (routers/controllers/file.go:246-258).",
+    "sink": "callback.ProcessCallback(c) via ProcessCallback handler (routers/controllers/callback.go:19), completing the upload session.",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 491,
+      "note": "Route: UseUploadSession(PolicyTypeUpyun) -> UpyunCallbackAuth -> ProcessCallback"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 83,
+      "note": "upyun.ValidateCallback result checked for error only"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 84,
+      "note": "On error, writes 401 JSON"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 86,
+      "note": "No return and no c.Abort() after the 401 write"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 89,
+      "note": "c.Next() runs unconditionally, so ProcessCallback runs despite failed verification"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 19,
+      "note": "ProcessCallback calls callback.ProcessCallback(c); side effects occur regardless of the 401 status"
+     }
+    ],
+    "guards_checked": "UseUploadSession (not in tree; presumed session lookup by id and key). upyun.ValidateCallback runs but its result does not gate control flow. No Abort on failure. Correct pattern exists in QiniuCallbackValidate (callback.go:47-53) and OSSCallbackValidate (callback.go:73-76), which abort."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "routers/router.go",
+    "line": 500,
+    "claim": "OneDrive, COS, S3, KS3 and OBS completion callbacks have no signature middleware; the only gate is UseUploadSession plus the path key. An uploader could complete their own session without uploading, if the service does not verify the object in storage. Candidate pending service review.",
+    "source": "Unauthenticated GET/POST to /api/v4/callback/{onedrive|cos|s3|ks3|obs}/:sessionID/:key by the session creator.",
+    "sink": "callback.ProcessCallback marking the upload session complete and creating the file entity.",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 500,
+      "note": "onedrive POST route: UseUploadSession -> ProcessCallback, no auth middleware"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 516,
+      "note": "cos GET route: UseUploadSession -> ProcessCallback, no auth middleware"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 522,
+      "note": "s3 GET route: UseUploadSession -> ProcessCallback, no auth middleware"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 528,
+      "note": "ks3 GET route: UseUploadSession -> ProcessCallback, no auth middleware"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 534,
+      "note": "obs POST route: UseUploadSession -> ProcessCallback, no auth middleware"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 483,
+      "note": "Contrast: OSS route has OSSCallbackAuth; Qiniu at 540 and remote at 476 have auth middleware"
+     }
+    ],
+    "guards_checked": "UseUploadSession (not in tree). Session key in path. No signature middleware on these five routes. Service-level object verification not inspected."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "routers/controllers/share.go",
+    "line": 24,
+    "claim": "Object IDs go from route or body straight to services with no owner check at the controller layer: share edit/delete/batch-delete, passkey delete, DAV account update/delete, download task target/cancel/progress, file version set/delete, force unlock, pin/unpin, upload session delete. IDOR (case 09) if the services do not scope queries to the caller. Candidate pending service review.",
+    "source": "Authenticated user supplies a share, passkey, DAV account, task, version, file or upload-session ID in path, query or body.",
+    "sink": "Service mutation or read keyed only by that ID: share.Upsert/DeleteShare/BatchDelete, DeletePasskey, DeleteDavAccount, CancelDownloadTask, SetDownloadFiles, TaskPhaseProgress, SetCurrentVersion, DeleteVersion, Unlock, PinFile, DeleteUploadSession.",
+    "trace": [
+     {
+      "file": "routers/controllers/share.go",
+      "line": 24,
+      "note": "EditShare: hashid.FromContext(c) passed to service.Upsert, no owner check"
+     },
+     {
+      "file": "routers/controllers/share.go",
+      "line": 65,
+      "note": "DeleteShare: hashid.FromContext(c) passed to share.DeleteShare"
+     },
+     {
+      "file": "routers/controllers/share.go",
+      "line": 75,
+      "note": "BatchDeleteShare: IDs from JSON body passed to service.Delete"
+     },
+     {
+      "file": "routers/controllers/user.go",
+      "line": 63,
+      "note": "UserDeletePasskey: ID from query passed to service.DeletePasskey"
+     },
+     {
+      "file": "routers/controllers/webdav.go",
+      "line": 41,
+      "note": "UpdateDAVAccounts and DeleteDAVAccounts pass IDs to service without owner check"
+     },
+     {
+      "file": "routers/controllers/workflow.go",
+      "line": 27,
+      "note": "GetTaskPhaseProgress, SetDownloadTaskTarget, CancelDownloadTask take task ID from hashid"
+     },
+     {
+      "file": "routers/controllers/file.go",
+      "line": 406,
+      "note": "SetCurrentVersion, DeleteVersion, Unlock, Pin/Unpin, DeleteUploadSession pass IDs to services"
+     }
+    ],
+    "guards_checked": "Route-level LoginRequired/RequiredScopes and HashID decoding only. No owner equality check in the tree. Decoy case 27 shows owner-scoped queries are safe; service queries need reading."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "routers/router.go",
+    "line": 600,
+    "claim": "File mutation routes (create, rename, move, PUT content, delete, restore, metadata, upload, pin, versions, viewer session, source link, view patch) are in the v4 file group without LoginRequired. Only RequiredScopes(FilesRead) is applied at group level. Safe only if RequiredScopes rejects the anonymous user. Candidate pending middleware review.",
+    "source": "Anonymous HTTP client calling file mutation endpoints under /api/v4/file/*.",
+    "sink": "Explorer services performing create, rename, move, delete, and content write.",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 235,
+      "note": "CurrentUser middleware sets anonymous user for unauthenticated requests"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 601,
+      "note": "file group uses only RequiredScopes(ScopeFilesRead) at group level"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 613,
+      "note": "create, rename, move, PUT content, delete etc. have no LoginRequired"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 816,
+      "note": "Contrast: share routes add LoginRequired on mutating routes; wf group at 550 has LoginRequired"
+     }
+    ],
+    "guards_checked": "RequiredScopes (not in tree). Whether anonymous user has scopes is unknown. Mutating routes carry RequiredScopes(FilesWrite) per route."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "routers/controllers/workflow.go",
+    "line": 86,
+    "claim": "ExtractArchive passes user-supplied archive contents to the extract task. If the extractor joins entry names to the destination without confinement, zip-slip writes outside the target directory (case 20). Candidate pending service review.",
+    "source": "Authenticated user uploads an archive whose entry names contain path traversal or symlinks, then calls /api/v4/workflow/extract.",
+    "sink": "File write in explorer.CreateExtractTask extraction loop (service, not in tree).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 570,
+      "note": "POST workflow/extract route: RequiredScopes(WorkflowWrite) then ExtractArchive"
+     },
+     {
+      "file": "routers/controllers/workflow.go",
+      "line": 87,
+      "note": "ExtractArchive builds service and calls CreateExtractTask"
+     },
+     {
+      "file": "routers/controllers/workflow.go",
+      "line": 89,
+      "note": "Extraction result returned; file writes occur in service layer"
+     }
+    ],
+    "guards_checked": "LoginRequired via wf group (router.go:550) and RequiredScopes. Entry-name confinement and symlink handling not visible in tree."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "routers/router.go",
+    "line": 299,
+    "claim": "Unauthenticated 2FA OTP endpoint with no attempt limit visible in the route chain. A 6-digit OTP may be brute-forced if Verify2FA has no per-session attempt counter or expiry. Candidate pending service review.",
+    "source": "Unauthenticated POST /api/v4/session/token/2fa with a 2FA session token and guessed OTP.",
+    "sink": "user.Verify2FA issuing a token on successful OTP match (controllers/user.go:96-108).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 299,
+      "note": "POST session/token/2fa: OtpValidationService bind, UserLogin2FAValidation, UserIssueToken; no rate-limit middleware"
+     },
+     {
+      "file": "routers/controllers/user.go",
+      "line": 97,
+      "note": "UserLogin2FAValidation calls service.Verify2FA"
+     },
+     {
+      "file": "routers/controllers/user.go",
+      "line": 106,
+      "note": "On success, user placed in context and token issued"
+     }
+    ],
+    "guards_checked": "None visible in route chain. Attempt counter and session expiry in service not inspected."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "routers/router.go",
+    "line": 385,
+    "claim": "Password reset route takes user ID from path, and the controller passes it to UserReset. If the reset token is not bound to that user or is reusable, an attacker can reset another account's password. Candidate pending service review (case 05 pattern).",
+    "source": "Unauthenticated PATCH /api/v4/user/reset/:id with a reset token and new password in the body.",
+    "sink": "Password change in user.UserResetService.Reset (service, not in tree).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 385,
+      "note": "PATCH user/reset/:id: HashID(UserID) then UserReset; no auth middleware"
+     },
+     {
+      "file": "routers/controllers/user.go",
+      "line": 157,
+      "note": "UserReset binds body and calls service.Reset(c)"
+     }
+    ],
+    "guards_checked": "HashID decoding only. Token-to-user binding and single-use not visible in tree."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F8",
+    "file": "routers/controllers/share.go",
+    "line": 75,
+    "claim": "BatchDeleteShare is missing a return after the error response, so a failed batch delete sends an error JSON body and then a success JSON body with HTTP 200. Confirmed in code; low severity.",
+    "source": "Authenticated user calls batch share delete where the service returns an error.",
+    "sink": "HTTP response to client (client signalling of failure).",
+    "trace": [
+     {
+      "file": "routers/controllers/share.go",
+      "line": 77,
+      "note": "service.Delete(c) returns err"
+     },
+     {
+      "file": "routers/controllers/share.go",
+      "line": 79,
+      "note": "Writes error JSON without return"
+     },
+     {
+      "file": "routers/controllers/share.go",
+      "line": 82,
+      "note": "Writes success JSON body unconditionally"
+     }
+    ],
+    "guards_checked": "Not a security control; no authorization bypass shown."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F9",
+    "file": "routers/router.go",
+    "line": 263,
+    "claim": "Short-share route accepts the share password in the URL path, so it is recorded in access logs and Referer headers. Low severity, confirmed by route definition.",
+    "source": "Client requests /s/:id/:password.",
+    "sink": "Access logs, proxy logs, Referer headers (information exposure).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 263,
+      "note": "shareShort.GET(':id/:password') binds password via FromUri"
+     }
+    ],
+    "guards_checked": "None; password is a bind parameter, not logged by the controller in the tree."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F10",
+    "file": "routers/controllers/wopi.go",
+    "line": 17,
+    "claim": "WOPI handlers copy raw err.Error() into ServerErrorHeader on 500 responses, exposing internal error text to any viewer-session holder. Low severity, confirmed in code.",
+    "source": "Holder of a WOPI viewer session calling /api/v4/file/wopi/:id endpoints that fail.",
+    "sink": "Response header wopi.ServerErrorHeader (information disclosure).",
+    "trace": [
+     {
+      "file": "routers/controllers/wopi.go",
+      "line": 16,
+      "note": "CheckFileInfo error path"
+     },
+     {
+      "file": "routers/controllers/wopi.go",
+      "line": 17,
+      "note": "err.Error() written to response header"
+     },
+     {
+      "file": "routers/controllers/wopi.go",
+      "line": 30,
+      "note": "GetFile same pattern"
+     },
+     {
+      "file": "routers/controllers/wopi.go",
+      "line": 41,
+      "note": "PutFile same pattern"
+     },
+     {
+      "file": "routers/controllers/wopi.go",
+      "line": 80,
+      "note": "ModifyFile same pattern"
+     }
+    ],
+    "guards_checked": "ViewerSessionValidation and HashID middleware (router.go:215) gate the route; error content not sanitised."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,137 @@
+{
+ "arm": "A",
+ "repo": "quart-crypto",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.021658940000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 8,
+   "Read": 8,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "src/quart/sessions.py",
+   "/tmp/egf-02hgje7r/r/src/quart/helpers.py",
+   "/tmp/egf-02hgje7r/r/src/quart/formparser.py",
+   "/tmp/egf-02hgje7r/r/src/quart/wrappers/request.py",
+   "/tmp/egf-02hgje7r/r/src/quart/wrappers/request.py",
+   "/tmp/egf-02hgje7r/r/src/quart/asgi.py",
+   "/tmp/egf-02hgje7r/r/src/quart/wrappers/request.py",
+   "/tmp/egf-02hgje7r/r/src/quart/debug.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "quart-multipart-max-content-length-bypass",
+    "file": "src/quart/formparser.py",
+    "line": 196,
+    "claim": "MAX_CONTENT_LENGTH is not enforced on chunked (no Content-Length) multipart/form-data bodies, so an unauthenticated client can stream unbounded file data to temp storage for up to BODY_TIMEOUT (60s).",
+    "source": "HTTP request with Transfer-Encoding: chunked and multipart/form-data body, sent to a route that reads request.form or request.files.",
+    "sink": "Unbounded body consumption and file writes via stream_factory into temp files (formparser.py:226-236).",
+    "trace": [
+     {
+      "file": "src/quart/asgi.py",
+      "line": 65,
+      "note": "_receive enqueues every http.request chunk into request.body with no cumulative size check"
+     },
+     {
+      "file": "src/quart/wrappers/request.py",
+      "line": 352,
+      "note": "_load_form_data calls parser.parse(self.body, ...) under asyncio.wait_for with body_timeout (60s)"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 196,
+      "note": "async for data in body uses Body.__anext__, which has no cumulative MAX_CONTENT_LENGTH check"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 207,
+      "note": "File parts set field_size=None, so MAX_FORM_MEMORY_SIZE does not apply to files"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 226,
+      "note": "File data is written to the stream container and retained until the request ends"
+     }
+    ],
+    "guards_checked": "Content-Length pre-check (request.py:65-70) only applies when header present; cumulative check (request.py:99-106) only in __await__, not the streaming path; MAX_FORM_MEMORY_SIZE (formparser.py:211-214) covers non-file fields only; MAX_FORM_PARTS limits part count not bytes; BODY_TIMEOUT (request.py:352-359) bounds time, so volume is limited by bandwidth; not dynamically reproduced."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "quart-debug-traceback-unescaped-html",
+    "file": "src/quart/debug.py",
+    "line": 113,
+    "claim": "The debug traceback page renders exception messages and frame locals with jinja2 Template without autoescaping, enabling reflected HTML injection and disclosure of local variables when debug or testing mode is on.",
+    "source": "Exception message text (e.g. containing request-derived data) and frame f_locals (may include secrets such as SECRET_KEY).",
+    "sink": "HTML response body built from unescaped template variables (debug.py:112-113).",
+    "trace": [
+     {
+      "file": "src/quart/asgi.py",
+      "line": 415,
+      "note": "_handle_exception sets show_error = app.debug or app.testing"
+     },
+     {
+      "file": "src/quart/asgi.py",
+      "line": 417,
+      "note": "Calls traceback_response when show_error is true"
+     },
+     {
+      "file": "src/quart/debug.py",
+      "line": 105,
+      "note": "Captures frame f_locals into the rendered frames"
+     },
+     {
+      "file": "src/quart/debug.py",
+      "line": 112,
+      "note": "Template(TEMPLATE) created with default autoescape=False"
+     },
+     {
+      "file": "src/quart/debug.py",
+      "line": 113,
+      "note": "template.render(frames, name, value=error) emits raw values"
+     }
+    ],
+    "guards_checked": "Gated on app.debug or app.testing (asgi.py:415-419); with both off the exception is re-raised. Not dynamically reproduced."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "quart-multipart-decoder-limit-argument",
+    "file": "src/quart/formparser.py",
+    "line": 188,
+    "claim": "MultipartDecoder is constructed with max_content_length as its second positional argument, which werkzeug interprets as max_form_memory_size, so the decoder's buffer limit is 16 MB instead of the intended 500 KB form memory limit.",
+    "source": "Configuration-derived value (MAX_CONTENT_LENGTH) passed in the position of max_form_memory_size; affected by any multipart request.",
+    "sink": "werkzeug.sansio.multipart.MultipartDecoder internal buffer bound (multipart.py:138-141).",
+    "trace": [
+     {
+      "file": "src/quart/formparser.py",
+      "line": 187,
+      "note": "MultipartDecoder(boundary, self.max_content_length, max_parts=self.max_form_parts)"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 211,
+      "note": "Field-level MAX_FORM_MEMORY_SIZE check still runs per Data event, so the field-value bypass is not shown"
+     }
+    ],
+    "guards_checked": "Field-value limit at formparser.py:211-214 still applies; parameter mismatch only weakens decoder buffer bound. Low confidence on exploitability."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

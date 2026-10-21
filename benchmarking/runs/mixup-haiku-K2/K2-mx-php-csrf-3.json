@@ -1,0 +1,167 @@
+{
+ "arm": "K2",
+ "repo": "mx-php-csrf",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "842e2e99",
+ "status": "success",
+ "gen_cost": 0.0077639399999999996,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 4,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-sy684_1k/expertise/INDEX.md",
+   "/tmp/egf-sy684_1k/r/actions.php",
+   "/tmp/egf-sy684_1k/expertise/cases/01-perm-result-ignored.md",
+   "/tmp/egf-sy684_1k/expertise/cases/16-negative-quantity.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "actions.php",
+    "line": 16,
+    "claim": "transfer_funds discards the result of check_csrf(), so the CSRF check never gates the transfer.",
+    "source": "$_POST['token'] (attacker-chosen; any value is accepted)",
+    "sink": "Balance UPDATEs at actions.php:17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 15,
+      "note": "transfer_funds($pdo) entry point"
+     },
+     {
+      "file": "actions.php",
+      "line": 16,
+      "note": "check_csrf($_POST['token'] ?? '') called as a bare statement; boolean ignored, no exit/throw"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debit UPDATE runs unconditionally"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credit UPDATE runs unconditionally"
+     }
+    ],
+    "guards_checked": "check_csrf (L4-6) is correct on its own (isset + hash_equals). The defect is that its result is unused. Contrast update_profile L22, which uses verify_csrf() and exits with 403. Precondition: a cross-site POST must carry the victim's session cookie, so SameSite cookie settings matter. Those are not in this repo. Matches expertise case 01."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:4-6) returns a bool and is correct on its own, but its result is discarded at actions.php:16 as a bare statement with no branch, exit, or throw. No other control sits between the request and the UPDATEs at lines 17-18. The only other CSRF guard, verify_csrf (lines 8-13), is used by update_profile, not by transfer_funds. SameSite cookie settings are outside this repo and cannot be checked here.",
+    "reason": "actions.php:16 calls check_csrf() as a bare statement, so its boolean is ignored, and the debit and credit UPDATEs at actions.php:17-18 run for any token value. An attacker needs only a cross-site POST that carries the victim's session cookie (cookie settings are not in this repo), which an anonymous attacker can induce, so the transfer is forgeable."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "actions.php",
+    "line": 18,
+    "claim": "Credit UPDATE runs even when $_SESSION['uid'] is unset, letting a caller with no session credit any account by an arbitrary amount.",
+    "source": "$_POST['amt'] and $_POST['to'] with no session requirement",
+    "sink": "Credit UPDATE at actions.php:18 (bal = bal + amt WHERE id = to)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 15,
+      "note": "no authentication check at function entry"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "$_SESSION['uid'] null -> WHERE id = NULL matches no row, debit is a no-op"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credit still executes against $_POST['to'] for $_POST['amt']"
+     }
+    ],
+    "guards_checked": "No session/uid check in transfer_funds. The CSRF check (L16) is non-gating (F1). No check that the caller is logged in. Reachability depends on how transfer_funds is routed, and the dispatcher is not in this repo. If it is callable by unauthenticated users, this is money creation."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None effective. The only check in transfer_funds is check_csrf() at actions.php:16, a bare statement whose bool return is discarded, so it never gates the credit at line 18. No session or uid check exists at function entry (actions.php:15). The debit at line 17 with a null uid matches no row, so it is a no-op, as the candidate says.",
+    "reason": "Every trace line matches the code: transfer_funds (actions.php:15) has no auth gate, the discarded check_csrf result at line 16 is non-gating, and the credit at line 18 runs against $_POST['to'] regardless of session. However, actions.php contains no caller of transfer_funds and no dispatcher, so the attacker's reachability (anonymous vs. authenticated) cannot be established from this repo, and the finding hinges on that unseen routing."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "The transfer amount is unvalidated for sign, range and balance, so a negative amount moves money from the recipient to the sender, and an amount above the balance overdraws.",
+    "source": "$_POST['amt'] (client-controlled) and $_POST['to'] (client-controlled)",
+    "sink": "Both balance UPDATEs at actions.php:17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "amt passed to debit with no filter/min check; sender's uid is in $_SESSION"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "same amt applied to recipient; amt=-X makes sender gain X and $_POST['to'] lose X"
+     }
+    ],
+    "guards_checked": "No filter_var, no min/max, no sufficient-funds comparison, no check that to != uid. The only guard is F1's broken CSRF check. Matches expertise case 16. Exploit: a logged-in user posts amt=-N, to=<victim id>, which drains the victim (ids are probably sequential). Overdraft is possible for any positive amt above the balance."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only nearby control is check_csrf() at actions.php:16, a bare call whose bool result is discarded, so it blocks nothing (this is F1's defect, not a guard). actions.php:4-6 defines check_csrf and actions.php:8-13 defines verify_csrf, but transfer_funds never calls verify_csrf. No filter_var, min/max, balance comparison, or to != uid check appears in actions.php:15-19. A grep of the directory found no CHECK constraint or schema for the acct table.",
+    "reason": "Lines actions.php:17 and actions.php:18 do what the trace says: amt is passed unvalidated to both UPDATEs, debiting $_SESSION['uid'] and crediting $_POST['to'], and the only CSRF check at line 16 is discarded, so a logged-in user can post a negative amt to move funds from the target to themselves or overdraw. The one caveat is that actions.php never invokes transfer_funds itself and no dispatcher exists in the directory, so the HTTP route is inferred from the file's name and $_POST usage rather than shown."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "The two UPDATEs are not wrapped in a transaction and the balance check is not atomic, so a failed credit destroys funds and concurrent transfers can overdraw.",
+    "source": "$_POST['to'] (an unknown or invalid id) or concurrent requests on the same account",
+    "sink": "Debit at line 17 committed before credit at line 18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debit executes and autocommits"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credit to a nonexistent or invalid $_POST['to'] matches no row or throws; debit is not rolled back"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "no SELECT-then-UPDATE balance check, so parallel requests can each pass an implicit check and overdraw (check-then-act, case 15 pattern)"
+     }
+    ],
+    "guards_checked": "No $pdo->beginTransaction()/commit/rollback, no SELECT ... FOR UPDATE, no row locking, no balance-sufficiency check. PDO error mode is not set in this file, so behavior on error depends on the global config. Lower severity than F1-F3."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": false,
+    "guard_found": "None blocks the non-atomic debit/credit. The only related control, check_csrf() at actions.php:16, returns a bool that is discarded, so it does not gate anything. The debit and credit at actions.php:17-18 run as autocommit statements with no transaction.",
+    "reason": "The trace is wrong at step 3: no balance check exists in the code to race against (actions.php:17-18 are bare UPDATEs), so the claimed check-then-act overdraw is not a concurrency bug. The one real effect is that a bad or unknown $_POST['to'] at actions.php:18 matches zero rows, leaving the debit at actions.php:17 committed. That only destroys the attacker's own balance, since the debit is from $_SESSION['uid'] at line 17, so it is not a cross-user vulnerability. The separate missing-validation issue (no sufficiency check, and a negative $_POST['amt'] could move money from other accounts) is a different finding and is not established by this candidate."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01004761
+}

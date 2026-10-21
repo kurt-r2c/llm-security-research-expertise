@@ -1,0 +1,132 @@
+{
+ "arm": "K2",
+ "repo": "lz4java-path",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.11418455,
+ "trace": {
+  "tools": {
+   "Read": 18,
+   "Glob": 1,
+   "Grep": 4,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-qaunyvye/expertise/INDEX.md",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4SafeUtils.java",
+   "/tmp/egf-qaunyvye/r/src/java-unsafe/net/jpountz/lz4/LZ4UnsafeUtils.java",
+   "/tmp/egf-qaunyvye/r/src/jni/net_jpountz_lz4_LZ4JNI.c",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/AbstractLZ4JNIFastResetCompressor.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/util/SafeUtils.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4DecompressorWithLength.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/util/ByteBufferUtils.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4DecompressorWithLength.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4DecompressorWithLength.java",
+   "/tmp/egf-qaunyvye/r/src/build/source_templates/decompressor.template",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4JNIFastDecompressor.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+   "/tmp/egf-qaunyvye/r/src/build/source_templates/decompress.template",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/util/Native.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/lz4/LZ4Utils.java",
+   "/tmp/egf-qaunyvye/r/src/java/net/jpountz/xxhash/StreamingXXHash32JNI.java"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "LZ4-BLOCK-STATE-BEFORE-VERIFY",
+    "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+    "line": 280,
+    "claim": "readBlock() commits the attacker-supplied block length to the field originalLen and decompresses into the shared buffer before the content checksum is verified. When the checksum fails, o and originalLen are left inconsistent, so a caller that catches the IOException and keeps reading gets the unverified decompressed bytes from the failed block returned by read().",
+    "source": "Attacker-controlled bytes of a compressed block (header originalLen field at line 280, block payload, and checksum field at line 281). Precondition: the application catches the IOException thrown on checksum mismatch and calls read() again on the same stream.",
+    "sink": "LZ4BlockInputStream.read() returning buffer[o++] (line 204) and read(byte[],int,int) arraycopy (line 220) from data that failed verification.",
+    "trace": [
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 280,
+      "note": "originalLen = readIntLE(header) is assigned to the field before any validation of the decompressed content"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 303,
+      "note": "buffer reallocated if originalLen is larger than current buffer"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 317,
+      "note": "decompress writes the block into buffer (safe decompressor path; fast path at line 322)"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 336,
+      "note": "checksum computed over buffer[0,originalLen) and compared to header check value"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 337,
+      "note": "on mismatch throws IOException; o is NOT reset and originalLen is NOT rolled back, so the stream state now points at unverified data"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 198,
+      "note": "next read(): o == originalLen is false (o is the old end of block 1), so no refill happens"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 204,
+      "note": "read() returns buffer[o++] from the unverified block 2 contents"
+     }
+    ],
+    "guards_checked": "Magic and method-token checks (lines 268-278); originalLen bounded by 1<<compressionLevel and non-negative (283-285); compressedLen < originalLen unless acceptOversizedBlocks (289); decompressor output length check (318/323); XXHash32 content checksum (336). The checksum is the control that fails open: it is a corruption check, not authentication, so impact is limited to data emitted after an error the caller chose to ignore. Repro: block 1 valid with N1 bytes, read until o==N1; block 2 with valid header, N2 > N1, wrong checksum; catch IOException; read() returns buffer[N1] from block 2. Not executed; verified by reading. Severity: low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "LZ4-FRAME-HEADER-STATE-BEFORE-VERIFY",
+    "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+    "line": 223,
+    "claim": "readHeader() replaces this.frameInfo (flags and BD) before the one-byte descriptor hash is verified. After a DESCRIPTOR_HASH_MISMATCH in a non-first frame, read() skips nextFrameInfo() and decodes blocks using the unverified frame's flags while the previous frame's maxBlockSize remains in effect.",
+    "source": "Attacker-controlled frame descriptor bytes (FLG, BD, optional content size, header hash byte) of a second or later frame. Precondition: the application catches the IOException and keeps reading the same stream.",
+    "sink": "readBlock() decoding subsequent blocks under unverified FLG.BLOCK_CHECKSUM/CONTENT_CHECKSUM settings (lines 335, 352) and emitting their output via read() (line 373/393).",
+    "trace": [
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 223,
+      "note": "this.frameInfo = new FrameInfo(flg, bd, streamHash) is assigned before any descriptor validation"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 238,
+      "note": "hash mismatch throws DESCRIPTOR_HASH_MISMATCH; lines 242-246 (maxBlockSize update, firstFrameHeaderRead, anyFrameRead) are skipped"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 362,
+      "note": "next read(): firstFrameHeaderRead is still true from the prior frame, buffer.remaining()==0 holds"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 363,
+      "note": "frameInfo.isFinished() is false for the new unverified FrameInfo (assumed; FrameInfo not inspected), so nextFrameInfo() is skipped"
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 371,
+      "note": "readBlock() runs with the unverified flags and the old maxBlockSize"
+     }
+    ],
+    "guards_checked": "Magic and skippable-frame handling (lines 160-168); FLG/BD validate() reserved-bit and version checks (LZ4FrameOutputStream); 1-byte descriptor hash (232-240), which is a corruption check and is trivially forgeable; per-block size vs maxBlockSize (305); block checksum and content checksum (337, 294) are flag-dependent and so are themselves taken from the unverified header; buffer.limit(0) (244) prevents exposure of prior-block data but does not stop decoding. Verified by reading only; FrameInfo.isFinished default not checked. Severity: low, same defect class as the block-stream finding."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

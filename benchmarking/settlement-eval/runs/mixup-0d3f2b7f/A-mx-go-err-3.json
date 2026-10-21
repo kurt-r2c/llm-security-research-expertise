@@ -1,0 +1,93 @@
+{
+ "arm": "A",
+ "repo": "mx-go-err",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.042929300000000004,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.go",
+    "line": 26,
+    "claim": "dropTable ignores the error returned by Authorize, so the dba role check is never enforced. Any caller who reaches /admin/drop can drop tables. The table name is also concatenated straight into the SQL, which allows injection.",
+    "source": "Any request to /admin/drop, with the attacker-controlled form value 't' (api.go:27). The caller needs no 'dba' role.",
+    "sink": "runSQL(\"DROP TABLE \" + r.FormValue(\"t\")) at api.go:27",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 44,
+      "note": "/admin/drop is registered to dropTable with no auth middleware"
+     },
+     {
+      "file": "api.go",
+      "line": 25,
+      "note": "u is taken from the request context"
+     },
+     {
+      "file": "api.go",
+      "line": 26,
+      "note": "Authorize(u, \"dba\") returns an error for non-dba users, but the result is discarded"
+     },
+     {
+      "file": "api.go",
+      "line": 27,
+      "note": "The unvalidated form value 't' is concatenated into a DROP TABLE statement and executed"
+     }
+    ],
+    "guards_checked": "The only control is the Authorize call at api.go:26, which has no effect because its error is not checked. The vacuum handler at api.go:33-36 shows the intended pattern. There is no middleware, no input validation or allowlist of table names, and no parameterization. runSQL is a stub, but the sink is the SQL execution it stands for."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 returns an error that is discarded as a bare statement. There is no table-name allowlist or parameterization at api.go:27, and no auth middleware at api.go:44. The only other thing in the way is the unchecked type assertion in userFrom (api.go:22). It would panic if nothing populates the \"user\" context value, and nothing in this code does. That is a missing-wiring artifact, not a control.",
+    "reason": "api.go:26 calls Authorize and drops its error, so the dba check never blocks, and api.go:27 concatenates the form value r.FormValue(\"t\") into DROP TABLE; the handler is registered without middleware at api.go:44, and vacuum at api.go:33-36 shows the correct err check. Caveat: nothing in this code sets the \"user\" context value, so as written userFrom (api.go:22) would panic before the drop, and the finding assumes the app's real deployment populates it."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 is the only control. It returns an error (api.go:19) but the result is discarded as a bare statement. There is no middleware, allowlist, or parameterization.",
+    "reason": "api.go:26 discards Authorize's error, unlike the checked call at api.go:33, so any authenticated user reaches api.go:27 and runs the unsanitized DROP TABLE concatenation. Route registered at api.go:44 with no middleware."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "api.go",
+    "line": 22,
+    "claim": "userFrom uses an unchecked type assertion on the context value. If no authentication middleware has set \"user\", the assertion panics. Both admin routes are registered without any middleware that sets it, so every request panics. Go's net/http recovers per-connection, so this is a robustness issue and does not bypass authorization.",
+    "source": "Any unauthenticated request to /admin/drop or /admin/vacuum",
+    "sink": "r.Context().Value(\"user\").(*User) at api.go:22",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 44,
+      "note": "Handlers are registered with no auth middleware"
+     },
+     {
+      "file": "api.go",
+      "line": 22,
+      "note": "The unchecked type assertion panics when the value is nil"
+     }
+    ],
+    "guards_checked": "There is no middleware in this file that populates the user. The context key is a plain string, which could collide with other packages. net/http recovers from handler panics, so this causes no process crash and no authorization bypass. It is low severity and a hardening point."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (no middleware sets \"user\"; only net/http's per-request panic recovery, which contains the panic)",
+    "reason": "api.go:22 does an unchecked `.(*User)` assertion and api.go:44-45 register both handlers with no middleware that sets \"user\", so every anonymous request panics before runSQL (api.go:27/37). That makes it a low-severity robustness issue as the finding says, not an authorization bypass."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Upstream trusted middleware (outside this directory) populates the request context \"user\"; in-file, handlers only call userFrom (api.go:22). net/http also recovers handler panics.",
+    "reason": "The api.go:22 assertion and the api.go:44 registrations exist as described, but the premise that no middleware sets \"user\" is false, because trusted upstream middleware populates it. A panic would only be a robustness issue that net/http recovers, so it is not a vulnerability. The real flaw is the discarded Authorize result at api.go:26, which is a different finding."
+   }
+  }
+ ],
+ "verify_cost": 0.0714477,
+ "verify_facts_cost": 0.0647667
+}

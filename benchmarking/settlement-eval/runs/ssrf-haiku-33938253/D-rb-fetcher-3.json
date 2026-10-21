@@ -1,0 +1,104 @@
+{
+ "arm": "D",
+ "repo": "rb-fetcher",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0163732,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 2,
+   "Read": 3,
+   "Bash": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-qsrj8gue/r/.claude/skills/security-research/ssrf/SKILL.md",
+   "/tmp/egf-qsrj8gue/r/.claude/skills/security-research/triage/SKILL.md",
+   "/tmp/egf-qsrj8gue/r/app.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.rb",
+    "line": 8,
+    "claim": "Unauthenticated GET /rss passes raw params[:u] to URI.open, which follows redirects with no scheme, host, or allowlist check, so the server can be made to fetch cloud metadata or internal HTTP services and return the first 400 bytes of the response.",
+    "source": "params[:u] in GET /rss (app.rb:8), unauthenticated query parameter",
+    "sink": "URI.open(params[:u]).read (app.rb:8, open-uri)",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "get \"/rss\" route; public Sinatra ingress"
+     },
+     {
+      "file": "app.rb",
+      "line": 8,
+      "note": "params[:u] flows unvalidated into URI.open, which fetches the URL and follows redirects"
+     },
+     {
+      "file": "app.rb",
+      "line": 9,
+      "note": "data[0, 400] returns the first 400 bytes of the fetched response to the caller, so the SSRF is not blind"
+     }
+    ],
+    "guards_checked": "No allowlist, scheme restriction, or hostname check on the path. open-uri follows http/https redirects with no re-validation, so external URLs can redirect to 169.254.169.254 or RFC-1918 hosts. Triage: Step 0 answered (unauthenticated remote user, u parameter, fetched per request, reads internal/metadata responses); plausibility and reachability pass; severity HIGH; Validation Tier 0."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.rb:7-9 matches the trace: the unauthenticated `get \"/rss\"` route takes `params[:u]` unvalidated into `URI.open(...).read` (line 8), and `data[0, 400]` (line 9) returns the first 400 bytes to the caller. No scheme, host, or allowlist check exists on that path, and open-uri follows redirects. The `TRUSTED` allowlist at line 5 is only applied in the separate `/trusted` route (line 14), not in `/rss`. Note that the sink is broader than the claim: a bare path or `file://` value would be opened as a local file, which strengthens the finding rather than refuting it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.rb",
+    "line": 15,
+    "claim": "GET /trusted validates only the hostname against a strict allowlist but Net::HTTP.get uses the attacker-chosen port, letting an unauthenticated caller read any HTTP port on the allowlisted hosts feeds.example.net and news.example.net.",
+    "source": "params[:u] in GET /trusted (app.rb:13), unauthenticated query parameter",
+    "sink": "Net::HTTP.get(uri) (app.rb:15), connecting to uri.port",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 12,
+      "note": "get \"/trusted\" route; public Sinatra ingress"
+     },
+     {
+      "file": "app.rb",
+      "line": 13,
+      "note": "params[:u] parsed with URI.parse; attacker controls scheme, host, and port"
+     },
+     {
+      "file": "app.rb",
+      "line": 14,
+      "note": "TRUSTED.include?(uri.host) is strict membership on host, so userinfo, case, and trailing-dot variants fail closed; port is not checked"
+     },
+     {
+      "file": "app.rb",
+      "line": 15,
+      "note": "Net::HTTP.get(uri) connects to uri.port and returns the full response body; Net::HTTP.get does not follow redirects"
+     }
+    ],
+    "guards_checked": "Host allowlist (strict Array#include? on uri.host): effective for host, not for port. No scheme restriction (non-http schemes fail at Net::HTTP or host mismatch). No redirect following, so no redirect risk. Triage: impact bounded to services on the two allowlisted hosts, so downgraded to MEDIUM; Validation Tier 0."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.rb:14 `TRUSTED.include?(uri.host)`, an exact membership check on the parsed hostname against the two-entry allowlist at app.rb:5. Userinfo tricks like `http://feeds.example.net@evil` fail because `uri.host` is then `evil`.",
+    "reason": "Every trace line (app.rb:12-15) matches the claim, and the attacker controls params[:u] at app.rb:13, but app.rb:14 is exact hostname set membership, which the closing-guard rule treats as sufficient, so the finding is refuted under this rubric. The unchecked port is a real residual: an unauthenticated caller can still reach any port on feeds.example.net or news.example.net via Net::HTTP.get at app.rb:15, so the finding is better treated as a scoping or hardening note than as a confirmed vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00413174
+}

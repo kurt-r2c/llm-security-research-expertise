@@ -1,0 +1,232 @@
+{
+ "arm": "K1",
+ "repo": "ipaddress-ssrf",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.038493429999999995,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 9,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-v6x6asms/r/src/ip-address.ts",
+   "/tmp/egf-v6x6asms/r/src/ipv6.ts",
+   "/tmp/egf-v6x6asms/r/src/ipv4.ts",
+   "/tmp/egf-v6x6asms/r/src/common.ts",
+   "/tmp/egf-v6x6asms/r/src/v6/helpers.ts",
+   "/tmp/egf-v6x6asms/r/src/v6/regular-expressions.ts",
+   "/tmp/egf-v6x6asms/r/src/v6/constants.ts",
+   "/tmp/egf-v6x6asms/r/src/v4/constants.ts",
+   "/tmp/egf-v6x6asms/r/src/address-error.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-cross-family-isinsubnet",
+    "file": "src/common.ts",
+    "line": 39,
+    "claim": "isInSubnet/isHostInSubnet compare raw leading bits across address families, so an Address6 holding an IPv4-mapped address (::ffff:10.0.0.1) never matches an Address4 CIDR (10.0.0.0/8). An allow/deny check written with the IPv4 range returns false for the mapped form.",
+    "source": "Attacker-chosen host literal parsed by new Address6(input), e.g. '::ffff:10.0.0.1' from a URL or user field. Precondition: consumer calls addr.isInSubnet(new Address4('10.0.0.0/8')) (the signature accepts Address4|Address6 and nothing warns against it).",
+    "sink": "Trust-boundary decision (SSRF deny/allow) on the result of isInSubnet/isHostInSubnet.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1216,
+      "note": "Address6.isInSubnet = common.isInSubnet (no family check)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1226,
+      "note": "Address6.isHostInSubnet = common.isHostInSubnet"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 19,
+      "note": "isInSubnet: subnetMask check 128 < 8 is false, so falls through to host compare"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 39,
+      "note": "isHostInSubnet: this.mask(address.subnetMask) === address.mask(), i.e. this.mask(8)='00000000' vs Address4 10.x -> '00001010'"
+     }
+    ],
+    "guards_checked": "Checked subnet-length guard (common.ts:20) and host-bit comparison; no family-type check exists anywhere in common.ts. Same-family calls (Address6 vs Address6) are correct. The embeddedIPv4()-based isPrivate()/isLoopback() on Address6 (ipv6.ts:1375) does handle mapped addresses, so the bug only affects callers who use the CIDR-style isInSubnet with an Address4 range."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "xss-simplegroup-group-v4-passthrough",
+    "file": "src/v6/helpers.ts",
+    "line": 52,
+    "claim": "simpleGroup returns any group token containing 'group-v4' without HTML escaping, so the exported helper passes raw attacker markup through when given untrusted text.",
+    "source": "Caller-supplied string passed to the public helper v6.helpers.simpleGroup(input). Precondition: consumer exposes that helper to untrusted input and renders the result as HTML.",
+    "sink": "Returned HTML fragment inserted into innerHTML/markup by the consumer.",
+    "trace": [
+     {
+      "file": "src/ip-address.ts",
+      "line": 5,
+      "note": "helpers module exported publicly as v6.helpers (ip-address.ts:7)"
+     },
+     {
+      "file": "src/v6/helpers.ts",
+      "line": 49,
+      "note": "addressString.split(':') on attacker string"
+     },
+     {
+      "file": "src/v6/helpers.ts",
+      "line": 52,
+      "note": "/group-v4/.test(g) true -> return g unescaped (bypass)"
+     },
+     {
+      "file": "src/v6/helpers.ts",
+      "line": 56,
+      "note": "Non-matching groups go through spanLeadingZeroesSimple -> escapeHtml, so only the group-v4 branch is unescaped"
+     }
+    ],
+    "guards_checked": "escapeHtml is applied on the other branch (helpers.ts:32, 56). Address6.group() (ipv6.ts:1509-1551) is not reachable with this input because the constructor rejects any non-hex/colon character (ipv6.ts:801-810), so the bypass needs direct use of the exported helper. Other exported helpers (spanAll, spanLeadingZeroes, link, parse4in6 prefix) escape correctly."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "redos-zone-regex-quadratic",
+    "file": "src/v6/constants.ts",
+    "line": 83,
+    "claim": "RE_ZONE_STRING = /%.*$/ is quadratic on input containing many '%' followed by a line terminator, because '.' does not match \\n/\\r/\u2028/\u2029 and '$' is not multiline. Each '%' start scans to the terminator and backtracks. This runs before the bad-character check, so the cost hits every constructor call.",
+    "source": "Attacker-controlled string passed to new Address6(s) or Address6.isValid(s), e.g. a JSON body field (JSON can carry \\n; HTTP headers cannot). Example: '%'.repeat(N) + '\\n'.",
+    "sink": "Synchronous RegExp.exec on the event loop (CPU exhaustion / event-loop block). Estimated about N^2/2 backtrack steps; not executed.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 122,
+      "note": "constructor: RE_SUBNET_STRING.exec (linear)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 143,
+      "note": "/\\//.test(address) (linear)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 147,
+      "note": "RE_ZONE_STRING.exec(address) on attacker string: quadratic"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 157,
+      "note": "parse() runs only afterwards, so bad-character rejection is too late to help"
+     }
+    ],
+    "guards_checked": "Checked Node header limits (no raw newlines in headers) and the anchors: the regex has $ but no m flag, so it fails at the terminator instead of matching early. Subnet regex and RE_URL/RE_URL_WITH_PORT are linear. Only the zone regex is affected. Not verified by execution (no shell available in this session)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "href-unvalidated-port-authority-injection",
+    "file": "src/ipv6.ts",
+    "line": 1453,
+    "claim": "href() interpolates optionalPort into the URL with no validation, so a string port containing '@' or '/' changes the URL authority/host (e.g. href('1@evil.example') -> http://[::1]:1@evil.example/).",
+    "source": "Consumer passes untrusted string as the port argument (typed number|string). Precondition: consumer builds a fetch/redirect URL from href() with user-supplied port.",
+    "sink": "URL string returned to the consumer for a request or link (host confusion / SSRF / open redirect).",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1446,
+      "note": "href(optionalPort?: number | string)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1450,
+      "note": "optionalPort = `:${optionalPort}` with no type or digit check"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1453,
+      "note": "template returns http://[correctForm]:<raw port>/"
+     }
+    ],
+    "guards_checked": "Host part is validated (correctForm of a validated address, so no brackets/@ in it). Port is not validated anywhere. Attack requires a consumer to pass untrusted data as the port."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "attrerr-parsemessage-raw-input",
+    "file": "src/v6/constants.ts",
+    "line": 62,
+    "claim": "AddressError.parseMessage for bad characters contains raw, unescaped input, contrary to the documented contract that it is HTML-escaped and safe to insert as-is.",
+    "source": "Attacker-controlled address string, e.g. '\"><img src=x onerror=alert(1)>'.",
+    "sink": "Consumer inserting err.parseMessage as HTML (per the documented contract).",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 801,
+      "note": "RE_BAD_CHARACTERS.match on raw input"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 808,
+      "note": "address.replace(RE_BAD_CHARACTERS, '<span class=\"parse-error\">$1</span>') with no escapeHtml; the matched char is inserted raw"
+     },
+     {
+      "file": "src/address-error.ts",
+      "line": 7,
+      "note": "doc claims 'The address content is HTML-escaped, so it is safe to insert as-is'"
+     }
+    ],
+    "guards_checked": "In text context the wrapper keeps every raw '<' followed by '</span>', so no tag can form and no text-context XSS was found. Raw '\"' and \"'\" survive, so the claim fails inside quoted attributes. Bad-address branch (ipv6.ts:817) is safe (only hex/:/% reach it). parse4in6 prefix (ipv6.ts:763) is escaped. Low severity: exploitable only if a consumer uses the documented HTML in an attribute context."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "teredo-testbit-off-by-one",
+    "file": "src/common.ts",
+    "line": 123,
+    "claim": "testBit reads bit position-1 instead of position (index length-p should be length-1-p), so Teredo flags coneNat, reserved, universalLocal and groupIndividual are wrong. For example, a cone-NAT flag of 1 is reported as false.",
+    "source": "Attacker-controlled IPv6 address in 2001::/32 passed to inspectTeredo().",
+    "sink": "Decoded Teredo metadata returned to the caller (informational; no decision in this library uses it).",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 988,
+      "note": "flagsBase2 = getBitsBase2(64,80), 16 chars, index 0 = bit 15"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 990,
+      "note": "coneNat = testBit(flagsBase2, 15)"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 123,
+      "note": "positionInString = length - position = 1 for position 15, so reads index 1 (bit 14, the reserved bit)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 992,
+      "note": "groupIndividual = testBit(flagsBase2, 8) reads the A bit at index 8; universalLocal = testBit(9) reads the G bit"
+     }
+    ],
+    "guards_checked": "Checked the other Teredo fields (server4, client4, udpPort XOR, nonce slicing), which match RFC 4380 layout. Only the flag booleans are wrong. Impact is incorrect data, not a security bypass, within this library."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

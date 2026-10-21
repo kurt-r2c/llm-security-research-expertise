@@ -1,0 +1,148 @@
+{
+ "arm": "C",
+ "repo": "cl-js-inj",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01061427,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Read": 1,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-6vjk6dw_/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "db-users-missing-authz",
+    "file": "db.js",
+    "line": 9,
+    "claim": "GET /users has no authentication or authorization; org is taken from the request query string and used directly in the query, so any unauthenticated caller can list users of any org (cross-tenant enumeration, CWE-862/BOLA).",
+    "source": "req.query.org (db.js:9), attacker-controlled HTTP query parameter",
+    "sink": "req.pg.query(\"SELECT id, name FROM users WHERE org = $1\") at db.js:9; rows returned via res.json at db.js:10",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "GET /users route registered with no auth middleware"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.query.org passed as bind parameter $1 with no binding to a principal"
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "all id/name rows for that org returned to caller"
+     }
+    ],
+    "guards_checked": "Parameterized query (no SQL injection; array input serializes via pg and does not inject). No auth/session check or token-bound tenant in this file. Possible upstream auth middleware is not in this codebase; finding is conditional on that."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8 registers GET /users with no auth middleware; db.js:9 binds req.query.org directly as $1 with no check against a principal; db.js:10 returns all id/name rows. The only other file in the directory is db.js itself, so no upstream auth exists in this codebase. The app is standalone (db.js:23 app.listen(3002)).",
+    "reason": "The route at db.js:8 has no authentication or tenant check, and req.query.org (db.js:9) goes straight into the query and the rows are returned at db.js:10, so an anonymous caller can list users from any org. The only residual uncertainty is that req.pg is never set in this codebase, so a middleware outside the repo could add auth, but nothing in the repo shows one."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "db-users-unhandled-rejection",
+    "file": "db.js",
+    "line": 9,
+    "claim": "If req.pg is not installed, the async /users handler throws TypeError with no catch, causing an unhandled promise rejection that crashes the process on Node 15+ (unauthenticated DoS). DB errors on the same line hit the same path.",
+    "source": "Any unauthenticated GET to /users (db.js:8)",
+    "sink": "req.pg.query at db.js:9 throws; async handler rejects with no handler",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "async route handler registered"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.pg undefined -> TypeError; no try/catch"
+     },
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "rejection unhandled; Express 4 does not catch async rejections, Express 5 does"
+     }
+    ],
+    "guards_checked": "No try/catch, no .catch, no error-handling middleware in db.js. Express version not pinned here and req.pg setup is not in this directory, so severity depends on both."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8-11 has no try/catch, no .catch, and no error middleware. The only other route-level guard is db.js:15 (path containment), which is on /file and not on this path.",
+    "reason": "The lines cited in the trace exist and match (db.js:8-9 is an async handler that awaits req.pg.query with no catch), and an anonymous GET /users reaches it. But whether it crashes depends on two things not in this directory: the Express major version (no package.json or lockfile here, and Express 5 would route the rejection to error handling instead of crashing), and whether req.pg is ever undefined (req.pg is not set anywhere in the files present, so its setup must be elsewhere). Either way, a DB error from req.pg.query would still reject the handler, so the unhandled-rejection path is real under Express 4 with a Node 15+ runtime."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "db-count-info-disclosure",
+    "file": "db.js",
+    "line": 20,
+    "claim": "Unauthenticated GET /count discloses the line count of data.csv in the server working directory. Low severity. Command injection is not possible.",
+    "source": "Any unauthenticated GET to /count (db.js:19)",
+    "sink": "execFile(\"wc\", [\"-l\",\"data.csv\"]) output returned via res.send at db.js:20",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 19,
+      "note": "route with no auth"
+     },
+     {
+      "file": "db.js",
+      "line": 20,
+      "note": "fixed-argv execFile (no shell, no user input) runs wc on fixed file; output sent to client; error ignored so failure returns empty 200"
+     }
+    ],
+    "guards_checked": "execFile with fixed argv array, no shell; no user-controlled argument. Error callback ignores e."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The route at db.js:19 has no auth middleware. execFile at db.js:20 uses a fixed argv array with no shell and no user input, so command injection is not possible. The callback ignores the error, so a failure sends an empty 200 instead of leaking anything.",
+    "reason": "Anonymous GET /count reaches execFile(\"wc\", [\"-l\",\"data.csv\"]) at db.js:20 with no guard, and its stdout is returned via res.send(out), so the line count of data.csv in the process working directory is disclosed; the claim is accurate and the impact is low."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "db-listen-all-interfaces",
+    "file": "db.js",
+    "line": 23,
+    "claim": "app.listen(3002) with no host binds all interfaces, so the unauthenticated routes are network-reachable, not just local. Configuration issue, low severity.",
+    "source": "Network position of client",
+    "sink": "Socket bind at db.js:23 exposing routes at db.js:8, 13, 19",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "listen without host argument binds 0.0.0.0/::"
+     }
+    ],
+    "guards_checked": "None in this file. Deployment firewalling not visible in codebase."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:23 `app.listen(3002)` has no host argument, so Node binds the default wildcard address. The routes at db.js:8, 13 and 19 have no auth middleware, and the only check in the file is the path containment at db.js:15, which guards /file traversal, not network exposure. Any firewalling is outside the codebase and was not visible.",
+    "reason": "db.js:23 binds without a host, so the unauthenticated routes at db.js:8, 13 and 19 are reachable from any network position that can route to the host, and no control in the codebase blocks that; reachability still depends on deployment firewalling that is not visible here, which is why severity is low."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00769839
+}

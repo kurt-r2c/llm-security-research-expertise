@@ -1,0 +1,175 @@
+{
+ "arm": "A",
+ "repo": "cl-py-authz",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.0051700900000000004,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-g142uspe/r/notes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "C1",
+    "file": "notes.py",
+    "line": 28,
+    "claim": "Authorization depends on g.user, which is never set in this codebase. If the external middleware derives g.user from a client-controlled value (header, unsigned cookie, query string), any caller can read, edit, or share any note. Unverified: the auth code is outside the audited directory.",
+    "source": "g.user (not assigned in notes.py; origin unknown)",
+    "sink": "require_view (read), can_edit (write, share)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read route /n/<nid> entry"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view(g.user, n) call"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view: owner == user or user in shared"
+     },
+     {
+      "file": "notes.py",
+      "line": 33,
+      "note": "write route entry"
+     },
+     {
+      "file": "notes.py",
+      "line": 35,
+      "note": "can_edit(g.user, n) check"
+     },
+     {
+      "file": "notes.py",
+      "line": 42,
+      "note": "share route entry"
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit(g.user, n) check"
+     }
+    ],
+    "guards_checked": "Per-note owner/shared checks in can_view, can_edit, require_view, require_edit are correct. No authentication code, before_request hook, or g.user assignment exists in the directory. If g.user is unset, the request fails with 500 rather than bypassing."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Per-note checks: can_view (notes.py:8) used via require_view (notes.py:11-13, abort(403) on failure) at notes.py:28; can_edit (notes.py:17) checked with `if not ...: abort(403)` at notes.py:35-36; require_edit (notes.py:20-22, abort(403)) at notes.py:44. Each result is tested and failure aborts before the effect. No before_request hook or g.user assignment exists in the directory (grep for g.user/before_request/user= matched only notes.py:28, 35, 44).",
+    "reason": "All trace lines match notes.py (26-28, 33-35, 42-44, 8), and the per-note owner/shared checks at notes.py:8, 11-13, 16-17, 20-22 are correctly enforced, so the only open question is how g.user is set, which lives outside this directory (grep finds no assignment), so whether an anonymous caller can spoof it cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "C2",
+    "file": "notes.py",
+    "line": 41,
+    "line_end": 46,
+    "claim": "Business-logic gap: there is no route to revoke a collaborator. Once added to shared, a user keeps read access indefinitely.",
+    "source": "Owner calls POST /n/<nid>/share with a user",
+    "sink": "n[\"shared\"].append (persistent grant with no removal path)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "shared.append(request.json['user'])"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view keeps granting access to any user in shared"
+     }
+    ],
+    "guards_checked": "require_edit restricts sharing to the owner (line 44). No unshare or revoke endpoint exists in the file."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit at notes.py:44 (line 20-22 definition: abort(403) unless owner) restricts POST /n/<nid>/share to the note owner. Only the owner can modify shared; PUT /n/<nid> (line 35-37) only changes body, not shared.",
+    "reason": "The trace is accurate (notes.py:45 appends to shared, notes.py:8 grants view to listed users), but the only actor who can reach the append is the owner (notes.py:44 require_edit, defined at lines 20-22), who already controls the grant; the missing unshare route is a feature gap and no lower-privileged user gains access they should not have, so this is not a vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "C3",
+    "file": "notes.py",
+    "line": 29,
+    "claim": "Information disclosure: read returns the full note record, including owner and the full shared list, to any listed collaborator, exposing the sharing graph.",
+    "source": "Any user in note['shared'] requesting GET /n/<nid>",
+    "sink": "jsonify(n) response body",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read route entry"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view passes for collaborator"
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "jsonify(n) serializes owner and shared"
+     }
+    ],
+    "guards_checked": "Note-level access check is correct (line 28). No field filtering before serialization."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_view (notes.py:11-13, called at notes.py:28) aborts non-viewers with abort(403), and can_view (notes.py:8) admits owner and listed collaborators only. There is no field filtering before jsonify at notes.py:29, so a collaborator receives the full record.",
+    "reason": "All trace lines match the code (notes.py:26, 28, 29), but the only principals who reach line 29 are the owner or users already in note[\"shared\"] (notes.py:8, 28), who hold read access to this same record, so returning owner and shared (notes.py:29) discloses metadata to a principal already authorized to read it, which is not an authorization bypass; it would become a finding only if the spec says the sharing list must be private from collaborators."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "C4",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Unknown note IDs raise KeyError, returning a 500 instead of a 404. This gives a note-existence oracle and leaks a traceback if debug mode is enabled (not set in this file).",
+    "source": "Attacker-supplied nid in URL path",
+    "sink": "NOTES[nid] lookup (also lines 34 and 43)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 25,
+      "note": "route parameter <nid>"
+     },
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "NOTES[nid] raises KeyError on missing key"
+     }
+    ],
+    "guards_checked": "No existence check or try/except around the dict lookup in any of the three routes."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. There is no existence check or try/except around the lookup at notes.py:27 (also :34 and :43). The abort(403) helpers at notes.py:13, :22 run only after the lookup has already raised.",
+    "reason": "notes.py:27 indexes NOTES[nid] with no guard, so an unknown ID raises KeyError (Flask returns 500) while a known note the caller cannot view returns 403 at notes.py:28/13, which is a real existence oracle; the traceback-leak part depends on debug settings outside this file, and the severity is low."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00794916
+}

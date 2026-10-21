@@ -1,0 +1,182 @@
+{
+ "arm": "K2",
+ "repo": "dulwich-stash",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.04379207,
+ "trace": {
+  "tools": {
+   "Read": 23,
+   "Glob": 1,
+   "Grep": 14,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-u01a6znv/expertise/INDEX.md",
+   "/tmp/egf-u01a6znv/r/dulwich/lfs_server.py",
+   "/tmp/egf-u01a6znv/r/dulwich/porcelain/__init__.py",
+   "/tmp/egf-u01a6znv/r/dulwich/filters.py",
+   "/tmp/egf-u01a6znv/r/dulwich/bundle_uri.py",
+   "/tmp/egf-u01a6znv/r/dulwich/index.py",
+   "/tmp/egf-u01a6znv/r/dulwich/index.py",
+   "/tmp/egf-u01a6znv/r/dulwich/index.py",
+   "/tmp/egf-u01a6znv/r/dulwich/porcelain/submodule.py",
+   "/tmp/egf-u01a6znv/r/dulwich/signature.py",
+   "/tmp/egf-u01a6znv/r/dulwich/porcelain/__init__.py",
+   "/tmp/egf-u01a6znv/r/dulwich/stash.py",
+   "/tmp/egf-u01a6znv/r/dulwich/index.py",
+   "/tmp/egf-u01a6znv/r/dulwich/index.py",
+   "/tmp/egf-u01a6znv/r/dulwich/index.py",
+   "/tmp/egf-u01a6znv/r/dulwich/web.py",
+   "/tmp/egf-u01a6znv/r/dulwich/web.py",
+   "/tmp/egf-u01a6znv/r/dulwich/web.py",
+   "/tmp/egf-u01a6znv/r/dulwich/web.py",
+   "/tmp/egf-u01a6znv/r/dulwich/web.py",
+   "/tmp/egf-u01a6znv/r/dulwich/lfs_server.py",
+   "/tmp/egf-u01a6znv/r/dulwich/index.py",
+   "/tmp/egf-u01a6znv/r/dulwich/lfs.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "lfs-batch-unvalidated-oid-open",
+    "file": "dulwich/lfs_server.py",
+    "line": 140,
+    "claim": "[CONFIRMED by code reading; impact low] The LFS batch download path passes an unvalidated client-supplied oid into a filesystem open, letting an unauthenticated client probe existence of arbitrary absolute paths and block handler threads via FIFOs/devices. Repro: POST /objects/batch with {\"operation\":\"download\",\"objects\":[{\"oid\":\"/etc/passwd\",\"size\":1}]}; 'actions' response means the file exists and is readable, 'error 404' means it does not exist.",
+    "source": "JSON body of POST /objects/batch: objects[].oid (lfs_server.py:120). Unauthenticated endpoint.",
+    "sink": "LFSStore.open_object -> open(os.path.join(self.path,'objects',sha[0:2],sha[2:4],sha),'rb') (lfs.py:144-150), reached via _object_exists (lfs_server.py:267-271).",
+    "trace": [
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 101,
+      "note": "Reads Content-Length body and json.loads it; no schema validation."
+     },
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 113,
+      "note": "operation must be 'download' or 'upload'."
+     },
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 120,
+      "note": "oid taken from obj.get('oid'); only truthiness and size presence checked (line 123)."
+     },
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 140,
+      "note": "For download, calls self._object_exists(oid) with the raw oid."
+     },
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 271,
+      "note": "_object_exists calls lfs_store.open_object(oid); only KeyError is caught."
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 145,
+      "note": "_sha_path uses os.path.join; a final component starting with '/' discards the store root."
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 150,
+      "note": "open(path,'rb') on the resulting absolute path."
+     }
+    ],
+    "guards_checked": "_is_valid_oid (lfs_server.py:46-48) is applied to the /objects/ GET, PUT and verify routes (lines 173, 198, 242) but NOT to the batch path. Batch returns only a boolean per oid, so this is an existence oracle, not a read. Server is documented as 'Simple LFS server for testing' (lfs_server.py:283) with no authentication, lowering real-world impact. LFSServer is a ThreadingHTTPServer (lfs_server.py:282), so a FIFO open blocks one thread per request. Directory or unreadable targets raise uncaught IsADirectoryError/PermissionError (minor)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "lfs-client-follows-server-href",
+    "file": "dulwich/lfs.py",
+    "line": 697,
+    "claim": "[PLAUSIBLE, low-medium] The HTTP LFS client follows href URLs from the server's batch response without checking they share the configured endpoint's origin. A malicious or compromised LFS server can direct client requests, including PUTs of the user's object content, to arbitrary hosts the client can reach.",
+    "source": "Batch response JSON actions.download.href / actions.upload.href / actions.verify.href, controlled by the remote LFS server.",
+    "sink": "pool_manager.request('GET', download_url) (lfs.py:705); urlopen(Request(upload_url, data=content, method='PUT')) (lfs.py:749-757); urlopen(Request(verify_action.href, method='POST')) (lfs.py:766-772).",
+    "trace": [
+     {
+      "file": "dulwich/lfs.py",
+      "line": 697,
+      "note": "download_url = download_action.href from server response."
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 701,
+      "note": "Server-supplied action.header values merged into request headers."
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 705,
+      "note": "pool_manager.request('GET', download_url) with no origin check."
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 749,
+      "note": "upload_url = upload_action.href from server response."
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 757,
+      "note": "Plain urlopen PUT of full object content to that URL."
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 766,
+      "note": "verify href used for a POST carrying oid and size."
+     }
+    ],
+    "guards_checked": "_is_valid_lfs_url (lfs.py:380-396) validates only the configured endpoint URL, not server-returned hrefs. The download path checks size and SHA-256 (lfs.py:709-716) but only after the request has been sent. Upload content is sent before any response validation. Not verified: whether AuthCallbackPoolManager (client.py) attaches credentials proactively to cross-host requests; if it does, this becomes a credential-leak finding."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "build-index-write-through-symlinked-parent",
+    "file": "dulwich/index.py",
+    "line": 2231,
+    "claim": "[PLAUSIBLE, low; requires a pre-existing symlink in the target directory; not reproduced] build_index_from_tree creates parent directories and writes blob contents without lstat-checking intermediate path components, so a pre-existing worktree symlink can redirect a checkout write outside the work tree (e.g. into .git/hooks).",
+    "source": "Tree entries being materialized (entry.path, entry.sha), together with any symlink already present in root_path from an earlier checkout.",
+    "sink": "os.makedirs(os.path.dirname(full_path)) (index.py:2231-2232) and build_file_from_blob -> open(target_path,'wb') (index.py:1916), which follow symlinked parent directories.",
+    "trace": [
+     {
+      "file": "dulwich/index.py",
+      "line": 2227,
+      "note": "validate_path on the full entry path rejects .git/.. elements but does not inspect symlinks."
+     },
+     {
+      "file": "dulwich/index.py",
+      "line": 2229,
+      "note": "full_path = _tree_to_fs_path(root_path, entry.path)."
+     },
+     {
+      "file": "dulwich/index.py",
+      "line": 2232,
+      "note": "os.path.exists follows symlinks; os.makedirs on an existing symlinked dir succeeds with no lstat check."
+     },
+     {
+      "file": "dulwich/index.py",
+      "line": 2246,
+      "note": "build_file_from_blob called for the entry."
+     },
+     {
+      "file": "dulwich/index.py",
+      "line": 1916,
+      "note": "open(target_path,'wb') writes through any symlinked parent."
+     }
+    ],
+    "guards_checked": "stash.py:70-107 _verify_leading_dirs lstat-checks each leading component and rejects symlinks (mirrors git CVE-2021-21300), but this guard is NOT used on the index.py checkout path. build_file_from_blob (index.py:1893-1910) replaces a symlink at the final path only, not intermediate components. update_working_tree (index.py:2806+) processes deletions (index.py:3003) before additions (index.py:3023), which mitigates the tree-switch variant. Validators (index.py:2019-2170) plus core.protectNTFS default True (porcelain/__init__.py:5482) block .git spellings but not symlinked parents. Not checked: whether any caller invokes build_index_from_tree on a non-empty directory where an attacker-controlled symlink could already exist."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

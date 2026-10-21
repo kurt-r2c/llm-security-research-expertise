@@ -1,0 +1,99 @@
+{
+ "arm": "P",
+ "repo": "h2-node-admin",
+ "rep": 2,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "483a88ad",
+ "status": "success",
+ "gen_cost": 0.041306,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-6_5ous8t/r/routes.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "routes.js",
+    "line": 20,
+    "claim": "The public POST /hooks/test endpoint sends a server-side HTTP POST to a URL taken straight from the request body. There is no authentication, scheme or host allowlist, or private-IP blocking. An unauthenticated caller can make the server request internal services or cloud metadata endpoints. The response status is returned, which gives a reachability oracle.",
+    "source": "req.body.callback (JSON body of unauthenticated POST /hooks/test)",
+    "sink": "axios.post(req.body.callback, { ping: true }) at routes.js:20",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 19,
+      "note": "Route is registered on the `pub` router, which has no auth middleware"
+     },
+     {
+      "file": "routes.js",
+      "line": 20,
+      "note": "req.body.callback is passed unvalidated as the URL to axios.post"
+     },
+     {
+      "file": "routes.js",
+      "line": 21,
+      "note": "The upstream status code is returned to the caller"
+     }
+    ],
+    "guards_checked": "No validation, allowlist, or DNS/IP check on the URL. requireAdmin is applied only to the `admin` router via admin.use, not to `pub`. Axios follows redirects by default, so a redirect can also reach internal hosts. The mount point of `pub` is not in the repo (only routes.js exists), so I could not check for upstream middleware."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "routes.js:19-21 registers POST /hooks/test on the `pub` router, which has no auth middleware (admin.use(requireAdmin) at line 12 covers only `admin`). Line 20 passes req.body.callback unvalidated to axios.post, and line 21 returns the upstream status. The mount point isn't in the repo, so upstream middleware can't be ruled out, but nothing in the available code guards the sink."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "routes.js",
+    "line": 15,
+    "claim": "GET /diagnostics/fetch fetches an arbitrary URL taken from the query string. There is no scheme, host, or IP validation, so an admin, or anyone who hijacks an admin session, can reach internal network resources and cloud metadata. Impact is lower than SSRF-1 because the route is admin-gated.",
+    "source": "req.query.url (query parameter of GET /diagnostics/fetch)",
+    "sink": "axios.get(req.query.url) at routes.js:15",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) gates the router"
+     },
+     {
+      "file": "routes.js",
+      "line": 8,
+      "note": "requireAdmin checks req.session.role === 'admin' and returns 403 otherwise"
+     },
+     {
+      "file": "routes.js",
+      "line": 15,
+      "note": "req.query.url is passed unvalidated to axios.get"
+     },
+     {
+      "file": "routes.js",
+      "line": 16,
+      "note": "Only the status is returned, which is a blind or semi-blind oracle"
+     }
+    ],
+    "guards_checked": "The requireAdmin session role check is the only guard. It limits exposure to admins, but there is no URL allowlist, private-range block, or redirect restriction. Where `admin` is mounted and how sessions are populated are not in the repo."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "requireAdmin (routes.js:7-12) session role === 'admin' check, which is not a URL validation guard. There is no URL, host or scheme validation.",
+    "reason": "The trace is accurate (routes.js:8, 12, 15, 16). However, req.query.url at routes.js:15 only reaches axios.get after requireAdmin (routes.js:8, 12) rejects non-admins with a 403, so an unauthenticated or low-privilege attacker cannot control the sink. Session hijack is speculative and nothing in the repo supports it."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0576715
+}

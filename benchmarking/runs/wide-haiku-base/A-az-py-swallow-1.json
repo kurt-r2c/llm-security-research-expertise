@@ -1,0 +1,119 @@
+{
+ "arm": "A",
+ "repo": "az-py-swallow",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.00474,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-29fyd8pl/r/admin.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "admin-ban-authz-bypass",
+    "file": "admin.py",
+    "line": 17,
+    "claim": "The ban endpoint swallows the admin check failure via a broad except Exception, so do_ban runs for non-admin users (authorization bypass).",
+    "source": "uid path parameter in POST /admin/users/<uid>/ban (admin.py:14-15), reached by any request where g.user is a non-admin user dict.",
+    "sink": "do_ban(uid) at admin.py:20, a state-changing protected operation (stub in this repo).",
+    "trace": [
+     {
+      "file": "admin.py",
+      "line": 14,
+      "note": "POST /admin/users/<uid>/ban routes to ban(uid); no login or role decorator"
+     },
+     {
+      "file": "admin.py",
+      "line": 17,
+      "note": "require_admin(g.user) called inside try"
+     },
+     {
+      "file": "admin.py",
+      "line": 10,
+      "note": "non-admin: user.get('is_admin') falsy"
+     },
+     {
+      "file": "admin.py",
+      "line": 11,
+      "note": "abort(403) raises werkzeug HTTPException"
+     },
+     {
+      "file": "admin.py",
+      "line": 18,
+      "note": "except Exception catches HTTPException (subclass of Exception), swallowing the 403"
+     },
+     {
+      "file": "admin.py",
+      "line": 19,
+      "note": "logs warning and continues"
+     },
+     {
+      "file": "admin.py",
+      "line": 20,
+      "note": "do_ban(uid) executes unconditionally"
+     },
+     {
+      "file": "admin.py",
+      "line": 21,
+      "note": "returns {ok: true}"
+     }
+    ],
+    "guards_checked": "require_admin is the only check and is neutralized by except Exception at line 18; no login_required/role decorator/before_request hook in repo; no CSRF or rate limiting visible; unban (admin.py:24-28) calls require_admin without try and correctly returns 403. g.user is set outside this repo, so the non-admin precondition depends on external auth middleware (not reviewed). If g.user is None, line 19 raises AttributeError -> 500, no ban (crash, not bypass)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_admin (admin.py:9-11) is the only check. It aborts with 403, but the call at admin.py:17 sits inside try and the bare except Exception at admin.py:18 swallows the HTTPException, so do_ban at admin.py:20 still runs. No login, role decorator, or before_request hook exists in the repo (admin.py is the only file). Unban (admin.py:26) calls require_admin without try, so it correctly blocks.",
+    "reason": "The ban handler at admin.py:17-20 wraps require_admin in a bare except Exception at admin.py:18, which catches Werkzeug's abort(403) HTTPException raised at admin.py:11, so do_ban(uid) runs for any request whose g.user is a non-admin. The only precondition is that g.user is set to a non-admin user, which external auth middleware (not in this repo) would normally provide."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "admin-log-username-pii",
+    "file": "admin.py",
+    "line": 19,
+    "claim": "On failed admin check the account name (PII) is written to logs, violating org policy against logging PII.",
+    "source": "g.user['name'], user-supplied account data.",
+    "sink": "log.warning at admin.py:19.",
+    "trace": [
+     {
+      "file": "admin.py",
+      "line": 17,
+      "note": "require_admin fails for non-admin"
+     },
+     {
+      "file": "admin.py",
+      "line": 18,
+      "note": "except catches the failure"
+     },
+     {
+      "file": "admin.py",
+      "line": 19,
+      "note": "log.warning logs g.user.get('name')"
+     }
+    ],
+    "guards_checked": "No redaction, masking, or hashing applied to the logged name. Policy violation, not an exploit path."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only control is require_admin (admin.py:9-11), which calls abort(403) and raises. Its raise is caught by the bare `except Exception` at admin.py:18 and swallowed, so nothing stops execution. No redaction or hashing is applied to the name logged at admin.py:19.",
+    "reason": "The trace matches the code: require_admin at admin.py:17 raises via abort(403) at admin.py:11, admin.py:18 swallows it, and admin.py:19 logs g.user.get(\"name\") unredacted, so the claimed logging of account name occurs for any non-admin caller of /admin/users/<uid>/ban. The finding is a logging-policy issue as stated, but the same lines show a more serious defect the candidate missed: do_ban(uid) at admin.py:20 still runs after the swallowed failure, so any authenticated non-admin can ban users."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004299219999999999
+}

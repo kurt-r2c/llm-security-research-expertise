@@ -1,0 +1,57 @@
+{
+ "arm": "B",
+ "repo": "lg-php-token",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.0549507,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "reset_password_loose compares the stored reset token to the user-supplied token with PHP loose equality (==). Type juggling lets an attacker pass a token that is not the real one. A boolean true, or an int 0 on PHP < 8, matches. Numeric-looking strings such as '0e123' match any other '0e\u2026' token. The attacker can then set a new password for any account that has a pending reset row and take it over.",
+    "source": "Attacker-controlled $email and $token arguments from the password-reset request. $token may be a JSON boolean or int if the caller does not cast it to a string. Precondition: a reset row exists for the victim's email, which the attacker can trigger via 'forgot password'.",
+    "sink": "UPDATE users SET pw = ... WHERE email = ... at reset.php:5-6, which overwrites the victim's password hash.",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 2,
+      "note": "$email, $token and $new enter reset_password_loose with no type enforcement"
+     },
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "The stored token is fetched by email. The value is quoted, so there is no SQL injection."
+     },
+     {
+      "file": "reset.php",
+      "line": 4,
+      "note": "$row['token'] == $token is a loose comparison. true == 'abc' is true. 0 == 'abc' is true on PHP < 8. '0e1' == '0e2' is true on all versions."
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "The password hash is overwritten for the victim's email"
+     }
+    ],
+    "guards_checked": "The SQL values go through $db->quote, so there is no SQL injection. There is no (string) cast on $token, no strict === or hash_equals, and no length or format check. The safe reset_password at reset.php:14 uses hash_equals with a (string) cast, but the loose variant has no such guard. I found no caller in the repo, so reachability depends on whether the loose function is wired to an endpoint. Token expiry and single use are also not enforced in either function, because the reset row is never deleted or time-checked."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in reset_password_loose (only $db->quote for SQL; no (string) cast, ===, or hash_equals). The sibling reset_password at reset.php:14 has them but is a different function.",
+    "reason": "The trace is accurate (reset.php:4 uses `==` with no cast or guard, and the update runs at reset.php:5-6), but nothing in the repo calls reset_password_loose, so I can't tell whether an anonymous attacker can pass a non-string $token. Form-encoded input would arrive as a string, and then only a '0e\u2026' stored token would collide, while a JSON-decoded bool or int would bypass the check."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only $db->quote, which blocks SQL injection but not the type-juggling comparison; the safe reset_password at reset.php:14 is a separate function)",
+    "reason": "reset.php:4 compares `$row['token'] == $token` loosely with no cast, so an anonymous caller who can supply a non-string token such as JSON `true` bypasses the check and reaches the password overwrite at reset.php:5-6. The exploit depends on the caller passing a non-string token. If the caller only passes strings, only the `0e\u2026` collision works, and only against a token that is `0e` followed by digits."
+   }
+  }
+ ],
+ "verify_cost": 0.0370952,
+ "verify_facts_cost": 0.0373642
+}

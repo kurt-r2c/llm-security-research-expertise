@@ -1,0 +1,210 @@
+{
+ "arm": "K1",
+ "repo": "mail-other",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.08432186,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 11,
+   "Read": 15,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ylia_wni/r/lib/mail/network/delivery_methods/sendmail.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/message.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/yaml.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/network/delivery_methods/file_delivery.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/field.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/fields/unstructured_field.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/message.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/smtp_envelope.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/field.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/constants.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/network/delivery_methods/smtp.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/network/retriever_methods/imap.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/network/retriever_methods/pop3.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/encodings.rb",
+   "/tmp/egf-ylia_wni/r/lib/mail/fields/parameter_hash.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lib/mail/message.rb",
+    "line": 1865,
+    "claim": "Mail::Message.from_yaml lets attacker-supplied YAML overwrite @delivery_method with a Mail::Sendmail object whose settings[:location] is /bin/sh, giving command execution on deliver!. Requires attacker control of the full YAML document and an app that delivers the result.",
+    "source": "YAML string passed to Mail::Message.from_yaml (message.rb:1851)",
+    "sink": "message.rb:1866 instance_variable_set(@delivery_method) -> message.rb:269 delivery_method.deliver! -> sendmail.rb:80 IO.popen(command)",
+    "trace": [
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1851,
+      "note": "Mail::YAML.load(str) parses untrusted YAML"
+     },
+     {
+      "file": "lib/mail/yaml.rb",
+      "line": 6,
+      "note": "permitted_classes includes Mail::Sendmail (line 13) and Symbol; safe_load does not restrict ivars"
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1865,
+      "note": "any key starting with '@' is accepted"
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1866,
+      "note": "instance_variable_set(:@delivery_method, attacker object)"
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 268,
+      "note": "deliver! calls delivery_method.deliver!(self)"
+     },
+     {
+      "file": "lib/mail/network/delivery_methods/sendmail.rb",
+      "line": 63,
+      "note": "command = [settings[:location], *settings[:arguments], '-f', from, '--', *to] with attacker location/arguments"
+     },
+     {
+      "file": "lib/mail/network/delivery_methods/sendmail.rb",
+      "line": 80,
+      "note": "IO.popen(command) runs /bin/sh -c <attacker cmd>"
+     }
+    ],
+    "guards_checked": "safe_load class allowlist (permitted Mail::Sendmail, Mail::SMTP, Mail::FileDelivery); no ivar allowlist in from_yaml; no check on delivery_method type. Also delivery_handler Object.const_get at message.rb:1858 is unrestricted."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lib/mail/header.rb",
+    "line": 149,
+    "claim": "Header#[]= rejects only colons in field names, so CR/LF in a header name is emitted raw, allowing injection of arbitrary headers and body content when the app passes attacker-controlled hash keys.",
+    "source": "Hash keys passed to Mail.new(hash), Message#headers(hash) (message.rb:455-458), init_with_hash (message.rb:2107), or Message#[]= (message.rb:1331)",
+    "sink": "optional_field.rb:12 / unstructured_field.rb:96 emit \"#{name}: ...\" unescaped into the encoded message",
+    "trace": [
+     {
+      "file": "lib/mail/header.rb",
+      "line": 149,
+      "note": "only COLON is rejected in name"
+     },
+     {
+      "file": "lib/mail/header.rb",
+      "line": 159,
+      "note": "fields.add_field Field.new(name, value)"
+     },
+     {
+      "file": "lib/mail/field.rb",
+      "line": 197,
+      "note": "Field constructor checks only for colon"
+     },
+     {
+      "file": "lib/mail/field.rb",
+      "line": 297,
+      "note": "unknown names become OptionalField"
+     },
+     {
+      "file": "lib/mail/fields/unstructured_field.rb",
+      "line": 96,
+      "note": "wrap_lines emits raw name with CRLF"
+     },
+     {
+      "file": "lib/mail/header.rb",
+      "line": 182,
+      "note": "Header#encoded concatenates field.encoded"
+     }
+    ],
+    "guards_checked": "Header colon check (header.rb:149); Field colon check (field.rb:197); CRLF encoding applies only to values (unstructured_field.rb:179-183), not names; SmtpEnvelope CR/LF check (smtp_envelope.rb:50) covers recipients/sender only, not header text. SMTP dot-stuffing prevents early DATA termination."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lib/mail/network/retriever_methods/pop3.rb",
+    "line": 131,
+    "claim": "POP3 retrieval hard-codes OpenSSL::SSL::VERIFY_NONE when enable_ssl is set, so a network MITM can read or alter POP3 credentials and mail.",
+    "source": "Network position between the app and the POP3 server",
+    "sink": "pop3.rb:131 pop3.enable_ssl(OpenSSL::SSL::VERIFY_NONE)",
+    "trace": [
+     {
+      "file": "lib/mail/network/retriever_methods/pop3.rb",
+      "line": 131,
+      "note": "enable_ssl(VERIFY_NONE) when settings[:enable_ssl]"
+     },
+     {
+      "file": "lib/mail/network/retriever_methods/pop3.rb",
+      "line": 133,
+      "note": "pop3.start sends user_name/password over the unverified TLS session"
+     }
+    ],
+    "guards_checked": "No openssl_verify_mode or CA option exists for POP3 (pop3.rb:39-45). Contrast smtp.rb:187-198, where verification defaults on."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "lib/mail/network/retriever_methods/imap.rb",
+    "line": 170,
+    "claim": "IMAPS retrieval passes verify=false positionally to Net::IMAP.new, disabling certificate verification, so a network MITM can read or alter IMAP credentials and mail.",
+    "source": "Network position between the app and the IMAP server",
+    "sink": "imap.rb:170 Net::IMAP.new(address, port, enable_ssl, nil, false)",
+    "trace": [
+     {
+      "file": "lib/mail/network/retriever_methods/imap.rb",
+      "line": 170,
+      "note": "fifth positional argument is verify=false"
+     },
+     {
+      "file": "lib/mail/network/retriever_methods/imap.rb",
+      "line": 175,
+      "note": "imap.login sends credentials over the unverified connection"
+     }
+    ],
+    "guards_checked": "No option exposes verification; legacy positional net-imap signature assumed (not checked against the installed version). enable_starttls path is a separate branch (imap.rb:172)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "lib/mail/constants.rb",
+    "line": 39,
+    "claim": "ENCODED_VALUE regex (lazy .*? with no length cap) may be super-linear on long RFC 2047 header values lacking a '?=' terminator, a possible CPU DoS when decoding untrusted headers. Unverified; low confidence.",
+    "source": "Untrusted inbound header value read through #decoded or #subject",
+    "sink": "encodings.rb:124-130 ENCODED_VALUE.match? / gsub!",
+    "trace": [
+     {
+      "file": "lib/mail/encodings.rb",
+      "line": 124,
+      "note": "ENCODED_VALUE.match?(str) gate"
+     },
+     {
+      "file": "lib/mail/encodings.rb",
+      "line": 130,
+      "note": "line.gsub!(ENCODED_VALUE) scans each =?..?= start with lazy .*?"
+     }
+    ],
+    "guards_checked": "No length limit found in the decode path. Ruby 3.2+ regex memoization may mitigate; not measured (Bash unavailable)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

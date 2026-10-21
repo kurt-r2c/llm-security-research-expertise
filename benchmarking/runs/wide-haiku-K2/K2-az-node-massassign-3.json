@@ -1,0 +1,177 @@
+{
+ "arm": "K2",
+ "repo": "az-node-massassign",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "254f349e",
+ "status": "success",
+ "gen_cost": 0.0073862500000000005,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-xh2rlent/expertise/INDEX.md",
+   "/tmp/egf-xh2rlent/r/users.js",
+   "/tmp/egf-xh2rlent/expertise/cases/13-mass-assignment.md",
+   "/tmp/egf-xh2rlent/expertise/cases/14-proto-pollution-merge.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Mass assignment: the entire PUT /me request body is Object.assign'd onto req.user and persisted via req.store.save, letting a client set any model field (role, isAdmin, orgId, id, etc.).",
+    "source": "req.body on PUT /me (attacker-controlled JSON, any keys)",
+    "sink": "Object.assign(req.user, req.body) at users.js:5, persisted by req.store.save(req.user) at users.js:6",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "PUT /me handler registered; no auth or field checks in this file"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies every own key of req.body onto req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save persists the modified record"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json echoes the modified user"
+     }
+    ],
+    "guards_checked": "No allow-list, schema validation, or protected-key filtering in this file. Relies on upstream auth middleware (not in directory) setting req.user. Matches case 13 vulnerable shape. Exploitability depends on whether the user model has privileged or server-owned fields (not verifiable here)."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js: no field allow-list, schema validation, or protected-key filtering between req.body and the sink (users.js:5-6). The only directory file is users.js, so the upstream auth middleware that sets req.user and the req.store.save implementation are not available to check.",
+    "reason": "Every trace line matches the code (users.js:4 registers PUT /me, :5 Object.assign(req.user, req.body), :6 req.store.save(req.user), :7 res.json(req.user)), and no guard exists in this file, but whether the attacker, an authenticated user editing their own record, can escalate depends on whether the user model has privileged or server-owned fields and on whether req.store.save filters them, and neither is in the directory."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 5,
+    "claim": "A '__proto__' own key in the request body invokes the __proto__ setter on req.user, changing its prototype to an attacker-supplied object. Impact is limited to the single request object and likely not persisted.",
+    "source": "JSON body containing a '__proto__' key, which JSON.parse creates as an own property",
+    "sink": "Object.assign at users.js:5 (uses [[Set]] on req.user, triggering the __proto__ setter)",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign sets req.user.__proto__ to attacker object"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save likely serializes own keys only, so inherited values probably not persisted"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json serializes own keys; terminal handler"
+     }
+    ],
+    "guards_checked": "Object.assign is shallow, so no Object.prototype pollution (case 14 not an exact match). Handler is terminal, so no in-file authorization check reads the inherited value. Confidence low; depends on store serializer and upstream middleware."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none in users.js. Object.assign at users.js:5 is unguarded, but the attacker is the authenticated user writing to their own req.user, and no in-file code reads inherited properties. The save at users.js:6 is outside the directory (store not present), so its serialization is unverified.",
+    "reason": "The trace at users.js:5 and users.js:7 is accurate, but the attacker only modifies their own request-scoped req.user, and nothing in users.js:5-7 reads an inherited property for an authorization decision. Any inherited-property effect (e.g. an injected isAdmin) is also reachable by a plain own key in the same body via users.js:5 (mass assignment), so the __proto__ key adds no new privilege. The only unverified step is the store behavior at users.js:6, which would need to persist inherited keys to matter, and that does not create a new capability beyond existing mass assignment."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile writes displayName and bio with no type or length validation; omitting a field sets it to undefined, clearing stored data.",
+    "source": "req.body.displayName and req.body.bio on PUT /me/profile",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12, persisted at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "destructures displayName and bio from req.body"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Object.assign copies undefined values, clearing omitted fields"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "req.store.save persists the record"
+     }
+    ],
+    "guards_checked": "Destructuring blocks extra keys (no mass assignment). No type, length, or undefined checks. Logic and data-integrity flaw, low severity."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none. No type, length, or undefined checks exist. The only control is the destructuring at users.js:11, which blocks extra keys but not omitted fields. The trace is accurate: line 11 destructures, line 12 Object.assign copies undefined values, and line 13 saves.",
+    "reason": "The trace in users.js:11-13 is accurate, but the attacker is an authenticated user acting on their own req.user record, and they can already overwrite displayName and bio with any value at users.js:12, so clearing those fields grants no new power and is a logic/API-design issue (PUT replacing omitted fields), not a security vulnerability. The auth middleware that sets req.user is not in the available files, so I could not confirm the caller is always the record's owner; if it is not, this would need re-review."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "users.js",
+    "line": 6,
+    "claim": "The return value of req.store.save is ignored and the full in-memory user object is returned to the client, which may include secret or internal fields the store attaches.",
+    "source": "Store save outcome at users.js:6 and :13; user object at users.js:7 and :14",
+    "sink": "res.json(req.user) returning the full object to the client",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save result not checked or awaited"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json returns the full req.user object regardless of save outcome"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "same pattern on /me/profile"
+     },
+     {
+      "file": "users.js",
+      "line": 14,
+      "note": "full object returned on /me/profile"
+     }
+    ],
+    "guards_checked": "No error handling and no response filtering or serializer in this file. Severity depends on store implementation and whether the user object holds secret fields (not verifiable here). Low severity."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:6 and :13 call req.store.save as bare statements with the result discarded, and no filtering or serializer sits between req.user and res.json at users.js:7 and :14.",
+    "reason": "The trace matches users.js:6-7 and :13-14: the save result is discarded and the full req.user is sent back. Whether that leaks anything depends on fields that the store or auth middleware attaches to req.user, and that code is not in this directory. The only viewer of this response is the authenticated owner of that object (users.js:4, :10), so the claim needs the store's schema to assess and cannot be decided from users.js alone."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00822525
+}

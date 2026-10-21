@@ -1,0 +1,104 @@
+{
+ "arm": "A",
+ "repo": "inj-py-sql",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.004782160000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-gxfxsr10/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLI-search-1",
+    "file": "app.py",
+    "line": 12,
+    "claim": "SQL injection in /search: the unauthenticated q query parameter is interpolated into an f-string SQL query, allowing UNION-based reads of any table in shop.db.",
+    "source": "Query parameter q, read with request.args.get(\"q\", \"\") at app.py:11, no auth required (route at app.py:9).",
+    "sink": "db.execute(f\"SELECT id, name FROM products WHERE name LIKE '%{term}%'\") at app.py:12; rows returned as JSON at app.py:13.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 9,
+      "note": "/search route registered with no authentication or authorization decorator."
+     },
+     {
+      "file": "app.py",
+      "line": 11,
+      "note": "term taken directly from attacker-supplied q parameter."
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "term concatenated into SQL text via f-string and executed; no binding, escaping or validation."
+     },
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "Result rows, including any injected UNION results, returned to the attacker as JSON."
+     }
+    ],
+    "guards_checked": "No parameter binding on this query (the other two routes do bind). No input validation, length limit or escaping. No authentication or authorization. sqlite3 rejects multiple statements per execute, which blocks stacked queries but not UNION-based reads. Repro expected but not executed: q=x' UNION SELECT 1, sql FROM sqlite_master -- returns schema; a UNION against a table returns its contents."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:9 has no auth decorator, app.py:11 takes q directly from request.args, and app.py:12 interpolates it into the SQL via f-string with no parameter binding, escaping, or allowlist. The sqlite3 single-statement limit does not stop a UNION SELECT.",
+    "reason": "The trace matches the code: /search at app.py:9 is unauthenticated, q flows from app.py:11 into the f-string at app.py:12 with no binding or validation, and the rows are returned at app.py:13, so an anonymous attacker can run UNION-based reads against shop.db."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTHZ-by-owner-2",
+    "file": "app.py",
+    "line": 25,
+    "claim": "Possible authorization gap: /by-owner returns product id and name for any owner string with no authentication or ownership check, so any caller can enumerate which products belong to a given owner. Low confidence; depends on whether owner-product mapping is meant to be public.",
+    "source": "Query parameter owner, read at app.py:24 with request.args.get(\"owner\", \"\"); no auth required (route at app.py:22).",
+    "sink": "Owner-filtered SELECT of id and name using a bound parameter at app.py:25; rows returned at app.py:26.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "/by-owner route registered with no authentication or authorization check."
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "owner taken directly from attacker-supplied query parameter."
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "Used as a bound parameter in an owner-filtered query; this is not injection."
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "Matching product id and name rows returned to the caller."
+     }
+    ],
+    "guards_checked": "Query is parameterized, so no SQL injection. No authentication, no authorization or ownership check, no rate limiting. Whether this is a defect depends on whether owner-to-product mapping is intended to be public; confirm with the product owner."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. The route at app.py:22 has no auth decorator or ownership check. The query at app.py:25 is parameterized, so there is no injection. Nothing rate-limits the endpoint. The only other public routes are /search (app.py:9-13) and /product (app.py:16-19), and /search already returns id and name for every product to anonymous callers.",
+    "reason": "The trace matches the code (app.py:22, 24, 25, 26), and an anonymous attacker can reach /by-owner with no effective control (app.py:22-26). Whether that is a vulnerability depends on whether owner-to-product linkage is meant to be public, which the code cannot answer; /search at app.py:11-13 already exposes every product's id and name to anonymous callers, so the only new disclosure is the owner filter itself."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0038775100000000002
+}

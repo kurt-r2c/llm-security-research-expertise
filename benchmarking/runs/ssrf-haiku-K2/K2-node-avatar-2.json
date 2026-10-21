@@ -1,0 +1,97 @@
+{
+ "arm": "K2",
+ "repo": "node-avatar",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.00402011,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-jg_gw3wt/expertise/INDEX.md",
+   "/tmp/egf-jg_gw3wt/r/server.js",
+   "/tmp/egf-jg_gw3wt/expertise/cases/04-url-validate-reparse.md",
+   "/tmp/egf-jg_gw3wt/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches an arbitrary attacker-chosen https:// URL server-side. The only check is a string prefix test, so the host, IP range, and redirect target are unconstrained. The response size is returned to the caller, which gives an oracle on the fetched content.",
+    "source": "server.js:10 req.body.avatarUrl (attacker-controlled JSON body)",
+    "sink": "server.js:14 axios.get(url, { responseType: \"arraybuffer\" })",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "const url = req.body.avatarUrl; taken directly from the request body"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "typeof url === 'string' and url.startsWith('https://'); this only constrains the scheme, not the host"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) issues the outbound request from the server with no host allowlist, no private/link-local/loopback IP block, and no DNS pinning"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "res.json({ bytes: img.data.length }) returns the response size to the attacker, so the fetch result is partially observable"
+     }
+    ],
+    "guards_checked": "(1) typeof string check: type only, no host constraint. (2) startsWith('https://'): scheme only. Attacker can use https://169.254.169.254/..., https://127.0.0.1:port/..., https://users.internal:8080/..., or any attacker host. (3) No allowlist, no private-IP/loopback/link-local block, no DNS-rebinding protection, no maxRedirects:0. axios follows redirects by default, and follow-redirects can move from https to http, so a redirect from an https URL to http://169.254.169.254 would also bypass the scheme check. This is not a decoy: none of the safety reasons (fixed host, pinned address, allowlist) apply. Confidence is high; the redirect-to-http behaviour depends on the axios version, which is not pinned in the repo (no package.json)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. server.js:11 checks only that avatarUrl is a string and starts with \"https://\", which is a scheme-only check. Nothing before the sink at server.js:14 restricts the host, resolved IP, or redirect target. No auth middleware is registered on the route (server.js:5, 9).",
+    "reason": "The source is req.body.avatarUrl at server.js:10 on an unauthenticated POST route, and axios.get at server.js:14 fetches it server-side with only the scheme prefix check at server.js:11, so the SSRF holds; the response-size oracle at server.js:15 is real, though the http-redirect bypass depends on an unpinned axios version and I did not rely on it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "NOTE-users-id",
+    "file": "server.js",
+    "line": 20,
+    "claim": "NOT a finding: GET /users/:id builds a URL with a fixed host. encodeURIComponent blocks '/', '?', '#', and '@' from altering the authority or path, so the attacker can only choose a single path segment. A '..' segment can reach at most /v1/ on users.internal:8080 and cannot leave that host. This is a path-normalisation nuance, not SSRF.",
+    "source": "server.js:18-19 req.params.id",
+    "sink": "server.js:20 axios.get(`${USER_SVC}/v1/users/${id}`)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "id = encodeURIComponent(req.params.id)"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "host and scheme fixed by USER_SVC constant"
+     }
+    ],
+    "guards_checked": "encodeURIComponent on a path segment; fixed base URL constant; no user-controlled host, scheme, port, or query"
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Fixed base URL constant at server.js:7 (USER_SVC = \"http://users.internal:8080\") fixes scheme, host, and port; encodeURIComponent at server.js:19 keeps the id within one path segment (/, ?, # are encoded, so the decoded %2F stays encoded). No host, scheme, or port control reaches the sink at server.js:20.",
+    "reason": "The trace is accurate: server.js:19 encodes req.params.id and server.js:20 interpolates it into a URL whose host and scheme come from the constant at server.js:7, so the attacker cannot choose the host and this is not SSRF. The only residual is that a dot-segment id such as \"..\" normalizes to /v1/ on the same internal host (server.js:20), which is a path nuance and not a cross-host SSRF finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00420266
+}

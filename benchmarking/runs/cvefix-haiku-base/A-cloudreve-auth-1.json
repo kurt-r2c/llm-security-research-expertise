@@ -1,0 +1,348 @@
+{
+ "arm": "A",
+ "repo": "cloudreve-auth",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.06257031,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 14,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-9a1m2_hr/r/routers/router.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/main.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/share.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/file.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/callback.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/slave.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/user.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/wopi.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/oauth.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/webdav.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/admin.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/directory.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/workflow.go",
+   "/tmp/egf-9a1m2_hr/r/routers/controllers/site.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "upyun-callback-auth-fallthrough",
+    "file": "routers/controllers/callback.go",
+    "line": 89,
+    "claim": "UpyunCallbackAuth writes a 401 on signature-verification failure but does not abort or return, so c.Next() still runs ProcessCallback and completes the upload session.",
+    "source": "Unauthenticated POST /api/v4/callback/upyun/:sessionID/:key with attacker-controlled body and headers (routers/router.go:491-496).",
+    "sink": "controllers.ProcessCallback -> callback.ProcessCallback(c), which completes the upload session (protected state change).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 493,
+      "note": "middleware.UseUploadSession(PolicyTypeUpyun) loads session from URL params"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 494,
+      "note": "UpyunCallbackAuth registered before ProcessCallback"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 83,
+      "note": "upyun.ValidateCallback(c, uploadSession) called"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 86,
+      "note": "On error, c.JSON(401, ...) written; no c.Abort() and no return"
+     },
+     {
+      "file": "routers/controllers/callback.go",
+      "line": 89,
+      "note": "c.Next() unconditionally invoked, running ProcessCallback"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 495,
+      "note": "ProcessCallback executes and completes the upload"
+     }
+    ],
+    "guards_checked": "upyun.ValidateCallback (not in repo, outcome only observed via err branch). Compared with QiniuCallbackValidate (callback.go:47-52) and OSSCallbackValidate (callback.go:73-76), which both abort on failure; only the Upyun branch falls through. UseUploadSession not in repo. Precondition: attacker must know sessionID and key from callback URL, which are issued to the uploader."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "direct-link-scope-gap",
+    "file": "routers/router.go",
+    "line": 778,
+    "claim": "Direct-link create (PUT) and delete (DELETE) under file/source are gated only by files:read scope, not files:write.",
+    "source": "Any token holding only files.read scope.",
+    "sink": "controllers.GetSource (PUT source, creates public direct links) and controllers.DeleteDirectLink (DELETE source/:id) - state-changing operations.",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 601,
+      "note": "file.Use(RequiredScopes(ScopeFilesRead)) applied to file group"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 771,
+      "note": "source := file.Group(\"source\") inherits only read scope"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 773,
+      "note": "source.PUT(\"\") GetSource registered with no RequiredScopes(FilesWrite)"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 778,
+      "note": "source.DELETE(\":id\") DeleteDirectLink registered with no RequiredScopes(FilesWrite)"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 638,
+      "note": "Contrast: file.PUT(\"content\") requires FilesWrite"
+     }
+    ],
+    "guards_checked": "Group-level FilesRead scope; ValidateBatchFileCount on PUT (router.go:775); HashID(SourceLinkID) on DELETE (router.go:779). No write-scope check on either route. Ownership checks inside service/explorer not in repo."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "unsigned-upload-callbacks",
+    "file": "routers/router.go",
+    "line": 522,
+    "claim": "COS, S3, KS3, OBS and OneDrive upload callbacks rely solely on UseUploadSession; no signature/auth middleware is applied.",
+    "source": "Unauthenticated GET/POST callback requests with sessionID and key in path.",
+    "sink": "controllers.ProcessCallback - completes upload session.",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 500,
+      "note": "onedrive POST: only UseUploadSession(PolicyTypeOd)"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 516,
+      "note": "cos GET: only UseUploadSession"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 522,
+      "note": "s3 GET: only UseUploadSession"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 528,
+      "note": "ks3 GET: only UseUploadSession"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 534,
+      "note": "obs POST: only UseUploadSession"
+     }
+    ],
+    "guards_checked": "UseUploadSession (not in repo). Contrast OSS (OSSCallbackAuth), Upyun (UpyunCallbackAuth), Qiniu (QiniuCallbackValidate), Remote (RemoteCallbackAuth). Security depends on whether :key is a high-entropy per-session secret compared by the middleware - unverified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "password-reset-no-route-gate",
+    "file": "routers/router.go",
+    "line": 385,
+    "claim": "PATCH user/reset/:id has no signature or captcha middleware; authorization rests entirely on the token in the body inside the service.",
+    "source": "Unauthenticated PATCH request with attacker-controlled JSON body (UserResetService) and id param.",
+    "sink": "Password change in service/user (UserResetService.Reset).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 385,
+      "note": "user.PATCH(\"reset/:id\") registered"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 386,
+      "note": "HashID(UserID) decodes id only"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 387,
+      "note": "FromJSON binds UserResetService"
+     },
+     {
+      "file": "routers/controllers/user.go",
+      "line": 157,
+      "note": "UserReset calls service.Reset(c)"
+     }
+    ],
+    "guards_checked": "HashID decoding only. No SignRequired, no CaptchaRequired (contrast router.go:391-397 for the request step). Token validation inside service/user not in repo."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "2fa-otp-no-throttle",
+    "file": "routers/router.go",
+    "line": 299,
+    "claim": "2FA OTP verification endpoint has no visible route-level rate limit or captcha, enabling brute force of the 6-digit code.",
+    "source": "Attacker holding a twoFaSession token plus guessed OTP codes.",
+    "sink": "service/user Verify2FA, which issues a full auth token on success (UserIssueToken).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 299,
+      "note": "token.POST(\"2fa\") registered with no captcha or throttle middleware"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 300,
+      "note": "FromJSON binds OtpValidationService"
+     },
+     {
+      "file": "routers/controllers/user.go",
+      "line": 97,
+      "note": "UserLogin2FAValidation calls service.Verify2FA"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 302,
+      "note": "UserIssueToken on success"
+     }
+    ],
+    "guards_checked": "Route-level: none visible. Attempt limiting inside service/user Verify2FA not in repo."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "share-password-in-path",
+    "file": "routers/router.go",
+    "line": 263,
+    "claim": "Share passwords are accepted as URL path segments (s/:id/:password), which tends to leak into access logs and Referer headers.",
+    "source": "Share link URL containing password path segment.",
+    "sink": "Request logging and Referer propagation of the password (information exposure).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 263,
+      "note": "shareShort.GET(\":id/:password\") registered"
+     },
+     {
+      "file": "routers/controllers/share.go",
+      "line": 85,
+      "note": "ShareRedirect handles request and redirects via service.RedirectTo"
+     }
+    ],
+    "guards_checked": "Logging middleware and Referrer-Policy not in repo; not checked."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "admin-settings-read-secrets",
+    "file": "routers/router.go",
+    "line": 883,
+    "claim": "POST admin/settings returns settings gated only by admin:read scope; if secret-valued settings are included, a read-scoped token can exfiltrate them.",
+    "source": "Token with admin:read scope (or admin user) posting to admin/settings.",
+    "sink": "admin.GetSetting response body (potential secret disclosure).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 872,
+      "note": "admin group: IsAdmin + RequiredScopes(AdminRead)"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 883,
+      "note": "settings.POST(\"\") has no additional write scope"
+     },
+     {
+      "file": "routers/controllers/admin.go",
+      "line": 21,
+      "note": "AdminGetSettings returns service.GetSetting output"
+     }
+    ],
+    "guards_checked": "IsAdmin and AdminRead at group level. Whether returned settings contain secrets is in service/admin, not in repo."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "batch-delete-share-missing-return",
+    "file": "routers/controllers/share.go",
+    "line": 79,
+    "claim": "BatchDeleteShare writes an error response and then, without returning, writes a success response, producing two JSON bodies.",
+    "source": "Authenticated request to share DELETE with a service error.",
+    "sink": "HTTP response body (logic defect; not an authorization bypass).",
+    "trace": [
+     {
+      "file": "routers/controllers/share.go",
+      "line": 78,
+      "note": "if err != nil branch entered"
+     },
+     {
+      "file": "routers/controllers/share.go",
+      "line": 79,
+      "note": "c.JSON(200, error) written"
+     },
+     {
+      "file": "routers/controllers/share.go",
+      "line": 82,
+      "note": "c.JSON(200, success) written unconditionally, no return"
+     }
+    ],
+    "guards_checked": "None relevant; this is a response-handling defect."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "init2fa-read-scope-mutation",
+    "file": "routers/router.go",
+    "line": 1287,
+    "claim": "GET setting/2fa is gated only by user:info:read; if Init2FA persists a pending secret, a read-scoped token can mutate account 2FA state.",
+    "source": "Token with user info read scope.",
+    "sink": "user.Init2FA (possible persistence of a pending 2FA secret).",
+    "trace": [
+     {
+      "file": "routers/router.go",
+      "line": 1274,
+      "note": "setting.Use(RequiredScopes(UserInfoRead))"
+     },
+     {
+      "file": "routers/router.go",
+      "line": 1287,
+      "note": "setting.GET(\"2fa\") registered with no write scope"
+     },
+     {
+      "file": "routers/controllers/user.go",
+      "line": 321,
+      "note": "UserInit2FA calls user.Init2FA"
+     }
+    ],
+    "guards_checked": "Group-level UserInfoRead scope and LoginRequired. Whether Init2FA writes to the DB is in service/user, not in repo."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

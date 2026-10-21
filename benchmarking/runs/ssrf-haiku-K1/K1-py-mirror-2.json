@@ -1,0 +1,81 @@
+{
+ "arm": "K1",
+ "repo": "py-mirror",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.00474012,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Bash": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-4acrvvsa/r/mirror.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "Unauthenticated GET /mirror lets any caller make the server fetch an arbitrary URL whose hostname merely ends with the string 'example.com'. The suffix check has no dot boundary and there is no private/loopback/link-local IP block, so an attacker can point such a hostname (e.g. one they register, like 'attackerexample.com', or any DNS name resolving to 10.x/169.254.169.254/127.0.0.1) at internal targets. Only the response length is returned, so exploitation is limited to reachability and port/service probing via the 200-vs-500 response difference, not full response read.",
+    "source": "mirror.py:11 \u2014 `url: str` query parameter on @app.get(\"/mirror\"), no auth dependency",
+    "sink": "mirror.py:16 \u2014 `await c.get(url)` (httpx.AsyncClient)",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 10,
+      "note": "Route /mirror registered with no auth dependency or middleware in this file"
+     },
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "Attacker-controlled `url` query parameter"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "urlparse(url).hostname extracts the host"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "Validation: host.endswith(\"example.com\"). Passes for 'evilexample.com', 'attackerexample.com', 'x-example.com' \u2014 no '.' boundary, so attacker controls a registrable domain that matches"
+     },
+     {
+      "file": "mirror.py",
+      "line": 15,
+      "note": "Default httpx.AsyncClient: no IP pinning, no private-range check"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "Request issued to the attacker's hostname, which DNS (attacker-controlled) resolves to an internal address; the full URL (path/query) is also attacker-controlled"
+     },
+     {
+      "file": "mirror.py",
+      "line": 17,
+      "note": "Only len(r.text) returned; exceptions (connection refused/timeouts) propagate as 500, giving a reachability oracle"
+     }
+    ],
+    "guards_checked": "Host check at line 13 (suffix-only, no dot boundary, applied to urlparse's host, not to resolved IP). Scheme: no allowlist, but httpx only speaks http/https so file:// etc. is rejected by httpx (not a bypass). Redirects: httpx.AsyncClient default follow_redirects=False, so redirect-to-internal is not reachable. Private/loopback/link-local/metadata IP blocking: absent. DNS rebinding protection: absent (resolution occurs at connect time, host check was on the string). ALLOWED_SUFFIX (line 7) is defined but unused. Parser differential (urlparse vs httpx's URL parser, e.g. backslash or userinfo handling) was considered but not verified in this environment, so it is not reported as a separate finding."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is `host.endswith(\"example.com\")` at mirror.py:13, which is a suffix match with no dot boundary and does not close the finding. No IP/private-range block, no DNS pinning, and no auth dependency on the route (mirror.py:10). httpx.AsyncClient at mirror.py:15 does not follow redirects by default, so the redirect path is not an additional bypass. ALLOWED_SUFFIX (mirror.py:7) is unused.",
+    "reason": "The `url` query parameter (mirror.py:11) is attacker-controlled and unauthenticated, and the only host check at mirror.py:13 is a bare suffix match that accepts any hostname ending in \"example.com\", such as an attacker-registered \"attackerexample.com\". The request at mirror.py:16 then goes to that hostname, which the attacker's DNS can resolve to an internal address, so the candidate's trace is accurate and the SSRF stands. The impact is limited as claimed: only len(r.text) is returned (mirror.py:17), and errors surface as 500s."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00232914
+}

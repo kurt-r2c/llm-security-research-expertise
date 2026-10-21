@@ -1,0 +1,99 @@
+{
+ "arm": "P",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "483a88ad",
+ "status": "success",
+ "gen_cost": 0.043924000000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-rmgwe3pj/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "The /preview endpoint fetches any URL the caller supplies, with no validation. This is full SSRF. An attacker can reach internal services, cloud metadata endpoints (169.254.169.254), and localhost. Redirects are followed, and the first 500 bytes of the response body are returned to the attacker.",
+    "source": "Query parameter `url` from request.args.get('url') at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16; the response status and body are returned at app.py:17",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get('url', '') takes attacker input directly"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) is called with no scheme, host, or IP check, and redirects are followed by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "resp.text[:500] is returned, so the response is not blind"
+     }
+    ],
+    "guards_checked": "None. There is no allowlist, no scheme check, no private-IP block, and no authentication on the route. The timeout is only 5s and does not limit the target."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15 takes `url` from request.args, app.py:16 passes it straight to requests.get (redirects followed by default) with no check, and app.py:17 returns the first 500 bytes of the body. The ALLOWED_HOSTS check at app.py:24 exists only in /partner, not in /preview. The file has no auth or middleware."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "The /partner allowlist check can probably be bypassed, but this is lower confidence than finding 1. The host is validated with urlparse().hostname, but requests/urllib3 then parses the URL again. The two parsers can disagree. An example is a URL like http://evil.example\\@api.partner.example/, where urlparse reports the allowed host and urllib3 may treat the backslash as a delimiter and connect to evil.example. Separately, requests.get follows redirects by default, so any open redirect on an allowed partner host leads to an arbitrary target. I did not run the parser-differential case to confirm it.",
+    "source": "Query parameter `url` from request.args.get('url') at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26. Only the status code is returned, so the response is blind.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target is taken from request.args"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname is the value that gets checked"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "Rejected unless host is in ALLOWED_HOSTS"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get re-parses the original unmodified string and follows redirects"
+     }
+    ],
+    "guards_checked": "The hostname allowlist at app.py:24 is exact-match, so plain subdomain and suffix tricks do not work. The check does not pin the parsed host to the host that is actually requested. It does not disable redirects with allow_redirects=False, and it does not check the scheme."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact hostname set membership on urlparse(target).hostname against ALLOWED_HOSTS (app.py:23-25)",
+    "reason": "The trace is accurate and `url` is attacker-controlled (app.py:22), but app.py:23-25 applies an exact set-membership check on the parsed hostname, which the rubric treats as closing; the parser-differential and open-redirect claims are unconfirmed and no redirect endpoint exists in this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.060490600000000005
+}

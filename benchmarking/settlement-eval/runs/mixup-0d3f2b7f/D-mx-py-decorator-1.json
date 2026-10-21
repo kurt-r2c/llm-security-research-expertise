@@ -1,0 +1,70 @@
+{
+ "arm": "D",
+ "repo": "mx-py-decorator",
+ "rep": 1,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.0768389,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-pw3fm0rb/r/routes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "routes.py",
+    "line": 34,
+    "claim": "POST /settings/email is a state-changing account operation protected by @login_optional instead of @login_required. Unauthenticated requests are not rejected, and set_email is called with g.uid = None. A sibling route (/settings/password) correctly uses @login_required, so this looks like a decorator mix-up. Depending on how set_email is implemented, this can change the email of a null/unowned account or of every row where uid IS NULL. It can also cause a 500 or a silent no-op, and it breaks the authorization invariant.",
+    "source": "Unauthenticated remote HTTP client sending POST /settings/email with no session cookie.",
+    "sink": "set_email(g.uid, ...) at routes.py:37, an account email modification. This is the standard account-recovery pivot.",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 19,
+      "note": "login_optional sets g.uid = session.get('uid') (None when unauthenticated) and always calls the wrapped view"
+     },
+     {
+      "file": "routes.py",
+      "line": 34,
+      "note": "@app.route('/settings/email', methods=['POST']) is public ingress"
+     },
+     {
+      "file": "routes.py",
+      "line": 35,
+      "note": "@login_optional applied, no 401 abort on a missing session"
+     },
+     {
+      "file": "routes.py",
+      "line": 37,
+      "note": "set_email(g.uid, 'new@example.org') is invoked with uid=None for anonymous callers"
+     },
+     {
+      "file": "routes.py",
+      "line": 48,
+      "note": "set_email is a stub here, so the real impact depends on the implementation. If it keys on uid with None/NULL matching, it is exploitable."
+     }
+    ],
+    "guards_checked": "login_required is applied only to /settings/password (routes.py:41-42), not to this route. There is no in-handler check of g.uid, no CSRF protection, no role check, and no before_request hook or middleware. set_email does not validate the uid, since it is a stub. Checked and unchanged: the /feed route is intentionally optional-auth and returns no user data. Caveat: set_email's body is a stub, so exploitability beyond the missing auth gate is unconfirmed. The missing authentication check on the route is confirmed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (login_optional at routes.py:19-25 only sets g.uid=None and never aborts; no in-handler check, before_request hook or middleware)",
+    "reason": "routes.py:34-37 lets an anonymous caller reach set_email(None, ...) through @login_optional, which never aborts (routes.py:22-23), unlike @login_required at routes.py:11-12; the missing auth gate is real, but set_email is a stub (routes.py:48-49), so the impact beyond that can't be shown from this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0350296
+}

@@ -1,0 +1,66 @@
+{
+ "arm": "D",
+ "repo": "az-node-massassign",
+ "rep": 2,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.09014130000000001,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-qr0tp7nf/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Mass assignment: PUT /me copies the whole request body onto the authenticated user object and persists it. Any authenticated user can overwrite privileged or internal fields such as role, isAdmin, id, or tenant/org id. This allows privilege escalation or account takeover. The handler also returns the full req.user object, which may expose internal fields.",
+    "source": "Attacker-controlled JSON body of PUT /me (req.body). The attacker only needs to be an authenticated low-privilege user.",
+    "sink": "Object.assign(req.user, req.body) followed by req.store.save(req.user), which writes attacker-chosen properties to the persisted user record.",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "Route PUT /me is registered with no field validation or authorization middleware visible in this file."
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign(req.user, req.body) merges all attacker-supplied keys into the user record, with no allowlist."
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save(req.user) persists the modified record, including any privileged fields."
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json(req.user) returns the full user object, so any sensitive stored fields are exposed."
+     }
+    ],
+    "guards_checked": "No allowlist, schema validation, or protected-field denylist in this file. The sibling route PUT /me/profile at users.js:11 destructures only displayName and bio, which shows the intended safe pattern. Auth middleware that sets req.user, the router mounting, and any schema validation in req.store.save are outside this directory and could not be checked. Object.assign on a JSON-parsed body does not pollute prototypes, so the issue is mass assignment only.",
+    "repro": "As a normal logged-in user: curl -X PUT https://host/me -H 'Cookie: session=...' -H 'Content-Type: application/json' -d '{\"role\":\"admin\",\"isAdmin\":true}'. Then fetch the profile and check that the privileged fields were stored."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "users.js:5 does Object.assign(req.user, req.body) with no allowlist or validation, users.js:6 persists it and users.js:7 returns the whole object; the safe sibling at users.js:11-12 destructures only displayName and bio. Upstream auth and store validation are not in this directory, so whether the privileged fields are actually honored is unchecked."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0332827
+}

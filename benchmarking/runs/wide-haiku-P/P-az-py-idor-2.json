@@ -1,0 +1,69 @@
+{
+ "arm": "P",
+ "repo": "az-py-idor",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.00458727,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-p35uoxwx/r/invoices.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "invoices.py",
+    "line": 7,
+    "claim": "GET /invoice/<inv_id> returns any invoice record to any caller with no authentication and no ownership check, so any client that knows or can guess an invoice ID can read another customer's invoice (IDOR / broken access control).",
+    "source": "inv_id: URL path segment (invoices.py:7-8), supplied by any unauthenticated HTTP client.",
+    "sink": "INVOICES.get(inv_id) at invoices.py:9, then full record returned via jsonify(inv) at invoices.py:10.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 7,
+      "note": "Route registered with no auth decorator; path param inv_id is attacker-controlled."
+     },
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "Handler takes inv_id with no validation or authorization arguments."
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "Looks up INVOICES by inv_id only; no comparison against the requester's identity. 404 only when the ID is absent."
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "Entire invoice dict serialized and returned to the caller."
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "Sibling /my/invoice/<inv_id> performs the same lookup then checks inv['customer'] != g.user['id']. The unscoped route omits that check, so the same record is exposed through /invoice without it."
+     }
+    ],
+    "guards_checked": "Route decorator (no login_required or equivalent); handler body (no g.user access, no customer comparison); no before_request hook or auth middleware in this file. The repo has no code that populates INVOICES or registers global auth, so a global before_request hook elsewhere cannot be ruled out. If one enforces login, the issue narrows to missing per-object ownership, which still applies. Unverified: whether invoice IDs are guessable (no ID generation code in repo) and whether this route is intentionally public (the /my/ naming suggests not)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The /invoice/<inv_id> route (invoices.py:7) has no auth decorator. The handler (invoices.py:8-10) does a bare INVOICES.get with no g.user access or customer comparison. The only check in the file is on the sibling /my/invoice route (invoices.py:16-17), which the unscoped route does not use. A grep of the directory finds no before_request hook, login_required, or other auth middleware.",
+    "reason": "The route at invoices.py:7-10 returns INVOICES[inv_id] to any caller with no authentication or ownership check, while the sibling route at invoices.py:16-17 enforces inv[\"customer\"] == g.user[\"id\"], so an anonymous client who knows an invoice ID can read another customer's invoice. The trace matches the code exactly. Caveat: a global auth hook outside this directory could still add login, but that would only narrow the issue to missing per-object ownership, which is still present."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0024142
+}

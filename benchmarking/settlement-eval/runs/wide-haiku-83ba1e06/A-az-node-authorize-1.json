@@ -1,0 +1,112 @@
+{
+ "arm": "A",
+ "repo": "az-node-authorize",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0085852,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-f9s1yijh/r/api.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "Any authenticated user can delete any project because the ownership check result is discarded in DELETE /projects/:id (broken access control, IDOR).",
+    "source": "req.params.id (attacker-controlled path param) with any authenticated session as req.user",
+    "sink": "req.store.projects.delete(project.id) at api.js:19",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 16,
+      "note": "DELETE /projects/:id route handler accepts the request"
+     },
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "project loaded by attacker-supplied id with no ownership scoping"
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "authorized(req.user, project) called but boolean return value discarded; authorized() (lines 12-14) never throws"
+     },
+     {
+      "file": "api.js",
+      "line": 19,
+      "note": "project deleted regardless of ownership or admin status"
+     },
+     {
+      "file": "api.js",
+      "line": 20,
+      "note": "responds 204 success"
+     }
+    ],
+    "guards_checked": "authorized() at api.js:12-14 is a predicate that returns a boolean and is ignored at line 18, so it enforces nothing. The 403-throwing authorize() at api.js:4-10 is not called by this handler. No other guard is present in this file. Upstream auth middleware (req.user) is out of scope and not verified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. authorized() at api.js:12-14 returns a boolean and its result is discarded at api.js:18 as a bare statement, so it blocks nothing. authorize() at api.js:4-10 (which throws 403) is not called in the DELETE handler at api.js:16-21. Upstream auth middleware that sets req.user is out of scope and unverified, but nothing in api.js checks ownership before the delete at api.js:19.",
+    "reason": "The DELETE handler at api.js:18 calls authorized(req.user, project) as a bare statement, discarding its boolean, so api.js:19 deletes the project for any caller with a session, whether or not they own it or are an admin. The trace matches the file exactly. The remaining caveat is that upstream middleware could enforce per-resource access, which this file does not show."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "api.js",
+    "line": 26,
+    "claim": "PUT /projects/:id/name stores req.body.name without type, length, or content validation and returns the full project object (low severity, unverified impact).",
+    "source": "req.body.name (any JSON type, untrimmed, unbounded length)",
+    "sink": "project.name assignment at api.js:26 and full project serialization at api.js:27",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 23,
+      "note": "PUT /projects/:id/name route handler"
+     },
+     {
+      "file": "api.js",
+      "line": 24,
+      "note": "project loaded by attacker-supplied id"
+     },
+     {
+      "file": "api.js",
+      "line": 25,
+      "note": "authorize() enforces ownership or admin; passes for owner"
+     },
+     {
+      "file": "api.js",
+      "line": 26,
+      "note": "req.body.name assigned to project.name without validation"
+     },
+     {
+      "file": "api.js",
+      "line": 27,
+      "note": "entire project object returned as JSON"
+     }
+    ],
+    "guards_checked": "authorize() at api.js:25 enforces ownership only. No type, length, or content validation exists in this file. Impact depends on the store schema (not present) and on frontend rendering of the name (not present). If project is undefined, line 25 throws a TypeError on resource.ownerId, which may return a 500 and leak a stack trace in non-production configurations."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "authorize() at api.js:4-10 throws a 403 for any user who is neither the owner nor an admin, and the call at api.js:25 is a bare statement that aborts the handler on failure, so only the owner or an admin reaches line 26.",
+    "reason": "The trace matches api.js:23-27 and the missing type/length validation at api.js:26 is real, but the only party who can reach it is the project owner (or an admin), who already has full write control over that project's name through the same endpoint, so no privilege or security impact is shown; the TypeError-on-undefined-project path at api.js:25 is a separate robustness issue for nonexistent IDs, not an authorization flaw, and its stack-trace leakage depends on configuration not present here."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00415304
+}

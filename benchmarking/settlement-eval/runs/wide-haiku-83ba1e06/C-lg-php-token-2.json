@@ -1,0 +1,145 @@
+{
+ "arm": "C",
+ "repo": "lg-php-token",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00981807,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 3,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-38q4phj2/r/reset.php",
+   "/tmp/egf-38q4phj2/expertise/software/language-footguns/php_footguns_expertise.md",
+   "/tmp/egf-38q4phj2/expertise/software/language-footguns/php_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "RESET-1",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "[High, if reachable] reset_password_loose() compares the stored reset token with loose '==' (PHP type juggling). If the attacker-supplied $token is boolean true (possible when the value is JSON-decoded, e.g. {\"token\": true}), PHP evaluates true == <any non-empty string> as true, so the password is overwritten without knowing the token. Requires a pending reset row for the victim email, which the attacker can likely create by triggering a reset request. Numeric-string and null/empty-string juggling (null == \"\") are also accepted.",
+    "source": "$token parameter of reset_password_loose() (line 2), attacker-controlled via the reset-completion request; caller not in repo",
+    "sink": "UPDATE users SET pw = ... WHERE email = ... (lines 5-6), gated only by the loose comparison on line 4",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 2,
+      "note": "reset_password_loose($db, $email, $token, $new) accepts $token with no type check"
+     },
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "Fetches stored token for $email via $db->quote(); returns false row if no reset was requested"
+     },
+     {
+      "file": "reset.php",
+      "line": 4,
+      "note": "if ($row && $row['token'] == $token): loose comparison; $token=true matches any non-empty stored token; $token=\"\" matches a NULL stored token"
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "password_hash() of attacker-chosen $new written to users.pw"
+     },
+     {
+      "file": "reset.php",
+      "line": 7,
+      "note": "returns true; caller treats as successful reset"
+     }
+    ],
+    "guards_checked": "$db->quote() on $email (lines 3, 6) prevents SQL injection via email, not token; $row null check (line 4) only blocks a missing reset row; no is_string()/strict typing on $token; no === or hash_equals on line 4; the safer reset_password() on lines 12-20 is a separate function and does not protect this path. Reachability depends on the caller (not in repo) passing non-string JSON values; the function may also be dead code, which I could not confirm."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None inside reset_password_loose(). The $db->quote() calls (reset.php:3, 5-6) escape only $email and $new, not $token. The `$row` check (reset.php:4) only blocks a missing reset row. The hash_equals() check at reset.php:14 is in the separate reset_password() function and is not on this path.",
+    "reason": "The trace matches the code: the loose `==` at reset.php:4 gates the password UPDATE at reset.php:5-6, and no type check or strict comparison precedes it. Whether an attacker can reach it cannot be decided here, because the caller that supplies $token is not in the repository (the only file is reset.php), so the finding is UNVERIFIABLE rather than CONFIRMED."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "RESET-2",
+    "file": "reset.php",
+    "line": 15,
+    "claim": "[Medium] Reset tokens are never expired or consumed. Neither reset_password_loose() nor reset_password() checks a creation timestamp, and neither deletes or marks the resets row after a successful reset. A token stays valid indefinitely and can be reused to reset the password again, so any token leaked later (mail forwarding, logs, backups, DB read) remains a working account-takeover credential.",
+    "source": "Previously issued reset token (stored in resets.token), presented as $token",
+    "sink": "UPDATE users SET pw (lines 15-16 in reset_password; lines 5-6 in reset_password_loose)",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 13,
+      "note": "SELECT token FROM resets WHERE email = ... fetches the stored token with no expiry column or condition"
+     },
+     {
+      "file": "reset.php",
+      "line": 14,
+      "note": "hash_equals($row['token'], (string)$token) succeeds on a correct token"
+     },
+     {
+      "file": "reset.php",
+      "line": 15,
+      "note": "Password updated"
+     },
+     {
+      "file": "reset.php",
+      "line": 17,
+      "note": "Returns true without DELETE/UPDATE of the resets row, so the same token still matches on the next call"
+     }
+    ],
+    "guards_checked": "hash_equals() (constant-time, correct for this comparison); password_hash(PASSWORD_DEFAULT) on the new password; $db->quote() on email. No expiry check, single-use invalidation, or session revocation appears in this file. The token-generation and expiry logic may exist in the caller or schema, which is not in the repo, so this is a candidate pending that check."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in reset.php. hash_equals() at reset.php:14 is a constant-time comparison, not an expiry or single-use control. No expiry check, DELETE/UPDATE of the resets row, or session revocation appears in reset.php:1-21. The only file in the repo is reset.php, so no caller or schema exists here to enforce either control.",
+    "reason": "The trace matches reset.php:13-17: the row is read with no expiry condition, the password is updated at lines 15-16, and the row is never deleted or marked used before `return true` at line 17, so the same token matches again. Whether the caller, the resets schema, or a cleanup job enforces expiry or single use cannot be checked, because the repo contains only reset.php, so the finding can't be confirmed or refuted from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "RESET-3",
+    "file": "reset.php",
+    "line": 3,
+    "claim": "[Low] The reset token is stored and compared in plaintext (resets.token), and the lookup is keyed only by email with fetch() and no ORDER BY or uniqueness guarantee. Anyone who can read the resets table (SQL injection elsewhere, backup exposure, read-only replica access) can take over any account with a pending reset. If multiple rows exist for one email, the first arbitrary row decides validity, so a stale or unexpected token can be the one checked.",
+    "source": "Database read access to the resets table (not an HTTP input in this file)",
+    "sink": "Token value used as the authentication secret at lines 4 and 14; UPDATE users SET pw at lines 5-6 and 15-16",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "SELECT token FROM resets WHERE email = ... ->fetch(): plaintext token read; first row only, no ORDER BY"
+     },
+     {
+      "file": "reset.php",
+      "line": 13,
+      "note": "Same single-row lookup in reset_password()"
+     },
+     {
+      "file": "reset.php",
+      "line": 14,
+      "note": "Plaintext token compared with hash_equals()"
+     }
+    ],
+    "guards_checked": "$db->quote() on email (prevents SQL injection via email); hash_equals() on the strict path. Nothing hashes or peppers the stored token, and the schema (unique key, row lifecycle) is not in the repo, so the multi-row behavior is unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only $db->quote() on $email (line 3, 13), which blocks SQL injection through the email but does nothing for the stored token. hash_equals() at line 14 is a timing-safe comparison, not storage protection. Nothing hashes or peppers the token, and no ORDER BY or uniqueness is enforced in this file.",
+    "reason": "reset.php:3 and :13 read the token in plaintext with fetch() and no ORDER BY, and reset.php:14 compares it directly before the UPDATE at :15-16, so anyone who can read the resets table can complete a reset for that account; the attacker precondition is database read access, which sits outside this code, so the severity stays Low. The multi-row claim is unverified because the schema is not in the repo, and reset.php:4 also uses loose == on the token, a separate type-juggling issue the candidate does not mention."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00718124
+}

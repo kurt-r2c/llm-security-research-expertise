@@ -1,0 +1,122 @@
+{
+ "arm": "K3",
+ "repo": "go-proxy",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.006810440000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": []
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "Unauthenticated /fetch passes the raw target query parameter directly to http.Get with no validation, enabling full-response SSRF to internal hosts and cloud metadata endpoints.",
+    "source": "main.go:15 r.URL.Query().Get(\"target\") on unauthenticated route /fetch (registered main.go:41)",
+    "sink": "main.go:16 http.Get(target)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "http.HandleFunc(\"/fetch\", fetch) - route is unauthenticated"
+     },
+     {
+      "file": "main.go",
+      "line": 14,
+      "note": "fetch handler entry"
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target taken from query string, no parsing or validation"
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get(target) issues outbound request to attacker-chosen URL"
+     },
+     {
+      "file": "main.go",
+      "line": 18,
+      "note": "err.Error() reflected to client, giving connectivity oracle"
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "io.Copy streams response body back to attacker"
+     }
+    ],
+    "guards_checked": "None present. No scheme check, host allowlist, private/loopback IP check, redirect control, or auth. Go http.Get restricts scheme to http/https only."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. main.go:16 calls http.Get(target) on the raw query value from main.go:15 with no parsing, scheme, host, or IP check. The only allowlist (main.go:9-12, checked at main.go:27) is in safeFetch, which is registered on /safe (main.go:42), not on /fetch (main.go:41). No auth middleware is registered in main.go.",
+    "reason": "The /fetch route (main.go:41) is unauthenticated, the target value comes straight from the query string (main.go:15) and is passed to http.Get (main.go:16) with no closing guard, and the response body is streamed back to the client (main.go:22), so an attacker can reach internal hosts and metadata endpoints. All trace lines match the file."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "/safe enforces a hostname allowlist only on the initial URL; http.Get follows redirects by default, so an allowlisted host can redirect the server to internal or metadata URLs, bypassing the allowlist.",
+    "source": "main.go:26 r.URL.Query().Get(\"target\") on unauthenticated route /safe (registered main.go:42)",
+    "sink": "main.go:31 http.Get(u.String()) with default client following redirects",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "http.HandleFunc(\"/safe\", safeFetch) - route is unauthenticated"
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "safeFetch handler entry"
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "url.Parse of attacker-supplied target"
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "allowed[u.Hostname()] check applied to first URL only"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get uses DefaultClient with no CheckRedirect; follows up to 10 redirects to any host"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "io.Copy streams final redirected response body to attacker"
+     }
+    ],
+    "guards_checked": "Hostname allowlist at main.go:27 is enforced and applies to the same u used at main.go:31; userinfo, port, case, and trailing-dot tricks fail closed. Not enforced: redirect hops (no CheckRedirect), resolved IP (no private-range check). Exploitability requires an open redirect or attacker-influenced response on images.example.org or docs.example.org, which could not be verified from this repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "main.go:27 is exact hostname membership (allowed[u.Hostname()]), but it runs only on the initial URL. The sink at main.go:31 is http.Get(u.String()) with the default client, which has no CheckRedirect, so redirect hops are not checked. No other validation exists on the path. The rejected-by-default checks (CheckRedirect, IP-range check) are absent.",
+    "reason": "The trace matches the code: /safe is registered unauthenticated at main.go:42, the target query parameter reaches url.Parse at main.go:26, the allowlist check at main.go:27 covers only the first URL, and http.Get at main.go:31 follows redirects to any host with no CheckRedirect, with the response streamed back at main.go:37. The exploit still requires an allowlisted host (images.example.org or docs.example.org) to issue a redirect, which this repo cannot confirm, so the real-world severity depends on that external precondition."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00440107
+}

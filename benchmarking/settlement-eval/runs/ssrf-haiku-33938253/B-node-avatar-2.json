@@ -1,0 +1,98 @@
+{
+ "arm": "B",
+ "repo": "node-avatar",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.007305900000000001,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-o8od_80n/r/server.js",
+   "/tmp/egf-o8od_80n/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches an attacker-supplied URL server-side with axios; the only check is a https:// prefix, with no host allowlist, IP/CIDR blocking, or redirect re-validation. Response body is not returned; only its byte length is. Severity MEDIUM (blind SSRF with length oracle).",
+    "source": "req.body.avatarUrl (server.js:10)",
+    "sink": "axios.get(url, { responseType: \"arraybuffer\" }) (server.js:14)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "const url = req.body.avatarUrl; attacker-controlled"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "only check: typeof string and startsWith(\"https://\"); scheme-only, does not close"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) dispatches request to attacker-chosen host; axios follows redirects by default so https:// URL can redirect to http://169.254.169.254 or RFC-1918 hosts"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "res.json({ bytes: img.data.length }) returns only the response size"
+     }
+    ],
+    "guards_checked": "Type check (string) passes any string; scheme prefix check does not restrict host; no host allowlist; no IP/CIDR or private-range blocking; no maxRedirects:0 or per-hop re-validation; route is unauthenticated. Redirect-to-http bypass of the https check believed possible via follow-redirects but not executed/verified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. server.js:11 is a scheme-only check (typeof string plus startsWith(\"https://\")), which the criteria say does not close the finding. No host allowlist, IP/CIDR blocking, or maxRedirects:0 appears anywhere in server.js, and the route has no auth middleware (server.js:9).",
+    "reason": "The sink at server.js:14 (axios.get(url)) takes req.body.avatarUrl (server.js:10) from an unauthenticated POST, and the only check at server.js:11 is the https:// prefix, so an attacker can point the request at any HTTPS host, including one that redirects to internal addresses. Every trace line (10, 11, 14, 15) matches the candidate's description."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "NOT-FLAGGED-GET-USERS",
+    "file": "server.js",
+    "line": 20,
+    "claim": "GET /users/:id: host is hardcoded (USER_SVC = http://users.internal:8080); user input only reaches the path via encodeURIComponent, which encodes @, /, ?, #. Path traversal within the host at most, not SSRF. Closed.",
+    "source": "req.params.id (server.js:18)",
+    "sink": "axios.get(`${USER_SVC}/v1/users/${id}`) (server.js:20)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 7,
+      "note": "USER_SVC hardcoded scheme and host"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "id = encodeURIComponent(req.params.id)"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "user value occupies path only; host and scheme fixed"
+     }
+    ],
+    "guards_checked": "encodeURIComponent blocks host injection via @ and path-separator escape via /; hardcoded host and scheme; '..' not encoded so path traversal within users.internal is possible but is not SSRF."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "server.js:19 encodeURIComponent(req.params.id) keeps the user value in one path segment. Host and scheme are fixed by the constant USER_SVC at server.js:7, so the attacker cannot choose the destination host.",
+    "reason": "All three trace lines are accurate (server.js:7, 19, 20), and req.params.id at server.js:18 is attacker-controlled, but the value only reaches the URL path because the host and scheme come from the hardcoded USER_SVC at server.js:7, so there is no SSRF. The only residual is that an id of \"..\" yields a dot-segment resolving to /v1/ on the same internal host (server.js:19-20), which is not SSRF and not a finding under the criteria."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0041362099999999995
+}

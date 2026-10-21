@@ -1,0 +1,72 @@
+{
+ "arm": "K2",
+ "repo": "az-py-idor",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "254f349e",
+ "status": "success",
+ "gen_cost": 0.005717140000000001,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-hyef54w6/expertise/INDEX.md",
+   "/tmp/egf-hyef54w6/r/invoices.py",
+   "/tmp/egf-hyef54w6/expertise/cases/09-idor-find-by-id.md",
+   "/tmp/egf-hyef54w6/expertise/cases/27-decoy-scoped-by-session.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "IDOR-invoice-get-1",
+    "file": "invoices.py",
+    "line": 9,
+    "claim": "GET /invoice/<inv_id> returns any invoice by id with no check that it belongs to the caller (missing ownership check).",
+    "source": "inv_id path parameter from the URL at invoices.py:7-8 (`/invoice/<inv_id>`), with no auth decorator on the route.",
+    "sink": "Protected operation: returning the full invoice record via jsonify(inv) at invoices.py:10, after an id-only lookup at invoices.py:9.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 7,
+      "note": "Route /invoice/<inv_id> takes inv_id from the URL; only @app.route is applied, no login_required, role check or ownership guard."
+     },
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "Handler get_invoice(inv_id) receives the attacker-supplied id."
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "INVOICES.get(inv_id) looks up by id alone; no customer or tenant condition. Missing id aborts 404; present id continues."
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "jsonify(inv) returns the whole record, including the customer field and any other fields, with no field filtering."
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "Contrast: sibling /my/invoice/<inv_id> performs `inv[\"customer\"] != g.user[\"id\"]` and aborts 404. The control present there is missing on this route."
+     }
+    ],
+    "guards_checked": "Route decorators (only @app.route, no auth). Lookup scoping (keyed only by request id, no owner/tenant filter). Use of g.user (never referenced in this handler, so caller identity is never compared). Response shaping (full dict returned). Decoy case 27 (scoped by caller) does not apply because the lookup is not composed with caller identity. Not verifiable from this directory: a global before_request auth hook; if one exists it gates authentication only and still leaves cross-customer access. Possible admin-only intent is unknown and would also lack an admin check. Ruled out: /my/invoice/<id> (owner check present at line 16; missing key or unset g.user yields 500, not bypass); /my/invoices (filtered by customer); injection, path, URL, SSRF, deserialization, crypto classes (no such operations in file)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:7 applies only @app.route with no auth decorator, and invoices.py:9 looks up by inv_id alone (`INVOICES.get(inv_id) or abort(404)`). The handler never compares the record's `customer` to g.user, and invoices.py:10 returns the full record via jsonify. The sibling route at invoices.py:16-17 has the owner check this one lacks. The directory holds no other .py file, so no before_request hook or global auth is visible here.",
+    "reason": "At invoices.py:9-10, GET /invoice/<inv_id> returns any invoice by id with no ownership check, while the sibling route at invoices.py:16-17 performs one, so an unauthenticated or low-privilege caller can read other customers' invoices. The only caveat is that a global before_request auth hook, which is not in this directory, could restrict who reaches the route; even then it would gate authentication only, not cross-customer access."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00238442
+}

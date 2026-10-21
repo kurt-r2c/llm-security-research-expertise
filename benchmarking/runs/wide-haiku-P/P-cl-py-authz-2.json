@@ -1,0 +1,150 @@
+{
+ "arm": "P",
+ "repo": "cl-py-authz",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.0065563800000000005,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-936vq079/r/notes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "NOTES-1",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Note-existence oracle: a nonexistent nid raises KeyError (HTTP 500) at NOTES[nid], while an existing note the caller cannot view returns 403, so the status code reveals whether a note ID exists. Low severity; exploitability depends on how note IDs are generated, which is outside this repo.",
+    "source": "nid path parameter from GET/PUT/POST /n/<nid> (notes.py:25, :32, :41), supplied by any client",
+    "sink": "NOTES[nid] lookup (notes.py:27, :34, :43) and abort(403) (notes.py:13, :22)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 25,
+      "note": "route /n/<nid> receives attacker-chosen nid"
+     },
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "NOTES[nid] raises KeyError -> 500 when the ID does not exist"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view called on existing note"
+     },
+     {
+      "file": "notes.py",
+      "line": 12,
+      "note": "can_view fails for an unauthorized caller"
+     },
+     {
+      "file": "notes.py",
+      "line": 13,
+      "note": "abort(403) for existing but unauthorized note"
+     }
+    ],
+    "guards_checked": "No NOTES.get or 404 handling; IDs are not shown to be random in this repo; no note-creation code present. Authorization itself is correct; the leak is only the differing status codes."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. There is no try/except or 404 handling around the lookup at notes.py:27, and no existence check before it. require_view (notes.py:11-13) only runs after the lookup succeeds, so it cannot mask the KeyError. The same pattern holds for write (notes.py:34) and share (notes.py:43).",
+    "reason": "For a missing nid, NOTES[nid] at notes.py:27 raises KeyError and returns a 500, while an existing note that fails can_view at notes.py:12 hits abort(403) at notes.py:13, so the status code distinguishes existence. Any caller who can reach the route can probe this. The impact is low because it is only an existence oracle and the repo does not show how IDs are generated."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "NOTES-2",
+    "file": "notes.py",
+    "line": 29,
+    "claim": "Shared-user list is disclosed to every user with view access, so a sharee can see the identities of all other sharees. Low severity; a problem only if the sharee list is meant to be private.",
+    "source": "Any authenticated user who passes can_view (notes.py:8) for the note, supplied via GET /n/<nid>",
+    "sink": "jsonify(n) returns the full note dict including the shared field (notes.py:29)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read handler"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view passes for owner or listed sharee"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view: owner == user or user in note['shared']"
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "whole note, including shared list, serialized to response"
+     }
+    ],
+    "guards_checked": "View authorization is correct (owner or listed sharee only). No field filtering or redaction before jsonify; shared list is not treated as private anywhere in the file."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_view (notes.py:11-13) aborts with 403 when can_view fails, so only the owner and listed sharees reach line 29. No field filtering or redaction of the shared list exists between notes.py:27 and notes.py:29, and jsonify(n) at line 29 serializes the whole note dict including \"shared\".",
+    "reason": "Every trace line matches the code: read() at notes.py:26-29 returns the full note via jsonify(n), and any listed sharee passes require_view (notes.py:8, 12-13) and receives the shared list. The mechanism is real, but whether it is a security defect depends on intent that the code does not state, so treat it as low severity."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "NOTES-3",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "No revocation path: share only appends to note['shared'], and no route removes a sharee or deletes a note, so granted view access persists until process restart (NOTES is in-memory, notes.py:4). Medium for a notes product if users expect revocation; a feature gap rather than an exploit.",
+    "source": "Note owner's POST /n/<nid>/share request body field user (notes.py:45); the owner is the only one who can share (require_edit, notes.py:44)",
+    "sink": "Persistent grant to note['shared'] (notes.py:45), read by can_view (notes.py:8) on every subsequent read",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "share route defined; POST only"
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit restricts sharing to the owner"
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "user appended to shared list; no removal code exists anywhere in the file"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view keeps granting access based on the list"
+     }
+    ],
+    "guards_checked": "Owner-only sharing is enforced. No removal, expiry, or unshare route exists in the file; grep found no other source files in the repo."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22) aborts with 403 unless the caller is the owner, and it is called as a bare statement at notes.py:44, which is correct because it raises. can_view (notes.py:8) is the read-side check. No revocation, unshare, or expiry code exists anywhere (notes.py:45 is the only write to note[\"shared\"]; grep found no removal path).",
+    "reason": "Every trace line matches the code (notes.py:41, 44, 45, 8), and the only actor who can reach the grant at notes.py:45 is the note owner, who already has full control via the PUT at notes.py:35-37, so missing revocation is a feature gap, not an authorization bypass that gives anyone power they should not have."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00582504
+}

@@ -1,0 +1,97 @@
+{
+ "arm": "B",
+ "repo": "az-py-ignored",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0059730600000000005,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-m3ndhuuz/r/docs.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "docs.py",
+    "line": 20,
+    "claim": "update_doc never enforces authorization: can_edit(g.user, doc) on line 19 is called but its return value is discarded, so any caller who reaches the route can overwrite the body of any document in DOCS.",
+    "source": "doc_id path parameter (line 17) and JSON body field 'body' (line 20); precondition: caller has some g.user value set by an upstream auth layer (not present in this repo).",
+    "sink": "doc['body'] = request.json['body'] at docs.py:20 (write to protected resource).",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 16,
+      "note": "PUT /doc/<doc_id> routed to update_doc"
+     },
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "doc loaded from global DOCS by doc_id with no ownership or tenant scoping"
+     },
+     {
+      "file": "docs.py",
+      "line": 19,
+      "note": "can_edit(g.user, doc) called; result discarded, no abort(403)"
+     },
+     {
+      "file": "docs.py",
+      "line": 20,
+      "note": "attacker-supplied body written to document"
+     }
+    ],
+    "guards_checked": "can_edit (docs.py:7-8) correct but not enforced on this route; require_edit (docs.py:11-13) used only on title route; methods=['PUT'] is not authz; no before_request hook, decorator, CSRF or rate-limit control in file; no schema validation on body."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "can_edit (docs.py:7-8) returns a bool, but the only call on the route is a bare statement at docs.py:19 whose result is discarded, so no abort occurs. require_edit (docs.py:11-13) is the throwing variant and is used only on the title route (docs.py:27). No before_request hook, decorator, or other check exists in docs.py.",
+    "reason": "The trace is accurate: docs.py:19 calls can_edit(g.user, doc) as a bare statement, so its False result is ignored, and docs.py:20 writes the attacker-supplied body. Any caller for whom an upstream layer sets g.user can overwrite any document's body; the attacker needs only that precondition, which lies outside this repo, and no effective control exists in docs.py."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "docs.py",
+    "line": 18,
+    "claim": "Document existence can be enumerated from inconsistent error responses: unknown IDs raise KeyError (500) while existing-but-unauthorized IDs return 403 on the title route.",
+    "source": "doc_id path parameter (line 26 / line 18).",
+    "sink": "HTTP response code side channel revealing whether a document ID exists.",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 26,
+      "note": "DOCS[doc_id] raises KeyError for unknown ID, unhandled -> 500"
+     },
+     {
+      "file": "docs.py",
+      "line": 27,
+      "note": "require_edit returns 403 for existing doc the caller cannot edit"
+     },
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "same KeyError behavior on body route; body route returns 200 for any existing ID due to F1"
+     }
+    ],
+    "guards_checked": "require_edit 403 path is correct; no 404 handling for missing keys; no uniform error response."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. docs.py:26 does `DOCS[doc_id]` with no `.get` or 404 handling, so an unknown ID raises KeyError and Flask returns 500. docs.py:27 calls `require_edit`, which does `abort(403)` (docs.py:13) for an existing document the caller cannot edit. No code makes these two responses uniform. docs.py:18 has the same KeyError path on the body route, and docs.py:19 discards the `can_edit` result, which matches the trace's note about F1.",
+    "reason": "docs.py:26-27 gives a 500 for a missing ID and a 403 for an existing ID the caller cannot edit, so any caller whose `g.user` is set can tell whether a document ID exists; the side channel is real, but its severity is low and it depends on `g.user` being populated by code outside this file."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00438033
+}

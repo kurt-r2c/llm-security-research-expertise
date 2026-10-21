@@ -1,0 +1,109 @@
+{
+ "arm": "A",
+ "repo": "h4-java-stored",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.00330114,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-6ht7wysb/r/src/Profile.java"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "src/Profile.java",
+    "line": 23,
+    "claim": "The `icon` parameter of `Profile.update` is stored with no validation, and the nightly `sync` fetches it server-side with an unrestricted GET. An attacker who can call PUT /profile can make the server request arbitrary http/https URLs, including internal hosts and cloud metadata endpoints such as 169.254.169.254. The response body is discarded, so this is blind SSRF.",
+    "source": "`icon` argument of `Profile.update(String webhook, String icon)` (src/Profile.java:11), reached via the PUT /profile request body per the comment at line 10. Attacker-controlled.",
+    "sink": "`c.send(HttpRequest.newBuilder().uri(URI.create(iconUrl)).GET().build(), HttpResponse.BodyHandlers.ofByteArray())` in `Profile.sync` (src/Profile.java:23-24).",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 10,
+      "note": "Comment documents the entry point: PUT /profile."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 11,
+      "note": "update(webhook, icon) takes the attacker-supplied icon string."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 12,
+      "note": "Regex validation is applied only to `webhook`. `icon` is not checked."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 16,
+      "note": "`this.iconUrl = icon` persists the unvalidated value to the field."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 20,
+      "note": "sync(HttpClient c) runs as the nightly job, using the stored iconUrl."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 23,
+      "note": "URI.create(iconUrl) parses the attacker-chosen URL. This is the sink."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 23,
+      "note": "c.send issues a server-side GET to that URL."
+     }
+    ],
+    "guards_checked": "(1) Regex at line 12 covers only webhook, not icon. (2) No scheme, host, or IP allowlist or denylist for iconUrl anywhere in the file. (3) No private/link-local/loopback address filtering. (4) Redirect policy is not set in this file. The HttpClient is injected, so a caller could configure redirects to follow, which would widen reach. (5) The JDK HttpRequest only accepts http and https schemes, which limits file:/ftp: abuse but not http(s) to internal hosts. (6) No authentication or authorization check is visible on update or sync. The PUT handler is not in this repo, so the auth state of the endpoint could not be verified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The regex at src/Profile.java:12 checks only `webhook`, and `icon` is stored unchecked at line 16. The JDK's http/https-only scheme limit is not a closing guard, and no host or IP filtering exists anywhere in the file.",
+    "reason": "Every trace line matches the file: the PUT /profile comment is at line 10, `icon` flows unvalidated into `this.iconUrl` at line 16, and `sync` passes it to `URI.create` and `c.send` with a GET at lines 23-24. The source is a user-set profile field, not admin or config, so it is attacker-controllable at low privilege, though the auth on the PUT handler lives outside this repo and is unverified."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-1-webhook-ruled-out",
+    "file": "src/Profile.java",
+    "line": 21,
+    "claim": "Not a finding. The `webhookUrl` sink at line 21 (POST) is constrained by `String.matches` at line 12. The full-match regex pins scheme and host to https://hooks.example.com/ and allows only 20 alphanumeric path characters. It contains no userinfo, port, or dot segments that could redirect the request elsewhere.",
+    "source": "`webhook` argument of update (src/Profile.java:11)",
+    "sink": "src/Profile.java:21-22",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 12,
+      "note": "String.matches requires a full match, so the host is fixed to hooks.example.com."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 15,
+      "note": "Only validated values are stored in webhookUrl."
+     }
+    ],
+    "guards_checked": "Full-match regex, fixed host, no open redirect in the regex. Residual risk depends on hooks.example.com being trusted, which this code does not show."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "src/Profile.java:12 `webhook.matches(\"https://hooks\\\\.example\\\\.com/[A-Za-z0-9]{20}\")`: String.matches is a full-string anchored match, and the literal host and scheme leave no room for userinfo, ports, or a different host. Line 13 throws on mismatch, so only validated values reach line 15 and the POST at line 21.",
+    "reason": "The trace is accurate (validation at src/Profile.java:12 and the POST at line 21 both match the candidate's description), and the full-string anchored regex at line 12 is a closing guard that pins the host to hooks.example.com, so the webhook sink is not a finding. Separately, the unvalidated `icon` value stored at line 16 and fetched with GET at line 23 is not covered by this candidate and may warrant its own review."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00435884
+}

@@ -1,0 +1,131 @@
+{
+ "arm": "K3",
+ "repo": "sqlite3ruby-other",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3af06fea",
+ "status": "success",
+ "gen_cost": 0.03887084,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Grep": 8,
+   "Read": 17,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/statement.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/backup.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/statement.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/aggregator.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/statement.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/database.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/sqlite3_ruby.h",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/exception.c",
+   "/tmp/egf-s1uuzbrr/r/ext/sqlite3/exception.c"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "ext/sqlite3/database.c",
+    "line": 442,
+    "claim": "statement_timeout= stores the configured ms in ctx->stmt_timeout but the progress handler never reads it, so queries are interrupted after roughly 1000-2000 VM ops regardless of the configured value; prepared statements reused via reset!/step are interrupted on their second run because the deadline is only cleared in prepare. Logic error, availability impact only, fail-closed (no security bypass).",
+    "source": "Database#statement_timeout=(ms) at ext/sqlite3/database.c:437-442 (ms via NUM2INT)",
+    "sink": "sqlite3_progress_handler registration at ext/sqlite3/database.c:443-445, callback rb_sqlite3_statement_timeout at ext/sqlite3/database.c:412-427 returning 1 (SQLITE_INTERRUPT)",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 437,
+      "note": "set_statement_timeout(self, milliseconds) entry"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 442,
+      "note": "ctx->stmt_timeout = NUM2INT(milliseconds); value stored"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 443,
+      "note": "n = 0 ? -1 : 1000; ms value not used for the deadline"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 445,
+      "note": "sqlite3_progress_handler(..., rb_sqlite3_statement_timeout, ctx)"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 419,
+      "note": "first callback: if deadline unset, deadline = now"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 422,
+      "note": "later callback: if now after deadline, return 1 (interrupt)"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 82,
+      "note": "deadline cleared only in prepare; reset!/step reuse keeps stale deadline (statement.c:318-332)"
+     }
+    ],
+    "guards_checked": "ctx->stmt_timeout is written (database.c:442) and grep shows no read anywhere in ext/sqlite3; the progress handler (database.c:412-427) has no reference to the configured value; no reset of stmt_deadline outside prepare (statement.c:82). No enforced control makes the timeout match the configured ms."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "ext/sqlite3/database.c",
+    "line": 738,
+    "claim": "Ruby callbacks invoked from SQLite C code without rb_protect (authorizer, collation comparator, busy handler, trace) let a Ruby exception longjmp through SQLite internals, skipping SQLite cleanup and potentially leaving the connection in an inconsistent state or holding its mutex. Sibling callbacks rb_sqlite3_func and the aggregator do wrap calls in rb_protect. PLAUSIBLE: consequence inside SQLite is inferred, since SQLite source is not in this tree; precondition is an application-supplied callback that raises on attacker-influenced input.",
+    "source": "SQL text supplied to the library, passed to the authorizer's table/column arguments at ext/sqlite3/database.c:733-737 (via Statement#prepare at ext/sqlite3/statement.c:70)",
+    "sink": "rb_funcall(db_ctx->authorizer, \"call\", ...) at ext/sqlite3/database.c:738 (unprotected); similar unprotected calls at database.c:328 (tracefunc), 365 (busy handler), 839 (rb_comparator_func, with NUM2INT at 841)",
+    "trace": [
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 70,
+      "note": "sqlite3_prepare_v2 invoked with attacker-supplied SQL"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 733,
+      "note": "authorizer receives SQL-derived identifiers as _a.._d"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 738,
+      "note": "rb_funcall invokes Ruby authorizer with no rb_protect; a raised exception longjmps out of sqlite3_prepare_v2"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 581,
+      "note": "sibling rb_sqlite3_func wraps its call in rb_protect (contrast)"
+     },
+     {
+      "file": "ext/sqlite3/aggregator.c",
+      "line": 47,
+      "note": "sibling aggregator wraps its call in rb_protect (contrast)"
+     }
+    ],
+    "guards_checked": "rb_protect present for define_function (database.c:581) and aggregator (aggregator.c:47) but absent for rb_sqlite3_auth (database.c:738), rb_comparator_func (database.c:839), rb_sqlite3_busy_handler (database.c:365), tracefunc (database.c:328). Return-value handling (database.c:740-744) does not catch exceptions. No rb_protect or rb_rescue wraps these calls."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

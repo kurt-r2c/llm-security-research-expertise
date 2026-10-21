@@ -1,0 +1,107 @@
+{
+ "arm": "C",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.012772450000000001,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Bash": 3,
+   "Grep": 2,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ehne8c1r/expertise/INDEX.md",
+   "/tmp/egf-ehne8c1r/r/app.py",
+   "/tmp/egf-ehne8c1r/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/tmp/egf-ehne8c1r/expertise/software/language-footguns/python_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches an arbitrary attacker-supplied URL server-side with no validation and returns the response status and first 500 bytes of body to the caller (non-blind SSRF).",
+    "source": "app.py:15 request.args.get(\"url\") (query parameter, unauthenticated)",
+    "sink": "app.py:16 requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\") - attacker controls full URL including scheme, host, port, path"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) - server-side fetch with the app's network position; follows redirects by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "jsonify({\"status\": resp.status_code, \"body\": resp.text[:500]}) - response content reflected to attacker, so the SSRF is non-blind"
+     }
+    ],
+    "guards_checked": "None on this path. No scheme allowlist, no host or IP allowlist, no private/link-local/loopback blocking, no DNS pinning, no redirect control. The only bound is timeout=5 (availability, not access control). Note: requests supports only http/https adapters, so file://, gopher://, and similar schemes raise InvalidSchema; impact is limited to http(s) reachability from the server, including cloud metadata (169.254.169.254), RFC1918 hosts, and localhost services."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. /preview (app.py:13-17) has no scheme, host, IP, or redirect check between the source at app.py:15 and the sink at app.py:16. The only validation in app.py is the ALLOWED_HOSTS check at app.py:23-25, which is in the separate /partner route and does not cover /preview.",
+    "reason": "app.py:15 takes the full URL from an unauthenticated query parameter, app.py:16 calls requests.get(target) with no validation, and app.py:17 returns resp.status_code and the first 500 bytes of resp.text to the caller, so the SSRF is non-blind as claimed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner gates the fetch on a hostname allowlist, but the allowlist is checked only on the initial URL and the fetch then uses a different URL parser and follows redirects, so an allowlisted host that redirects to an internal address bypasses the check. Status is the only data returned, so this is mostly blind.",
+    "source": "app.py:22 request.args.get(\"url\", \"\")",
+    "sink": "app.py:26 requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get(\"url\", \"\") - attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname - validator parses with urllib.parse, not the parser requests uses (urllib3)"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "if host not in ALLOWED_HOSTS -> 400 - exact-string membership check on api.partner.example / cdn.partner.example"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) - fetcher re-parses the original string with urllib3, follows 3xx redirects by default, and re-resolves DNS by name"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "returns only resp.status_code, so response body is not reflected"
+     }
+    ],
+    "guards_checked": "Exact hostname allowlist (app.py:9, 24) with urlparse().hostname. Checked: no scheme check (requests limits schemes to http/https in practice); no port check; no userinfo/fragment handling beyond urlparse; no redirect validation (allow_redirects defaults to True for requests.get); no DNS pinning or resolved-IP check. Unverified: whether urlparse and urllib3 disagree on any concrete input (for example backslash, '?', '#', or '@' forms from the expertise guide) on current CPython and requests versions. I could not run a local parser comparison because the permission was denied. Exploitability depends on the allowlisted partner hosts returning redirects to internal targets, or on partner DNS being attacker-influenced; neither is visible in this repo."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-24: urlparse(target).hostname is checked by exact set membership against ALLOWED_HOSTS = {\"api.partner.example\", \"cdn.partner.example\"} (app.py:9), and a non-match returns 400 before the sink at app.py:26. This is the closing guard the rubric defines.",
+    "reason": "The trace lines (app.py:22, 23, 24, 26, 27) match the candidate's description, but exact hostname membership on the parsed hostname at app.py:24 blocks any non-allowlisted initial host before requests.get at app.py:26. The remaining claim, that an allowlisted host can redirect to an internal address, depends on partner-side behavior that is not visible in this repo and is not a bypass of the closing guard as defined; a parser disagreement between urlparse and urllib3 is also unverified."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0040184700000000005
+}

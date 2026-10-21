@@ -1,0 +1,383 @@
+{
+ "arm": "K2",
+ "repo": "rubysdk-dos",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.24075256,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 24,
+   "Grep": 5,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-2b0ykmph/expertise/INDEX.md",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/stdio.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/oauth/discovery.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/oauth/flow.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/http.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server/transports/streamable_http_transport.rb",
+   "/tmp/egf-2b0ykmph/r/lib/json_rpc_handler.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server_session.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/oauth/storage_backed_provider.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/oauth/pkce.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server/transports/stdio_transport.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server/pagination.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/oauth/provider.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/configuration.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/tool/input_schema.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/string_utils.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/server_context.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/client/oauth/client_credentials_provider.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/resource_template.rb",
+   "/tmp/egf-2b0ykmph/r/lib/mcp/prompt.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1-logging-level-global-write",
+    "file": "lib/mcp/server.rb",
+    "line": 606,
+    "claim": "[low-medium] logging/setLevel from one session overwrites the server-wide logging gate, changing which log notifications are broadcast to every session and which level applies to sessions that never set their own.",
+    "source": "Any connected client session with logging capability negotiated; params[:level] of a logging/setLevel JSON-RPC request. Attacker needs only a session (stateful HTTP) or the stdio peer.",
+    "sink": "Server-wide @logging_message_notification, read by Server#notify_log_message broadcast (server.rb:264, 269) and by the ServerSession#notify_log_message fallback (server_session.rb:202).",
+    "trace": [
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 486,
+      "note": "LOGGING_SET_LEVEL dispatched to configure_logging_level"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 596,
+      "note": "only checks capabilities[:logging] is non-nil"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 601,
+      "note": "level validated via valid_level?"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 605,
+      "note": "session.configure_logging is per-session (correct)"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 606,
+      "note": "unconditional write to shared Server ivar, breaking session isolation"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 264,
+      "note": "notify_log_message gate reads that ivar"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 269,
+      "note": "@transport.send_notification with no session_id, i.e. broadcast"
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 241,
+      "note": "broadcast branch writes to every SSE session"
+     },
+     {
+      "file": "lib/mcp/server_session.rb",
+      "line": 202,
+      "note": "sessions with no own level inherit the attacker-chosen server level"
+     }
+    ],
+    "guards_checked": "Capability check (server.rb:596); level whitelist (601-603); per-session configure (605) is correct but does not prevent the global write at 606; no session or tenant check on the global write. Only reachable where the app uses server-wide notify_log_message broadcasts."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2-refresh-token-legacy-origin-fallback",
+    "file": "lib/mcp/client/oauth/flow.rb",
+    "line": 231,
+    "claim": "[medium-low] A stored refresh token and Basic-auth client_secret minted by a separate authorization server are POSTed to the MCP origin's own /token endpoint whenever PRM discovery fails for any reason, because the legacy fallback is applied to refresh without checking which AS issued the token.",
+    "source": "401 from the MCP endpoint triggers attempt_refresh with the stored refresh_token. Precondition: the PRM URL on the MCP origin returns non-2xx, times out, or returns malformed or non-object JSON (any AuthorizationError), e.g. a server-controlled 404/5xx.",
+    "sink": "flow.rb:707 http_post_form(token_endpoint, form), where token_endpoint is the legacy default {origin}/token (flow.rb:278) and the form carries refresh_token; Authorization: Basic client_id:client_secret (flow.rb:696).",
+    "trace": [
+     {
+      "file": "lib/mcp/client/oauth/../../../client/http.rb",
+      "line": 418,
+      "note": "run_oauth_flow! calls attempt_refresh (http.rb:486-494) which calls Flow#refresh!"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 137,
+      "note": "refresh! entry"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 157,
+      "note": "locate_authorization_server"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 231,
+      "note": "any AuthorizationError from PRM fetch is rescued and prm becomes nil"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 240,
+      "note": "authorization_base = server origin, passes ensure_secure_url! for https (241)"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 164,
+      "note": "authorization_server_metadata(legacy: true) skips the issuer check (253-258)"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 273,
+      "note": "default_legacy_metadata sets token_endpoint = origin/token (278)"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 178,
+      "note": "exchange_refresh_token form includes refresh_token"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 696,
+      "note": "client_secret placed in Basic header"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 707,
+      "note": "POST sent to origin/token"
+     }
+    ],
+    "guards_checked": "ensure_secure_url! (https or loopback) only; no binding between the stored refresh_token and the AS that issued it; resource_covers? (flow.rb:162, 306-324) runs only when PRM exists, so it is skipped on this path; the legacy fallback itself mirrors the TS/Python SDKs (flow.rb:221-224) for the initial flow, and the concern is applying it to a token from another AS. Impact: the MCP resource server learns a long-lived refresh token and the client secret."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3-credentials-not-bound-to-configured-issuer",
+    "file": "lib/mcp/client/oauth/flow.rb",
+    "line": 236,
+    "claim": "[low] The authorization server that receives the stored refresh token or the configured client_secret is chosen entirely by the MCP server's PRM (authorization_servers) and AS metadata (token_endpoint). The operator cannot pin the AS, and loopback http endpoints are accepted.",
+    "source": "Attacker-influenced PRM or AS metadata served by the MCP origin (server compromise, or a malicious server the user reconnects with stored tokens or a ClientCredentialsProvider). Loopback http values also pass secure_url?.",
+    "sink": "flow.rb:707 POST carrying refresh_token (refresh!, flow.rb:178-183) or client_id/client_secret (client_credentials, flow.rb:110 to 674-707) to the attacker-chosen token_endpoint.",
+    "trace": [
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 226,
+      "note": "PRM fetched from the MCP origin"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 236,
+      "note": "first_authorization_server (308-327) accepts any non-empty string"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 237,
+      "note": "ensure_secure_url!: https, or loopback http (discovery.rb:181-194, loopback_host? 343-357)"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 261,
+      "note": "modern path: issuer must equal the PRM-named AS, which is self-consistent with the attacker's choice"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 266,
+      "note": "ensure_secure_endpoints! allows https or loopback token_endpoint (387-392)"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 110,
+      "note": "client_credentials path posts pre-registered client_id/secret"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 707,
+      "note": "POST with credentials to attacker-chosen endpoint"
+     }
+    ],
+    "guards_checked": "https-only except loopback; issuer equality with the PRM-named AS (not an independent trust anchor, 402-412); resource_covers? (flow.rb:518, discovery.rb:306-324) binds the PRM resource to the MCP URL, not the AS; no operator-configured AS allowlist exists. Spec lets a resource server name its AS, so this is weak alone and matters when stored credentials outlive trust in a server. Confidence medium."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4-session-ownership-not-enforced-by-default",
+    "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+    "line": 620,
+    "claim": "[low, design-level; deployer must configure] Session ownership is not enforced by default. The Mcp-Session-Id header alone authorizes tool calls, cancellation, responses to server-initiated requests, the GET SSE stream and DELETE for any holder of the ID.",
+    "source": "Mcp-Session-Id request header (streamable_http_transport.rb:607-609). Precondition: attacker obtains a live session ID (log leak, proxy, shared client).",
+    "sink": "Ownership gate returns true for any request without a validator, covering handle_regular_request (846-873), notifications including notifications/cancelled (736-752), handle_response (760-774), handle_get SSE (512-534) and handle_delete (536-557).",
+    "trace": [
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 488,
+      "note": "POST gate for existing sessions"
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 526,
+      "note": "GET gate"
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 549,
+      "note": "DELETE gate"
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 622,
+      "note": "unknown session returns true"
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 626,
+      "note": "Origin check only fires if both recorded and presented Origin differ; non-browser clients can omit Origin"
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 627,
+      "note": "session_request_validator is nil by default (92), so return true at 629"
+     }
+    ],
+    "guards_checked": "Origin consistency is documented as defense in depth, not authentication (comments 611-619); Host/Origin DNS-rebinding checks (1004-1057) do not provide ownership; session IDs are SecureRandom.uuid (782); idle timeout 1800s and 10k session cap (35-36). Documented at lines 73-80 and 611-619. Flagged because it weakens authorization by default."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5-tool-exception-message-to-client",
+    "file": "lib/mcp/server.rb",
+    "line": 659,
+    "claim": "[low] Raw exception messages from developer tool handlers are returned verbatim to the remote JSON-RPC caller in the error data field.",
+    "source": "Any tools/call whose handler raises. Attacker-controlled arguments often flow into the exception message (echoed input, SQL fragments, paths).",
+    "sink": "JSON-RPC error response data field (json_rpc_handler.rb:146-152), sent over HTTP or stdio to the requester.",
+    "trace": [
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 651,
+      "note": "call_tool_with_args"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 860,
+      "note": "tool.call(**args) raises"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 658,
+      "note": "rescue => e wraps as RequestHandlerError 'Internal error calling tool X: #{e.message}'"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 502,
+      "note": "handle_request lambda re-raises RequestHandlerError unchanged"
+     },
+     {
+      "file": "lib/mcp/json_rpc_handler.rb",
+      "line": 119,
+      "note": "process_request rescues RequestHandlerError"
+     },
+     {
+      "file": "lib/json_rpc_handler.rb",
+      "line": 146,
+      "note": "data = error.message (error_data unset)"
+     },
+     {
+      "file": "lib/json_rpc_handler.rb",
+      "line": 148,
+      "note": "error_response returned to caller"
+     }
+    ],
+    "guards_checked": "No redaction or generic message; error_data not set; default exception_reporter is a no-op (configuration.rb:163-165), so the response is the only exposure; argument validation (server.rb:637-645) runs before the handler and does not cover handler exceptions. Severity depends on what developer code puts in exception messages."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6-request-bodies-to-reporter-and-instrumentation",
+    "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+    "line": 504,
+    "claim": "[info, data handling] Full raw request bodies, including tool arguments, go to the exception reporter on internal errors, and full tool arguments go into instrumentation data. Org policy forbids logging PII, tokens and customer code; this is operator-configured, not attacker-exploitable.",
+    "source": "Any client request body (tool arguments, tokens in params) on an internal error (streamable_http_transport.rb:503-504) or any tool call (server.rb:628).",
+    "sink": "MCP.configuration.exception_reporter, and instrumentation_callback / around_request receiving @instrumentation_data (instrumentation.rb:39).",
+    "trace": [
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 504,
+      "note": "{ request: body_string } sent to exception_reporter"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 503,
+      "note": "report_exception(e, { request: request }) on RequestHandlerError"
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 628,
+      "note": "add_instrumentation_data(tool_arguments: arguments)"
+     },
+     {
+      "file": "lib/mcp/instrumentation.rb",
+      "line": 39,
+      "note": "instrumentation_callback receives the data hash"
+     }
+    ],
+    "guards_checked": "Default reporter and callback are no-ops (configuration.rb:163-174); no redaction layer in the SDK; exposure happens only when the operator wires a reporter or callback."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7-stdio-inherits-env-and-shell-command",
+    "file": "lib/mcp/client/stdio.rb",
+    "line": 179,
+    "claim": "[info] The stdio client spawns the server with the parent's full environment plus the env: overlay. A single-string command: goes through the shell when it has metacharacters. Relevant only if command or env come from untrusted config.",
+    "source": "Caller-supplied command: and env: (stdio.rb:31). Not attacker-controlled in normal use.",
+    "sink": "Open3.popen3(spawn_env, @command, *@args) (stdio.rb:179).",
+    "trace": [
+     {
+      "file": "lib/mcp/client/stdio.rb",
+      "line": 31,
+      "note": "command/args/env accepted from caller"
+     },
+     {
+      "file": "lib/mcp/client/stdio.rb",
+      "line": 178,
+      "note": "spawn_env = @env || {} (overlay, not a replacement environment)"
+     },
+     {
+      "file": "lib/mcp/client/stdio.rb",
+      "line": 179,
+      "note": "popen3 inherits ENV, so parent secrets reach the child; a string with shell metacharacters and no args runs via /bin/sh"
+     }
+    ],
+    "guards_checked": "The args-array form avoids the shell when args are present; no environment scrubbing is performed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

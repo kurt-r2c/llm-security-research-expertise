@@ -1,0 +1,90 @@
+{
+ "arm": "B",
+ "repo": "php-feed",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.054172200000000004,
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated full-read SSRF. The POST parameter 'feed' goes straight into file_get_contents(), which accepts http(s)://, ftp://, file://, php://, and similar wrappers. The response size is echoed back. This lets an attacker probe internal hosts and cloud metadata (169.254.169.254), and distinguish live from dead targets by the length.",
+    "source": "$_POST['feed'] (import.php:11-12), attacker-controlled HTTP POST body",
+    "sink": "file_get_contents($_POST['feed']) at import.php:12",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Handler is entered on any POST that has 'feed'. No auth check."
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "The raw user value is passed to file_get_contents(), which makes the outbound request or reads the local file."
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "strlen($xml) is echoed back, giving a response-size oracle. The content itself is not returned."
+     }
+    ],
+    "guards_checked": "There is no require_admin() call on this path (it is only defined at lines 4-9 and used on the webhook path). There is no scheme allowlist, host allowlist, DNS or IP resolution check, or private/link-local range blocklist. Redirects are followed by default. No other validation exists."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "import.php:11-13 passes unauthenticated $_POST['feed'] straight to file_get_contents() and echoes strlen($xml). The only auth check, require_admin() at lines 4-9, is called only at line 18 on the webhook path. Nothing validates the scheme or host. The \"full-read\" label overstates it: only the length is returned, so this is a size-oracle SSRF, as the trace's own note says."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated SSRF. The 'set_webhook' POST parameter is passed to curl_init() and the request is executed immediately. curl accepts http, https, gopher, file, ftp, dict and other protocols, since CURLOPT_PROTOCOLS is not restricted. A compromised or malicious admin can reach internal services and cloud metadata. The response is not returned, so it is blind SSRF.",
+    "source": "$_POST['set_webhook'] (import.php:17,19), admin-controlled HTTP POST body",
+    "sink": "curl_exec($ch) on a handle created with curl_init($hook) at import.php:20-22",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Handler is entered when 'set_webhook' is present."
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks $_SESSION['is_admin']."
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook is assigned the raw user value."
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the target URL."
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec() sends the request. The URL is only stored in the handle and nothing is validated first."
+     }
+    ],
+    "guards_checked": "The only guard is require_admin() (session is_admin), so exploitation needs an admin session or a session-fixation or privilege-escalation bug. There is no scheme or host allowlist, no private-IP blocking, and no CURLOPT_PROTOCOLS or CURLOPT_REDIR_PROTOCOLS restriction. Severity is lower than SSRF-1 because of the auth gate and the blind response."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 (session is_admin check, exits 403); no URL, scheme or host validation",
+    "reason": "The trace is accurate (import.php:17-22), but the sink at import.php:20-22 is reachable only after require_admin() at import.php:18 passes, so the source is admin-only and not controllable by an unauthenticated or low-privilege attacker."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0619682
+}

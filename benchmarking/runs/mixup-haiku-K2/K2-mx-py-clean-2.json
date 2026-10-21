@@ -1,0 +1,120 @@
+{
+ "arm": "K2",
+ "repo": "mx-py-clean",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "842e2e99",
+ "status": "success",
+ "gen_cost": 0.00565716,
+ "trace": {
+  "tools": {
+   "Read": 7,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-rn6skw2f/expertise/INDEX.md",
+   "/tmp/egf-rn6skw2f/r/acl.py",
+   "/tmp/egf-rn6skw2f/r/views.py",
+   "/tmp/egf-rn6skw2f/expertise/cases/01-perm-result-ignored.md",
+   "/tmp/egf-rn6skw2f/expertise/cases/09-idor-find-by-id.md",
+   "/tmp/egf-rn6skw2f/expertise/cases/27-decoy-scoped-by-session.md",
+   "/tmp/egf-rn6skw2f/expertise/cases/13-mass-assignment.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "authn-trusted-header-impersonation",
+    "file": "views.py",
+    "line": 11,
+    "claim": "The authenticated identity is taken directly from the client-supplied X-Session-User-Verified header with no signature, session lookup, or proxy-stripping check, so any client can impersonate any user and satisfy every authorization check (delete and rename).",
+    "source": "HTTP request header X-Session-User-Verified, read in load_user (views.py:11) for every request; fully attacker-controlled.",
+    "sink": "Authorization decisions: ensure_allowed(g.user, f, \"delete\") at views.py:17 (-> acl.py:9 is_allowed -> acl.py:5 grants lookup), then the protected delete at views.py:18; and is_allowed(g.user, f, \"write\") at views.py:25 gating the rename write at views.py:27.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "g.user = request.headers.get(\"X-Session-User-Verified\") with no verification"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "ensure_allowed(g.user, f, \"delete\") trusts g.user"
+     },
+     {
+      "file": "acl.py",
+      "line": 9,
+      "note": "is_allowed(user, ...) called with the header value"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "resource grants looked up by that user string; a header naming a user who holds 'delete' passes"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "del STORE[fid] executes after the spoofed check passes"
+     },
+     {
+      "file": "views.py",
+      "line": 25,
+      "note": "rename path: is_allowed(g.user, f, \"write\") trusts the same header"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "f[\"name\"] overwritten for the spoofed user"
+     }
+    ],
+    "guards_checked": "acl.py:5 returns False when the header is absent (grants.get(None, []) is empty), so omitting the header is denied; there is no signature, HMAC, session store, or token check anywhere in the repo; no trusted-proxy configuration or header stripping is visible. The header name ('Verified') implies an upstream gateway sets it, but nothing in this code enforces that. Exploitable if clients can reach the app without a gateway that overwrites this header; deployment config must be confirmed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. views.py:11 sets g.user straight from the request header. views.py:17 calls ensure_allowed, which at acl.py:8-10 aborts with 403 only when is_allowed (acl.py:4-5) returns False, and that result is used. views.py:25 tests is_allowed's bool. Nothing in the repo verifies a signature, session, or proxy-set value. The only defence is the header being absent, which is denied.",
+    "reason": "views.py:11 trusts an unverified client header for identity, and the grant checks at views.py:17 (via acl.py:9-10) and views.py:25 use it with no effective control, so any client that can reach the app directly can delete or rename any file by naming a granted user. The trace is accurate except that the call at acl.py:9 sits in ensure_allowed rather than being a direct is_allowed call, which doesn't change the result. Exploitability depends on the deployment having no gateway that strips or overwrites the header, which the repo cannot show, but a plain Flask app with no proxy config is reachable by default."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "existence-oracle-keyerror",
+    "file": "views.py",
+    "line": 16,
+    "claim": "File lookup by raw path id happens before any authorization check and raises KeyError (HTTP 500) for missing ids, while existing but unauthorized files return 403, letting any caller enumerate which file ids exist.",
+    "source": "URL path parameter fid (views.py:15 / views.py:23), attacker-controlled and reachable by any caller.",
+    "sink": "STORE[fid] lookup at views.py:16 and views.py:24, which precedes ensure_allowed (views.py:17) and is_allowed (views.py:25).",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 15,
+      "note": "fid taken from URL path"
+     },
+     {
+      "file": "views.py",
+      "line": 16,
+      "note": "f = STORE[fid] raises KeyError for unknown id -> 500"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "for existing ids, ensure_allowed aborts 403 when caller lacks 'delete'"
+     }
+    ],
+    "guards_checked": "No try/except or .get() around the STORE lookup; no uniform response for missing vs forbidden. Impact is an existence oracle for file ids, not a direct data read or write. Severity low, and only significant if ids are guessable or sequential; ID generation is not in this code."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none before the lookup. views.py:16 does a bare STORE[fid] with no try/except or .get(). The only authorization check, ensure_allowed (acl.py:8-10, which calls abort(403)), runs at views.py:17 after the lookup. Nothing in views.py defines an error handler that would turn the KeyError into a uniform response.",
+    "reason": "At views.py:16 STORE[fid] raises KeyError (Flask returns 500) for unknown ids before ensure_allowed at views.py:17 can return 403 via acl.py:10, so any caller, including anonymous (g.user is None, which is denied at acl.py:5), can distinguish existing from missing file ids. The impact is limited to an existence oracle, and it matters only if ids are guessable, which this code does not show."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0051001499999999995
+}

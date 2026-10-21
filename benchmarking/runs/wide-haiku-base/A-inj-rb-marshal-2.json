@@ -1,0 +1,94 @@
+{
+ "arm": "A",
+ "repo": "inj-rb-marshal",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.004392549999999999,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-wy2c56id/r/app.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.rb",
+    "line": 6,
+    "claim": "Unauthenticated Marshal.load of attacker-supplied params[:state] enables remote code execution.",
+    "source": "params[:state] (POST parameter on /restore, app.rb:5)",
+    "sink": "Marshal.load(Base64.decode64(params[:state])) at app.rb:6",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 5,
+      "note": "post \"/restore\" route, no auth"
+     },
+     {
+      "file": "app.rb",
+      "line": 6,
+      "note": "Base64.decode64 of attacker input passed to Marshal.load"
+     },
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "state.inspect runs after the load, so the attack does not depend on the response"
+     }
+    ],
+    "guards_checked": "No authentication or authorization, no HMAC/signature on state, no class allowlist, no type check before load. Base64.decode64 adds no protection. Network exposure not determinable from this file (no config or Gemfile present)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.rb:5 declares the route with no before-filter, auth helper, or signature check. app.rb:6 calls Marshal.load directly on Base64.decode64(params[:state]) with no HMAC, class allowlist, or type check. Base64 decoding is an encoding, not a control.",
+    "reason": "Every trace line matches the code: the anonymous POST /restore route (app.rb:5) passes attacker-controlled params[:state] straight into Marshal.load (app.rb:6), and nothing in the file blocks it before the load runs (app.rb:7 is the only use after the load). Marshal.load on untrusted bytes is a known code-execution primitive when gadget classes are loadable, and Sinatra's gem environment is typically enough to provide them. Network reachability cannot be confirmed from this file alone, but the finding's claim is about the code and that part holds."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.rb",
+    "line": 12,
+    "claim": "Raw JSON object keys from /import are returned unencoded in a text/html response, enabling reflected XSS triggerable cross-site via a text/plain form POST.",
+    "source": "Raw request body parsed as JSON object keys (app.rb:11)",
+    "sink": "data.keys.join(\",\") returned as response body (app.rb:12), rendered as text/html by Sinatra default",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 10,
+      "note": "post \"/import\" route"
+     },
+     {
+      "file": "app.rb",
+      "line": 11,
+      "note": "JSON.parse(request.body.read) ignores Content-Type"
+     },
+     {
+      "file": "app.rb",
+      "line": 12,
+      "note": "keys joined and returned with no output encoding"
+     }
+    ],
+    "guards_checked": "No output encoding or escaping. Content-Type not validated and no CSRF protection. Sinatra default text/html content type is assumed from memory, not verified in this directory. App not executed, so this is plausible rather than confirmed."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in app.rb. app.rb:11-12 has no output encoding, no Content-Type check and no explicit CSRF check. Sinatra's default Rack::Protection middleware, which is not in this directory, may include an HttpOrigin check that would reject cross-site POSTs carrying an Origin header. Nothing here confirms that it is enabled or which version is in use.",
+    "reason": "The trace matches app.rb:10-12: the body is parsed as JSON regardless of Content-Type (line 11), and the keys are joined and returned unencoded (line 12). A text/plain form payload such as {\"<payload>\":\"=x\"} would produce a key with attacker-chosen markup, so the code path is real. However, the text/html default (app.rb:13 has no explicit content type) and the Sinatra protection middleware are assumed from memory, and the Gemfile and Sinatra source are not in this directory, so whether a default HttpOrigin check blocks the cross-site POST at app.rb:10 cannot be determined from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004985409999999999
+}

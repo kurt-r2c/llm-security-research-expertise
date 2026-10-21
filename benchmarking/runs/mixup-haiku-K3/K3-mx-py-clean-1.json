@@ -1,0 +1,85 @@
+{
+ "arm": "K3",
+ "repo": "mx-py-clean",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "6aeec8de",
+ "status": "success",
+ "gen_cost": 0.00436521,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-mhw_26on/r/acl.py",
+   "/tmp/egf-mhw_26on/r/views.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 11,
+    "claim": "Caller identity is taken directly from the client-supplied X-Session-User-Verified header with no verification, so any client can act as any user that holds grants on a file, including deleting (views.py:18) and renaming (views.py:27) files they have no rights to. Class: authentication bypass / broken authorization (identity spoofing).",
+    "source": "views.py:11 g.user = request.headers.get(\"X-Session-User-Verified\") (attacker-controlled HTTP header, set on every request via @app.before_request at views.py:9)",
+    "sink": "views.py:18 del STORE[fid] (DELETE /files/<fid>, guarded by ensure_allowed at views.py:17) and views.py:27 f[\"name\"] = request.json[\"name\"] (POST /files/<fid>/rename, guarded by is_allowed at views.py:25)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 9,
+      "note": "before_request hook runs for every route"
+     },
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "g.user set from raw request header; no signature, token, or session check; header is not stripped or validated anywhere in this repo"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "DELETE handler calls ensure_allowed(g.user, f, \"delete\")"
+     },
+     {
+      "file": "acl.py",
+      "line": 4,
+      "note": "is_allowed looks up resource['grants'][user]; user is the forged header value"
+     },
+     {
+      "file": "acl.py",
+      "line": 8,
+      "note": "ensure_allowed aborts 403 only when is_allowed is False; a forged user with grants passes"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "file removed from STORE"
+     },
+     {
+      "file": "views.py",
+      "line": 25,
+      "note": "rename handler calls is_allowed(g.user, f, \"write\") with the same forged identity"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "name overwritten"
+     }
+    ],
+    "guards_checked": "acl.is_allowed fails closed for missing user/missing grants (acl.py:5, .get defaults); ensure_allowed aborts before del (views.py:17-18); rename returns 403 before write (views.py:25-26); both handlers check per-route. None of these validate the identity source, which is the broken control. Precondition: the app must be reachable without an upstream proxy that overwrites/strips this header, and an attacker must know a username that has grants (enumerable via 403 vs 500 responses). The 'Verified' name implies an upstream verifier that is not present in this repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective. acl.py:5 (is_allowed) and acl.py:8-10 (ensure_allowed, aborts 403) check grants for whatever identity is supplied, but nothing validates that identity. views.py:25-26 gates rename on is_allowed and returns 403 before the write. views.py:17 gates delete on ensure_allowed, which aborts before the del at views.py:18. Both gates trust the forged g.user set at views.py:11.",
+    "reason": "Every trace line matches the code: views.py:11 sets g.user from the raw X-Session-User-Verified header with no verification, and the delete (views.py:17-18) and rename (views.py:25-27) checks in acl.py:4-10 only test grants for that spoofed value, so an anonymous client who knows a username with grants can delete or rename files. The one caveat is deployment: nothing in this repo strips or sets that header, so the finding holds only if the app is reachable without an upstream proxy that overwrites it, and the \"Verified\" name suggests such a proxy was expected."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0026053
+}

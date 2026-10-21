@@ -1,0 +1,409 @@
+{
+ "arm": "A",
+ "repo": "kinopenapi-auth",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.09023334999999999,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 2,
+   "Read": 15,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-5u8145bo/r/openapi3filter/validate_request.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/authentication_input.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/validation_handler.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/middleware.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/req_resp_decoder.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/validation_error_encoder.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/options.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/validation_error.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/internal.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/validate_request_input.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/validate_response.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/req_resp_encoder.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/errors.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/validate_response_input.go",
+   "/tmp/egf-5u8145bo/r/openapi3filter/validation_kit.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "pre-auth-body-buffering",
+    "file": "openapi3filter/validate_request.go",
+    "line": 453,
+    "claim": "Request body is fully buffered into memory with no size limit before AuthenticationFunc runs, so unauthenticated requests can force unbounded allocation on secured operations.",
+    "source": "Any request body of any size sent to an operation with security requirements, without credentials",
+    "sink": "io.ReadAll(input.Request.Body) in validateSecurityRequirement, before the AuthenticationFunc call at line 497",
+    "trace": [
+     {
+      "file": "openapi3filter/validation_handler.go",
+      "line": 82,
+      "note": "validateRequest calls ValidateRequest"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 52,
+      "note": "security validation runs before parameters and body"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 402,
+      "note": "ValidateSecurityRequirements iterates requirements"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 447,
+      "note": "body read into memory"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 453,
+      "note": "io.ReadAll with no limit"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 497,
+      "note": "AuthenticationFunc invoked only after the full read"
+     }
+    ],
+    "guards_checked": "nil AuthenticationFunc returns early at 436-439, before the read; no MaxBytesReader or size cap anywhere in the package; net/http imposes no default body cap for handlers"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "deepobject-sparse-array-amplification",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1026,
+    "claim": "Per-call sparse-array gap cap does not bound aggregate allocation across nesting levels, so a ~170 KB query can force roughly 1.6 GB of allocation.",
+    "source": "Query string with about 10,000 distinct first-level deepObject indices, each with sub-index 9999, against an operation whose parameter schema is an array of arrays",
+    "sink": "make([]any, len(arr)) in buildResObj array case, once per parent index",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 935,
+      "note": "makeObject calls buildResObj"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1012,
+      "note": "array case"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1022,
+      "note": "sliceMapToSlice called per array node"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 990,
+      "note": "gap check allows max+1-len(m) up to 10000 per call"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1026,
+      "note": "resultArr allocated with len = max+1 per parent"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1028,
+      "note": "recursion into each index"
+     }
+    ],
+    "guards_checked": "maxSliceMapToSliceGap = 10000 (line 964) applies per call only; no aggregate or total-slot budget; estimate of ~10^8 slots x 16 B is from reading, not execution"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "deepset-unchecked-assertion-panic",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 929,
+    "claim": "Crafted deepObject query keys cause a nondeterministic panic from an unchecked type assertion, because map iteration order decides whether a string leaf is traversed as a map.",
+    "source": "Query string ?p[a]=1&p[a][b]=2 on a deepObject parameter",
+    "sink": "m = m[key].(map[string]any) in deepSet (single-value assertion, panics on string)",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 687,
+      "note": "deepObject propsFn builds keys 'a' and 'a\\x1fb'"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 938,
+      "note": "makeObject ranges over props in random map order"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 945,
+      "note": "deepSet called per key"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 929,
+      "note": "unchecked assertion panics when 'a' already holds the string '1'"
+     }
+    ],
+    "guards_checked": "None. Panic is raised in the handler goroutine; net/http recovers it per connection, but a framework without recovery can crash"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "reject-body-fail-open-chunked",
+    "file": "openapi3filter/validate_request.go",
+    "line": 105,
+    "claim": "RejectWhenRequestBodyNotSpecified is bypassed for chunked request bodies, because net/http reports ContentLength -1 and the check requires ContentLength > 0.",
+    "source": "Chunked request (Transfer-Encoding: chunked) with a body, sent to an operation that defines no requestBody",
+    "sink": "Skipped reject: input.Request.ContentLength > 0 is false when ContentLength == -1",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 92,
+      "note": "requestBody is nil for an operation with no body"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 93,
+      "note": "ExcludeRequestBody is false"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 105,
+      "note": "ContentLength > 0 is false for -1, so no RequestError is returned"
+     }
+    ],
+    "guards_checked": "Option defaults to false; no other body check runs on this path"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "reject-body-rejects-defined-bodies",
+    "file": "openapi3filter/validate_request.go",
+    "line": 105,
+    "claim": "The reject check does not test requestBody == nil, so with the option enabled valid bodies are rejected on operations that do define a requestBody, contrary to the option's documented meaning.",
+    "source": "Request with a non-empty body to an operation that declares requestBody, with RejectWhenRequestBodyNotSpecified enabled",
+    "sink": "RequestError 'request body not allowed for this request' returned at lines 106-108",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 95,
+      "note": "requestBody validated when present"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 105,
+      "note": "unconditional ContentLength > 0 check, no requestBody == nil guard"
+     },
+     {
+      "file": "openapi3filter/options.go",
+      "line": 31,
+      "note": "doc: rejects body present but not defined in the specification"
+     }
+    ],
+    "guards_checked": "No test in the repo exercises this option (grep confirmed)"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "first-occurrence-validation-hpp",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 524,
+    "claim": "Only the first occurrence of a repeated scalar parameter is validated, so the handler can read a later, unvalidated value.",
+    "source": "Repeated query parameter (e.g. ?limit=10&limit=999999), repeated header, or repeated multipart field",
+    "sink": "Validated value is values[0] (or first non-empty) for query, raw[0] for header (line 758), vv[0] for multipart (lines 1640-1641); a handler reading the last occurrence receives the unvalidated value",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 510,
+      "note": "urlValuesDecoder.DecodePrimitive"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 524,
+      "note": "selects values[0] or first non-empty"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 758,
+      "note": "headerParamDecoder uses raw[0]"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1640,
+      "note": "multipart non-array property uses vv[0]"
+     }
+    ],
+    "guards_checked": "#1230 change only handles leading empty values; all occurrences remain in the request so the consumer can still see them"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "json-trailing-data-duplicate-keys",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1406,
+    "claim": "JSON body decoder validates only the first JSON value and ignores trailing data, and duplicate keys are resolved last-wins, so a downstream parser can see different values.",
+    "source": "Body such as {\"role\":\"admin\",\"role\":\"user\"} or valid JSON followed by extra bytes",
+    "sink": "Schema validation of the decoded value, while the original bytes (or the first value only, if defaults were applied) are forwarded to the handler",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1406,
+      "note": "json.NewDecoder reads one value"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1408,
+      "note": "Decode error only; no dec.More() or EOF check"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 364,
+      "note": "schema validates the first-value result only"
+     }
+    ],
+    "guards_checked": "None in this package; impact depends on the downstream parser"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "zip-decoder-stale-buffer-append",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1688,
+    "claim": "ZipFileBodyDecoder appends the full 256-byte buffer instead of the n bytes read, so the validated string contains padding or stale data, breaking length and pattern validation.",
+    "source": "Zip body with a user-registered ZipFileBodyDecoder",
+    "sink": "content passed to schema validation via FileBodyDecoder-style string value",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1686,
+      "note": "rc.Read(buffer) returns n bytes"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1688,
+      "note": "append(content, buffer...) ignores n"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1705,
+      "note": "returned string validated against schema"
+     }
+    ],
+    "guards_checked": "Decoder is opt-in (not registered in init); zip-bomb risk already noted in comment at 1658"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "logging-url-and-attacker-values",
+    "file": "openapi3filter/middleware.go",
+    "line": 124,
+    "claim": "Default logging writes full request URLs (including query strings, which can carry tokens) and raw attacker-controlled error text, so sensitive data is logged and CR/LF in values can forge log lines.",
+    "source": "Any request that fails routing or validation, with a query string or decoded value containing %0A or secrets",
+    "sink": "log.Printf via default logFunc (middleware.go:68-70) called with r.URL.String() (124) and err (135)",
+    "trace": [
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 124,
+      "note": "r.URL.String() concatenated into log message"
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 135,
+      "note": "ValidateRequest error logged"
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 69,
+      "note": "log.Printf with %v of err, which includes raw parsed values"
+     }
+    ],
+    "guards_checked": "None. Conflicts with org policy against logging sensitive data"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "auth-failure-500-and-scope-disclosure",
+    "file": "openapi3filter/validation_handler.go",
+    "line": 49,
+    "claim": "Default error encoding returns HTTP 500 for authorization failures, and the body discloses scheme names and required scopes to unauthenticated clients.",
+    "source": "Unauthenticated or unauthorized request to a secured operation through ValidationHandler with default ErrorEncoder",
+    "sink": "DefaultErrorEncoder writes status 500 because RequestError and SecurityRequirementsError do not implement StatusCoder; body is the error text",
+    "trace": [
+     {
+      "file": "openapi3filter/validation_handler.go",
+      "line": 49,
+      "note": "DefaultErrorEncoder assigned when ErrorEncoder is nil"
+     },
+     {
+      "file": "openapi3filter/validation_kit.go",
+      "line": 79,
+      "note": "defaults to 500 unless StatusCoder"
+     },
+     {
+      "file": "openapi3filter/errors.go",
+      "line": 80,
+      "note": "SecurityRequirementsError.Error() lists errors"
+     },
+     {
+      "file": "openapi3filter/authentication_input.go",
+      "line": 21,
+      "note": "scopes included in error text"
+     }
+    ],
+    "guards_checked": "Still fail-closed (request rejected); ValidationErrorEncoder would correct statuses but is not wired by default"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "allowemptyvalue-skips-schema",
+    "file": "openapi3filter/validate_request.go",
+    "line": 232,
+    "claim": "For parameters with allowEmptyValue, an empty string skips all schema constraints (enum, pattern, minLength), so the empty value bypasses them.",
+    "source": "Query parameter ?status= declared with allowEmptyValue: true and an enum",
+    "sink": "Early return nil before schema.VisitJSON",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 232,
+      "note": "empty string with AllowEmptyValue returns nil"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 250,
+      "note": "schema validation skipped"
+     }
+    ],
+    "guards_checked": "Behaviour is spec-permitted (allowEmptyValue); impact depends on whether the backend treats empty as no filter"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

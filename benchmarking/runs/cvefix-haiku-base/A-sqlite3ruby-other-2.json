@@ -1,0 +1,286 @@
+{
+ "arm": "A",
+ "repo": "sqlite3ruby-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.14365640000000002,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 3,
+   "Read": 11,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/statement.c",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/database.c",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/backup.c",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/aggregator.c",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/exception.c",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/sqlite3_ruby.h",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/database.h",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/extconf.rb",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/timespec.h",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/exception.h",
+   "/tmp/egf-xvp8bimw/r/ext/sqlite3/sqlite3.c"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "ext/sqlite3/database.c",
+    "line": 510,
+    "claim": "Ruby Integers in 2^62..2^63-1 returned from user functions are silently converted to REAL on 64-bit platforms, losing precision (1024-wide collapse).",
+    "source": "Ruby function (define_function or aggregate finalize) returns a Bignum in 2^62..2^63-1, e.g. a 63-bit hash or ID computed from attacker input.",
+    "sink": "sqlite3_result_double at database.c:521 (via set_sqlite3_func_result, also reached from aggregator.c:164).",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 510,
+      "note": "case T_BIGNUM entered in set_sqlite3_func_result"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 511,
+      "note": "int64 conversion guarded by #if SIZEOF_LONG < 8; compiled out on LP64 (Linux/macOS)"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 520,
+      "note": "control falls through to case T_FLOAT"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 521,
+      "note": "sqlite3_result_double(ctx, NUM2DBL(result)) stores a lossy REAL"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 285,
+      "note": "contrast: bind path uses bignum_to_int64 unconditionally, so binds are exact"
+     }
+    ],
+    "guards_checked": "Bind path (statement.c:285-291) is exact; the defect is only on the result path. No range check before the double conversion."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "ext/sqlite3/database.c",
+    "line": 738,
+    "claim": "Authorizer, trace, busy-handler and collation callbacks call Ruby without rb_protect; a raising callback longjmps through SQLite internals with its mutex held.",
+    "source": "Attacker-controlled SQL text supplies table/column names passed as authorizer args (database.c:733-737); attacker-stored values drive collation comparisons. Precondition: the application callback raises on such input.",
+    "sink": "rb_funcall inside SQLite callbacks (database.c:738 authorizer, 328 trace, 365 busy handler, 839 collation compare, 841 NUM2INT).",
+    "trace": [
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 70,
+      "note": "sqlite3_prepare_v2 runs with the db mutex held"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 733,
+      "note": "authorizer args a..d built from attacker SQL identifiers"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 738,
+      "note": "rb_funcall(authorizer, call) with no rb_protect; exception longjmps"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 766,
+      "note": "set_authorizer registers rb_sqlite3_auth without a protective wrapper"
+     }
+    ],
+    "guards_checked": "Scalar functions (database.c:554-588) and aggregator step/finalize (aggregator.c:48-50) use rb_protect; these four callbacks do not. No protection on the path."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "ext/sqlite3/statement.c",
+    "line": 143,
+    "claim": "step re-raises the ambient $! after a successful sqlite3_step when called inside a rescue or ensure clause, discarding the row and clearing $!.",
+    "source": "Application calls Statement#step (or execute) while an exception is being handled or unwound.",
+    "sink": "rb_exc_raise at statement.c:149 with rb_set_errinfo(Qnil) at statement.c:148.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 142,
+      "note": "sqlite3_step returns SQLITE_ROW or DONE successfully"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 143,
+      "note": "rb_errinfo() returns $!, non-nil inside rescue/ensure"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 148,
+      "note": "rb_set_errinfo(Qnil) clears $!"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 149,
+      "note": "rb_exc_raise re-raises the unrelated in-flight exception"
+     }
+    ],
+    "guards_checked": "None: the check does not distinguish errinfo set by a user callback from ambient $!. Not executed; based on Ruby errinfo semantics."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "ext/sqlite3/aggregator.c",
+    "line": 164,
+    "claim": "Aggregate finalize result conversion runs outside rb_protect; an unsupported return type longjmps and skips instance destruction, leaking one instance per failing query.",
+    "source": "Aggregate finalize returns a type set_sqlite3_func_result rejects (Array, Hash, Symbol). Whether attacker data reaches that return depends on the application.",
+    "sink": "set_sqlite3_func_result raise at database.c:543-544, reached from aggregator.c:164; instance retained in -instances.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/aggregator.c",
+      "line": 161,
+      "note": "finalize protected call returns result"
+     },
+     {
+      "file": "ext/sqlite3/aggregator.c",
+      "line": 164,
+      "note": "set_sqlite3_func_result called unprotected"
+     },
+     {
+      "file": "ext/sqlite3/aggregator.c",
+      "line": 175,
+      "note": "rb_sqlite3_aggregate_instance_destroy skipped on longjmp"
+     },
+     {
+      "file": "ext/sqlite3/aggregator.c",
+      "line": 77,
+      "note": "instance pushed into -instances"
+     },
+     {
+      "file": "ext/sqlite3/aggregator.c",
+      "line": 268,
+      "note": "instances pinned by GC marking, so they are never freed"
+     }
+    ],
+    "guards_checked": "rb_protect covers finalize itself but not the result conversion that follows."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "ext/sqlite3/database.c",
+    "line": 442,
+    "claim": "statement_timeout ignores the configured milliseconds; the deadline is set at the first progress tick, so queries over about 2000 VM opcodes are interrupted regardless of the value.",
+    "source": "Application sets db.statement_timeout to any non-zero value.",
+    "sink": "sqlite3_progress_handler interrupt return at database.c:422-423.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 442,
+      "note": "stmt_timeout stored but never read"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 419,
+      "note": "first tick sets stmt_deadline = now"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 422,
+      "note": "later tick with time after deadline returns 1 (interrupt)"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 82,
+      "note": "deadline cleared only in prepare, not in reset!, so reused statements can be interrupted early"
+     }
+    ],
+    "guards_checked": "None relevant. Over-restriction, not a bypass."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "ext/sqlite3/database.c",
+    "line": 436,
+    "claim": "statement_timeout= lacks REQUIRE_OPEN_DB, so sqlite3_progress_handler may be called with a NULL db on a closed connection.",
+    "source": "Application code calls statement_timeout= on a closed Database.",
+    "sink": "sqlite3_progress_handler(ctx->db, ...) at database.c:445 with ctx->db NULL.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 436,
+      "note": "set_statement_timeout has no open-database check"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 445,
+      "note": "progress handler registered with NULL db"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 787,
+      "note": "contrast: set_busy_timeout uses REQUIRE_OPEN_DB"
+     }
+    ],
+    "guards_checked": "Bundled SQLite source is not in this tree, so whether sqlite3_progress_handler NULL-checks its argument is unverified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "ext/sqlite3/database.c",
+    "line": 235,
+    "claim": "READONLY (and DISCARDED) connection flags are never cleared on reopen, so a writable reopened connection is treated as read-only at fork and gets an ordinary close that the code's own comment says can corrupt the database.",
+    "source": "Application reopens the same Database object read-write after a read-only open, then forks.",
+    "sink": "close_or_discard_db ordinary sqlite3_close_v2 at database.c:65-68 in the child process.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 235,
+      "note": "READONLY flag set on read-only open, never cleared"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 209,
+      "note": "REQUIRE_CLOSED_DB permits reopening the same object"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 63,
+      "note": "is_readonly read from sticky flag"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 65,
+      "note": "owner check bypassed for readonly, so ordinary close on inherited handle"
+     }
+    ],
+    "guards_checked": "Fork ownership check (database.c:65) is bypassed by the sticky flag. Requires reopen plus fork, so low likelihood; whether the Ruby layer exposes reopen is not visible here."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

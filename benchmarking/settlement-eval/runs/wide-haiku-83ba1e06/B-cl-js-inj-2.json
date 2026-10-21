@@ -1,0 +1,217 @@
+{
+ "arm": "B",
+ "repo": "cl-js-inj",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00774308,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-p00vi_qw/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "db.js",
+    "line": 9,
+    "claim": "Unauthenticated cross-tenant user enumeration: GET /users returns id and name for any org chosen by the caller via req.query.org, with no auth, tenant binding, or pagination.",
+    "source": "req.query.org (db.js:9), attacker-controlled over unauthenticated HTTP",
+    "sink": "SELECT id, name FROM users WHERE org = $1 (db.js:9), rows returned as JSON (db.js:10)",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "app.listen(3002) serves all routes with no auth middleware"
+     },
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "GET /users registered with no auth or session check"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.query.org bound directly as parameter $1"
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "all matching rows returned as JSON"
+     }
+    ],
+    "guards_checked": "Query is parameterized (no SQLi). No auth, session, or tenant-membership check in file. No pagination or row cap. Org not bound to caller identity."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8 registers GET /users with no auth, session, or tenant check; db.js:9 binds req.query.org directly as $1; db.js:10 returns all rows as JSON; db.js:23 listens on 3002 with no auth middleware. No other code files exist in the directory (the .claude/skills/*.md files are docs, not middleware). The parameterized query prevents SQL injection but does not stop cross-tenant enumeration.",
+    "reason": "An anonymous HTTP caller can choose any org via req.query.org at db.js:9 and receive every matching id and name at db.js:10, with no control between them at db.js:8 or db.js:23. Caveat: req.pg is never set in this codebase, so as written the handler throws at db.js:9 and returns nothing; the leak becomes real once a pg-providing middleware is added, which the finding does not mention."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "db.js",
+    "line": 9,
+    "claim": "Unhandled async rejection in /users handler can crash the process (availability). Conditional on Express 4 and on req.pg being absent or the DB erroring.",
+    "source": "Any unauthenticated request to /users; req.pg is never attached in this file, and DB errors propagate",
+    "sink": "await req.pg.query(...) (db.js:9) rejects inside async handler (db.js:8) with no try/catch or next(err)",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "async handler with no error handling"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.pg.query throws TypeError if req.pg is undefined, or rejects on DB error"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "Express 4 does not catch async rejections, so Node raises unhandledRejection, which terminates the process on Node 15+"
+     }
+    ],
+    "guards_checked": "No try/catch, no .catch(), no error middleware in file, no process.on('unhandledRejection') handler. Express version unknown (no package.json)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js has no try/catch, no .catch(), no error middleware, and no process.on('unhandledRejection') handler. Nothing in the directory attaches req.pg, so `req.pg.query` at db.js:9 throws a TypeError inside the async handler at db.js:8. The only other guards, the path check at db.js:15 and the 403 at db.js:15, belong to /file and do not apply to /users.",
+    "reason": "The async handler at db.js:8 awaits `req.pg.query` at db.js:9 with no error handling, and nothing in the directory sets `req.pg`, so any anonymous GET /users throws, and under Express 4 (which does not forward async rejections to next) the rejection becomes an unhandled rejection that crashes Node 15+ (db.js:8-9). The verdict assumes Express 4, which the candidate itself names as the condition; under Express 5 the rejection would be forwarded to the error handler and the crash would not occur. The Express version is not in the repo, so this is the one residual uncertainty."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "db.js",
+    "line": 20,
+    "claim": "GET /count spawns a child process per unauthenticated request with no rate limit, and swallows wc errors by returning HTTP 200 with an empty body.",
+    "source": "Any unauthenticated request to GET /count",
+    "sink": "execFile(\"wc\", [\"-l\",\"data.csv\"]) (db.js:20) and res.send(out) ignoring error e (db.js:20)",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 19,
+      "note": "GET /count registered with no auth"
+     },
+     {
+      "file": "db.js",
+      "line": 20,
+      "note": "execFile spawns wc per request; callback ignores e and sends out"
+     }
+    ],
+    "guards_checked": "No shell used (execFile with fixed argv, no injection). File name is constant. No auth, rate limit, or concurrency cap. Error not checked."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:19 registers GET /count with no auth middleware, and no app.use or rate-limit is registered anywhere in db.js. db.js:20 calls execFile with a fixed argv array (no shell), so there is no injection, but the callback ignores the error argument e and sends out unconditionally, so a failed wc returns 200 with an empty body.",
+    "reason": "Anonymous clients can reach the unauthenticated GET /count route at db.js:19, which spawns a wc process on every request (db.js:20) with no rate limit or concurrency cap, and the callback at db.js:20 discards e and calls res.send(out), so failures return HTTP 200 with an empty body. The trace is accurate; the impact is low (resource exhaustion and silent error handling, not a data-exposure or injection issue)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "db.js",
+    "line": 23,
+    "claim": "Server binds on all interfaces with no auth, exposing all routes (including /users and /file) to any host that can reach port 3002.",
+    "source": "Network reachability of port 3002",
+    "sink": "app.listen(3002) (db.js:23) with no host argument, so bind is 0.0.0.0 or ::",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "listen(port) with no host binds all interfaces"
+     }
+    ],
+    "guards_checked": "No bind address configured in code. No proxy, firewall, or auth visible in the repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. No host argument or bind-address config exists in db.js:23 or elsewhere in the repo (the grep for listen/host/bind only matched db.js:23). The /file path check at db.js:15 and the parameterized query at db.js:9 limit other attacks but do not restrict which interfaces accept connections, and no auth exists on /users, /file, or /count.",
+    "reason": "db.js:23 calls app.listen(3002) with no host, so Node binds to all interfaces (:: or 0.0.0.0), and nothing in the repo restricts that; whether an external host can actually reach the port depends on deployment (firewall, container, or proxy config), which is not in the repo."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "db.js",
+    "line": 16,
+    "claim": "Unauthenticated GET /file with ?name= pointing at a directory inside public/ hits sendFile's error path; the default Express error handler can return a stack trace outside production.",
+    "source": "Unauthenticated ?name= value naming a directory under public/",
+    "sink": "res.sendFile(p) with no callback (db.js:16), error forwarded to default error handler",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 14,
+      "note": "path.resolve(ROOT, req.query.name)"
+     },
+     {
+      "file": "db.js",
+      "line": 15,
+      "note": "prefix check passes because the directory is inside ROOT"
+     },
+     {
+      "file": "db.js",
+      "line": 16,
+      "note": "sendFile fails on a directory, calls next(err), default handler prints stack"
+     }
+    ],
+    "guards_checked": "Prefix check at db.js:15 correctly blocks traversal. No error handling for the sendFile failure path."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Prefix check at db.js:15 (p.startsWith(ROOT + path.sep)) blocks traversal outside public/ but allows directories inside it, so it does not stop this path. No callback or error handler on res.sendFile at db.js:16, so failures reach Express's default handler. No auth middleware on /file (db.js:13-17).",
+    "reason": "Anonymous requests reach db.js:16 with a directory name under public/ that passes the check at db.js:15, and nothing at db.js:16 handles the error, so the default handler can print a stack trace when NODE_ENV is not \"production\"; this is information disclosure only, and any nonexistent name triggers the same leak, so the directory case is not special. Express is not installed in this directory, so the EISDIR-to-next(err) behavior is assumed from Express's source rather than verified here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "db.js",
+    "line": 6,
+    "claim": "ROOT (db.js:6) and data.csv (db.js:20) are resolved relative to process.cwd(), not the script location, so the served tree and the counted file change with the launch directory.",
+    "source": "Process working directory at startup (deployment configuration, not attacker input)",
+    "sink": "path.resolve(\"public\") (db.js:6) used as the /file root; relative \"data.csv\" (db.js:20) used by wc",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 6,
+      "note": "ROOT = path.resolve(\"public\") depends on cwd"
+     },
+     {
+      "file": "db.js",
+      "line": 20,
+      "note": "wc reads data.csv relative to cwd"
+     }
+    ],
+    "guards_checked": "None. Deployment-dependent logic issue, not attacker-controlled."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "The trace is accurate: db.js:6 uses path.resolve(\"public\") and db.js:20 runs execFile(\"wc\", [\"-l\", \"data.csv\"]) with no cwd option, so both depend on process.cwd(). But the attacker cannot influence the launch directory, so nothing attacker-reachable is affected; this is a deployment-configuration robustness issue, not a vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.014899180000000001
+}

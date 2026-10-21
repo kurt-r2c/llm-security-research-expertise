@@ -1,0 +1,351 @@
+{
+ "arm": "A",
+ "repo": "fastjwt-array",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "22d7688e",
+ "status": "success",
+ "gen_cost": 0.03891533,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 8,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-_7o7sgd4/r/src/index.js",
+   "/tmp/egf-_7o7sgd4/r/src/decoder.js",
+   "/tmp/egf-_7o7sgd4/r/src/verifier.js",
+   "/tmp/egf-_7o7sgd4/r/src/signer.js",
+   "/tmp/egf-_7o7sgd4/r/src/crypto.js",
+   "/tmp/egf-_7o7sgd4/r/src/utils.js",
+   "/tmp/egf-_7o7sgd4/r/src/error.js",
+   "/tmp/egf-_7o7sgd4/r/src/index.d.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/signer.js",
+    "line": 100,
+    "claim": "[medium] exp=0 in the payload is silently dropped, so the signer mints a token with no exp that never expires.",
+    "source": "Caller-supplied payload.exp equal to 0 (for example a timestamp computed as 0 or defaulted to 0 from request data). Precondition: no expiresIn option.",
+    "sink": "Token issuance: a signed JWT with no exp claim, which the verifier then accepts indefinitely.",
+    "trace": [
+     {
+      "file": "src/signer.js",
+      "line": 75,
+      "note": "Validation 'if (payload.exp && ...)' is falsy for 0, so the integer check is skipped."
+     },
+     {
+      "file": "src/signer.js",
+      "line": 100,
+      "note": "exp ternary: 'payload.exp ? payload.exp : undefined' treats 0 as absent, so exp becomes undefined."
+     },
+     {
+      "file": "src/signer.js",
+      "line": 115,
+      "note": "JSON.stringify omits undefined fields, so exp is absent from the encoded payload."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 311,
+      "note": "'if (!(claim in payload)) continue' skips the exp validator (verifier.js:606-614) when exp is absent."
+     }
+    ],
+    "guards_checked": "signer.js:75 integer check (bypassed for 0); signer.js:100 truthiness (drops 0); verifier.js:293-299 requiredClaims (opt-in only, not on by default). Repro: createSigner({key:'secret',algorithm:'HS256'})({sub:'a',exp:0}) then createVerifier({key:'secret',algorithms:['HS256']})(token) should succeed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/decoder.js",
+    "line": 10,
+    "claim": "[medium-low] Token strings are not canonical. Base64url trailing pad bits and ECDSA high-S (or PSS randomness) give many valid string forms of one token, so any raw-token-string denylist or one-time-use check can be bypassed.",
+    "source": "Any previously issued valid token (the holder, or an attacker who observed it).",
+    "sink": "Protected operation: revocation or replay checks keyed on the raw token string; the signature is still accepted.",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 10,
+      "note": "BASE64URL_RE checks the charset only, not canonical encoding."
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "Signature segment passes the charset check."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 297,
+      "note": "Buffer.from(signature,'base64') ignores the unused low bits of the last char, so a variant decodes to identical bytes."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "HMAC/RSA compare sees identical bytes, so verification passes for the variant string."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 320,
+      "note": "ES path: joseToDer does no low-S normalization, so (r, n-s) also verifies; PS256 signatures are randomized."
+     }
+    ],
+    "guards_checked": "decoder.js:35-43 charset regex; verifier.js:169 signature check. No canonical-length or trailing-bit check, and no low-S check. Repro: flip the low 2 bits of the last signature char of a valid HS256 token; it should still verify."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/utils.js",
+    "line": 46,
+    "claim": "[low] With cache enabled, a Buffer token makes verify() throw a raw TypeError instead of a TokenError.",
+    "source": "Caller passes a Buffer token (advertised as supported at verifier.js:353 and decoder.js:14) to a verifier created with cache: true.",
+    "sink": "Error path: a non-TokenError escapes verify(), breaking error mapping (likely 500 instead of 401) and crashing callback-style callers.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Buffer tokens pass the type check."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "Cache lookup calls cacheKeyBuilder(token) before any decode."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 499,
+      "note": "Default cacheKeyBuilder is hashToken."
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "token.split('.', 1) is not a function on a Buffer, so TypeError is thrown."
+     }
+    ],
+    "guards_checked": "verifier.js:353 type check accepts Buffer; cache is opt-in (createCache at verifier.js:83-85 returns null by default). Repro: createVerifier({key,algorithms:['HS256'],cache:true})(Buffer.from(token))."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/verifier.js",
+    "line": 616,
+    "claim": "[low] maxAge is silently not enforced for tokens with no iat claim, so such tokens never age out by maxAge.",
+    "source": "A token signed without iat (signer noTimestamp:true, or any issuer omitting iat). The attacker needs a token from the issuer, so this is a configuration/issuer-behavior precondition.",
+    "sink": "Protected operation: maxAge freshness check.",
+    "trace": [
+     {
+      "file": "src/signer.js",
+      "line": 96,
+      "note": "noTimestamp sets iat to undefined, so iat is absent."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 311,
+      "note": "claim not in payload: validator skipped."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 616,
+      "note": "maxAge validator is only added as a check on iat; nothing requires iat when maxAge is set."
+     }
+    ],
+    "guards_checked": "verifier.js:293-299 requiredClaims (opt-in); no check that iat exists when maxAge is configured. Repro: signer with noTimestamp:true, verifier with maxAge:60000, token still accepted later."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/verifier.js",
+    "line": 223,
+    "claim": "[low] crit header is skipped when falsy (false, 0, '', null), contrary to RFC 7515 4.1.11, so unknown critical markers are not rejected.",
+    "source": "A signed token whose header has crit set to a falsy non-array value (issuer-generated; the header is covered by the signature).",
+    "sink": "Protected operation: rejection of tokens carrying critical extensions the verifier does not understand.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 223,
+      "note": "'if (!header.crit) return' exits before the array and non-empty checks."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 256,
+      "note": "'ext in header' uses the prototype chain, so inherited names (e.g. constructor) pass the presence check if allowed."
+     }
+    ],
+    "guards_checked": "verifier.js:226-261 checks run only for truthy crit; allowedCritHeaders Set (verifier.js:578). Repro: header {alg:'HS256',crit:false} signed with the shared secret is accepted."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "src/verifier.js",
+    "line": 514,
+    "claim": "[low, config-dependent] In sync mode, a PEM public key with HS-only algorithms is used as an HMAC secret with no key-type check; the async path rejects the same config. Anyone holding the public PEM can mint accepted HS256 tokens.",
+    "source": "Operator configures algorithms ['HS256'] with a public-key PEM (the PEM is public). Attacker has the public PEM and signs HS256 tokens.",
+    "sink": "Protected operation: signature verification (authentication).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 514,
+      "note": "Key is a string, so detection runs."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 518,
+      "note": "allowedAlgorithms.length is non-zero, so checkAreCompatibleAlgorithms runs."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 220,
+      "note": "All-HS shortcut returns ['HS256'] without parsing the PEM."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 524,
+      "note": "hsAlgorithms.includes(...) is true, so prepareKeyOrSecret makes a secret key from the PEM bytes."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 456,
+      "note": "Async path, by contrast, detects the key without providedAlgorithms, gets RS algorithms, and checkAreCompatibleAlgorithms throws (fail-closed)."
+     }
+    ],
+    "guards_checked": "crypto.js:218-222 shortcut (intentional, documented in code); verifier.js:458-462 async compatibility check does not run on the sync path. Repro: createVerifier({key: publicPem, algorithms:['HS256']}) then sign HS256 with the same PEM text as the secret."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "src/verifier.js",
+    "line": 66,
+    "claim": "[low] RegExp claim matchers are unanchored, and ReDoS-prone patterns only produce a warning, so an issuer-controlled iss/aud string can match a loose pattern.",
+    "source": "Claim value (iss, aud, sub, jti, nonce) from a token signed by a key the verifier trusts. In multi-issuer or key-per-issuer setups, the issuer may be attacker-controlled.",
+    "sink": "Protected operation: issuer/audience allow-list check.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 66,
+      "note": "RegExp is wrapped and test() is called directly, so there is no anchoring."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 45,
+      "note": "checkForUnsafeRegExp only calls process.emitWarning; the pattern is still used."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 193,
+      "note": "validateClaimValues runs allowed.some(a => a.test(v)) on the attacker-influenced value."
+     }
+    ],
+    "guards_checked": "verifier.js:58-81 filtering of falsy entries (fail-closed for empty lists); type check verifier.js:183. Repro: allowedIss: /https:\\/\\/login\\.example\\.com/ accepts https://login.example.com.attacker.net."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F8",
+    "file": "src/signer.js",
+    "line": 80,
+    "claim": "[low] Signer header option is spread after alg, so an option header can override alg and produce a token whose header alg differs from the algorithm actually used to sign.",
+    "source": "Developer-supplied header option; exploitable only if request data reaches it.",
+    "sink": "Token issuance: mislabeled alg in the signed header.",
+    "trace": [
+     {
+      "file": "src/signer.js",
+      "line": 80,
+      "note": "header = { alg: algorithm, typ, kid, ...additionalHeader }: additionalHeader wins."
+     },
+     {
+      "file": "src/signer.js",
+      "line": 126,
+      "note": "Signature uses the real algorithm, not header.alg."
+     }
+    ],
+    "guards_checked": "signer.js:296-298 only checks that header is an object; no alg consistency check."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F9",
+    "file": "src/crypto.js",
+    "line": 39,
+    "claim": "[low] secp256k1 keys are mapped to ES256, which is a P-256 algorithm under RFC 7518 3.4, so cross-curve keys are accepted for ES256.",
+    "source": "A secp256k1 public or private key configured for ES256 (operator-chosen).",
+    "sink": "Protected operation: ES256 signature verification or issuance.",
+    "trace": [
+     {
+      "file": "src/crypto.js",
+      "line": 39,
+      "note": "'1.3.132.0.10' (secp256k1) maps to bits '256', i.e. ES256."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 176,
+      "note": "performDetectPublicKeyAlgorithms returns [ES256] for a secp256k1 key."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 459,
+      "note": "checkAreCompatibleAlgorithms passes for ES256, so the key is accepted."
+     }
+    ],
+    "guards_checked": "crypto.js:124-128 curve must exist in the table (secp256k1 is in it); no P-256-only check. Impact depends on whether the same key is used in other ECDSA protocols."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F10",
+    "file": "src/crypto.js",
+    "line": 187,
+    "claim": "[low] The private-key algorithm cache is keyed by the key string only, so a cached result from one signer config is reused for another with the same PEM (cross-config contamination).",
+    "source": "Two signers in the same process using the same PEM private key string with different algorithm options.",
+    "sink": "Protected operation: algorithm selection at signing time.",
+    "trace": [
+     {
+      "file": "src/crypto.js",
+      "line": 187,
+      "note": "privateKeysCache.get(key) ignores providedAlgorithm."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 77,
+      "note": "An HS providedAlgorithm returns early, and the result (e.g. HS256) is cached under the key string (crypto.js:202)."
+     },
+     {
+      "file": "src/signer.js",
+      "line": 238,
+      "note": "A later signer with no algorithm receives HS256 and signs HMAC with the PEM text."
+     }
+    ],
+    "guards_checked": "signer.js:154-156 and 235-236 compatibility checks catch some mismatches (fail-closed). Mostly availability or wrong-alg issuance; no direct auth bypass found."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

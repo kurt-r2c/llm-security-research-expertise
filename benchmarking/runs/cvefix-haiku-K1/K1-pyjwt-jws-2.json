@@ -1,0 +1,160 @@
+{
+ "arm": "K1",
+ "repo": "pyjwt-jws",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.023930410000000003,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ale3a444/r/jwt/api_jws.py",
+   "/tmp/egf-ale3a444/r/jwt/api_jwt.py",
+   "/tmp/egf-ale3a444/r/jwt/jwks_client.py",
+   "/tmp/egf-ale3a444/r/jwt/algorithms.py",
+   "/tmp/egf-ale3a444/r/jwt/api_jwk.py",
+   "/tmp/egf-ale3a444/r/jwt/jwk_set_cache.py",
+   "/tmp/egf-ale3a444/r/jwt/utils.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "JWKS-SSRF-1",
+    "file": "jwt/jwks_client.py",
+    "line": 117,
+    "claim": "PyJWKClient only checks the URI scheme (http/https) once at construction. It does not block private, loopback, or link-local (metadata) addresses, and it does not re-check redirect targets. The code comment at lines 73-76 says the client is meant to accept attacker-influenced URIs such as a token's jku header, so an app that follows that pattern lets an unauthenticated token sender make the server fetch internal URLs (blind SSRF / internal port-probe oracle). Severity: medium if apps pass token-derived URIs; informational otherwise. Confidence: plausible, conditional on caller behaviour.",
+    "source": "Unauthenticated HTTP request carrying a JWT whose header has jku/x5u-style value, e.g. jku=http://169.254.169.254/latest/meta-data/ or http://10.0.0.5:8080/ (caller passes it to PyJWKClient)",
+    "sink": "urllib.request.urlopen(r, timeout=..., context=...) at jwt/jwks_client.py:117-120 performs an outbound request to an attacker-chosen host",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 18,
+      "note": "PyJWKClient.__init__ accepts any uri string"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 77,
+      "note": "urlparse(uri).scheme is checked against http/https only"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 83,
+      "note": "self.uri stored with no host, IP, or port validation"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 117,
+      "note": "urllib.request.Request(url=self.uri) built from it"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 118,
+      "note": "urlopen follows HTTP redirects by default; redirect targets are not re-validated"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 125,
+      "note": "URLError text (e.g. 'Connection refused' vs timeout vs HTTP status) is returned in PyJWKClientConnectionError message, giving a reachability oracle if the app echoes errors"
+     }
+    ],
+    "guards_checked": "Scheme allowlist at jwks_client.py:77-82 (blocks file:, ftp: at construction only). TLS verification is on by default (ssl_context=None). No IP/host allowlist, no DNS pinning, no redirect check, no response size limit (json.load at line 121). Not guarded: the library never derives uri from the token itself, so exploitability depends on the application passing a token-derived value."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWKS-REFETCH-2",
+    "file": "jwt/jwks_client.py",
+    "line": 203,
+    "claim": "An unknown kid in an unverified token forces an unconditional outbound JWKS fetch with no minimum refresh interval. The signature is not checked before the fetch, so any unauthenticated sender can drive one request to the JWKS endpoint per token. This is a low-severity amplification / availability issue against the IdP's JWKS endpoint.",
+    "source": "Unauthenticated JWT with a random header kid value (api_jwt.get_signing_key_from_jwt reads it unverified at jwks_client.py:224-226)",
+    "sink": "get_signing_keys(refresh=True) at jwks_client.py:203 which calls fetch_data at jwks_client.py:153 and then urlopen at 118",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 224,
+      "note": "kid read from unverified header (decode with verify_signature=False)"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 226,
+      "note": "get_signing_key(header.get('kid'))"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 198,
+      "note": "first lookup uses cached JWK Set"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 201,
+      "note": "miss for attacker-chosen kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 203,
+      "note": "get_signing_keys(refresh=True) bypasses cache"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 149,
+      "note": "refresh=True skips jwk_set_cache.get(), so data is None and fetch_data runs"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 153,
+      "note": "fetch_data() outbound request, once per unknown-kid token"
+     }
+    ],
+    "guards_checked": "Cache at jwks_client.py:148-153 (bypassed on refresh). No negative-result cache for unknown kids, no per-client refresh rate limit or cooldown. Misses are not cached (exception is raised at line 207), so the LRU in cache_keys mode cannot be filled with junk kids. Documented as intentional key-rotation behaviour, so treat as low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWKS-STALE-KEY-3",
+    "file": "jwt/jwks_client.py",
+    "line": 102,
+    "claim": "With cache_keys=True, get_signing_key is wrapped in lru_cache and positive lookups are kept with no time-based expiry. If the IdP revokes or rotates out a signing key, this client keeps returning the revoked PyJWK for every token with that kid until LRU eviction, so tokens signed with the revoked key continue to verify. This is documented (jwks_client.py:44-47), so it is a low-severity logic flaw that operators must know about rather than a bypass.",
+    "source": "Attacker holding a revoked or compromised signing key's private half, sending a token with that kid after the IdP has removed the key from its JWK Set",
+    "sink": "Signature verification against the cached PyJWK, via get_signing_key_from_jwt returning the cached key (jwks_client.py:226) and then PyJWT.decode",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 100,
+      "note": "cache_keys=True enables lru_cache on get_signing_key"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 102,
+      "note": "lru_cache(maxsize=max_cached_keys) wraps the bound method; no TTL"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 44,
+      "note": "documented: Tier 2 cache has no time-based expiration"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 226,
+      "note": "returns cached key for a previously-seen kid, even after the JWK Set no longer contains it"
+     }
+    ],
+    "guards_checked": "Tier-1 JWK Set cache has lifespan expiry (jwk_set_cache.py:25-31), but Tier 2 (lru_cache) does not check it. A kid miss only triggers refresh when absent from the cache, so a cached revoked kid never reaches the refresh path. Default cache_keys=False avoids this."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

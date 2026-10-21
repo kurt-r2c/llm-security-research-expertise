@@ -1,0 +1,143 @@
+{
+ "arm": "A",
+ "repo": "py-webhook",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00636494,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ht2dueqa/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unvalidated SSRF in /preview: the url query parameter is passed directly to requests.get, and the status code and first 500 characters of the response body are returned to the caller, so internal services and cloud metadata endpoints can be read.",
+    "source": "request.args.get(\"url\") at app.py:15 (attacker-controlled query parameter)",
+    "sink": "requests.get(target, timeout=5) at app.py:16",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "Reads attacker-controlled url query parameter with no default restriction"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "Passes the unvalidated value to requests.get"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "Returns status_code and resp.text[:500] to the caller, enabling full read of the response"
+     }
+    ],
+    "guards_checked": "None. No scheme check, no host allowlist, no private/loopback/link-local IP block, no redirect control."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:15-17 has no scheme, host, or IP check. ALLOWED_HOSTS (app.py:9) is enforced only in /partner (app.py:23-24), not in /preview.",
+    "reason": "The url query parameter at app.py:15 flows unchanged into requests.get at app.py:16, and app.py:17 returns the status code and the first 500 characters of the body, so an unauthenticated caller can use /preview to read internal endpoints."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "Allowlist bypass via redirects in /partner: the hostname check passes for allowed hosts, but requests.get follows redirects by default, so an allowed host can redirect to internal addresses such as 169.254.169.254 or localhost. Only the status code is returned, so exploitation is blind, but it is a reachability oracle and can trigger GET requests against internal hosts.",
+    "source": "request.args.get(\"url\") at app.py:22 (attacker-controlled query parameter)",
+    "sink": "requests.get(target, timeout=5) at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "Reads attacker-controlled url query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "Extracts hostname with urlparse"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "Rejects with 400 unless hostname is in ALLOWED_HOSTS"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get with default allow_redirects=True, so redirects from an allowed host are followed to arbitrary targets"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "Returns only the upstream status code (blind SSRF / port and reachability oracle)"
+     }
+    ],
+    "guards_checked": "Hostname-only allowlist at app.py:23-24 (ALLOWED_HOSTS at app.py:9). Not checked: resolved IP address, redirect targets, port, scheme. allow_redirects is not disabled at app.py:26."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-24: urlparse(target).hostname is checked for exact set membership in ALLOWED_HOSTS (app.py:9), returning 400 otherwise.",
+    "reason": "The trace is accurate (app.py:22-27 match the claims, and requests.get at app.py:26 does follow redirects by default), and the query parameter is attacker-controlled, but the exact hostname set membership check at app.py:23-24 is one of the closing guards defined by the rubric, so the finding is refuted. The redirect-following concern is real, but under the rubric's guard criteria the hostname check counts as closing, so it is not confirmed; a fix that disables redirects or re-validates each hop would still be worth making as defense in depth."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "app.py",
+    "line": 26,
+    "claim": "Possible parser-differential bypass of the /partner allowlist: urlparse(...).hostname at app.py:23 may return an allowed host while requests/urllib3 connects to a different host for crafted URLs such as http://169.254.169.254\\@api.partner.example/. PLAUSIBLE, not verified: shell execution was blocked, so the parser behavior was not tested against the pinned requests/urllib3 versions.",
+    "source": "request.args.get(\"url\") at app.py:22 (attacker-controlled query parameter)",
+    "sink": "requests.get(target, timeout=5) at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "Reads attacker-controlled url query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "urlparse hostname used for the allowlist decision; backslash is believed not to be a netloc delimiter in urlsplit, so the allowed host may be returned"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "Allowlist check passes on the parsed hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests/urllib3 parses the raw URL independently and may connect to the internal host"
+     }
+    ],
+    "guards_checked": "Same hostname-only allowlist as F2 (app.py:23-24). Parser consistency between urlparse and urllib3 not verified."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-24: `host = urlparse(target).hostname` followed by `if host not in ALLOWED_HOSTS` against the exact set {\"api.partner.example\", \"cdn.partner.example\"} (app.py:9). This is exact hostname set membership on the parsed hostname, which the verification rules treat as closing.",
+    "reason": "The source at app.py:22 is attacker-controlled, but the exact-set hostname check at app.py:24 against ALLOWED_HOSTS (app.py:9) is a closing guard under the stated rules, so the finding is refuted. The residual concern is that requests/urllib3 at app.py:26 might parse the backslash-containing URL differently from urlparse at app.py:23; I could not test that here (no shell, and the pinned library versions are not in the directory), so it is a separate, unverified parser-differential question and not a confirmed bypass."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006710579999999999
+}

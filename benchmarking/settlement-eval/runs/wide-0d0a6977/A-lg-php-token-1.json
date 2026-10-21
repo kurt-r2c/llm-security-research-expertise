@@ -1,0 +1,57 @@
+{
+ "arm": "A",
+ "repo": "lg-php-token",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.043599200000000005,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "reset_password_loose compares the stored reset token to the user-supplied token with PHP loose equality (==). An attacker can bypass the token check and reset any account's password. If the token arrives as a JSON-decoded boolean true, `true == \"anytoken\"` is true. If the stored token is a numeric-looking string such as \"0e12345\" (a scientific-notation magic hash), a supplied \"0\" or \"0e999\" compares equal. On PHP 7 and earlier, integer 0 also equals any non-numeric string. The strict variant reset_password at line 14 uses hash_equals and does not have this flaw.",
+    "source": "Attacker-controlled $email and $token arguments, e.g. from a password-reset request. The attacker needs a pending reset row for the victim, which they can trigger by requesting a reset. The token can be a typed value such as JSON true or 0, or a string like \"0\".",
+    "sink": "UPDATE users SET pw = ... WHERE email = ... at reset.php:5. This sets the victim's password to an attacker-chosen value, giving account takeover.",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 2,
+      "note": "reset_password_loose($db,$email,$token,$new) takes all inputs from the caller with no type enforcement."
+     },
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "The stored token for the email is fetched from the resets table."
+     },
+     {
+      "file": "reset.php",
+      "line": 4,
+      "note": "`$row['token'] == $token` uses loose comparison, so type juggling can make it true without knowing the token."
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "The password hash is overwritten for the victim's email."
+     }
+    ],
+    "guards_checked": "The email and the new password hash are escaped with $db->quote(), so there is no SQL injection. There is no token expiry check, no single-use deletion of the token and no attempt rate limit in this function. No type cast is applied to $token (the safe version casts with (string) and uses hash_equals). I could not see any callers because only this file exists, so reachability from an HTTP route is assumed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only $db->quote() on email and password hash, which prevents SQLi but not token bypass; no type cast, expiry or rate limit)",
+    "reason": "reset.php:4 compares `$row['token'] == $token` loosely with no cast, so a JSON `true` token, or \"0\" against a stored \"0e...\" token, passes and reset.php:5 overwrites the victim's password; reachability depends on callers that aren't in this repo, and the attacker only needs an email with a pending reset row."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only $db->quote() escaping against SQLi at reset.php:3,5; no type cast, expiry or rate limit)",
+    "reason": "reset.php:4 compares `$row['token'] == $token` loosely with an untyped, caller-supplied $token (e.g. JSON true, or \"0\" against a \"0e\u2026\" stored token), so an anonymous attacker with a pending reset row passes the check and reaches the password UPDATE at reset.php:5, while the strict variant at reset.php:14 casts and uses hash_equals. Exploitability via JSON true depends on the unseen caller passing an unsanitized type; the numeric-string case works regardless of caller."
+   }
+  }
+ ],
+ "verify_cost": 0.0352925,
+ "verify_facts_cost": 0.0378135
+}

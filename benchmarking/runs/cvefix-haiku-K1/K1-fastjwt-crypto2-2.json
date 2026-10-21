@@ -1,0 +1,195 @@
+{
+ "arm": "K1",
+ "repo": "fastjwt-crypto2",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.0265821,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-1981ub3l/r/src/decoder.js",
+   "/tmp/egf-1981ub3l/r/src/index.js",
+   "/tmp/egf-1981ub3l/r/src/signer.js",
+   "/tmp/egf-1981ub3l/r/src/verifier.js",
+   "/tmp/egf-1981ub3l/r/src/utils.js",
+   "/tmp/egf-1981ub3l/r/src/crypto.js",
+   "/tmp/egf-1981ub3l/r/src/error.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "JWT-1",
+    "file": "src/verifier.js",
+    "line": 514,
+    "claim": "Sync verifier created with key '' or null plus a non-empty algorithms list accepts unsigned tokens whose alg is on that list. Conditional on deployer config (e.g. key: process.env.JWT_KEY || ''). Not reproduced: no shell or node_modules available, so this is from reading the code.",
+    "source": "Attacker-supplied token string in verify(token) (any unauthenticated caller). Precondition: createVerifier({ key: '' | null, algorithms: ['HS256'] | any non-empty list }).",
+    "sink": "verify() returns the decoded payload as authenticated (verifier.js:426). The signature check that should guard it is skipped.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 507,
+      "note": "keyType check only rejects non-string/object/function, so '' and null pass."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 514,
+      "note": "`if (key && keyType !== 'function')` is falsy for '' and null, so detectPublicKeyAlgorithms and prepareKeyOrSecret never run. The emptiness check at verifier.js:38-40 is never reached and key stays '' or null."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 518,
+      "note": "allowedAlgorithms comes from config (e.g. ['HS256']). Nothing ties it to a usable key."
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 21,
+      "note": "Attacker sends `<b64url header>.<b64url payload>.` with an empty signature segment. Decoder accepts it: BASE64URL_RE (decoder.js:10,41) matches the empty string and the format checks pass."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 274,
+      "note": "hasKey is false (key falsy). `hasKey && !signature` is false, so missingSignature is not thrown."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 276,
+      "note": "`!hasKey && signature` is false because the signature is empty, so missingKey is not thrown either."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 280,
+      "note": "validateAlgorithmAndSignature: verifier.js:162 passes because header.alg is in allowedAlgorithms."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "`if (signature && ...)` is skipped because the signature is empty. No HMAC or public-key check runs."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 426,
+      "note": "Claim validators (exp/nbf/aud/iss, all attacker-chosen when signature is skipped) run and the forged payload is returned as verified."
+     }
+    ],
+    "guards_checked": "Decoder base64url alphabet and separator checks (passes with empty signature). verifier.js:274-278 missingSignature/missingKey (both skipped when key is falsy and signature is empty). verifier.js:162 alg allowlist (passes only if algorithms is configured; with no algorithms config the token is rejected, so the precondition is required). verifier.js:38 empty-secret check (reached only through prepareKeyOrSecret, which the sync path skips for falsy keys). Cache is off by default (createCache with no size returns null). The async key-function path IS protected: an empty Buffer returned from the key function throws at verifier.js:38 via prepareKeyOrSecret. So the bypass is specific to the sync path with a literal '' or null key. Severity depends on deployer config; the library's own invariant ('key cannot be an empty string or buffer') is enforced for Buffers but not for strings."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-2",
+    "file": "src/crypto.js",
+    "line": 339,
+    "claim": "Signature segment is not canonical: non-zero trailing (padding) bits in the final base64url character are silently ignored, so one signature has several distinct token strings that all verify. Revocation or replay denylists keyed on the raw token string can be bypassed.",
+    "source": "Any holder of a valid token (e.g. a logged-out or revoked token). They change the last character of the signature segment within the same 6-bit group.",
+    "sink": "Protected operation is denylist or single-use enforcement that the application keys on the raw token string. Signature verification itself still passes.",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "BASE64URL_RE only checks the alphabet. It does not check canonical encoding or trailing bits. The comment at decoder.js:5-9 says non-canonical input should be rejected, but the check does not do that."
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 30,
+      "note": "signatureSegment is passed through unchanged."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "verifySignature is called with the raw signature string."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 339,
+      "note": "`Buffer.from(signature, 'base64')` drops the non-zero trailing bits of the final character, so different strings decode to identical bytes. HMAC compare at crypto.js:343 and RSA/EC/Ed verify then succeed for every variant. For HS256 (43-char signature, 2 unused bits) that is 4 strings per token; for HS512 it is 16."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 426,
+      "note": "The token is accepted under each variant. The verifier cache (hashToken on the whole string, utils.js:45-58) treats each variant as a separate entry, so the cache does not de-duplicate them."
+     }
+    ],
+    "guards_checked": "Alphabet check (decoder.js:10,41). Padding is rejected, since '=' is outside the alphabet. Payload and header segments are NOT malleable, because the signing input is the raw header.payload string. Only the signature segment is affected. Requires the application to key revocation or replay on the raw token string, which the library does not do itself. Severity low. Not exercised, reasoning from Node Buffer base64 decoding behavior."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-3",
+    "file": "src/verifier.js",
+    "line": 364,
+    "claim": "With caching enabled, verify() calls the default cacheKeyBuilder (hashToken) on the raw token before decoding. A Buffer token reaches token.split(), which is not a function on Buffer, so a TypeError is thrown synchronously, even in callback mode. Availability and error-handling bug.",
+    "source": "Token passed as a Buffer (line 353 explicitly accepts Buffers). Precondition: createVerifier({ cache: true or a size, ... }) and the app passes Buffer tokens, e.g. Buffer.from(headerValue).",
+    "sink": "cacheKeyBuilder(token) at verifier.js:364 and utils.js:46 (token.split('.', 1)). The uncaught TypeError escapes verify() before the decode try/catch at verifier.js:386-395.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Buffer tokens are accepted as valid input."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cache.get(cacheKeyBuilder(token)) runs before decode(). The token is still a Buffer here, since decoder.js:14-15 only converts it later."
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "hashToken calls token.split('.', 1) on a Buffer. Buffer has no split method, so this throws TypeError."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 386,
+      "note": "The decode try/catch that would convert the error to a TokenError is after the throw, so it is never reached. In callback mode the callback is never invoked."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 499,
+      "note": "Default cacheKeyBuilder is hashToken, so the default configuration is affected once caching is on."
+     }
+    ],
+    "guards_checked": "Type check at verifier.js:353 accepts Buffers. Cache is off by default (verifier.js:580 createCache with undefined returns null), so this only affects configurations with caching enabled. No security bypass; the failure is closed (no authentication granted). Impact is request-level errors, or hung callbacks in callback-style apps. Severity low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-4",
+    "file": "src/verifier.js",
+    "line": 471,
+    "claim": "In the async (key-function) path, complete:true returns input as the full token including the signature, but the sync path returns header.payload only. The two paths return different values for the same field.",
+    "source": "Not attacker-driven. Any app using complete:true with a key function.",
+    "sink": "Returned `input` field used by the application (for example to re-check the signature itself).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 426,
+      "note": "Sync path returns input = header.payload (from decoder.js:73 slice(0, lastSeparator))."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 471,
+      "note": "Async path returns input: token, which is the full token string (or Buffer) including the signature segment."
+     }
+    ],
+    "guards_checked": "No security impact found. A caller that re-verifies with the async input gets a mismatch, so it fails closed. Logic inconsistency only. Severity low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,121 @@
+{
+ "arm": "K1",
+ "repo": "go-proxy",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.00481113,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-d2h7vixf/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "Unauthenticated /fetch handler passes the raw `target` query parameter to http.Get with no scheme, host, IP, or redirect validation, and streams the response body back to the caller. Any remote client can make the server request internal or cloud-metadata addresses and read the responses (full-read SSRF).",
+    "source": "main.go:15 r.URL.Query().Get(\"target\") (HTTP query string, fully attacker-controlled)",
+    "sink": "main.go:16 http.Get(target), with response body echoed to the client at main.go:22 io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 43,
+      "note": "http.HandleFunc(\"/fetch\", fetch) registers the route; ListenAndServe(\":8080\") binds all interfaces with no auth middleware"
+     },
+     {
+      "file": "main.go",
+      "line": 14,
+      "note": "fetch(w, r) handler entry; no auth check"
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target read directly from query string, no parsing or validation"
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get(target) issues a server-side request to the attacker-chosen URL"
+     },
+     {
+      "file": "main.go",
+      "line": 17,
+      "note": "error text from the internal request is returned to the attacker via http.Error (port/service probing oracle)"
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "successful response body is copied verbatim into the attacker's response"
+     }
+    ],
+    "guards_checked": "None on this path: no allowlist (the `allowed` map at main.go:9-12 is only used by safeFetch), no scheme check (Go's http client rejects non-http(s) schemes, so the reachable surface is http/https only), no resolved-IP check for private, loopback, link-local (169.254.169.254) or metadata addresses, no redirect check (default client follows up to 10 redirects), no auth on the route. Impact: an anonymous attacker can reach localhost and internal services and cloud metadata endpoints (e.g. http://169.254.169.254/latest/meta-data/ on AWS, which can expose instance-role credentials) and read the responses."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": false,
+    "guard_found": "none. The fetch path (main.go:14-23) has no allowlist, host or IP check, redirect check, or auth. The `allowed` map (main.go:9-12) is only used in safeFetch (main.go:27), which is a separate route and not on the /fetch path.",
+    "reason": "The attacker-controlled `target` at main.go:15 flows unvalidated into http.Get at main.go:16, and the response is copied to the client at main.go:22, with the route registered at main.go:41 and no auth. The only trace error is that the candidate cites main.go:43 for the /fetch registration, but that line is ListenAndServe and the registration is at line 41; the vulnerability itself holds."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "/safe enforces an exact-hostname allowlist on the initial URL, but http.Get follows redirects by default with no CheckRedirect. If an allowlisted host (images.example.org or docs.example.org) returns a redirect to an internal or metadata address, the server fetches it and streams the body back, bypassing the allowlist. Conditional on an open redirect or a compromised allowlisted host; PLAUSIBLE, not confirmed from this code alone.",
+    "source": "main.go:26 url.Parse(r.URL.Query().Get(\"target\")) (attacker-controlled query string)",
+    "sink": "main.go:31 http.Get(u.String()) following redirects; body echoed at main.go:37",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "http.HandleFunc(\"/safe\", safeFetch) registers the route with no auth"
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target parsed with net/url"
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "only check: allowed[u.Hostname()] on the initial URL; err checked first so nil u is not dereferenced"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get(u.String()) re-serializes and re-parses with the same net/url package, then follows redirects (no CheckRedirect, so the allowlist is not re-applied to each hop)"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "redirected response body is copied to the client"
+     }
+    ],
+    "guards_checked": "Scheme: effectively limited to http/https by Go's client. Host: u.Hostname() handles userinfo tricks (http://images.example.org@169.254.169.254/ yields Hostname 169.254.169.254, rejected) and fragment tricks (http://169.254.169.254#images.example.org yields Hostname 169.254.169.254, rejected), and the validator and fetcher share the net/url parser, so there is no parser-differential. Not checked: port (allowlisted host on any port, e.g. :6379, is reachable, a minor port-probe of that host only), redirect targets (the main gap), resolved IP (only matters if an allowlisted name resolves to an internal address, which is operator-controlled). Impact: SSRF to internal hosts only if an allowlisted host can be made to redirect; severity depends on whether images.example.org or docs.example.org has an open redirect or is otherwise attacker-influenced."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "main.go:27 exact-match allowed[u.Hostname()] on the initial URL only; no CheckRedirect is set on the default client at main.go:31, so redirect hops are not checked.",
+    "reason": "The trace matches the code: the attacker-controlled target query parameter is parsed at main.go:26, checked against the allowlist only at main.go:27, and fetched with the default http.Get at main.go:31, which follows redirects and streams the body back at main.go:37, so an allowlisted host that redirects to an internal address bypasses the check. The exploit still needs an allowlisted host that can be made to redirect (an open redirect or a compromise), which the code alone does not show, so the finding is real as a code defect but its severity depends on that precondition."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00449868
+}

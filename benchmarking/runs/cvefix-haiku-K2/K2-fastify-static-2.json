@@ -1,0 +1,184 @@
+{
+ "arm": "K2",
+ "repo": "fastify-static",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.03434525,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 10,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-c69x5djl/expertise/INDEX.md",
+   "/tmp/egf-c69x5djl/r/index.js",
+   "/tmp/egf-c69x5djl/r/lib/dirList.js",
+   "/tmp/egf-c69x5djl/r/lib/errors.js",
+   "/tmp/egf-c69x5djl/r/package.json",
+   "/tmp/egf-c69x5djl/expertise/cases/21-open-redirect-prefix.md",
+   "/tmp/egf-c69x5djl/expertise/cases/03-path-join-open.md",
+   "/tmp/egf-c69x5djl/expertise/cases/26-decoy-realpath-prefix.md",
+   "/tmp/egf-c69x5djl/expertise/cases/08-sanitize-before-decode.md",
+   "/tmp/egf-c69x5djl/r/types/index.d.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "index.js",
+    "line": 348,
+    "claim": "Directory-listing fallback reinterprets send's 403 and lists dotfile-denied hidden directories (e.g. .git), bypassing dotfiles:'deny'. Variant: a leading '..' path can bypass string-based allowedPath and list restricted directories. PLAUSIBLE: depends on @fastify/send returning 403 for dotfiles under 'deny', which was not verified because node_modules is absent.",
+    "source": "HTTP request path, e.g. GET /.git/ (or /../<root-basename>/private/ for the allowedPath variant). Preconditions: list enabled, dotfiles:'deny', index unset or empty, hidden directory exists under root.",
+    "sink": "sendDirectoryList -> dirList.send -> dirList.list, which returns names, sizes and mtimes of entries inside the hidden directory.",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 152,
+      "note": "Wildcard route handler calls pumpSendToReply"
+     },
+     {
+      "file": "index.js",
+      "line": 266,
+      "note": "allowedPath checks the raw pathname; passes when allowedPath is unset or prefix-based"
+     },
+     {
+      "file": "index.js",
+      "line": 302,
+      "note": "send() returns 403 for a dotfile path under dotfiles:'deny' (assumed @fastify/send behaviour)"
+     },
+     {
+      "file": "index.js",
+      "line": 344,
+      "note": "case 'error' with statusCode 403, index unset or empty, and pathnameForSend ending in '/'"
+     },
+     {
+      "file": "index.js",
+      "line": 348,
+      "note": "opts.list enabled, so sendDirectoryList(reply, pathname) is called"
+     },
+     {
+      "file": "index.js",
+      "line": 212,
+      "note": "dirList.path resolves root/.git and passes isPathInsideRoot"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 83,
+      "note": "Dotfile filter removes only dot-named entries inside the listed directory, not the directory itself"
+     }
+    ],
+    "guards_checked": "Dot-dot regex at index.js:262 only catches '..' segments, not dotfile names. allowedPath at index.js:266 is not configured by default and is checked on the raw string. dirList.path containment at lib/dirList.js:199 passes because the directory is inside root. The 403-to-listing fallback is the root cause: the dotfile policy is enforced only by send, and the fallback bypasses it."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "index.js",
+    "line": 790,
+    "claim": "getRedirectUrl strips only leading slashes, so a request path beginning '/.//' normalises to a protocol-relative Location (//host/). With redirect:true and default prefix '/', the attacker chooses the host only among existing directory names under root, so impact is limited. PLAUSIBLE: relies on WHATWG URL normalisation of '/.//' to '//', which was not executed.",
+    "source": "req.raw.url of a directory request, e.g. GET /.//assets, with redirect:true and prefix '/'.",
+    "sink": "reply.redirect(...) at index.js:319 (directory case), which sets the Location header.",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 142,
+      "note": "Wildcard route handler reads req.raw.url"
+     },
+     {
+      "file": "index.js",
+      "line": 144,
+      "note": "getPathnameForSend yields pathname '/.//assets'"
+     },
+     {
+      "file": "index.js",
+      "line": 167,
+      "note": "send resolves '/.//assets' to root/assets, which returns type 'directory'"
+     },
+     {
+      "file": "index.js",
+      "line": 317,
+      "note": "opts.redirect === true branch"
+     },
+     {
+      "file": "index.js",
+      "line": 319,
+      "note": "reply.redirect(getRedirectUrl(request.raw.url), 301)"
+     },
+     {
+      "file": "index.js",
+      "line": 786,
+      "note": "Leading-slash strip loop stops at '.', so nothing is stripped"
+     },
+     {
+      "file": "index.js",
+      "line": 792,
+      "note": "new URL('/.//assets', base).pathname normalises to '//assets', and the function returns '//assets/'"
+     }
+    ],
+    "guards_checked": "Leading slash/backslash strip at index.js:786-790 is bypassed by the '/.' prefix. URL normalisation creates '//' rather than blocking it. The '..' regex does not apply, since no '..' is present. No check on the resulting Location host or scheme."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lib/dirList.js",
+    "line": 25,
+    "claim": "getExtendedInfo performs an unbounded recursive walk for each subdirectory on every listing request, regardless of output format. There is no depth limit or cycle detection, and fs.stat follows symlinks, so a symlink cycle recurses until the path errors. The walk also ignores the dotfiles setting, so hidden subtrees contribute size and count information. CONFIRMED on logic: the walk is unconditional on format. Impact depends on tree size and symlink cycles.",
+    "source": "Unauthenticated GET of a listable directory (e.g. GET /) when list.extendedFolderInfo is true. Format need not be extended: names format still triggers the walk.",
+    "sink": "Recursive readdir/stat over the entire subtree of each subdirectory, consuming CPU, I/O and file descriptors per request.",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 348,
+      "note": "Listing path reached from the 403 fallback or from index.js:373 (ENOENT with matching names)"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 124,
+      "note": "dirList.send calls dirList.list"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 98,
+      "note": "For each subdirectory in list(), options.extendedFolderInfo is checked"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 100,
+      "note": "getExtendedInfo(path.join(dir, filename)) runs even when format is names, and the result is discarded"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 27,
+      "note": "_getExtendedInfo calls fs.readdir on the directory with no depth limit"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 33,
+      "note": "fs.stat follows symlinks, so symlink cycles are not detected"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 49,
+      "note": "A new fastq queue is created at each recursion level, so concurrency multiplies with depth"
+     }
+    ],
+    "guards_checked": "No depth limit, no visited set, no caching, no rate limit. The walk ignores the dotfiles setting. The only guard is catch around stat, which returns silently. readdir errors propagate and are caught only at the dirList.send level (lib/dirList.js:132)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

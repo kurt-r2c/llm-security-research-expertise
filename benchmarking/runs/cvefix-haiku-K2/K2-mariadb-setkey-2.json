@@ -1,0 +1,213 @@
+{
+ "arm": "K2",
+ "repo": "mariadb-setkey",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.02876873,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 9,
+   "Grep": 8,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-8qf0f3la/expertise/INDEX.md",
+   "/tmp/egf-8qf0f3la/r/lib/cmd/parser.js",
+   "/tmp/egf-8qf0f3la/r/lib/connection.js",
+   "/tmp/egf-8qf0f3la/r/lib/misc/utils.js",
+   "/tmp/egf-8qf0f3la/r/lib/misc/parse.js",
+   "/tmp/egf-8qf0f3la/r/lib/io/packet-output-stream.js",
+   "/tmp/egf-8qf0f3la/r/lib/io/packet-output-stream.js",
+   "/tmp/egf-8qf0f3la/r/lib/pool.js",
+   "/tmp/egf-8qf0f3la/r/lib/cmd/handshake/auth/sha256-password-auth.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "pool-escape-info-null-backslash",
+    "file": "lib/pool.js",
+    "line": 530,
+    "claim": "pool.escape() falls back to backslash escape mode when no idle connection exists, so under NO_BACKSLASH_ESCAPES the escaped output is injectable",
+    "source": "Attacker-controlled input passed to pool.escape(value) by the application, with the server in NO_BACKSLASH_ESCAPES sql_mode and no idle pooled connection at call time",
+    "sink": "String returned by pool.escape() spliced into SQL as a string literal (lib/pool.js:677-678 via lib/misc/utils.js:253-257)",
+    "trace": [
+     {
+      "file": "lib/pool.js",
+      "line": 677,
+      "note": "escape(value) calls Utils.escape(opts, this._searchInfo(), value)"
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 527,
+      "note": "_searchInfo returns idle connection info when one exists (correct path)"
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 530,
+      "note": "with no idle connection, for...in over Object.keys yields indices '0'..'n-1'"
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 531,
+      "note": "indices looked up in #activeConnections, which is keyed by server threadId (see lib/pool.js:493, :560), so lookup returns undefined"
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 533,
+      "note": "undefined conn triggers break; conn stays null"
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 540,
+      "note": "info remains null"
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 255,
+      "note": "info != null is false, so noBackslashEscapes is false and the backslash escape table is used"
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 262,
+      "note": "input ' OR 1=1 -- escapes to '\\' OR 1=1 -- ' which under NO_BACKSLASH_ESCAPES closes the literal early and leaves injected SQL live"
+     }
+    ],
+    "guards_checked": "Idle-connection path is correct (pool.js:527). Connection.escape uses the connection's own info (connection.js:112), so it is unaffected. escapeId is mode-independent (backtick doubling, utils.js:97-113). Placeholder formatting goes through the connection and is unaffected. Only pool-level escape with no idle connection is affected. Not executed; verified by reading."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "local-infile-case-insensitive-filename",
+    "file": "lib/misc/parse.js",
+    "line": 414,
+    "claim": "LOCAL INFILE filename validation is case-insensitive, so a malicious server can request a case-variant of the app-named file and the client opens the server-chosen path",
+    "source": "Malicious or compromised server sends a LOCAL INFILE request; app has enabled permitLocalInfile and its query names a file",
+    "sink": "fs.createReadStream(fileName) with the server-supplied fileName (lib/cmd/parser.js:785)",
+    "trace": [
+     {
+      "file": "lib/cmd/parser.js",
+      "line": 742,
+      "note": "permitLocalInfile gate (default false, connection-options.js:158-167)"
+     },
+     {
+      "file": "lib/cmd/parser.js",
+      "line": 761,
+      "note": "Parse.validateFileName(sql, initialValues, fileName) called with server fileName"
+     },
+     {
+      "file": "lib/misc/parse.js",
+      "line": 408,
+      "note": "regex metacharacters in fileName are escaped correctly"
+     },
+     {
+      "file": "lib/misc/parse.js",
+      "line": 414,
+      "note": "RegExp built with 'i' flag, so match against SQL literal is case-insensitive"
+     },
+     {
+      "file": "lib/misc/parse.js",
+      "line": 426,
+      "note": "placeholder branch compares with toLowerCase(), also case-insensitive"
+     },
+     {
+      "file": "lib/cmd/parser.js",
+      "line": 785,
+      "note": "file opened using server-supplied fileName, not the SQL literal"
+     }
+    ],
+    "guards_checked": "permitLocalInfile default off and enforced (parser.js:742). Regex metacharacter escaping (parse.js:408). Closing-quote anchor requires exact-length match. Narrow impact: only case variants of the app-named file are reachable and only matter on case-sensitive filesystems where a variant exists."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "redirect-forwards-credentials",
+    "file": "lib/connection.js",
+    "line": 2111,
+    "claim": "A server-directed redirect opens a new connection to a server-chosen host using the app's configured password, so credentials are disclosed to that host",
+    "source": "Database server (or a compromised server) sends a mariadb:// or mysql:// redirect string",
+    "sink": "New Connection built from this.opts including the password (lib/connection.js:2111-2112)",
+    "trace": [
+     {
+      "file": "lib/connection.js",
+      "line": 2072,
+      "note": "redirect only when opts.permitRedirect"
+     },
+     {
+      "file": "lib/config/connection-options.js",
+      "line": 114,
+      "note": "permitRedirect defaults on only when ssl is set and rejectUnauthorized !== false"
+     },
+     {
+      "file": "lib/connection.js",
+      "line": 2094,
+      "note": "target host and port parsed from server-supplied URL"
+     },
+     {
+      "file": "lib/connection.js",
+      "line": 2099,
+      "note": "same-host short-circuit"
+     },
+     {
+      "file": "lib/connection.js",
+      "line": 2106,
+      "note": "user and password override only if present in URL"
+     },
+     {
+      "file": "lib/connection.js",
+      "line": 2111,
+      "note": "new connection built from this.opts, retaining the app password"
+     }
+    ],
+    "guards_checked": "permitRedirect default requires TLS with certificate verification. Redirect skipped inside transactions (connection.js:2076). Same-host short-circuit. Exposure requires a compromised DB server or a publicly trusted host controlled by the attacker, so this is a trust-boundary issue rated low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "sha256-public-key-retrieval-password-disclosure",
+    "file": "lib/cmd/handshake/auth/sha256-password-auth.js",
+    "line": 86,
+    "claim": "sha256_password public-key retrieval over a non-TLS connection lets the server supply the RSA key the password is encrypted under, disclosing the password to an attacker who controls the connection",
+    "source": "Attacker controls the network path or the server, and the app sets allowPublicKeyRetrieval without TLS",
+    "sink": "Password RSA-encrypted under a server-supplied key (sha256-password-auth.js:86-87)",
+    "trace": [
+     {
+      "file": "lib/cmd/handshake/auth/sha256-password-auth.js",
+      "line": 47,
+      "note": "no rsaPublicKey configured, so the client path is used"
+     },
+     {
+      "file": "lib/cmd/handshake/auth/sha256-password-auth.js",
+      "line": 61,
+      "note": "refused unless allowPublicKeyRetrieval is set"
+     },
+     {
+      "file": "lib/cmd/handshake/auth/sha256-password-auth.js",
+      "line": 72,
+      "note": "client requests key from server on opt-in"
+     },
+     {
+      "file": "lib/cmd/handshake/auth/sha256-password-auth.js",
+      "line": 86,
+      "note": "password encrypted under server-supplied key"
+     }
+    ],
+    "guards_checked": "Explicit opt-in required (allowPublicKeyRetrieval) and error thrown otherwise (:61-70). Documented protocol property; low severity, opt-in only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

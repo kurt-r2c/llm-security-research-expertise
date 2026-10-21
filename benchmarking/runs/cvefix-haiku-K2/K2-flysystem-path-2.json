@@ -1,0 +1,146 @@
+{
+ "arm": "K2",
+ "repo": "flysystem-path",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.02002783,
+ "trace": {
+  "tools": {
+   "Read": 16,
+   "Glob": 1,
+   "Grep": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-mp18r2g0/expertise/INDEX.md",
+   "/tmp/egf-mp18r2g0/r/src/PathNormalizer.php",
+   "/tmp/egf-mp18r2g0/r/src/PathPrefixer.php",
+   "/tmp/egf-mp18r2g0/r/src/WhitespacePathNormalizer.php",
+   "/tmp/egf-mp18r2g0/r/src/UrlGeneration/PrefixPublicUrlGenerator.php",
+   "/tmp/egf-mp18r2g0/r/src/UrlGeneration/ShardedPrefixPublicUrlGenerator.php",
+   "/tmp/egf-mp18r2g0/r/src/Filesystem.php",
+   "/tmp/egf-mp18r2g0/r/src/MountManager.php",
+   "/tmp/egf-mp18r2g0/r/src/CalculateChecksumFromStream.php",
+   "/tmp/egf-mp18r2g0/r/src/Config.php",
+   "/tmp/egf-mp18r2g0/r/src/UnixVisibility/PortableVisibilityConverter.php",
+   "/tmp/egf-mp18r2g0/r/src/ProxyArrayAccessToProperties.php",
+   "/tmp/egf-mp18r2g0/r/src/UrlGeneration/ChainedPublicUrlGenerator.php",
+   "/tmp/egf-mp18r2g0/r/src/PortableVisibilityGuard.php",
+   "/tmp/egf-mp18r2g0/expertise/cases/21-open-redirect-prefix.md",
+   "/tmp/egf-mp18r2g0/expertise/cases/03-path-join-open.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/WhitespacePathNormalizer.php",
+    "line": 17,
+    "claim": "Default allow_relative_path_traversal=true lets in-root '..' segments resolve silently, so an application that authorizes on the raw path string (e.g. prefix 'users/alice/') can be bypassed to reach 'users/bob/' within the same storage root.",
+    "source": "Application-supplied path string containing '..' (e.g. 'users/alice/../bob/profile.json'), a precondition rather than a library defect.",
+    "sink": "Filesystem::write/read/delete and other operations at src/Filesystem.php:53-60 and :84-87 act on the normalized path after the application's raw-string check.",
+    "trace": [
+     {
+      "file": "src/WhitespacePathNormalizer.php",
+      "line": 17,
+      "note": "Constructor default allowRelativePathTraversal = true"
+     },
+     {
+      "file": "src/Filesystem.php",
+      "line": 33,
+      "note": "Reads allow_relative_path_traversal option, defaulting to true"
+     },
+     {
+      "file": "src/Filesystem.php",
+      "line": 56,
+      "note": "write() passes location through pathNormalizer->normalizePath"
+     },
+     {
+      "file": "src/WhitespacePathNormalizer.php",
+      "line": 39,
+      "note": "'..' case entered"
+     },
+     {
+      "file": "src/WhitespacePathNormalizer.php",
+      "line": 40,
+      "note": "Only throws when allowRelativePaths is false or stack is empty"
+     },
+     {
+      "file": "src/WhitespacePathNormalizer.php",
+      "line": 44,
+      "note": "array_pop removes 'alice', yielding users/bob/profile.json"
+     }
+    ],
+    "guards_checked": "Root escape blocked: '..' with empty stack throws PathTraversalDetected (line 40). Backslashes converted to '/' (line 24). Leading slashes dropped. Control characters and invalid UTF-8 rejected (lines 25-29). Not verified: application-side authorization logic, which is outside this code."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/UrlGeneration/PrefixPublicUrlGenerator.php",
+    "line": 21,
+    "claim": "Public URLs are built by concatenating the normalized path onto the prefix without percent-encoding, so '%2e%2e' segments, '?' and '#' survive normalization and can make the generated URL resolve to a different object than the one the application intended.",
+    "source": "Filename or key chosen by an uploader, e.g. '%2e%2e/private/x.pdf', 'a?b' or 'a#b'.",
+    "sink": "Generated public URL returned by Filesystem::publicUrl and embedded or shared by the application.",
+    "trace": [
+     {
+      "file": "src/Filesystem.php",
+      "line": 192,
+      "note": "publicUrl entry point"
+     },
+     {
+      "file": "src/Filesystem.php",
+      "line": 199,
+      "note": "normalizePath applied; '%2e%2e', '?' and '#' are not structural in WhitespacePathNormalizer so they pass through"
+     },
+     {
+      "file": "src/UrlGeneration/PrefixPublicUrlGenerator.php",
+      "line": 21,
+      "note": "prefixPath concatenates the raw path with no percent-encoding"
+     }
+    ],
+    "guards_checked": "Literal '..' and leading slashes removed by normalizer, so host cannot be switched and literal '..' cannot climb above the prefix. No percent-encoding applied. Impact is limited: the same object is reachable directly from the origin, so the origin's ACL is the real access boundary. Confidence low to medium.",
+    "repro": "Upload with key 'uploads/%2e%2e/private/x.pdf', then call publicUrl('uploads/%2e%2e/private/x.pdf'). A WHATWG-compliant client normalizes the URL to /private/x.pdf at the origin."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/UnixVisibility/PortableVisibilityConverter.php",
+    "line": 47,
+    "claim": "inverseForFile and inverseForDirectory report PUBLIC for any mode that is neither the configured public nor private value, so visibility inspection fails open.",
+    "source": "Precondition: a file or directory with a non-canonical mode (e.g. 0640 from an external process or permissive umask). The library cannot set modes from attacker input.",
+    "sink": "Filesystem::visibility at src/Filesystem.php:187-190, which an application may use in an authorization decision.",
+    "trace": [
+     {
+      "file": "src/Filesystem.php",
+      "line": 187,
+      "note": "visibility() entry point"
+     },
+     {
+      "file": "src/UnixVisibility/PortableVisibilityConverter.php",
+      "line": 41,
+      "note": "inverseForFile compares only against configured public and private modes"
+     },
+     {
+      "file": "src/UnixVisibility/PortableVisibilityConverter.php",
+      "line": 47,
+      "note": "Unknown mode falls through to return Visibility::PUBLIC"
+     }
+    ],
+    "guards_checked": "PortableVisibilityGuard rejects invalid visibility input on the write side (src/PortableVisibilityGuard.php:9-17). The read-side inference is not guarded. Confidence low; the attacker cannot directly control file modes through this library."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

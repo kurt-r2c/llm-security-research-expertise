@@ -1,0 +1,75 @@
+{
+ "arm": "B",
+ "repo": "h3-go-substr",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00796299,
+ "trace": {
+  "tools": {
+   "Bash": 2,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": []
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches an arbitrary URL from the `logo` query parameter. Its only check is a substring match for \"example.io\", which an attacker can satisfy while pointing the request at any host. The full response body is copied back to the caller.",
+    "source": "main.go:31 \u2014 raw := r.FormValue(\"logo\") (unauthenticated query parameter)",
+    "sink": "main.go:36 \u2014 http.Get(raw), default client follows redirects; response streamed to caller at main.go:38 (io.Copy(w, resp.Body))",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 44,
+      "note": "ListenAndServe(\":8081\", nil) \u2014 listens on all interfaces; no auth middleware registered"
+     },
+     {
+      "file": "main.go",
+      "line": 43,
+      "note": "http.HandleFunc(\"/logo\", logo) \u2014 route exposed"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "source: raw := r.FormValue(\"logo\") \u2014 attacker-controlled full URL"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "validation: strings.Contains(raw, \"example.io\") \u2014 substring, not host equality"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "sink: http.Get(raw) \u2014 host is whatever the attacker writes"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "default client follows redirects (up to 10), so an allowed host can bounce to an internal target"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy(w, resp.Body) \u2014 response body returned to attacker (full-read SSRF)"
+     }
+    ],
+    "guards_checked": "(a) Substring check at main.go:32 does not constrain host: 'example.io' can appear in query, path, userinfo, or subdomain such as example.io.attacker.tld; substring checks do not close. (b) No scheme restriction, but http.Get only dispatches http/https. (c) No redirect restriction; default CheckRedirect in effect. (d) No authentication on route. (e) No network-layer egress control in code."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": false,
+    "guard_found": "none closing. main.go:32 is a substring check (strings.Contains(raw, \"example.io\")), which does not constrain the parsed host. No other validation exists on the path, and no CheckRedirect is set on the default client used at main.go:36.",
+    "reason": "The trace is wrong at main.go:37: that line is `defer resp.Body.Close()`, and the redirect-following behavior the note attributes to it actually comes from `http.Get` at main.go:36. The underlying SSRF is real: the source at main.go:31 is attacker-controlled on an unauthenticated route (main.go:43-44), the substring check at main.go:32 is not a closing guard, and the body is returned via main.go:38. The finding should be re-filed with corrected line citations rather than dropped."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00252857
+}

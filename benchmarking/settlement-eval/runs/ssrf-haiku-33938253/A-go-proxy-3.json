@@ -1,0 +1,108 @@
+{
+ "arm": "A",
+ "repo": "go-proxy",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00484495,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-89jxmfje/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "The /fetch handler makes an outbound HTTP request to an arbitrary attacker-supplied URL with no validation, and streams the response back to the caller.",
+    "source": "main.go:15 \u2014 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:16 \u2014 http.Get(target); response body returned via io.Copy at main.go:22",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "/fetch is registered to the fetch handler"
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target read from query string, unprocessed"
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get issues request to any scheme, host, IP, or port"
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "upstream body copied to the attacker's response (full-response SSRF)"
+     }
+    ],
+    "guards_checked": "None. No scheme, host, IP range, port, or redirect validation on the path."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in the /fetch path. main.go:14-23 has no scheme, host, IP, port, or redirect check. The `allowed` hostname map (main.go:9-12) is used only by safeFetch (main.go:27), which is registered at /safe (main.go:42), not /fetch.",
+    "reason": "The `target` query parameter at main.go:15 flows unvalidated into http.Get at main.go:16 and the upstream body is copied back to the caller at main.go:22, with /fetch registered at main.go:41 and no closing guard on that path. Go's http.Get only accepts http and https schemes, so the claim's \"any scheme\" wording is slightly overstated, but any host, IP, or port is reachable, which is the substance of the SSRF."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "The /safe handler checks the hostname against an allowlist only on the initial URL; http.Get follows redirects by default, so an allowed host that redirects can send the request to an arbitrary internal or metadata address. Conditional on an allowed host issuing a redirect.",
+    "source": "main.go:26 \u2014 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:31 \u2014 http.Get(u.String()) with default redirect following; response returned at main.go:37",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "/safe is registered to safeFetch"
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "attacker-supplied URL parsed"
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "allowlist check on u.Hostname() against images.example.org / docs.example.org"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get uses DefaultClient, following up to 10 redirects with no re-validation"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "response body streamed back to the caller"
+     }
+    ],
+    "guards_checked": "url.Parse error and nil-u handled via short-circuit; userinfo bypass (http://allowed@evil.com) rejected by Hostname(); non-HTTP schemes rejected by Go's client; exact case-sensitive host match; no port restriction (minor); no redirect re-validation (the bypass); no IP-level check at dial time."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "main.go:27 `allowed[u.Hostname()]` is an exact hostname set-membership check on the parsed hostname, applied before the sink at main.go:31. The redirect-following behavior the claim relies on has no re-validation anywhere in the handler (main.go:31-37), so the only guard is the initial-URL allowlist.",
+    "reason": "The trace is accurate (main.go:26 reads the attacker-controlled `target`, main.go:31 calls http.Get with default redirects, main.go:37 streams the body back), but the exact-match allowlist at main.go:27 is a closing guard under the rubric, so the finding is refuted. The residual issue is that a redirect from an allowed host (e.g. an open redirect on images.example.org or docs.example.org) would reach internal addresses; that depends on infrastructure outside this code and is not shown here, so it is a defense-in-depth concern rather than a confirmed bypass in main.go."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004039
+}

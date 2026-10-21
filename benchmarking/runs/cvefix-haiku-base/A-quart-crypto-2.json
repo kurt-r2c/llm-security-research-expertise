@@ -1,0 +1,154 @@
+{
+ "arm": "A",
+ "repo": "quart-crypto",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.025668350000000003,
+ "trace": {
+  "tools": {
+   "Glob": 4,
+   "Grep": 5,
+   "Read": 15,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-f32p1ap_/r/src/quart/sessions.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/helpers.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/formparser.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/wrappers/request.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/wrappers/request.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/app.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/wrappers/request.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/asgi.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/utils.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/app.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/asgi.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/app.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/ctx.py",
+   "/tmp/egf-f32p1ap_/r/src/quart/app.py",
+   "/opt/homebrew/lib/python3.11/site-packages/werkzeug/sansio/multipart.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/quart/wrappers/request.py",
+    "line": 110,
+    "claim": "Request body is buffered in an unbounded queue for chunked uploads (no Content-Length); MAX_CONTENT_LENGTH is only enforced after the full body has been received, and never during streaming iteration, enabling memory exhaustion DoS.",
+    "source": "Client sends a request body with Transfer-Encoding: chunked (no Content-Length header), streaming gigabytes of data.",
+    "sink": "asyncio.Queue inside Body (request.py:110-111 Body.put), which holds every chunk until the body completes.",
+    "trace": [
+     {
+      "file": "src/quart/asgi.py",
+      "line": 63,
+      "note": "receive loop reads each http.request message"
+     },
+     {
+      "file": "src/quart/asgi.py",
+      "line": 65,
+      "note": "calls request.body.put(chunk) with no size check"
+     },
+     {
+      "file": "src/quart/wrappers/request.py",
+      "line": 110,
+      "note": "Body.put appends to unbounded asyncio.Queue"
+     },
+     {
+      "file": "src/quart/wrappers/request.py",
+      "line": 65,
+      "note": "Content-Length precheck only; expected_content_length is None when header absent so nothing is rejected"
+     },
+     {
+      "file": "src/quart/wrappers/request.py",
+      "line": 102,
+      "note": "size check only runs in __await__ after set_complete, once the whole body is in memory"
+     },
+     {
+      "file": "src/quart/wrappers/request.py",
+      "line": 75,
+      "note": "__anext__ streaming iteration performs no MAX_CONTENT_LENGTH check at all"
+     }
+    ],
+    "guards_checked": "Content-Length precheck (request.py:65-70) bypassed by omitting the header; post-buffer limit (request.py:102-106) runs only after full receipt; BODY_TIMEOUT (request.py:359) covers only form parsing, not get_data() or streaming reads; MAX_CONTENT_LENGTH default 16MB (app.py:230) applies only at the post-buffer check. Whether the ASGI server enforces its own body cap is outside this repo and was not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/quart/formparser.py",
+    "line": 188,
+    "claim": "MultipartDecoder is constructed with self.max_content_length (16MB) as its max_form_memory_size argument instead of self.max_form_memory_size (500KB), so Werkzeug's internal header/boundary buffer can grow to 16MB per request instead of 500KB.",
+    "source": "Attacker sends a multipart/form-data POST whose part headers never terminate (no CRLFCRLF), so the decoder keeps buffering.",
+    "sink": "Werkzeug MultipartDecoder internal self.buffer (werkzeug/sansio/multipart.py:139-147 receive_data), capped by the mis-passed argument.",
+    "trace": [
+     {
+      "file": "src/quart/formparser.py",
+      "line": 186,
+      "note": "MultiPartParser.parse constructs MultipartDecoder"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 188,
+      "note": "passes self.max_content_length as second positional arg (max_form_memory_size slot)"
+     },
+     {
+      "file": "src/quart/wrappers/request.py",
+      "line": 103,
+      "note": "overall body cap of 16MB is the only effective bound on this buffer"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 211,
+      "note": "Quart's own max_form_memory_size check only counts Data events, not the decoder's header buffer, so it does not cover this path"
+     }
+    ],
+    "guards_checked": "Overall body cap 16MB (request.py:103); BODY_TIMEOUT 60s (request.py:359) bounds duration. Neither restores the intended 500KB ceiling. Signature verified against Werkzeug at /opt/homebrew/lib/python3.11/site-packages/werkzeug/sansio/multipart.py:84-93,136-147; other Werkzeug versions may differ."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/quart/formparser.py",
+    "line": 115,
+    "claim": "MAX_FORM_PARTS and MAX_FORM_MEMORY_SIZE are not applied to urlencoded form bodies; parse_qsl builds an unbounded number of pairs up to the 16MB body cap, causing CPU and memory amplification.",
+    "source": "Attacker sends an application/x-www-form-urlencoded POST body of up to 16MB containing millions of key=value pairs.",
+    "sink": "parse_qsl(...) followed by self.cls(form) at formparser.py:115-119, producing one tuple per pair.",
+    "trace": [
+     {
+      "file": "src/quart/formparser.py",
+      "line": 115,
+      "note": "_parse_urlencoded calls parse_qsl on the decoded body with no pair-count cap"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 119,
+      "note": "builds MultiDict from all pairs"
+     },
+     {
+      "file": "src/quart/formparser.py",
+      "line": 98,
+      "note": "max_form_parts is only passed to the multipart parser"
+     },
+     {
+      "file": "src/quart/app.py",
+      "line": 233,
+      "note": "MAX_FORM_PARTS=1000 config is silently ignored for urlencoded bodies"
+     }
+    ],
+    "guards_checked": "MAX_CONTENT_LENGTH 16MB via await body (request.py:102-106) and BODY_TIMEOUT (request.py:359). Neither caps the number of pairs, so a 16MB body of 'a=1&' repeated yields roughly 4 million tuples."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

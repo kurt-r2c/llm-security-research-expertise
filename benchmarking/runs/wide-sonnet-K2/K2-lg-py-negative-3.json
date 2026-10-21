@@ -1,0 +1,140 @@
+{
+ "arm": "K2",
+ "repo": "lg-py-negative",
+ "rep": 3,
+ "model": "sonnet",
+ "suite": "wide",
+ "config_id": "c071da78",
+ "status": "success",
+ "gen_cost": 0.0496869,
+ "trace": {
+  "tools": {
+   "Read": 2,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-2vpp632c/expertise/INDEX.md",
+   "/tmp/egf-2vpp632c/r/bank.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "The /transfer endpoint does not validate that amount is positive. An authenticated user can send a negative amount to take funds from any account. The check passes because the balance is always >= a negative number. BAL[g.user] then increases and BAL[to] decreases, with no consent from the victim. The recipient can also be driven negative.",
+    "source": "request.json['amount'] (attacker-controlled, negative number) and request.json['to'] (victim account)",
+    "sink": "BAL[g.user] -= amount; BAL[to] += amount (bank.py:13-14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount read from JSON with no type or sign validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < amount is false for negative amount, so the guard passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "the attacker's balance increases by |amount|"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "the victim's balance decreases by |amount|"
+     }
+    ],
+    "guards_checked": "The only guard is the balance comparison. There is no amount <= 0 check, unlike /withdraw at line 21. There is no type check, and no check that to != g.user or that to exists."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the balance comparison at bank.py:11, which a negative amount trivially passes. No sign, type, or existence check. The amount <= 0 check exists only in /withdraw (bank.py:21).",
+    "reason": "At bank.py:11 `BAL[g.user] < amount` is false for a negative amount, so lines 13-14 move |amount| from the victim `to` to the caller with no sign check, unlike bank.py:21. Any authenticated user can trigger it, and the victim does not need to consent."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "The balance check and the debit are separate steps on shared state with no lock or atomic operation. Concurrent requests can pass the check before any debit runs. This allows overdraft or double spend, for example parallel withdrawals or transfers that each see a sufficient balance. In a multi-threaded deployment, the read-modify-write on BAL is also not atomic.",
+    "source": "Concurrent authenticated POST requests to /transfer or /withdraw",
+    "sink": "BAL[g.user] -= amount (bank.py:13 and bank.py:23)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "check BAL[g.user] < amount"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "debit happens later with no lock, so another request can interleave"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "the same check-then-act pattern in /withdraw"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "debit after the check"
+     }
+    ],
+    "guards_checked": "There is no lock, transaction or atomic compare-and-set. BAL is a plain module-level dict. The practical window under the GIL is small, but it exists in threaded servers and with any await or IO added between the check and the debit. Exploitation depends on the deployment."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (no lock, transaction, or atomic op; BAL is a plain module-level dict at bank.py:4; the only checks are the balance comparisons at bank.py:11 and 21, and abort(400) on failure only blocks a single request)",
+    "reason": "bank.py:11/21 check BAL[g.user] and bank.py:13/23 debit it as separate unlocked steps, so threaded Flask workers can interleave between them (Python can switch threads between bytecodes). An authenticated user can therefore overdraw their own account. The window is narrow and exploitation depends on a threaded deployment. The finding also assumes g.user is set by middleware outside this file."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 14,
+    "claim": "The recipient is not validated. A nonexistent 'to' key raises KeyError, which gives a 500. This is a minor DoS or error path. The same missing check lets a self-transfer with a negative amount be used as part of F1. A non-numeric amount, such as a string, raises TypeError. Values like NaN or a float can also produce odd balances.",
+    "source": "request.json['to'] and request.json['amount']",
+    "sink": "BAL[to] += amount (bank.py:14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to is taken unvalidated from the request body"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "the sender is debited first"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] raises KeyError for an unknown recipient after the sender has already been debited, so funds are lost from the sender and the state is inconsistent"
+     }
+    ],
+    "guards_checked": "No existence check on the recipient and no try/except. The debit at line 13 happens before the credit can fail, and there is no rollback. Flask handles the exception per request, but BAL is already mutated."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:13 debits BAL[g.user] before bank.py:14 `BAL[to] += amount` raises KeyError for an unknown recipient, with no existence check, try/except or rollback, so the sender loses funds and gets a 500. Impact is mostly self-inflicted by an authenticated user and the type and NaN cases are minor."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0854297
+}

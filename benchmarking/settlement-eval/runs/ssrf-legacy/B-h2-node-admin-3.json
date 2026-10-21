@@ -1,0 +1,90 @@
+{
+ "arm": "B",
+ "repo": "h2-node-admin",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.0817823,
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "routes.js",
+    "line": 20,
+    "claim": "Unauthenticated POST /hooks/test sends a server-side HTTP POST to a caller-supplied URL with no allowlist, scheme restriction, or host validation. axios follows redirects by default, so an external target can redirect to internal hosts. The response status is returned to the caller. HIGH severity.",
+    "source": "req.body.callback (POST body field on the public router `pub`)",
+    "sink": "axios.post(req.body.callback, { ping: true }) at routes.js:20",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 5,
+      "note": "`pub` router is a plain express.Router with no auth middleware"
+     },
+     {
+      "file": "routes.js",
+      "line": 19,
+      "note": "POST /hooks/test handler reads attacker-controlled req.body.callback"
+     },
+     {
+      "file": "routes.js",
+      "line": 20,
+      "note": "req.body.callback passed directly as the URL to axios.post, so the attacker controls scheme, host and port"
+     },
+     {
+      "file": "routes.js",
+      "line": 21,
+      "note": "r.status is returned to the caller, which gives a reachability and port-scan oracle (a blind-SSRF variant that still leaks status)"
+     }
+    ],
+    "guards_checked": "No requireAdmin or other auth on `pub` (requireAdmin is applied only to `admin` at line 12). No URL parsing, hostname allowlist, scheme check or IP/CIDR block. No maxRedirects: 0, so redirects are followed by default. No in-repo egress controls. The webhook URL is not admin-registered; it comes from the request body per call."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": false,
+    "guard_found": "none",
+    "reason": "routes.js:20 passes req.body.callback straight into axios.post with no validation, and routes.js:19 sits on `pub`, which has no auth (requireAdmin is applied only to `admin` at routes.js:12); the trace's line 5 is actually the `admin` declaration (`pub` is at line 4), which is a cosmetic slip. Where `pub` is mounted isn't visible, because routes.js is the only file here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "routes.js",
+    "line": 15,
+    "claim": "GET /diagnostics/fetch makes a server-side GET to an arbitrary caller-supplied URL with no allowlist, scheme restriction, or host validation, and redirects are followed. Only an admin session can reach it, so severity is MEDIUM. An admin-only gate does not close SSRF to cloud metadata or RFC-1918 targets. The response status is returned to the caller.",
+    "source": "req.query.url (query string parameter)",
+    "sink": "axios.get(req.query.url) at routes.js:15",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) gates this router on session role === 'admin'"
+     },
+     {
+      "file": "routes.js",
+      "line": 14,
+      "note": "GET /diagnostics/fetch handler"
+     },
+     {
+      "file": "routes.js",
+      "line": 15,
+      "note": "req.query.url passed directly to axios.get as the full URL"
+     },
+     {
+      "file": "routes.js",
+      "line": 16,
+      "note": "Status code returned to the caller"
+     }
+    ],
+    "guards_checked": "requireAdmin (routes.js:7-10) is the only control, and it is an authorization gate, not a URL validator. No hostname allowlist, scheme check, or IP block. Redirects are not disabled. There is no evidence that the admin role implies OS-level server access, so the admin-equivalence exception does not apply. Rated MEDIUM, not closed."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none for URL validation; requireAdmin (routes.js:7-10, applied at routes.js:12) restricts the route to session role 'admin'",
+    "reason": "The trace is accurate (routes.js:12-16), but the sink at routes.js:15 can only be reached through admin.use(requireAdmin) at routes.js:12, so req.query.url is not controllable by an unauthenticated or low-privilege attacker. Under the source-check rule, an admin-only input does not count as attacker-controlled."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0639458
+}

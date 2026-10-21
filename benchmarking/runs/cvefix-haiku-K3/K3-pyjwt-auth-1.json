@@ -1,0 +1,172 @@
+{
+ "arm": "K3",
+ "repo": "pyjwt-auth",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3af06fea",
+ "status": "success",
+ "gen_cost": 0.04874386,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 8,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-awdowk0d/r/jwt/api_jws.py",
+   "/tmp/egf-awdowk0d/r/jwt/api_jwt.py",
+   "/tmp/egf-awdowk0d/r/jwt/jwks_client.py",
+   "/tmp/egf-awdowk0d/r/jwt/algorithms.py",
+   "/tmp/egf-awdowk0d/r/jwt/api_jwk.py",
+   "/tmp/egf-awdowk0d/r/jwt/jwk_set_cache.py",
+   "/tmp/egf-awdowk0d/r/jwt/utils.py",
+   "/tmp/egf-awdowk0d/r/jwt/help.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "jwt/jwks_client.py",
+    "line": 203,
+    "claim": "Unknown kid in an unverified JWT header forces an unthrottled synchronous JWKS HTTP fetch on every request (low severity, availability / outbound amplification). Precondition: the application calls get_signing_key_from_jwt on unauthenticated input.",
+    "source": "jwks_client.py:224-226 - header.get('kid') read from unverified token header before any signature check",
+    "sink": "jwks_client.py:203 get_signing_keys(refresh=True) -> :153 fetch_data -> :118 urllib.request.urlopen (30 s timeout)",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 213,
+      "note": "get_signing_key_from_jwt entry point"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 224,
+      "note": "decode_token with verify_signature=False reads unverified header"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 226,
+      "note": "passes attacker-chosen kid to get_signing_key"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 198,
+      "note": "cached lookup via get_signing_keys() misses for unknown kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 203,
+      "note": "forced refresh on miss"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 149,
+      "note": "refresh=True bypasses JWK set cache"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 153,
+      "note": "fetch_data invoked"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 118,
+      "note": "synchronous outbound HTTP request"
+     }
+    ],
+    "guards_checked": "kid type check at api_jws.py:430-432 (type only, not bounded or rate-limited); no negative caching (lru_cache at jwks_client.py:100-104 does not cache exceptions); no rate limit anywhere in the call path; no enforced control prevents repeated refetch per attacker request."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "jwt/api_jws.py",
+    "line": 338,
+    "claim": "JSON header parsing catches only ValueError, so deeply nested JSON in an unauthenticated token raises RecursionError that escapes the PyJWT error hierarchy (low severity; error-handling / availability). Same root cause also applies to signed-claim validators that catch only ValueError (api_jwt.py:477-481, 492-494, 506-510), where a validly signed token with a null or infinite iat/nbf/exp raises TypeError or OverflowError. Not verified by execution; based on CPython json semantics.",
+    "source": "api_jws.py:318-321 - attacker-supplied token string (E1) and header JSON segment",
+    "sink": "api_jws.py:337 json.loads(header_data) inside try/except ValueError at :338; claim validators api_jwt.py:477, 492, 506",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 318,
+      "note": "_load entry for any token string"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 331,
+      "note": "header segment base64 decode"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 337,
+      "note": "json.loads on attacker-supplied header"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 338,
+      "note": "except ValueError does not catch RecursionError"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 477,
+      "note": "int(payload['iat']) except ValueError only; signed-token variant"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 492,
+      "note": "int(payload['nbf']) except ValueError only"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 506,
+      "note": "int(payload['exp']) except ValueError only"
+     }
+    ],
+    "guards_checked": "ValueError handling at api_jws.py:338 and api_jwt.py:298-300 (payload JSON); claim validators catch only ValueError; no catch-all converts these to PyJWTError. Signature check happens after header parsing, so the header path is reachable pre-authentication. Claim-validator path needs a validly signed token or verify_signature=False with explicit verify_* options."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "jwt/api_jwt.py",
+    "line": 565,
+    "claim": "Issuer validation fails open when the application omits the issuer argument: _validate_iss returns early on issuer None while verify_iss defaults to True, unlike _validate_aud which fails closed. Conditional: exploitable only if the app omits issuer= and shares key material across multiple issuers or tenants. Documented opt-in API behaviour; reported as a design weakness.",
+    "source": "Token signed by a key the application trusts, issued by a different issuer or tenant (attacker must hold such a token)",
+    "sink": "api_jwt.py:412-413 _validate_iss call returns early at :568 when issuer is None, so token is accepted",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 58,
+      "note": "verify_iss defaults to True"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 412,
+      "note": "_validate_claims invokes _validate_iss when verify_iss"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 568,
+      "note": "if issuer is None: return (no check)"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 522,
+      "note": "contrast: _validate_aud raises InvalidAudienceError when audience None and aud claim present"
+     }
+    ],
+    "guards_checked": "verify_iss option (default True) gives the appearance of enforcement but the check is skipped when issuer is None. Signature verification still applies, so the attacker must hold a validly signed token from a trusted key. _validate_sub at api_jwt.py:452 has the same fail-open pattern and was not reported separately."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

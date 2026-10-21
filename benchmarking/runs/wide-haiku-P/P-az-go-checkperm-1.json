@@ -1,0 +1,124 @@
+{
+ "arm": "P",
+ "repo": "az-go-checkperm",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.00482755,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-rvomf6zv/r/handlers.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "handlers.go",
+    "line": 26,
+    "claim": "The purge handler performs no authorization check. checkPerm's boolean result is discarded, so any user with a context User, including one without the admin permission, reaches purgeAll().",
+    "source": "Any HTTP request reaching the purge route with a *User in its context (set by upstream middleware, handlers.go:40). The request's user identity and permissions are attacker-controlled to the extent that any authenticated user qualifies.",
+    "sink": "purgeAll() at handlers.go:27 (stubbed in this snapshot at handlers.go:44; the real implementation is presumably destructive).",
+    "trace": [
+     {
+      "file": "handlers.go",
+      "line": 24,
+      "note": "purge(w, r) receives the request."
+     },
+     {
+      "file": "handlers.go",
+      "line": 25,
+      "note": "u := userFrom(r) retrieves the user from the request context."
+     },
+     {
+      "file": "handlers.go",
+      "line": 40,
+      "note": "userFrom performs an unchecked type assertion on the context value."
+     },
+     {
+      "file": "handlers.go",
+      "line": 26,
+      "note": "checkPerm(u, \"admin\") is called but its boolean result is discarded; no if or early return."
+     },
+     {
+      "file": "handlers.go",
+      "line": 12,
+      "note": "checkPerm returns u.Perms[perm], which is correct but unused by the caller."
+     },
+     {
+      "file": "handlers.go",
+      "line": 27,
+      "note": "purgeAll() runs unconditionally."
+     },
+     {
+      "file": "handlers.go",
+      "line": 28,
+      "note": "Writes 'purged' with status 200."
+     }
+    ],
+    "guards_checked": "checkPerm (handlers.go:12-14) returns the correct value but the caller ignores it. The sibling rotateKeys (handlers.go:31-38) uses mustPerm (handlers.go:16-22) with an early return, which is the correct pattern and shows purge is the outlier. No route-level middleware is visible in the repository, so whether the route is gated elsewhere cannot be determined."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. checkPerm (handlers.go:12-13) returns the correct bool, but purge calls it as a bare statement at handlers.go:26 and discards the result, so there is no if or early return. Contrast rotateKeys (handlers.go:33-35), which uses mustPerm with a return. userFrom (handlers.go:40) has an unchecked type assertion, so a missing user panics rather than being rejected. No route-level middleware is visible in this snapshot.",
+    "reason": "The trace matches the code: purge() at handlers.go:24-28 calls checkPerm(u, \"admin\") at line 26 and discards the bool, then runs purgeAll() at line 27 for any request whose context carries a *User, so any authenticated non-admin user reaches the sink. Caveat: the router is not in this snapshot, so a route-level admin gate outside the repo cannot be ruled out, and purgeAll is an empty stub, so its destructiveness is unverified."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "handlers.go",
+    "line": 40,
+    "claim": "userFrom performs an unchecked type assertion. If the context lacks a *User, or holds a nil *User, the handler panics and checkPerm/mustPerm may dereference nil. This is an availability and robustness issue that becomes a security issue only on routes registered without the user-setting middleware.",
+    "source": "The request context (r.Context()) value keyed by userKey{}. Its contents depend on upstream middleware, which is not in the repository.",
+    "sink": "Panic in purge (handlers.go:25) or rotateKeys (handlers.go:32). net/http recovers per connection, so the effect is a dropped request rather than a process crash.",
+    "trace": [
+     {
+      "file": "handlers.go",
+      "line": 40,
+      "note": "Unchecked assertion .(*User) on r.Context().Value(userKey{})."
+     },
+     {
+      "file": "handlers.go",
+      "line": 25,
+      "note": "purge calls userFrom with no guard."
+     },
+     {
+      "file": "handlers.go",
+      "line": 32,
+      "note": "rotateKeys calls userFrom with no guard."
+     },
+     {
+      "file": "handlers.go",
+      "line": 13,
+      "note": "checkPerm dereferences u; a nil u panics here."
+     },
+     {
+      "file": "handlers.go",
+      "line": 17,
+      "note": "mustPerm dereferences u; a nil u panics here."
+     }
+    ],
+    "guards_checked": "No ok check and no nil check on the assertion. mustPerm denies on a nil Perms map (a nil map read returns false), so the denial logic is safe. The unchecked assertion is the only weakness on this path. Confidence is medium because the middleware that sets the user is not in the repository."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None on the unchecked assertion at handlers.go:40. checkPerm at handlers.go:26 is a bare statement whose bool is discarded, so it is not a guard. mustPerm at handlers.go:33 is a real guard for rotateKeys, but it dereferences u at line 17, so a nil user panics there rather than being denied.",
+    "reason": "Every trace line exists and matches the claim (handlers.go:40, 25, 32, 13, 17), so the panic is real if the request context lacks a *User, but whether any route reaches that state depends on router and middleware code that is not in the repository, so reachability is undecided. Separately, handlers.go:26 discards checkPerm's result, so purge has no authorization check at all, which is a more serious issue than this finding describes and should be reported on its own."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00452066
+}

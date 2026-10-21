@@ -1,0 +1,194 @@
+{
+ "arm": "P",
+ "repo": "az-node-massassign",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.00505903,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-38l7af4c/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "users-mass-assignment-put-me",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me copies the entire unfiltered req.body onto req.user and persists it, so an authenticated client can overwrite any field of its own user record (e.g. role/isAdmin/id/email), likely enabling privilege escalation or identity overwrite depending on the schema.",
+    "source": "req.body (HTTP JSON body from the client), users.js:5",
+    "sink": "req.store.save(req.user) persisting the user record, users.js:6; response res.json(req.user) users.js:7",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "router.put('/me') handler receives req"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign(req.user, req.body) copies all attacker-supplied keys, no whitelist"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save(req.user) persists modified record"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json(req.user) returns modified record"
+     },
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Sibling /me/profile handler whitelists fields via destructuring, showing the expected pattern"
+     }
+    ],
+    "guards_checked": "No whitelist, schema validation, or field filtering in users.js. Sibling handler at users.js:11-12 whitelists displayName/bio. Auth middleware setting req.user and body parser are not in repo, so unverified; impact depends on user schema (not in repo)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:4-8 has no field whitelist, schema validation, or filtering. The sibling handler at users.js:11-12 whitelists displayName/bio, but it is a different route and does not guard /me. Auth middleware and body parser are not in the repo, and neither would filter fields even if present.",
+    "reason": "The trace matches the code: users.js:5 runs Object.assign(req.user, req.body) with no filtering, users.js:6 persists the result, and users.js:7 returns it. Any authenticated user can reach this route, and no guard blocks field overwrites. Whether this escalates to privilege gain depends on fields that are not in the repo, such as role or isAdmin, so severity is conditional on the user schema."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-proto-injection-put-me",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Object.assign with a JSON body containing an own '__proto__' key invokes the __proto__ setter on req.user, changing its prototype to an attacker-chosen object; inherited properties such as isAdmin can then be read by later code in the same request. Confidence low; impact depends on code not in repo.",
+    "source": "JSON body key \"__proto__\" in req.body, users.js:5",
+    "sink": "Prototype of req.user (per-object, not global Object.prototype), read by later authorization checks",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign uses [[Set]], triggering __proto__ setter on req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save persists own props only unless store uses for-in/spread"
+     }
+    ],
+    "guards_checked": "No prototype-key filtering in users.js. Downstream auth checks and store serialization not in repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 applies Object.assign(req.user, req.body) with no key filtering, and users.js:6-7 save and respond without reading any inherited property. The req.user population middleware and req.store.save are not in the repo, so no authorization check after users.js:5 can be seen.",
+    "reason": "The trace is accurate: users.js:5 does [[Set]] of an own \"__proto__\" key, which invokes the __proto__ setter on req.user, and the attacker is any authenticated user reaching PUT /me. But the claimed impact needs code outside the repo: nothing in users.js:5-7 reads req.user.isAdmin, and the change to req.user's prototype is only meaningful if a later check in the same request or the store's serialization depends on it, neither of which is in the repo. Note also that the same handler at users.js:5 already lets any authenticated user set an own isAdmin property directly, so this prototype path adds no power beyond the mass-assignment issue the handler already has."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-profile-undefined-overwrite",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile writes undefined to displayName/bio when the client omits them, because Object.assign copies undefined-valued own properties, so a partial update can erase stored values.",
+    "source": "req.body.displayName / req.body.bio from the client, users.js:11",
+    "sink": "Stored displayName and bio fields via req.store.save, users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "destructure body fields, possibly undefined"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Object.assign writes undefined over existing values"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "save persists record"
+     }
+    ],
+    "guards_checked": "No merge/default against existing values. Effect depends on store serialization of undefined (not in repo)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in users.js: no default/merge against existing values, no field validation or body filtering before Object.assign at users.js:12, and the store's handling of undefined is not in the repo. Only req.user, which is set by unseen middleware, is in scope.",
+    "reason": "The trace is accurate: users.js:11 destructures possibly-undefined fields, and users.js:12 Object.assign copies those own properties, overwriting stored displayName/bio with undefined before users.js:13 saves, so any authenticated user omitting a field erases their own stored value. This is a self-scoped data-integrity bug with low security severity, since it touches only req.user and grants no capability the user lacks (they can already set the field to an empty string)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-response-full-object",
+    "file": "users.js",
+    "line": 7,
+    "claim": "Responses serialize the entire req.user object, which may expose sensitive stored fields (e.g. password hash, tokens) to the client; depends on schema not in repo.",
+    "source": "req.user contents loaded by unseen auth/store middleware",
+    "sink": "HTTP response body via res.json, users.js:7 and users.js:14",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json(req.user) after PUT /me"
+     },
+     {
+      "file": "users.js",
+      "line": 14,
+      "note": "res.json(req.user) after PUT /me/profile"
+     }
+    ],
+    "guards_checked": "No field projection or sanitisation in users.js. Schema and auth middleware not in repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:7 and users.js:14 call res.json(req.user) with no projection or sanitisation, and no auth or store code in the repo shows which fields req.user holds.",
+    "reason": "Both sink lines exist and match the claim (users.js:7, users.js:14), but whether req.user contains a password hash or token is decided by the unseen auth/store middleware, so the impact cannot be determined from this repo. Any exposure would also go only to the authenticated user returning their own record (req.user is set by middleware not in the repo), which narrows the issue further."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-unawaited-save",
+    "file": "users.js",
+    "line": 6,
+    "claim": "req.store.save is neither awaited nor error-checked, so if save is async or can fail the response is sent before persistence completes or the failure is silently ignored, and rejections become unhandled.",
+    "source": "Store behaviour (not in repo)",
+    "sink": "Persistence of user record, users.js:6 and users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save called without await or error handling, then response sent at line 7"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "same pattern in /me/profile"
+     }
+    ],
+    "guards_checked": "No await, callback, or try/catch in users.js. Store implementation not in repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js: no await, callback, try/catch, or return-value check around req.store.save at lines 6 and 13. The store implementation is not in the repo, so whether save is async or can fail is unknown.",
+    "reason": "users.js:6 and users.js:13 match the claim (save is a bare statement followed immediately by res.json), but whether the response precedes persistence or a rejection goes unhandled depends entirely on req.store.save, which is not in the repo (the only file here is users.js), so this cannot be decided from the code available. It is also a reliability issue rather than an attacker-reachable security flaw, since the caller is the authenticated user updating their own record."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01026666
+}

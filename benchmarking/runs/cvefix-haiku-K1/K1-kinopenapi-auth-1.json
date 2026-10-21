@@ -1,0 +1,390 @@
+{
+ "arm": "K1",
+ "repo": "kinopenapi-auth",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.1221489,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Grep": 6,
+   "Read": 16,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-qtp2im8c/r/openapi3filter/middleware.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/validation_handler.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/validate_request.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/authentication_input.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/options.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/validation_error_encoder.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/internal.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/errors.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/validation_error.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/req_resp_decoder.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/req_resp_decoder.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/req_resp_decoder.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/req_resp_decoder.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/validation_kit.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/req_resp_encoder.go",
+   "/tmp/egf-qtp2im8c/r/openapi3filter/validate_request_input.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "openapi3filter/validate_request.go",
+    "line": 105,
+    "claim": "[Medium-Low, confirmed] RejectWhenRequestBodyNotSpecified is bypassed by any body sent with unknown length (Transfer-Encoding: chunked). The check is `ContentLength > 0`, but net/http sets ContentLength = -1 for chunked requests, so a body on an operation with no requestBody is accepted.",
+    "source": "Unauthenticated HTTP client sends `Transfer-Encoding: chunked` with a body to an operation whose spec declares no requestBody (e.g. GET or DELETE), with RejectWhenRequestBodyNotSpecified enabled.",
+    "sink": "Protected operation: the option's purpose is to reject unexpected request bodies. The body reaches the wrapped handler unchecked.",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 93,
+      "note": "Body validation block entered only when !options.ExcludeRequestBody."
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 95,
+      "note": "requestBody == nil for an operation with no requestBody, so ValidateRequestBody is skipped and the body is never read (ContentLength not normalised)."
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 105,
+      "note": "Check is `input.Request.ContentLength > 0`. For chunked input ContentLength == -1, so the error is never created."
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 134,
+      "note": "Validator.Middleware treats ValidateRequest nil as valid and calls the wrapped handler with the unread body."
+     }
+    ],
+    "guards_checked": "Only the opt-in option itself. No other check rejects bodies on these operations. No test in the repo exercises RejectWhenRequestBodyNotSpecified (grep). The ContentLength guard does not consider ContentLength == -1."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 929,
+    "claim": "[Low, confirmed by code reading] Unauthenticated request-triggered panic. Two colliding deepObject keys make deepSet do an unchecked type assertion on a string, and Go map iteration order makes the panic nondeterministic (about 50% of requests).",
+    "source": "Query string `p[a]=x&p[a][b]=y` against an operation with an object-typed query parameter using style deepObject, explode true (no auth required if the operation is public).",
+    "sink": "Unchecked type assertion `m[key].(map[string]any)` in deepSet panics; the panic unwinds the request goroutine.",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 703,
+      "note": "deepObject props built with keys \"a\" (from p[a]) and \"a\\x1Fb\" (from p[a][b])."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 715,
+      "note": "propsFn result passed on; map iteration order over props is random."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 722,
+      "note": "DecodeObject calls makeObject(props, schema)."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 938,
+      "note": "makeObject ranges over props (random order)."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 945,
+      "note": "deepSet(mobj, keys, value) for each key."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 926,
+      "note": "If mobj[\"a\"] already holds the string \"x\", the loop does `m = m[key].(map[string]any)`; line 929 panics."
+     }
+    ],
+    "guards_checked": "makeObject checks only for the delimiter in values (line 940), not key collisions. deepSet has no ok-check on the assertion. The MaxSliceMapToSliceGap guard (line 964) covers arrays only. net/http recovers panics per connection, so impact is request-scoped unless validation runs outside a recovering goroutine."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1192,
+    "claim": "[Low-Medium, confirmed in-tree; consumer-dependent impact] Integer parameters and form fields are parsed with strconv.ParseInt base 0, so leading-zero octal (\"0144\" = 100), 0x/0o/0b prefixes and underscores are accepted. A validator enforcing maximum: 100 accepts \"0144\" while a consumer that parses base 10 reads 144.",
+    "source": "Attacker-controlled query, path, header, cookie, or form value for a parameter/property of type integer with a maximum (or minimum) constraint.",
+    "sink": "Schema bound checks (maximum/minimum) run on the base-0 value; the protected operation (the application's own base-10 parse) sees a different number.",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 510,
+      "note": "urlValuesDecoder.DecodePrimitive takes the raw query value (first or first non-empty occurrence)."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1170,
+      "note": "parsePrimitive forwards to parsePrimitiveCase."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1192,
+      "note": "strconv.ParseInt(raw, 0, 64): base 0 infers base from prefix (\"0\" = octal, \"0x\", \"0o\", \"0b\") and permits underscores."
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 250,
+      "note": "schema.VisitJSON validates the parsed int64 against maximum, so \"0144\" is checked as 100 and passes."
+     }
+    ],
+    "guards_checked": "Format int32 path (line 1186) uses the same base 0. No regex on integer params. The schema bound check runs, but only on the lenient numeric value."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1198,
+    "claim": "[Low-Medium, PLAUSIBLE: depends on out-of-tree openapi3 VisitJSON] strconv.ParseFloat accepts \"NaN\", \"Inf\", \"infinity\" for type number, so non-JSON NaN reaches schema validation. NaN fails every < and > comparison, so a minimum/maximum bound may pass it, and application checks like `if price < 0` also pass.",
+    "source": "Attacker-controlled query/path/header/cookie or urlencoded field of type number, value \"NaN\" (or \"Inf\"/\"infinity\").",
+    "sink": "Schema minimum/maximum validation and any downstream numeric business check.",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1197,
+      "note": "case \"number\": strconv.ParseFloat(raw, 64)."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1170,
+      "note": "parsePrimitive returns the NaN value with no error."
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 250,
+      "note": "VisitJSON(value) runs bound checks. Whether NaN passes depends on the out-of-tree openapi3 number check, not verified here."
+     }
+    ],
+    "guards_checked": "No NaN/Inf rejection in-tree. JSON bodies cannot carry NaN, so this affects only non-JSON inputs."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1495,
+    "claim": "[Low] application/x-www-form-urlencoded bodies silently drop any optional property that fails to parse, so the schema check never runs on that value. A typed optional field (e.g. integer) with a non-numeric value is accepted, and the handler receives the original bytes.",
+    "source": "Attacker-controlled form body with a non-numeric value (e.g. qty=abc) for an optional property typed integer/number/boolean, sent with Content-Type application/x-www-form-urlencoded.",
+    "sink": "Application handler receives the unvalidated raw form value.",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1456,
+      "note": "url.ParseQuery of the body."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1495,
+      "note": "decodeProperty(...) returns err (ParseError from parsePrimitive)."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1496,
+      "note": "`if err != nil || !present { continue }`: the error is discarded and the property is omitted from obj."
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 364,
+      "note": "VisitJSON runs on obj, which no longer contains the property, so the type check never fires."
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 341,
+      "note": "defaultsSet false, so the original data is forwarded unchanged (lines 285-297)."
+     }
+    ],
+    "guards_checked": "Required properties still fail (VisitJSON reports missing). Only optional properties are affected. No other type check on the raw value."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1406,
+    "claim": "[Low, consumer-dependent] JSON and YAML body decoders validate only the first value in the stream and ignore trailing data. The original bytes, including the trailing value, are forwarded unchanged to the handler. A handler that decodes multiple values (e.g. a json.Decoder loop) sees data that was never validated.",
+    "source": "Attacker-controlled request body: a valid JSON object followed by a second JSON value (e.g. `{\"qty\":1} {\"qty\":99999,\"admin\":true}`), or a second YAML document, with Content-Type application/json or application/yaml.",
+    "sink": "Application handler that reads more than one value from the body.",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1406,
+      "note": "json.NewDecoder(body).Decode(&value) reads only the first JSON value; no check for trailing data (dec.More()/EOF)."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1416,
+      "note": "YamlBodyDecoder decodes one document only."
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 285,
+      "note": "Original bytes are restored to req.Body, so trailing data is forwarded."
+     }
+    ],
+    "guards_checked": "Standard encoding/json.Unmarshal in the handler rejects trailing data, so this is only exploitable when the consumer reads multiple values. Not a bypass for single-value consumers."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 524,
+    "claim": "[Low-Medium, consumer-dependent] HTTP parameter pollution: scalar query params validate only one occurrence (the first non-empty one), array params with explode=false validate only values[0], form object props use values[0], and multipart non-array fields validate only the first part. A consumer that reads the last occurrence (e.g. PHP $_GET) uses a value that was never schema-checked.",
+    "source": "Attacker sends a repeated parameter or form field, e.g. `?role=user&role=admin`, `?ids=1,2&ids=../x` (explode=false), or two multipart parts with the same name.",
+    "sink": "Application reads the last (unvalidated) occurrence and treats it as the constrained value (enum/pattern/maximum).",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 524,
+      "note": "Scalar query: raw = values[0], or the first non-empty value when values[0] is empty. Later values are ignored."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 563,
+      "note": "Non-explode array: only values[0] is split and parsed when explode is false."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 684,
+      "note": "Form object with explode false uses values[0]."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1641,
+      "note": "Multipart: obj[name] = vv[0] for non-array properties. Only the first part is validated."
+     }
+    ],
+    "guards_checked": "Repeated values are never rejected for scalar params (no duplicate check). Contrast content-param decoding (line 176-179), which errors on multiple values for non-query params."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F8",
+    "file": "openapi3filter/middleware.go",
+    "line": 124,
+    "claim": "[Low, org-policy relevant] On route-not-found, the validator logs the full raw request URL, including the query string, via the default log.Printf logger. Tokens or API keys sent as query parameters are written to logs, which org policy prohibits.",
+    "source": "Client request to an unknown route with a secret in the query (e.g. `/unknown?access_token=...`).",
+    "sink": "Default logFunc (log.Printf) writes the secret to process logs.",
+    "trace": [
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 122,
+      "note": "v.router.FindRoute(r) fails."
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 124,
+      "note": "logFunc(ctx, \"validation error: failed to find route for \"+r.URL.String(), err) includes RawQuery."
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 68,
+      "note": "Default logFunc = log.Printf(\"%s: %v\", message, err)."
+     }
+    ],
+    "guards_checked": "No redaction of query strings. Callers can supply OnLog to redact, but the default writes the URL verbatim."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F9",
+    "file": "openapi3filter/middleware.go",
+    "line": 136,
+    "claim": "[Low] Log injection: attacker-controlled parameter values are embedded unescaped in error messages, and the default logger writes them verbatim, so a CR/LF in the value can forge log lines.",
+    "source": "Query value containing a percent-encoded newline, e.g. `?limit=1%0A2026/10/13 12:00:00 admin login OK` for an integer parameter.",
+    "sink": "Default logFunc (log.Printf) writes the forged line.",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1192,
+      "note": "ParseInt fails and returns ParseError{Value: raw}, where raw is the decoded value containing \"\\n\"."
+     },
+     {
+      "file": "openapi3filter/errors.go",
+      "line": 23,
+      "note": "RequestError.Error() concatenates the ParseError text."
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 71,
+      "note": "innerError formats the value with fmt.Sprintf(\"value %v\", e.Value), unescaped."
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 136,
+      "note": "logFunc(ctx, \"invalid request\", err)."
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 69,
+      "note": "log.Printf writes the raw newline, creating a forged log line."
+     }
+    ],
+    "guards_checked": "No escaping or sanitising of error values before logging. Only applies when the default logFunc is used."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F10",
+    "file": "openapi3filter/middleware.go",
+    "line": 147,
+    "claim": "[Low, resource] Validator.Middleware buffers every response body fully in memory (non-strict mode tees into a bytes.Buffer; strict mode buffers too), even when ExcludeResponseBody is set. Memory per request scales with response size, so routes that return large bodies are amplified.",
+    "source": "Client requests a large-response route wrapped by Validator.Middleware (e.g. a bulk export or download), possibly many times in parallel.",
+    "sink": "Process memory: each in-flight request holds a full copy of its response.",
+    "trace": [
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 144,
+      "note": "newWarnResponseWrapper(w) (non-strict) or strictResponseWrapper{} (strict) is always used; no streaming branch."
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 195,
+      "note": "io.MultiWriter(w, &wr.body) buffers every byte."
+     },
+     {
+      "file": "openapi3filter/middleware.go",
+      "line": 153,
+      "note": "bodyContents() is copied into a new bytes.Buffer for response validation even when options.ExcludeResponseBody is true."
+     }
+    ],
+    "guards_checked": "No size cap on buffering. ExcludeResponseBody is honoured only after the body is buffered. Impact depends on the application's response sizes."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

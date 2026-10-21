@@ -1,0 +1,149 @@
+{
+ "arm": "A",
+ "repo": "lg-py-negative",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.0501192,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "/transfer does not reject negative or zero amounts. An authenticated user can send a negative amount to steal funds from any other account. The check `BAL[g.user] < amount` always passes for a negative amount. The following `BAL[g.user] -= amount` then increases the attacker's balance, and `BAL[to] += amount` decreases the victim's balance. Victim balances can go negative. A non-numeric amount such as a string or a huge float or NaN can also cause errors or odd comparisons. /withdraw does check `amount <= 0`, which shows the check was intended here too.",
+    "source": "JSON body fields `to` and `amount` from request.json in POST /transfer; `to` can be any existing account and `amount` can be negative",
+    "sink": "BAL[g.user] -= amount; BAL[to] += amount (balance mutation)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to = request.json['to'] is attacker-controlled and unvalidated"
+     },
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount = request.json['amount'] is attacker-controlled; there is no type or sign check"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "the balance check passes for any negative amount"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "the sender's balance increases by abs(amount)"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "the victim's balance decreases by abs(amount)"
+     }
+    ],
+    "guards_checked": "Looked for an amount > 0 check, type validation, a self-transfer check and an ownership or consent check for the recipient. None exist in /transfer. The only guard is the insufficient-funds check, which a negative amount defeats. No other files exist in the directory."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only the `BAL[g.user] < amount` funds check at bank.py:11, which a negative amount passes; no sign/type check, unlike /withdraw at bank.py:21). Nothing in this file sets g.user, so the authentication mechanism is not visible.",
+    "reason": "bank.py:9-14 take `amount` straight from request.json with no `amount <= 0` or type check, so a negative amount passes the check at line 11, then line 13 raises the sender's balance and line 14 lowers the recipient's; any low-privilege user who can reach the route can do this."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only the insufficient-funds check at bank.py:11, which a negative amount passes; no sign/type check, no decorator on the route)",
+    "reason": "bank.py:11-14 accepts a negative `amount` from request.json unchecked, so `BAL[g.user] < amount` is false and lines 13-14 move funds from `to` to the caller, unlike /withdraw which checks `amount <= 0` at line 21."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "The balance check and the debit are not atomic. There is no lock or transaction around the shared in-memory dict BAL. With a threaded Flask server, concurrent requests can all pass the balance check before any of them debits (TOCTOU). This lets an attacker spend or withdraw more than their balance (double spend). The same pattern is in /withdraw at lines 21-23.",
+    "source": "Concurrent POST /transfer or /withdraw requests from one authenticated user, each with an amount at or below the balance",
+    "sink": "BAL[g.user] -= amount (lines 13 and 23)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "check BAL[g.user] < amount (transfer)"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "debit happens after the check with no lock"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "the same check-then-act sequence in withdraw"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "debit after the check with no lock"
+     }
+    ],
+    "guards_checked": "Looked for a threading.Lock, a DB transaction, row locking or an atomic operation. None exist. Whether it is exploitable depends on deployment, since multiple threads or workers are needed, but Flask's dev server is threaded by default. With multiple worker processes BAL would not even be shared."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 checks BAL[g.user] and bank.py:13 debits it (same at 21/23) with no lock or transaction, so concurrent requests from one authenticated user in a threaded server can both pass the check, though the window is narrow under the GIL."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11-13 and 21-23 do a check of BAL[g.user] followed by a separate debit with no lock or transaction, so concurrent requests from an authenticated user on a threaded server can all pass the check and overdraw. The impact depends on the server being threaded, which is the Flask default."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "No authentication is set up in this code. `g.user` is read but never assigned in this file, and there is no before_request hook or auth decorator. If the deployment does not set g.user elsewhere, the endpoints raise AttributeError (500). If a hook elsewhere derives the user from untrusted input, such as a header, any account can be impersonated. The auth that populates g.user could not be verified from the code present. Also, `BAL[to]` with an unknown recipient raises KeyError (500), which lets an attacker enumerate valid accounts through the response difference.",
+    "source": "Unauthenticated HTTP requests to /transfer and /withdraw",
+    "sink": "BAL[g.user] read and modified (authorization-dependent balance operations)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 3,
+      "note": "app is created with no before_request or auth setup"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "g.user is used without being defined in this file"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] raises KeyError for an unknown account, giving an account-existence oracle"
+     }
+    ],
+    "guards_checked": "Searched the only file in the directory (bank.py) for before_request hooks, login decorators and g.user assignment. None found. An external module may exist outside this directory, so this is a precondition-dependent finding."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 reads g.user, which is never assigned in the only file present, and bank.py:3 has no before_request hook. The code alone gives a 500 (AttributeError), not an impersonation hole, and whether an external hook sets g.user from untrusted input can't be determined here. The KeyError at bank.py:14 is real but separate: it fires after the debit at line 13, so the sender loses funds."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "g.user is populated by trusted upstream middleware outside this directory (per the maintainer's project facts). No in-file guard exists.",
+    "reason": "The lines cited (bank.py:3, 11, 14) are described accurately, but the claim depends on g.user being unset or untrusted at bank.py:11, and the maintainer states trusted upstream middleware sets it, so the missing-authentication premise is false. The BAL[to] KeyError at bank.py:14 is a separate and trivial oracle, since only an authenticated user can reach it."
+   }
+  }
+ ],
+ "verify_cost": 0.0896478,
+ "verify_facts_cost": 0.0898489
+}

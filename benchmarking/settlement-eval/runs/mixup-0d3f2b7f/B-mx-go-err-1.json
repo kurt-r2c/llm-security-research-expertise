@@ -1,0 +1,57 @@
+{
+ "arm": "B",
+ "repo": "mx-go-err",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.0510511,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.go",
+    "line": 26,
+    "claim": "dropTable ignores the error returned by Authorize, so the dba role check is never enforced. Any caller can drop tables. The sibling handler vacuum checks the error correctly. The table name is also concatenated into SQL, which allows injection.",
+    "source": "Any HTTP client calling /admin/drop, including one without the dba role. The table name comes from the attacker-controlled form value t.",
+    "sink": "runSQL(\"DROP TABLE \" + r.FormValue(\"t\")) at api.go:27",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 44,
+      "note": "/admin/drop is registered with dropTable and no auth middleware"
+     },
+     {
+      "file": "api.go",
+      "line": 25,
+      "note": "userFrom(r) returns the user from the request context"
+     },
+     {
+      "file": "api.go",
+      "line": 26,
+      "note": "Authorize(u, \"dba\") returns an error that is discarded, so execution continues for non-dba users"
+     },
+     {
+      "file": "api.go",
+      "line": 27,
+      "note": "The unvalidated form value t is concatenated into the DROP TABLE statement and passed to runSQL"
+     }
+    ],
+    "guards_checked": "Authorize is called but its result is unchecked, so it has no effect. There is no middleware, and no allowlist or identifier validation on t. vacuum at api.go:33 shows the intended pattern. runSQL is a stub, but the sink is still reachable. Separately, userFrom at api.go:22 does an unchecked type assertion, which panics when no user is in the context. That is a robustness problem only."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize (api.go:13-20) returns an error, but dropTable discards it as a bare statement at api.go:26. There is no middleware (api.go:44), no allowlist or parameterization on t (api.go:27). vacuum (api.go:33) tests the error correctly.",
+    "reason": "api.go:26 calls Authorize as a bare statement and drops its error, so a user without the dba role still reaches the concatenated `runSQL(\"DROP TABLE \" + r.FormValue(\"t\"))` at api.go:27. Caveat: nothing in this repo puts \"user\" in the request context, so userFrom (api.go:22) would panic first. The flaw is therefore reachable only if auth middleware outside this repo sets the user. That is a deployment assumption, not something this code shows."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 returns an error, but the call is a bare statement and the result is discarded. No middleware, allowlist or identifier validation exists. vacuum at api.go:33 checks the error correctly.",
+    "reason": "At api.go:26 the Authorize error is discarded, so any authenticated non-dba user reaches api.go:27, where the unvalidated form value t is concatenated into DROP TABLE. The route at api.go:44 has no auth middleware."
+   }
+  }
+ ],
+ "verify_cost": 0.050208,
+ "verify_facts_cost": 0.0347192
+}

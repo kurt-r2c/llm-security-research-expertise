@@ -1,0 +1,240 @@
+{
+ "arm": "K3",
+ "repo": "svgsanitizer-injection",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3af06fea",
+ "status": "success",
+ "gen_cost": 0.04102307,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 12,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-b5le3l1e/r/src/Sanitizer.php",
+   "/tmp/egf-b5le3l1e/r/src/svg-scanner.php",
+   "/tmp/egf-b5le3l1e/r/src/Helper.php",
+   "/tmp/egf-b5le3l1e/r/src/ElementReference/Resolver.php",
+   "/tmp/egf-b5le3l1e/r/src/ElementReference/Usage.php",
+   "/tmp/egf-b5le3l1e/r/src/ElementReference/Subject.php",
+   "/tmp/egf-b5le3l1e/r/src/data/XPath.php",
+   "/tmp/egf-b5le3l1e/r/src/data/AllowedAttributes.php",
+   "/tmp/egf-b5le3l1e/r/src/data/AllowedTags.php",
+   "/tmp/egf-b5le3l1e/r/src/Exceptions/NestingException.php",
+   "/tmp/egf-b5le3l1e/r/src/data/AttributeInterface.php",
+   "/tmp/egf-b5le3l1e/r/src/data/TagInterface.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/Subject.php",
+    "line": 71,
+    "claim": "Exponential CPU traversal of the <use> reference graph (DoS). hasInfiniteLoop and countUse recurse over every path with no memo or visited set, and the nesting limit bounds depth only. A small SVG (about 15 layers of 5 elements, each referencing all 5 of the next layer) hangs or exhausts CPU in sanitize().",
+    "source": "Attacker-supplied SVG bytes passed to Sanitizer::sanitize() (src/Sanitizer.php:216).",
+    "sink": "Subject::hasInfiniteLoop recursion (src/Subject.php:71) and Subject::countUse recursion (src/Subject.php:118).",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 245,
+      "note": "sanitize() constructs Resolver and calls collect()"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 97,
+      "note": "processReferences links each subject to each <use> target"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 143,
+      "note": "determineInvalidSubjects calls hasInfiniteLoop on every subject"
+     },
+     {
+      "file": "src/Subject.php",
+      "line": 71,
+      "note": "each child is explored with no memo, so cost is the number of paths"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 692,
+      "note": "isUseTagExceedingThreshold calls countUse on matching subjects"
+     },
+     {
+      "file": "src/Subject.php",
+      "line": 118,
+      "note": "countUse recursion is also path-exponential; the threshold compares only after full computation"
+     }
+    ],
+    "guards_checked": "Nesting limit (Subject.php:62) limits depth only. useThreshold (Sanitizer.php:681-698) is evaluated after the full countUse. No memoization or visited-set exists in either walk. Verified by reading; not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/ElementReference/Resolver.php",
+    "line": 89,
+    "claim": "Duplicate id values overwrite earlier subjects in the id map, so the threshold and loop checks see only the last element with that id. Browsers expand <use href> to the first element with that id, so an attacker can hide an expanding tree behind duplicate ids and bypass useThreshold.",
+    "source": "Attacker-supplied SVG containing duplicate id attributes.",
+    "sink": "Browser expansion of <use href=\"#id\"> (first match in document order); the sanitizer keeps the <use> because it tracks the empty duplicate.",
+    "trace": [
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 87,
+      "note": "collectIdentifiedElements queries //*[@id]"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 89,
+      "note": "$this->subjects[$id] = new Subject(...) overwrites the earlier duplicate, so the last one wins"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 692,
+      "note": "findByElementId returns only the tracked (last) copy"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 693,
+      "note": "countUse on the empty last copy is 0, so the <use> is not removed"
+     }
+    ],
+    "guards_checked": "useThreshold (Sanitizer.php:692-696) is the only control, and it sees the wrong element. Browser first-match behavior is an assumption from DOM getElementById semantics; not verified in a browser."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/Subject.php",
+    "line": 83,
+    "claim": "A <use> that is a descendant of the element it references causes Subject::addUse to throw LogicException, which escapes sanitize() uncaught. A single self-referencing element crashes the sanitizer for that input.",
+    "source": "Attacker-supplied SVG such as <svg xmlns=\"http://www.w3.org/2000/svg\"><g id=\"a\"><use href=\"#a\"/></g></svg>.",
+    "sink": "Subject::addUse self-check throw (src/Subject.php:83-84); addUsedIn has the same throw (src/Subject.php:99-100).",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 246,
+      "note": "collect() is called with no try/catch"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 106,
+      "note": "processReferences iterates use descendants of each subject"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 119,
+      "note": "$subject->addUse($this->subjects[$useId]) with subject === target"
+     },
+     {
+      "file": "src/Subject.php",
+      "line": 83,
+      "note": "throws LogicException 1570713416"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 216,
+      "note": "sanitize() has no try/catch; exception propagates to the caller"
+     }
+    ],
+    "guards_checked": "Resolver.php:140-149 try/catch covers only determineInvalidSubjects, not processReferences. The intended self-loop check (Resolver.php:141) is unreachable for the descendant case. Verified by reading; not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/data/XPath.php",
+    "line": 35,
+    "claim": "Well-formed XML whose root element is not a single <svg> makes the XPath constructor throw LogicException instead of sanitize() returning false, breaking the documented string|false contract. The svg-scanner CLI aborts the batch on the same input.",
+    "source": "Attacker-supplied XML bytes that parse but have no <svg> root, for example <html/> or <foo/>.",
+    "sink": "XPath::handleDefaultNamespace throws when the root-svg count is not 1 (src/data/XPath.php:35-38).",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 244,
+      "note": "new XPath($this->xmlDocument) is constructed without a guard, after loadXML succeeded"
+     },
+     {
+      "file": "src/data/XPath.php",
+      "line": 13,
+      "note": "constructor calls handleDefaultNamespace"
+     },
+     {
+      "file": "src/data/XPath.php",
+      "line": 51,
+      "note": "getRootElements counts svg children of the document"
+     },
+     {
+      "file": "src/data/XPath.php",
+      "line": 35,
+      "note": "throws LogicException 1570870568 when count != 1"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 259,
+      "note": "resetAfter is skipped, so libxml_use_internal_errors(true) stays set"
+     },
+     {
+      "file": "svg-scanner.php",
+      "line": 131,
+      "note": "CLI calls sanitize() unguarded, so one bad file aborts the scan"
+     }
+    ],
+    "guards_checked": "No try/catch around XPath construction in sanitize(). No early return for a non-svg root after loadXML. Verified by reading; not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/Sanitizer.php",
+    "line": 596,
+    "claim": "With removeRemoteReferences(true), remote references still survive: <image href=\"https://...\"> (href is allowed by isHrefSafeValue and never checked by hasRemoteReference), unquoted fill=\"url(https://...)\", and style declarations with url(https://...). The flag only matches a whole-attribute quoted url(...), so the remote fetch the flag is meant to block still happens on render.",
+    "source": "Attacker-supplied SVG attributes and style text.",
+    "sink": "Remote fetch by the viewer when the SVG is rendered (remote reference left in the output).",
+    "trace": [
+     {
+      "file": "svg-scanner.php",
+      "line": 97,
+      "note": "CLI enables removeRemoteReferences(true)"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 444,
+      "note": "removal check runs only inside cleanAttributesOnWhitelist when the flag is set"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 541,
+      "note": "isHrefSafeValue allows https:// and http:// values, so the href is kept"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 596,
+      "note": "hasRemoteReference regex requires a quoted url(...) wrapper; unquoted and style-embedded forms do not match"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 603,
+      "note": "returns false for values without a matching remote-reference form"
+     }
+    ],
+    "guards_checked": "Flag gate (Sanitizer.php:444). Remote-ref regex (Sanitizer.php:596-603). Attribute href values are never passed to hasRemoteReference. <style> text is not inspected. Verified by reading; the remote-ref feature is opt-in and off by default."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

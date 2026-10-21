@@ -1,0 +1,284 @@
+{
+ "arm": "A",
+ "repo": "russh-other",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.02791731,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 6,
+   "StructuredOutput": 3
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-y_8vbodn/r/pageant/src/lib.rs",
+   "/tmp/egf-y_8vbodn/r/pageant/src/interface.rs",
+   "/tmp/egf-y_8vbodn/r/pageant/src/namedpipes.rs",
+   "/tmp/egf-y_8vbodn/r/pageant/src/wmmessage.rs",
+   "/tmp/egf-y_8vbodn/r/pageant/src/error.rs",
+   "/tmp/egf-y_8vbodn/r/pageant/Cargo.toml"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 33,
+    "claim": "Client connects to a predictable named pipe without verifying server identity, so a local squatter that creates the pipe first receives agent requests including sign data and can return forged responses.",
+    "source": "Pipe name from OS username plus CryptProtectMemory suffix of constant Pageant (namedpipes.rs 49-53, 95-120). Attacker must be able to create that pipe name, e.g. same logon session; key scope not verified.",
+    "sink": "ClientOptions open at namedpipes.rs:33 connects to whichever server answers.",
+    "trace": [
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 29,
+      "note": "determine_pipe_name builds predictable name"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 110,
+      "note": "CryptProtectMemory result ignored; fallback is plain hash of public string"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 33,
+      "note": "open connects to squatter with no owner, PID or SID check"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 46,
+      "note": "stream returned; all agent traffic goes to attacker"
+     }
+    ],
+    "guards_checked": "No server identity verification anywhere in crate. Pipe name uses OS username, not attacker input. Retry loop at lines 31-44 handles only pipe busy."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 187,
+    "claim": "FindWindowW matches any top-level window with class and title Pageant, so a local process creating such a window receives WM_COPYDATA agent requests, including the mapping cookie that lets it read requests and write responses.",
+    "source": "Any local process able to create a top-level window named Pageant. Reached whenever named pipes fail, including when Pageant is not running.",
+    "sink": "SendMessageA WM_COPYDATA at wmmessage.rs 217-224 with mapping name in lpData.",
+    "trace": [
+     {
+      "file": "pageant/src/lib.rs",
+      "line": 38,
+      "note": "fallback to wmmessage when named pipes fail"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 30,
+      "note": "new returns Ok without checking a window exists"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 187,
+      "note": "FindWindowW accepts any window with matching class and title"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 217,
+      "note": "SendMessageA delivers request and cookie to squatter"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 230,
+      "note": "response read from mapping the squatter can write"
+     }
+    ],
+    "guards_checked": "Window not authenticated (no PID or image check). Default DACL is owner-only at lines 113-116, which does not stop a same-user squatter. UIPI behaviour for lower integrity processes not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 46,
+    "claim": "Stream buffers incoming frames with no size cap; a length prefix up to about 4 GiB makes the client accumulate memory until the frame completes, and the _AGENT_MAX_MSGLEN check only runs after the full frame is buffered.",
+    "source": "Bytes written into PageantStream. Untrusted only if the caller forwards untrusted input, such as agent forwarding; not established in this crate.",
+    "sink": "buf growth at wmmessage.rs 46-47 driven by length prefix read at line 43.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 43,
+      "note": "length read from attacker-influenced prefix"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 44,
+      "note": "loop waits until len+4 bytes buffered"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 47,
+      "note": "split_to after full buffering"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 140,
+      "note": "max length enforced only here, after buffering"
+     }
+    ],
+    "guards_checked": "Duplex bound at line 31 limits the pipe, not buf. _AGENT_MAX_MSGLEN at line 195 is not checked on prefix."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 217,
+    "claim": "SendMessageA has no timeout and is called synchronously inside an async task, so a window whose thread stops pumping messages blocks an executor worker indefinitely.",
+    "source": "Window owned by a thread that does not pump messages, or hung Pageant.",
+    "sink": "SendMessageA at wmmessage.rs 217-224 blocks indefinitely.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 48,
+      "note": "query_pageant_direct called inside tokio spawn task"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 217,
+      "note": "SendMessageA blocks without timeout"
+     }
+    ],
+    "guards_checked": "None. SendMessageTimeout or spawn_blocking not used."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 126,
+    "claim": "MapViewOfFile return value is never checked, so a null view leads to null dereference on write or read; CreateFileMappingW ERROR_ALREADY_EXISTS is also unchecked. Latent, since the cookie is random.",
+    "source": "MapViewOfFile failure, e.g. address-space exhaustion. Squatted mapping needs prediction of random 64-bit cookie, not practical.",
+    "sink": "Pointer writes at wmmessage.rs 150-154 and reads at 165-171 through view.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 126,
+      "note": "MapViewOfFile result stored unchecked"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 150,
+      "note": "copy_nonoverlapping into view"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 165,
+      "note": "read from view"
+     }
+    ],
+    "guards_checked": "Bounds checks at lines 140 and 161 use self.length, not actual mapped size. is_invalid checked only on file mapping handle, lines 123-125."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 44,
+    "claim": "On 32-bit targets len plus 4 can wrap, letting split_to emit a 0-3 byte frame and desynchronize the stream in release, or panic in debug.",
+    "source": "32-bit build with length prefix 0xFFFFFFFC to 0xFFFFFFFF.",
+    "sink": "split_to at wmmessage.rs:47 with wrapped length.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 43,
+      "note": "length read as usize"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 44,
+      "note": "len plus 4 wraps on 32-bit"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 47,
+      "note": "split_to with wrapped size emits truncated frame"
+     }
+    ],
+    "guards_checked": "No checked_add used."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 85,
+    "claim": "Username truncation at @ maps alice@corp and alice@other to the same pipe name, so one account can connect to another account's agent or fail.",
+    "source": "Two accounts on one host with same local name and different UPN domains.",
+    "sink": "Pipe name built from truncated username at namedpipes.rs:86-87 feeding open at line 33.",
+    "trace": [
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 85,
+      "note": "find @ index"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 86,
+      "note": "drain removes domain suffix"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 33,
+      "note": "open uses colliding name"
+     }
+    ],
+    "guards_checked": "Real Pageant pipe ACL may block cross-owner access, turning this into denial of service; not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F8",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 47,
+    "claim": "Only one frame is processed per read, so a second complete frame already buffered waits for more bytes and the caller hangs; query errors break the loop silently and surface only as EOF.",
+    "source": "Caller writes two complete frames before reading a response.",
+    "sink": "Single split_to per loop iteration at wmmessage.rs:47, then read_buf blocks at line 36.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 36,
+      "note": "read_buf blocks even when frame already buffered"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 47,
+      "note": "only one frame split per read"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 53,
+      "note": "query error breaks loop, dropping stream with no error"
+     }
+    ],
+    "guards_checked": "None. Logic flaw only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

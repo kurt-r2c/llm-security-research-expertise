@@ -1,0 +1,107 @@
+{
+ "arm": "D",
+ "repo": "h1-py-helper",
+ "rep": 1,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.11388040000000002,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 2,
+   "Read": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-a1chduq_/r/views.py",
+   "/tmp/egf-a1chduq_/r/validators.py",
+   "/tmp/egf-a1chduq_/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "HIGH: /fetch2 fetches a user-supplied URL after only a scheme check (http/https). There is no host allowlist or IP filtering, and redirects are followed by default. An unauthenticated caller can reach loopback, RFC-1918 hosts and cloud metadata (169.254.169.254). The first 200 bytes of the response body are returned to the caller, so this is full-read SSRF.",
+    "source": "request.args.get(\"url\") at views.py:19 (query param `url`)",
+    "sink": "requests.get(url, timeout=5) at views.py:22, redirects followed by default",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url = request.args.get(\"url\", \"\") \u2014 attacker-controlled"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) only checks urlparse(url).scheme in (http, https) (validators.py:6-7); it does not constrain host or IP"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url, timeout=5) with default allow_redirects=True; response .text[:200] is returned in JSON"
+     }
+    ],
+    "guards_checked": "is_http_url is a scheme-only check (validators.py:7) and does not close SSRF. There is no hostname set membership, no IP/CIDR check, and no redirect handling, so an external host can 302 to 169.254.169.254. No auth decorator is present on the route, and no in-repo egress CIDR controls exist."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (is_http_url at validators.py:6-7 is a scheme-only check; no host/IP check, no auth decorator, redirects followed)",
+    "reason": "views.py:19 takes the attacker-controlled `url` query param, views.py:20 only applies the scheme-only is_http_url (validators.py:7), and views.py:22 calls requests.get with default redirects and returns the first 200 bytes of the body, so full-read SSRF holds (the sibling /fetch route uses is_safe_url, but /fetch2 does not)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "MEDIUM: /fetch uses a blocklist (is_safe_url) instead of a strict allowlist, and the check can be bypassed. (a) TOCTOU/DNS rebinding: is_safe_url resolves the hostname with socket.getaddrinfo, then requests.get resolves it again, so a rebinding DNS server can return a public IP first and 127.0.0.1 or 169.254.169.254 second. (b) The blocklist uses is_private/is_loopback/is_link_local/is_reserved, which do not cover the 100.64.0.0/10 shared address space. That range includes the Alibaba Cloud metadata IP 100.100.100.200 and is common in carrier-grade-NAT and Tailscale-style internal networks. Redirects are disabled, which limits but does not remove the risk.",
+    "source": "request.args.get(\"url\") at views.py:11 (query param `url`)",
+    "sink": "requests.get(url, timeout=5, allow_redirects=False) at views.py:14",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url from query param \u2014 attacker-controlled"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) is called"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(parsed.hostname, ...) resolves DNS once for validation only"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "blocklist: is_private/is_loopback/is_link_local/is_reserved; 100.64.0.0/10 is not covered, and the check is not pinned to the connection"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url) re-resolves the hostname independently, so the validated IP is not the connected IP; the response body is returned to the caller"
+     }
+    ],
+    "guards_checked": "Scheme restricted to http/https and hostname required (validators.py:12). Resolved IPs are checked against a blocklist (validators.py:16), which is not an allowlist and does not close per the skill's criteria. allow_redirects=False closes the redirect vector, and the BYPASS-10 manual re-fetch pattern is absent. There is no IP pinning, no hostname allowlist, and no auth on the route."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Scheme check plus a resolved-IP blocklist (validators.py:12-17) and allow_redirects=False (views.py:14); no hostname allowlist or IP pinning.",
+    "reason": "The `url` query param (views.py:11) is attacker-controlled and passed to requests.get (views.py:14) after is_safe_url (validators.py:14-17). That check resolves DNS separately from the request, which leaves a rebinding window. It also does not block 100.64.0.0/10, since Python's is_private is False for that range. The blocklist is not a closing guard."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0632008
+}

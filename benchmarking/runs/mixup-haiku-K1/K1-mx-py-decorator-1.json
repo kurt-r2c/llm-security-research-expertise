@@ -1,0 +1,159 @@
+{
+ "arm": "K1",
+ "repo": "mx-py-decorator",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "129fe3ca",
+ "status": "success",
+ "gen_cost": 0.00459562,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-nhdhwo8x/r/routes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTHZ-1",
+    "file": "routes.py",
+    "line": 34,
+    "claim": "POST /settings/email is decorated with login_optional, which never rejects anonymous callers, so an unauthenticated request runs set_email with uid=None. Account-changing endpoint has no auth guard.",
+    "source": "Anonymous HTTP POST to /settings/email (no session cookie). session.get('uid') returns None (routes.py:22).",
+    "sink": "set_email(g.uid, ...) at routes.py:37 (state-changing operation on an account).",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 34,
+      "note": "Route registered with methods=['POST'] and @login_optional, no login_required."
+     },
+     {
+      "file": "routes.py",
+      "line": 22,
+      "note": "login_optional sets g.uid = session.get('uid') -> None for anonymous callers, and does not abort."
+     },
+     {
+      "file": "routes.py",
+      "line": 37,
+      "note": "set_email(g.uid, 'new@example.org') called with uid None; no check on g.uid before the call."
+     }
+    ],
+    "guards_checked": "login_optional (routes.py:19-25) only reads the session and never calls abort(401) or returns early. No other guard on the route. Impact is conditional: set_email body is a stub (routes.py:48-49), so an unauthenticated write is only exploitable if the real implementation updates an account when uid is None or is unscoped. Severity hinges on that unseen implementation; the missing guard itself is a clear defect."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None effective. login_optional (routes.py:19-25) only sets g.uid = session.get(\"uid\") and never aborts, and change_email (routes.py:36-38) calls set_email(g.uid, ...) with no check on g.uid. The only abort path, login_required (routes.py:8-16), is not applied to this route.",
+    "reason": "Anonymous callers do reach set_email with g.uid=None (routes.py:22, 35-37, with no abort), but set_email is a no-op stub (routes.py:48-49), so the account-changing impact the claim depends on cannot be shown from this code. The trace is accurate apart from the decorator sitting on line 35 rather than line 34."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "CSRF-1",
+    "file": "routes.py",
+    "line": 41,
+    "claim": "Cookie-authenticated state-changing POSTs (/settings/password and /settings/email) have no CSRF token check. A cross-site page can make a logged-in victim's browser change their password to a known value and then log in as them.",
+    "source": "Attacker-controlled web page that auto-submits a form to the victim's app origin while the victim has a valid session cookie.",
+    "sink": "set_password(g.uid, 'hunter2') at routes.py:44 and set_email(...) at routes.py:37.",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 41,
+      "note": "/settings/password POST, guarded only by login_required, which checks the session cookie (routes.py:11)."
+     },
+     {
+      "file": "routes.py",
+      "line": 11,
+      "note": "Session cookie is the sole credential; no CSRF token, Origin/Referer check, or re-auth is read from the request."
+     },
+     {
+      "file": "routes.py",
+      "line": 44,
+      "note": "Password is set to the fixed value 'hunter2' regardless of request content, so the attacker knows the post-CSRF password."
+     }
+    ],
+    "guards_checked": "login_required checks session presence only. No CSRF middleware is visible in this file. Flask does not set SameSite on the session cookie by default, so exploitation depends on the app's cookie config (not in this file) and browser defaults. If the cookie is SameSite=Lax or Strict, a cross-site auto-submitted POST will not carry it and the chain fails. Config was not provided, so this is a precondition, not a confirmed exploit."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in routes.py. login_required (routes.py:11-12) only checks that \"uid\" is in the session, and nothing in the file reads a CSRF token, Origin, or Referer. The SameSite cookie attribute is not set in this file, so it is a browser/config precondition, not a code control.",
+    "reason": "The POST at routes.py:41-44 is authenticated only by the session cookie via login_required (routes.py:11-12) and calls set_password(g.uid, \"hunter2\") with no CSRF check, so a cross-site auto-submitted form succeeds whenever the browser sends the cookie; that depends on the app's SameSite config (not in this file) and the victim's browser, and the chain also needs the attacker to know the victim's login identifier, which this file does not show."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTHN-1",
+    "file": "routes.py",
+    "line": 41,
+    "claim": "/settings/password changes the account password without requiring the current password or any re-authentication, so anyone holding a hijacked session can set a new password and lock out the real owner.",
+    "source": "Any request carrying a valid session cookie (e.g. stolen or fixated session).",
+    "sink": "set_password(g.uid, 'hunter2') at routes.py:44.",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 41,
+      "note": "POST /settings/password takes no body fields and does not ask for the old password."
+     },
+     {
+      "file": "routes.py",
+      "line": 42,
+      "note": "login_required only tests session presence."
+     },
+     {
+      "file": "routes.py",
+      "line": 44,
+      "note": "Password overwritten unconditionally."
+     }
+    ],
+    "guards_checked": "login_required (routes.py:8-16). No current-password, MFA, or recent-auth check. Impact depends on the session being hijacked first, so this is a hardening gap that widens session-theft impact, not a standalone bypass."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "login_required (routes.py:8-16) only checks that \"uid\" is in the session and aborts with 401 otherwise; there is no current-password, MFA, or recent-auth check on change_password (routes.py:41-45).",
+    "reason": "The trace matches routes.py:41-45: any holder of a valid session can reach change_password, and the only guard, login_required at routes.py:11-12, just checks session presence, so the missing re-authentication is real. Two caveats: the attacker must already hold a hijacked session (a hardening gap, not a standalone bypass), and set_password at routes.py:52-53 is an empty stub, so the password overwrite is not actually implemented in this repo."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "LOGIC-1",
+    "file": "routes.py",
+    "line": 44,
+    "claim": "The password change ignores any user-supplied value and always sets the password to the hardcoded literal 'hunter2'. Every account that calls this endpoint ends up with a publicly known password.",
+    "source": "Developer-written literal; no request input is read. Reachable by any logged-in user (routes.py:41-44).",
+    "sink": "set_password(g.uid, 'hunter2') at routes.py:44.",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 43,
+      "note": "change_password takes no request data."
+     },
+     {
+      "file": "routes.py",
+      "line": 44,
+      "note": "Literal 'hunter2' passed as the new password."
+     }
+    ],
+    "guards_checked": "login_required only. The value is a constant, so this is not injection; it is a logic error and a hardcoded credential. Because it is a stub and the literal is in the source, it is likely placeholder code, but if shipped, it is an account-takeover primitive combined with CSRF-1 and AUTHN-1."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "login_required (routes.py:8-16) aborts with 401 when \"uid\" is not in the session, and sets g.uid from the session. That gate only limits the endpoint to logged-in users. Nothing checks the value passed to set_password, because the literal is hardcoded at routes.py:44.",
+    "reason": "The trace is accurate: change_password (routes.py:43) takes no request input and always calls set_password(g.uid, \"hunter2\") at routes.py:44, and the only control is login_required (routes.py:8-16), which admits any logged-in user. The impact is narrower than the claim: set_password (routes.py:52-53) is a no-op `pass` in this snapshot, and the call only sets the caller's own account (g.uid), so public-password takeover of other accounts needs the CSRF-1 and AUTHN-1 findings, which are outside this file. The hardcoded literal is still a real logic and credential defect, so I'd keep it but downgrade its severity and note that it is stub-dependent."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.009840950000000001
+}

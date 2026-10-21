@@ -1,0 +1,72 @@
+{
+ "arm": "K1",
+ "repo": "mariadb-nobs",
+ "rep": 2,
+ "model": "sonnet",
+ "suite": "cvefix",
+ "config_id": "2b9fca78",
+ "status": "success",
+ "gen_cost": 0.23688100000000004,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 8,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ngfq1rks/r/lib/misc/parse.js",
+   "/tmp/egf-ngfq1rks/r/lib/cmd/parser.js",
+   "/tmp/egf-ngfq1rks/r/lib/cmd/encoder/text-encoder.js",
+   "/tmp/egf-ngfq1rks/r/lib/io/packet-output-stream.js",
+   "/tmp/egf-ngfq1rks/r/lib/io/packet-output-stream.js",
+   "/tmp/egf-ngfq1rks/r/lib/misc/utils.js",
+   "/tmp/egf-ngfq1rks/r/lib/misc/utils.js",
+   "/tmp/egf-ngfq1rks/r/lib/cmd/query.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lib/cmd/encoder/text-encoder.js",
+    "line": 135,
+    "claim": "With `permitSetMultiParamEntries` enabled, object parameters are expanded into `` `key`=value `` pairs. The key is wrapped in backticks without escaping embedded backticks. An attacker who controls the object keys can break out of the identifier and inject SQL. Values are escaped; keys are not.",
+    "source": "Attacker-controlled object keys passed as a query parameter. Typical case: a JSON request body or parsed query string given to `conn.query('UPDATE t SET ? WHERE id=1', req.body)`. Precondition: the application sets `permitSetMultiParamEntries: true` (opt-in) and passes an untrusted object.",
+    "sink": "COM_QUERY packet text built by `out.writeString('`' + key + '`')` in the text protocol (`TextEncoder.writeParam`). The same pattern appears in `escapeParameters` in `lib/misc/utils.js:213`, which backs `connection.escape()` and the pool `escape()` method.",
+    "trace": [
+     {
+      "file": "lib/cmd/query.js",
+      "line": 112,
+      "note": "`this.encoder.writeParam(out, value, this.opts, info)` is called for each non-stream parameter value."
+     },
+     {
+      "file": "lib/cmd/encoder/text-encoder.js",
+      "line": 125,
+      "note": "A plain object that is not GeoJSON enters the `permitSetMultiParamEntries` branch."
+     },
+     {
+      "file": "lib/cmd/encoder/text-encoder.js",
+      "line": 127,
+      "note": "`for (let key in value)` iterates all enumerable keys, including attacker-chosen JSON keys."
+     },
+     {
+      "file": "lib/cmd/encoder/text-encoder.js",
+      "line": 135,
+      "note": "`out.writeString('`' + key + '`')` writes the key raw. A key such as `` a`=1,`is_admin`=1,`b `` produces extra assignments. A key such as `` x`=(SELECT ...)-- `` can produce subqueries."
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 213,
+      "note": "`escapeParameters` has the same unescaped `` '`' + key + '`=' `` concatenation. It is reachable through `escape()` and `connection.escape(obj)`."
+     }
+    ],
+    "guards_checked": "Values go through `writeParam`/`escapeString`, so only keys are affected. The key branch has no allowlist and does not call `escapeId`, which would double backticks. The library does provide `escapeId` (utils.js:91), which handles backticks correctly, but this path does not use it. No upstream middleware in this library sanitizes keys. The `typeof val === 'function'` check does not filter keys. Severity is limited because the option is off by default and the caller must pass an untrusted object. That usage is the documented purpose of the option, and it is the same class of issue as the known mysql `SET ?` object-key injection."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

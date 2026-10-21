@@ -1,0 +1,97 @@
+{
+ "arm": "K2",
+ "repo": "go-proxy",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.00567543,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-6pzvt8q3/expertise/INDEX.md",
+   "/tmp/egf-6pzvt8q3/r/main.go",
+   "/tmp/egf-6pzvt8q3/expertise/cases/04-url-validate-reparse.md",
+   "/tmp/egf-6pzvt8q3/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "The /fetch handler passes an unvalidated client-supplied URL to http.Get and streams the full response back to the caller, enabling non-blind SSRF to loopback, RFC1918, and cloud metadata endpoints.",
+    "source": "r.URL.Query().Get(\"target\") at main.go:15",
+    "sink": "http.Get(target) at main.go:16; response reflected via io.Copy(w, resp.Body) at main.go:22",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "Attacker-controlled query parameter 'target' is read."
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "Value is passed unchanged to http.Get, which follows the URL's scheme and host."
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "Upstream body is copied to the HTTP response, so the attacker can read internal responses."
+     }
+    ],
+    "guards_checked": "None on this path: no URL parsing, scheme check, host allowlist, private-IP/loopback block, or redirect control."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the /fetch path. The allowlist at main.go:9-12 and the hostname check at main.go:27 belong to safeFetch, which is registered on /safe (main.go:42), not /fetch. fetch (main.go:14-23) has no parsing, scheme, host, or private-IP check.",
+    "reason": "The `target` query parameter is read at main.go:15 and passed unchanged to http.Get at main.go:16, then the full body is copied to the response at main.go:22; the only allowlist (main.go:27) is on the separate /safe handler, which is routed at main.go:42, so /fetch (routed at main.go:41) has no closing guard."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "In /safe, the hostname allowlist is checked on the initial URL only. The default client follows up to 10 redirects without re-checking, so an allowlisted host that redirects to an internal address (127.0.0.1, 169.254.169.254) bypasses the check. Exploitation requires an allowlisted host to issue an attacker-influenced redirect; this is plausible, not confirmed.",
+    "source": "r.URL.Query().Get(\"target\") at main.go:26",
+    "sink": "http.Get(u.String()) at main.go:31, with default redirect following",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "Attacker string is parsed with url.Parse."
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "Hostname is checked by exact map lookup against images.example.org and docs.example.org; a nil u is short-circuited by err != nil."
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "Request is sent with http.Get, which follows redirects to any host; no CheckRedirect is set, so redirect targets are not validated."
+     }
+    ],
+    "guards_checked": "url.Parse error handling and nil ordering; exact (non-substring) hostname match; userinfo confusion blocked because the check and the request use the same parsed host; scheme limited to http/https by the Go client; no DNS-rebinding exposure since names are not resolved and checked; no port restriction (limited impact, since the host is public); no CheckRedirect or per-hop re-validation (the gap)."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Exact hostname map lookup at main.go:27 (`allowed[u.Hostname()]`, with err short-circuit before u is dereferenced). It runs before the request on the initial URL only. No CheckRedirect or per-hop validation exists anywhere in main.go, so it does not cover redirect hops.",
+    "reason": "The trace is accurate: the attacker-controlled target at main.go:26 is checked for exact host membership at main.go:27 and then sent with the default redirect-following client at main.go:31, which has no CheckRedirect. The bypass, however, requires an allowlisted host (images.example.org or docs.example.org) to return a redirect to an internal address, and nothing in this codebase makes that redirect target attacker-controlled. Whether that precondition holds depends on external servers, which the code cannot establish, so the finding cannot be confirmed or refuted from this code alone."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00419509
+}

@@ -1,0 +1,102 @@
+{
+ "arm": "B",
+ "repo": "az-node-authorize",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00506607,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-bnguvlgj/r/api.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "DELETE /projects/:id has no effective authorization. The helper authorized() returns a boolean that is discarded, so any caller with a req.user who is neither the owner nor an admin can delete any project by ID.",
+    "source": "req.params.id (api.js:17), attacker-supplied path parameter, from any authenticated non-owner, non-admin caller (auth middleware not in this directory, unverified).",
+    "sink": "req.store.projects.delete(project.id) at api.js:19, followed by 204 response at api.js:20.",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "project = req.store.projects.get(req.params.id) loads any project by attacker-chosen ID."
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "authorized(req.user, project) is called; its boolean result is discarded, so nothing throws."
+     },
+     {
+      "file": "api.js",
+      "line": 12,
+      "note": "authorized() computes resource.ownerId === user.id || user.isAdmin === true but never enforces it."
+     },
+     {
+      "file": "api.js",
+      "line": 19,
+      "note": "Project is deleted without an ownership check."
+     },
+     {
+      "file": "api.js",
+      "line": 20,
+      "note": "Attacker receives 204 and the deletion succeeds."
+     }
+    ],
+    "guards_checked": "authorized() at api.js:12-14 is computed but not enforced (logic flaw). authorize() at api.js:4-10 is the enforcing helper but is not called on this route. ID format is not validated, but ownership is the protected property. Auth middleware setting req.user is out of scope and unverified. Fix: call authorize(req.user, project) at api.js:18."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only api.js:12-14 `authorized()`, which returns a boolean. Its result is discarded at api.js:18 (bare statement), so it never blocks. The enforcing helper `authorize()` at api.js:4-10 throws on failure but is not called on this route. No other guard in this file. Auth middleware (sets req.user) is outside the directory and unverified, but it only establishes identity, not per-project ownership.",
+    "reason": "The trace matches the code: api.js:18 calls `authorized(req.user, project)` and discards its boolean return, so api.js:19 deletes the project for any authenticated user who is neither owner nor admin, and api.js:20 returns 204. Only an authenticated low-privilege user is needed, so this is a real authorization bypass."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "api.js",
+    "line": 26,
+    "claim": "PUT /projects/:id/name stores req.body.name without type, length, or content validation and returns it unchanged. Low confidence: exploitability depends on frontend rendering, which is not in this directory.",
+    "source": "req.body.name (api.js:26), attacker-supplied request body from the project owner or an admin.",
+    "sink": "project.name persisted in the store (api.js:26) and returned as JSON (api.js:27); downstream rendering not reviewed.",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 25,
+      "note": "authorize(req.user, project) enforces owner-or-admin correctly for this route."
+     },
+     {
+      "file": "api.js",
+      "line": 26,
+      "note": "req.body.name is assigned to project.name with no validation."
+     },
+     {
+      "file": "api.js",
+      "line": 27,
+      "note": "Unvalidated value is returned in the JSON response."
+     }
+    ],
+    "guards_checked": "Ownership check at api.js:25 is present and correct. No input validation on name. Frontend rendering not in scope, so XSS or injection impact is unverified."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Ownership check authorize() at api.js:25, defined at api.js:4-10, throws a 403 for anyone who is neither the owner nor an admin, and the throw is not caught, so the write at api.js:26 never runs for other users. No validation or sanitization of req.body.name exists at api.js:26. The authorized() helper at api.js:12-14 is not called on this route.",
+    "reason": "The trace matches the code: authorize() at api.js:25 blocks non-owner, non-admin users, and api.js:26-27 store and return req.body.name unchanged. The only possible attackers are the owner or an admin, who can already set this field to any value, so the finding has no privilege impact by itself. Any real harm would be stored XSS or injection in a viewer of the name, and no rendering code exists in this directory to confirm that, so the impact cannot be decided from the available code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00422457
+}

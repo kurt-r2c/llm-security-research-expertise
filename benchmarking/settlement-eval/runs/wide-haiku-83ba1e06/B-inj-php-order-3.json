@@ -1,0 +1,152 @@
+{
+ "arm": "B",
+ "repo": "inj-php-order",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.008724140000000002,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Read": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-02mcsuh7/r/list.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLI-ORDERBY-001",
+    "file": "list.php",
+    "line": 6,
+    "claim": "list_users_sorted concatenates the raw GET parameter 'sort' into an ORDER BY clause and runs it with query(), so an attacker can inject arbitrary SQL expressions (including scalar subqueries) and read data from any table via boolean-based blind or error-based extraction.",
+    "source": "list.php:5 \u2014 $_GET['sort'] (HTTP query string, attacker-controlled; only the ?? 'id' default applies, and only when the key is unset)",
+    "sink": "list.php:6 \u2014 $pdo->query(\"SELECT id, name FROM users ORDER BY \" . $sort)",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 5,
+      "note": "$sort = $_GET['sort'] ?? 'id' \u2014 raw attacker input taken as the sort expression"
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "$sort concatenated directly into the SQL string and executed via unprepared query(); ORDER BY cannot be bound as a parameter, so no parameter binding is in place"
+     },
+     {
+      "file": "list.php",
+      "line": 2,
+      "note": "PDO sqlite connection to app.db; no effect on the injection, but gives the injected subquery access to every table in that DB"
+     }
+    ],
+    "guards_checked": "No allowlist, regex, or quoting on $sort (list.php:5-6). The ?? default only handles unset input. query() instead of prepare(). Precondition: list_users_sorted must be reachable from an HTTP entry point with GET input; the repo has no router or caller, so reachability could not be confirmed. Runtime exploitation was not verified (the PoC run was denied permission); this rests on reading the code and standard SQLite ORDER BY semantics, which accept expressions and subqueries. Fix: use an allowlist as in list_users_safe (list.php:10-11).",
+    "repro": "Request ?sort=(CASE WHEN (SELECT substr(<secret_col>,1,1) FROM <table>)='a' THEN id ELSE name END) and compare row order against a known-false guess. Iterate characters to extract the value. Not executed; requires the caller/route to be confirmed."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none. There is no allowlist, quoting, or parameterization on $sort (list.php:5-6). The only other file in the repo is .claude/skills/security-research/*, which contains no PHP caller. The sink is never executed by any request to list.php.",
+    "reason": "The trace lines match (list.php:5 reads $_GET['sort'], list.php:6 concatenates it into query(), list.php:2 opens app.db), but list.php:4-7 only defines list_users_sorted and nothing in the repo calls it, so a GET request to list.php runs only lines 2 and 4-19 and never reaches the sink. The claimed HTTP reachability is therefore unsupported; if a caller exists outside this snapshot, the injection at list.php:6 would be real with no effective guard."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTHZ-USER-DIRECTORY-002",
+    "file": "list.php",
+    "line": 17,
+    "claim": "No function in this file checks authentication or authorization, and find_user returns the id and name of whichever user matches an arbitrary email. If exposed to unauthenticated clients, this is a user-enumeration oracle and a user-directory dump (via list_users_sorted/list_users_safe).",
+    "source": "list.php:17 \u2014 $_GET['email'] (attacker-controlled, no auth precondition checked in code)",
+    "sink": "list.php:18 \u2014 $stmt->fetch() returns id and name for the matching user; list.php:6 and :12 return all users' id and name",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 17,
+      "note": "$_GET['email'] ?? '' bound to the prepared statement"
+     },
+     {
+      "file": "list.php",
+      "line": 16,
+      "note": "prepared SELECT id, name FROM users WHERE email = ?"
+     },
+     {
+      "file": "list.php",
+      "line": 18,
+      "note": "matching row returned to the caller with no authz filter"
+     }
+    ],
+    "guards_checked": "Parameterized query at list.php:16-17 prevents SQL injection in find_user only. No session, token, role, or ownership check exists anywhere in list.php. Rate limiting and PII filtering are not present. Whether the file is reachable unauthenticated depends on the caller, which is not in this repo, so severity depends on the entry point. Severity: low-medium, conditional on exposure.",
+    "repro": "GET ?email=<address> returns the matching user's id and name with no credentials. Not executed."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. list.php has no session, token, role, or ownership check, and the repo contains no other PHP files, middleware, or web entry point that could add one. The prepared statement at list.php:16-17 blocks SQL injection in find_user only, which is not the claimed issue.",
+    "reason": "The cited lines match the claim (list.php:6 and :12 select id and name for all users, list.php:16-18 bind $_GET['email'] to a parameterized query and return the row), but list.php:2-19 only defines functions and never calls find_user or the list functions, so a direct GET runs no query and returns nothing, which contradicts the repro. Whether any attacker can reach these functions depends on an unseen caller outside this repo, so exposure cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "CONFIG-DBPATH-003",
+    "file": "list.php",
+    "line": 2,
+    "claim": "The SQLite database is opened by relative path 'app.db' with no path control. If app.db lives in a web-served directory (the current working directory of the script), the whole database, including user emails and any credentials, can be downloaded directly.",
+    "source": "Deployment layout (not visible in this repo); no attacker input at this line",
+    "sink": "list.php:2 \u2014 new PDO('sqlite:app.db'), which resolves against the CWD",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 2,
+      "note": "relative DSN resolved against the process CWD; the file location is not controlled by this code"
+     }
+    ],
+    "guards_checked": "None in code. Impact depends on whether app.db sits under a document root and whether the web server serves it. Low confidence until deployment layout is checked.",
+    "repro": "If the web server serves the CWD, request /app.db. Not verified."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none: nothing in list.php or elsewhere in the repo constrains the SQLite DSN path. The repo has no app.db, no web server config, and no deployment files, so whether the file is web-reachable cannot be checked.",
+    "reason": "The trace is accurate: list.php:2 opens the relative DSN 'sqlite:app.db' with no path control. Whether the database is exposed depends on the deployment layout (document root and web server rules), which is not in this repo, so the exposure claim can't be confirmed or refuted from the code."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ERROR-HANDLING-004",
+    "file": "list.php",
+    "line": 11,
+    "claim": "In list_users_safe, an array-typed 'sort' parameter (e.g. sort[]=x) is used as an array offset in $cols[...] with ??. In PHP 8 this is expected to throw a TypeError ('Illegal offset type in isset or empty'). The exception is uncaught, which can crash the request and may leak file paths and line numbers if error display is on.",
+    "source": "list.php:11 \u2014 $_GET['sort'] as an array",
+    "sink": "list.php:11 \u2014 $cols[$_GET['sort'] ?? 'id'] lookup",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 11,
+      "note": "array value used as array key in the isset-style ?? lookup, which is not type-checked"
+     },
+     {
+      "file": "list.php",
+      "line": 12,
+      "note": "never reached when the lookup throws"
+     }
+    ],
+    "guards_checked": "The allowlist at list.php:10 blocks SQL injection on this path, so injection is not possible here. No is_string() or scalar check exists. Behaviour is expected per PHP 8 semantics but was not run here. Impact is low (error-based information disclosure or a 500 response).",
+    "repro": "GET ?sort[]=x against list_users_safe. Not executed."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. The allowlist at list.php:10-11 only stops SQL injection, since the array value is used as a key and never reaches the query. No is_string() or scalar check exists, and no try/catch wraps the lookup. The mechanism itself is accurate: on PHP 8, `$cols[$_GET['sort']] ?? 'id'` with an array key should throw a TypeError (from memory, not run here).",
+    "reason": "The trace is accurate (list.php:11 does the array-keyed lookup and list.php:12 is skipped), but list_users_safe is never called anywhere in list.php (the file has no top-level call, only definitions at list.php:9-13 and 20), so I cannot establish that an anonymous user can reach it over HTTP. Whether this is a 500 or leaks paths also depends on error-display settings and on the caller, which are not in the directory. Confirming it needs the entry point that calls list_users_safe and the PHP version and display_errors configuration."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00881265
+}

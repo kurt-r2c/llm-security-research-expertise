@@ -1,0 +1,99 @@
+{
+ "arm": "C",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.177973,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ftdckwag/expertise/INDEX.md",
+   "/tmp/egf-ftdckwag/r/app.py",
+   "/tmp/egf-ftdckwag/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview fetches an arbitrary user-supplied URL with no validation. An attacker can reach internal services, cloud metadata (169.254.169.254) and other non-public hosts. The response status and the first 500 characters of the body are returned, so this is full-read SSRF. requests also follows redirects, and file:// is not supported by requests, but any http(s) scheme is.",
+    "source": "request.args.get('url') (query parameter 'url') at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16; the response is reflected via jsonify at app.py:17",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get('url', '') takes the attacker-controlled query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "target passed unmodified to requests.get (redirects followed by default)"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status code and resp.text[:500] returned to the caller, so the response is visible to the attacker"
+     }
+    ],
+    "guards_checked": "None. There is no scheme check, host allowlist, resolved-IP check or redirect restriction. The route has no authentication."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (the ALLOWED_HOSTS check exists only in /partner at app.py:23-25, not in /preview; no auth or middleware)",
+    "reason": "app.py:15 reads the attacker-controlled 'url' query param and app.py:16 passes it unvalidated to requests.get, with status and the first 500 chars of the body returned at app.py:17; the host allowlist at app.py:24 applies only to /partner."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner has a hostname allowlist, but it is weak. The check runs on urlparse(target).hostname (a pre-DNS string check), and the original unmodified string is then fetched by requests/urllib3, a different parser. This is a validator/fetcher parser-differential surface. requests.get also follows redirects by default (allow_redirects=True), so any open redirect or attacker-influenced redirect on an allowlisted host (api.partner.example or cdn.partner.example) bounces the server to an arbitrary internal target. The redirect target is never re-validated. Only the status code is returned, so this is a blind or limited-read SSRF. Confidence is lower than ssrf-1, because exploitation needs a redirect on an allowlisted host or a parser differential that I did not confirm against the installed urllib3 version.",
+    "source": "request.args.get('url') (query parameter 'url') at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get('url') takes the attacker-controlled query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname is parsed with urllib.parse (parser P1)"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "host checked against ALLOWED_HOSTS. Only the hostname string is compared; scheme, port and the resolved IP are not checked"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "the original target string is passed to requests.get (parser P2 = urllib3) with redirects followed automatically"
+     }
+    ],
+    "guards_checked": "Exact-match hostname allowlist (ALLOWED_HOSTS) on urlparse().hostname. There is no scheme restriction, no re-validation after redirects, no allow_redirects=False, no DNS or resolved-IP pinning, and the URL is not rebuilt from parsed components. /health (app.py:32) was also checked and is not a finding: STATUS_URL comes from an environment variable and is not attacker-controlled."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact hostname set membership: `host = urlparse(target).hostname` (app.py:23) checked with `host not in ALLOWED_HOSTS` (app.py:24-25) against a two-entry set (app.py:9).",
+    "reason": "The trace is accurate and `url` is attacker-controlled (app.py:22), but app.py:23-25 applies exact set membership on the parsed hostname, which closes the finding; the redirect and parser-differential routes are unconfirmed speculation, and only the status code is returned (app.py:27)."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.062148499999999995
+}

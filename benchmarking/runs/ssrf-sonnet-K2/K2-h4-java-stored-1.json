@@ -1,0 +1,92 @@
+{
+ "arm": "K2",
+ "repo": "h4-java-stored",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "c6805ce7",
+ "status": "success",
+ "gen_cost": 0.0540051,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-1093gi99/expertise/INDEX.md",
+   "/tmp/egf-1093gi99/r/src/Profile.java",
+   "/tmp/egf-1093gi99/expertise/cases/12-ssrf-resolve-then-fetch.md",
+   "/tmp/egf-1093gi99/expertise/cases/04-url-validate-reparse.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "src/Profile.java",
+    "line": 23,
+    "claim": "iconUrl is stored with no validation (scheme, host, or IP) and is fetched server-side by the nightly sync job, so a user can make the server issue GET requests to arbitrary URLs, including internal addresses such as cloud metadata at 169.254.169.254 and localhost services. The response body is read as a byte array.",
+    "source": "The `icon` parameter of Profile.update(), reached through PUT /profile (Profile.java:11)",
+    "sink": "HttpClient.send() with HttpRequest built from URI.create(iconUrl) (Profile.java:23-24)",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 11,
+      "note": "update(webhook, icon): `icon` arrives from the PUT /profile request"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 16,
+      "note": "this.iconUrl = icon; stored without any check (only webhook is validated at line 12)"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 23,
+      "note": "sync() builds the request with URI.create(iconUrl) and sends a GET to the attacker-chosen URL"
+     }
+    ],
+    "guards_checked": "No validation on iconUrl: no scheme or host allowlist, no private-IP blocking, no DNS pinning. The regex at line 12 applies only to webhook. The HttpClient is passed in by the caller, and its redirect policy is not visible here. Blind SSRF is certain, and the response can leak if it is later used or exposed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "src/Profile.java:16 stores `icon` unvalidated (the regex at line 12 covers only `webhook`), and sync() at line 23 sends a GET to URI.create(iconUrl) with no scheme, host or IP check anywhere in the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "src/Profile.java",
+    "line": 21,
+    "claim": "Checked and judged not vulnerable: webhookUrl is validated with String.matches(), which is fully anchored, against a fixed host and a 20-character alphanumeric path. The same string is later passed to URI.create. The pattern admits no userinfo, port, query, or fragment, so the host is always hooks.example.com. Reported for completeness; this path is not exploitable.",
+    "source": "The `webhook` parameter of Profile.update()",
+    "sink": "HttpClient.send() with URI.create(webhookUrl) (Profile.java:21)",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 12,
+      "note": "matches() is anchored to the whole string, so the host is pinned to hooks.example.com"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 21,
+      "note": "The validated string is the one sent, so there is no re-parse discrepancy"
+     }
+    ],
+    "guards_checked": "The anchored regex leaves no way to smuggle a different host. Redirects depend on the HttpClient passed in; the java.net.http default is Redirect.NEVER. Residual risk is limited to DNS control of example.com."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Full-string anchored String.matches(\"https://hooks\\\\.example\\\\.com/[A-Za-z0-9]{20}\") at src/Profile.java:12, run before webhookUrl is assigned at line 15",
+    "reason": "src/Profile.java:12 validates webhook with a fully anchored matches() pinning scheme, host and path, and line 21 only sends that stored value, so the webhook sink is not exploitable; the unvalidated iconUrl at line 23 is a separate sink and not part of this finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0590306
+}

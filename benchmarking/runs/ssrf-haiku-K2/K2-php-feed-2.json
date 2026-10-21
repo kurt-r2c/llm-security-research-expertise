@@ -1,0 +1,112 @@
+{
+ "arm": "K2",
+ "repo": "php-feed",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.00443081,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-mkf2vf7l/expertise/INDEX.md",
+   "/tmp/egf-mkf2vf7l/r/import.php",
+   "/tmp/egf-mkf2vf7l/expertise/cases/04-url-validate-reparse.md",
+   "/tmp/egf-mkf2vf7l/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated POST parameter 'feed' is passed unvalidated to file_get_contents(), letting any remote client make the server fetch arbitrary URLs (http/https/ftp, and PHP wrappers such as php:// and file://). Response leaks only strlen() of the body, so the attack is blind (length-oracle), but it still reaches internal hosts and services.",
+    "source": "import.php:12 $_POST['feed'] (HTTP POST body, attacker-controlled; presence gated only by line 11)",
+    "sink": "import.php:12 file_get_contents($_POST['feed'])",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Entry guard: REQUEST_METHOD === 'POST' && isset($_POST['feed']). Only checks method and presence, not identity or content."
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "$_POST['feed'] flows directly into file_get_contents() as the URL/path. No scheme allowlist, no host allowlist, no private/loopback/link-local IP blocking, no allow_redirects equivalent (PHP follows redirects by default for http wrappers)."
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "strlen($xml) is echoed back, so the attacker gets the response length. Limits exfiltration to a length oracle but does not stop the request from being made."
+     }
+    ],
+    "guards_checked": "(1) Authentication: none. require_admin() is NOT called on this branch (it is only called at line 18 for set_webhook). (2) Scheme validation: none. (3) Host/IP validation: none, and no DNS pinning, so the DNS-rebinding/resolve-then-fetch pattern (case 12) does not apply because there is no check to bypass. (4) URL re-parse mismatch (case 04): not applicable, there is no validation at all. Decoys checked: none match. Conclusion: no mitigating control on this path."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. import.php:11 only checks REQUEST_METHOD === 'POST' and isset($_POST['feed']); require_admin() (import.php:4-9) is called only at import.php:18, on the set_webhook branch, so it does not guard the feed branch at line 12. No scheme, host, or IP validation exists, and no auto_prepend or other middleware is present in the directory.",
+    "reason": "The trace is accurate: $_POST['feed'] (import.php:11) flows unvalidated into file_get_contents() at import.php:12 with no authentication or host/scheme check before the sink, so any remote client can trigger the server-side fetch."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated 'set_webhook' parameter is passed unvalidated to curl_init()/curl_exec(), so an admin (or anyone who obtains an admin session) can make the server request arbitrary URLs and schemes that libcurl supports (e.g. file://, gopher:// depending on build). Lower severity than SSRF-1 because it requires an admin session, and the response body is discarded (only 'ok' is echoed), so it is blind.",
+    "source": "import.php:19 $_POST['set_webhook'] (HTTP POST body, attacker-controlled by an admin session holder)",
+    "sink": "import.php:20 curl_init($hook), then import.php:22 curl_exec($ch)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch guard: isset($_POST['set_webhook'])."
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() is called. It returns 403 and exits unless $_SESSION['is_admin'] is non-empty."
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook'] with no sanitization."
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the target URL with no scheme or host restriction."
+     },
+     {
+      "file": "import.php",
+      "line": 21,
+      "note": "CURLOPT_RETURNTRANSFER set. CURLOPT_FOLLOWLOCATION is not set, so redirects are not followed by default. CURLOPT_PROTOCOLS is not restricted."
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec() performs the request. The response is discarded."
+     }
+    ],
+    "guards_checked": "(1) Authorization: require_admin() at line 18 checks $_SESSION['is_admin'] and exits with 403 if empty. This is a real gate for unauthenticated attackers, but it is not a URL-destination control. (2) Scheme allowlist: none (CURLOPT_PROTOCOLS not set). (3) Host/IP allowlist or private-range blocking: none. (4) Redirect handling: FOLLOWLOCATION off, so no redirect-based escape. (5) Session-setting code (where is_admin is assigned) is not in this codebase, so I could not verify how it is set. Decoys checked: none match. Conclusion: the admin gate limits who can reach the sink, but the destination is unchecked once reached."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 gates the branch at import.php:18 by checking $_SESSION['is_admin']. No destination validation exists anywhere in the file: no CURLOPT_PROTOCOLS, no host or IP check, and no scheme check. The trace matches the code at lines 17-22.",
+    "reason": "The trace is accurate (import.php:17-22), but the value reaching curl_init at import.php:20 comes from $_POST['set_webhook'] only after require_admin() at import.php:18 succeeds. Under this rubric that makes the source admin-only rather than reachable by an unauthenticated or low-privilege attacker, and the candidate itself concedes the admin gate. Its \"anyone who obtains an admin session\" case depends on session theft, which is outside this finding's threat model."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00450479
+}

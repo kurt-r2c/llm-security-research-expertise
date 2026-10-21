@@ -1,0 +1,110 @@
+{
+ "arm": "K3",
+ "repo": "node-avatar",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.00921449,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-akw109ft/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches an attacker-supplied URL with axios. The only check is that the string starts with https://, so any host, IP, or port is accepted, and redirects are followed without re-validation. An unauthenticated caller can make server-side GET requests to internal hosts, including plain-HTTP internal services and cloud metadata via redirect. The response size is returned, giving a blind size oracle.",
+    "source": "server.js:10 req.body.avatarUrl (POST /profile/avatar, server.js:9, no auth)",
+    "sink": "server.js:14 axios.get(url, { responseType: \"arraybuffer\" })",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "Unauthenticated POST route /profile/avatar"
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl taken from the JSON body"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "typeof string and startsWith(\"https://\") only; no URL parse, no host or IP check"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) with no maxRedirects=0, no beforeRedirect, no maxContentLength, no timeout, no try/catch; redirects followed by default (axios library default, not verified in repo)"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "Returns only img.data.length, so the body is not exposed but the size is"
+     }
+    ],
+    "guards_checked": "server.js:11 scheme prefix check (enforced, return used, but scheme-only: does not constrain host, port, or redirect targets). No private/loopback/link-local/metadata address block. No DNS rebinding protection. No redirect re-validation. No response size cap. Route has no auth middleware."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only server.js:11, a scheme-only check (typeof string and startsWith(\"https://\")). It does not constrain host, IP, port, or redirect targets. No auth middleware on the route (server.js:9), no hostname allowlist, no private-address block, no maxRedirects=0, and no maxContentLength or timeout at server.js:14.",
+    "reason": "The trace matches the code: req.body.avatarUrl (server.js:10) is unauthenticated input, the only check at server.js:11 is the https:// prefix, and axios.get at server.js:14 follows redirects by default and returns only the body length at server.js:15. Redirect following is axios's Node default, which I know from library behavior rather than from code in this repo. The finding is an SSRF with a blind size oracle, and nothing in the path closes it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "server.js",
+    "line": 20,
+    "claim": "GET /users/:id lets a dot-segment id escape the /v1/users/ path prefix on the fixed upstream host. encodeURIComponent does not encode '.', so id='..' builds a URL that normalizes to /v1/ on users.internal:8080, and the upstream body is returned. Host injection is blocked, so impact is limited to the same upstream host. Rated low. The normalization step is unverified (no node_modules in repo).",
+    "source": "server.js:18 req.params.id (GET /users/:id, percent-decoded by Express, e.g. /users/%2e%2e yields '..')",
+    "sink": "server.js:20 axios.get(`${USER_SVC}/v1/users/${id}`)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 18,
+      "note": "Route /users/:id, Express decodes the param so %2e%2e becomes '..'"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "encodeURIComponent leaves '.' unencoded, so id stays '..'"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "URL becomes http://users.internal:8080/v1/users/.. which normalizes to /v1/ (UNCERTAIN: depends on axios URL normalization)"
+     },
+     {
+      "file": "server.js",
+      "line": 21,
+      "note": "Upstream response body returned to the client"
+     }
+    ],
+    "guards_checked": "server.js:7 USER_SVC constant host (SAFE for host injection). server.js:19 encodeURIComponent blocks '/', '?', '#', '@', ':' (SAFE for those). Dot segments '.' and '..' not neutralized (broken control)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check on this path is server.js:19 encodeURIComponent, which does not encode '.', so dot segments pass through. USER_SVC at server.js:7 is a constant host and closes host injection only.",
+    "reason": "server.js:18 reads req.params.id, which Express percent-decodes, so an attacker can send %2e%2e. server.js:19 leaves '..' unchanged, and server.js:20 builds a path that resolves to /v1/ on the fixed host, with the body returned at server.js:21. Impact is limited to one-level path confinement escape on users.internal:8080; the dot-segment normalization in axios is inferred from WHATWG URL behavior, not verified against node_modules."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00425788
+}

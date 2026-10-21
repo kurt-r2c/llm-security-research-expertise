@@ -1,0 +1,111 @@
+{
+ "arm": "K1",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.005603269999999999,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-i1e0_0mk/r/views.py",
+   "/tmp/egf-i1e0_0mk/r/validators.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 forwards an unauthenticated user-supplied URL to requests.get after only a scheme check, allowing requests to internal, loopback, and metadata addresses, with redirects followed.",
+    "source": "views.py:19 request.args.get(\"url\")",
+    "sink": "views.py:22 requests.get(url, timeout=5)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "Reads attacker-controlled url from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "Calls is_http_url only"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "is_http_url checks urlparse scheme only (http/https)"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get follows redirects by default and returns first 200 chars of body"
+     }
+    ],
+    "guards_checked": "Scheme allowlist only. No hostname/IP private, loopback, link-local, or metadata check. Redirects not restricted. No auth on route."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /fetch2. views.py:20 only calls is_http_url, which is a scheme-only check (validators.py:7). The stricter is_safe_url (validators.py:10-18, private/loopback/link-local/reserved IP check) is used only by /fetch at views.py:12, not by /fetch2. views.py:22 uses requests.get with default allow_redirects, so redirects are followed.",
+    "reason": "The url at views.py:19 comes straight from the query string on an unauthenticated route, and views.py:20 applies only the scheme check from validators.py:7 before views.py:22 fetches it and returns the first 200 characters of the body, so internal, loopback, and metadata addresses are reachable and redirects are followed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch checks the resolved IP of the hostname, then lets requests resolve it again, so a DNS-rebinding domain can pass the check with a public IP and connect to an internal address; response body is returned.",
+    "source": "views.py:11 request.args.get(\"url\")",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "Reads attacker-controlled url"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "Calls is_safe_url"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "getaddrinfo lookup #1 used for the IP check"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "Rejects private, loopback, link-local, reserved IPs for lookup #1 only"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get performs lookup #2 at connect time; IP not pinned"
+     }
+    ],
+    "guards_checked": "Scheme and hostname presence; all resolved IPs checked for private/loopback/link-local/reserved; allow_redirects=False; 200-char truncation. Not guarded: DNS TOCTOU between check and connect. Route has no auth."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. validators.py:12-17 checks scheme and that resolved IPs are not private/loopback/link-local/reserved, but nothing restricts the hostname to an allowlist. views.py:14 has no auth and no IP pinning, so requests.get re-resolves the hostname at connect time (the DNS-rebinding TOCTOU). allow_redirects=False does not affect this. The 200-char truncation limits what leaks but does not close it.",
+    "reason": "The trace matches the code: views.py:11 reads the attacker-supplied url, views.py:12 calls is_safe_url, validators.py:14-16 resolves and checks the IP once, and views.py:14 calls requests.get(url) with its own separate resolution and no IP pinning. The route at views.py:9-10 has no authentication, so a rebinding hostname that resolves public at check time and internal at connect time reaches internal services and returns up to 200 bytes of the body."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00414725
+}

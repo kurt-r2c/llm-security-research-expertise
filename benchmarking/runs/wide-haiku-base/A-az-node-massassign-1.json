@@ -1,0 +1,224 @@
+{
+ "arm": "A",
+ "repo": "az-node-massassign",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.0058614900000000004,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-eojcxpct/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "mass-assignment-put-me",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me copies every attacker-supplied body key onto req.user and persists it, so privileged fields (role, isAdmin, verified, passwordHash) can be set by any caller. Confirmed in this file; real impact depends on the user schema, which is not in the repo.",
+    "source": "req.body in the PUT /me request (users.js:4)",
+    "sink": "Object.assign(req.user, req.body) at users.js:5, then req.store.save(req.user) at users.js:6",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "Route PUT /me accepts any JSON body"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Every own key of req.body is assigned onto req.user with no allowlist"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "Modified req.user is persisted via req.store.save"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "Modified req.user is returned to the caller"
+     }
+    ],
+    "guards_checked": "No allowlist, schema validation, or writable-field check in users.js. Upstream auth middleware and the store schema were not visible, so authorization of the route and field-level protection could not be verified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 does Object.assign(req.user, req.body) with no allowlist, users.js:6 persists req.user via req.store.save with no check, and users.js:7 returns it. The only related code, /me/profile at users.js:11-12, does allowlist displayName and bio, but it is a separate route and does not guard /me. Upstream auth middleware and the store schema are not in the repo.",
+    "reason": "Trace lines users.js:4-7 match the claim: PUT /me spreads every req.body key onto req.user (users.js:5), persists it (users.js:6), and returns it (users.js:7), with no effective control in the file. The attacker is an authenticated user, since Object.assign(undefined, ...) at users.js:5 would throw without a req.user set by upstream middleware, and that middleware is not visible. Real privilege impact such as role or verified depends on the unseen schema, but writing arbitrary fields like passwordHash is confirmed by the code alone."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "record-reassignment-via-identity-key",
+    "file": "users.js",
+    "line": 6,
+    "claim": "A body containing the store's primary key (id or _id) can redirect req.store.save to a different user's record, overwriting it. PLAUSIBLE: depends on store.save keying behavior, which is not in the repo.",
+    "source": "req.body.id or req.body._id in PUT /me (users.js:4)",
+    "sink": "req.store.save(req.user) at users.js:6, keyed by the overwritten identity field",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies a victim's id onto req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "store.save persists req.user under the new id, overwriting the victim's record"
+     }
+    ],
+    "guards_checked": "None in users.js. store.save implementation not visible; whether it ignores or rejects identity changes is unknown."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js: line 5 `Object.assign(req.user, req.body)` applies the whole request body with no field allowlist, and line 6 `req.store.save(req.user)` has no check on the result. The only other control, the allowlist in /me/profile (users.js:11-12), is not on the /me route.",
+    "reason": "users.js:5-6 do what the trace says: an authenticated user's body can overwrite req.user's `id`/`_id` before `req.store.save(req.user)` at users.js:6. Whether that actually overwrites another user's record depends on `store.save`, which is not in the repo, and on how `req.user` is loaded by middleware that is also not in the repo, so the cross-user impact cannot be confirmed from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "proto-key-prototype-change",
+    "file": "users.js",
+    "line": 5,
+    "claim": "A JSON body with an own __proto__ key triggers the __proto__ setter during Object.assign, changing req.user's prototype. Global Object.prototype is not polluted. PLAUSIBLE: impact requires downstream code reading inherited properties off req.user without own-property checks.",
+    "source": "req.body with a __proto__ key in PUT /me (users.js:4)",
+    "sink": "Object.assign at users.js:5 invoking the __proto__ setter on req.user",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign uses [[Set]], so the __proto__ key sets req.user's [[Prototype]]"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "The modified object is persisted and used by later requests"
+     }
+    ],
+    "guards_checked": "None in users.js. Downstream authorization reads of req.user were not visible."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js. No authorization or key filtering is visible: PUT /me at users.js:4 passes req.body straight into Object.assign at users.js:5. Nothing in the directory shows how req.user is loaded or whether req.store.save (users.js:6) serializes only own properties.",
+    "reason": "The mechanism holds: users.js:5 calls Object.assign(req.user, req.body), which uses [[Set]], so an own \"__proto__\" key from a parsed JSON body invokes the Object.prototype.__proto__ setter and changes only req.user's [[Prototype]], not the global one. Any authenticated user can reach it, but the security impact depends on downstream code that is not in the directory (how req.user is authorized or cached, and whether save() persists inherited state), so the finding cannot be confirmed or refuted from the available code."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "full-user-object-disclosure",
+    "file": "users.js",
+    "line": 7,
+    "claim": "Both handlers return the entire req.user record, which may include password hashes, tokens, or reset secrets. PLAUSIBLE: depends on what the stored record contains.",
+    "source": "Authenticated caller of PUT /me or PUT /me/profile (users.js:4, users.js:10)",
+    "sink": "res.json(req.user) at users.js:7 and users.js:14",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json serializes the full req.user object"
+     },
+     {
+      "file": "users.js",
+      "line": 14,
+      "note": "Same full-object serialization in the profile handler"
+     }
+    ],
+    "guards_checked": "No field filtering or projection in users.js. Stored record contents not visible."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:7 and users.js:14 serialize req.user with no field filtering. The only object returned is the caller's own record, so no other user's data is exposed. The stored schema is not in the directory, so whether it holds secrets is unknown.",
+    "reason": "The trace is accurate (users.js:7 and users.js:14 both call res.json(req.user) with no projection), but the attacker is an authenticated user who only receives their own record, so the exposure is self-disclosure and not a cross-user leak; the claim depends on unseen schema contents and no reachable attacker gains access to anyone else's secrets. Separately, users.js:5 does Object.assign(req.user, req.body) on PUT /me, which is a mass-assignment concern worth reviewing on its own."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "profile-update-clears-fields-no-validation",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile sets displayName and bio to undefined when omitted, wiping stored values. Values are also stored without type or length checks, so objects, arrays, or huge strings are accepted. LOW severity logic flaw; any XSS or injection depends on downstream sinks outside this directory.",
+    "source": "req.body.displayName and req.body.bio in PUT /me/profile (users.js:11)",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12, then req.store.save at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Fields destructured from req.body with no validation"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Undefined values are copied as own properties, overwriting stored data"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "Wiped or unvalidated values are persisted"
+     }
+    ],
+    "guards_checked": "No presence, type, or length checks in users.js. Downstream escaping or query construction not visible."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none in users.js. The only other route in the file, PUT /me at users.js:5, already runs Object.assign(req.user, req.body) with no filtering, so an authenticated user can already write any field, including undefined or object values, to their own record.",
+    "reason": "The trace matches the code: users.js:11 destructures req.body, users.js:12 copies undefined values onto req.user, and users.js:13 saves. The attacker is any authenticated user, and the write only touches their own record (req.user). PUT /me at users.js:5 already gives that same power without restriction, so /me/profile grants no new capability and is not a vulnerability. Any injection or XSS would depend on sinks outside this directory, which I could not check."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "unawaited-unchecked-save",
+    "file": "users.js",
+    "line": 6,
+    "claim": "req.store.save is neither awaited nor error-checked, so the handler reports success before persistence is confirmed. Concurrent PUTs on the same object race and the last stale write wins. LOW severity reliability and logic flaw.",
+    "source": "Any concurrent PUT /me or PUT /me/profile requests (users.js:4, users.js:10)",
+    "sink": "req.store.save(...) at users.js:6 and users.js:13, followed by res.json",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save is called without await or error handling"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "Success response is sent regardless of save outcome"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "Same pattern in the profile handler"
+     }
+    ],
+    "guards_checked": "None. No transaction, optimistic concurrency check, or error handling in users.js. Store implementation not visible."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:6 and users.js:13 call req.store.save with no await, no .catch, and no return check; users.js:7 and users.js:14 send res.json unconditionally. No transaction or version check appears in users.js, and the store implementation is not in the directory.",
+    "reason": "The trace matches users.js:6-7 and users.js:13-14 exactly, but whether a failed save is actually lost depends on req.store.save, which is not in the directory: if it returns a promise, the unawaited call at users.js:6 and users.js:13 is a real reliability defect with an unhandled rejection, and if it is synchronous the claim does not hold. The attacker is an authenticated user writing only their own req.user, so this is a low-severity reliability issue, not a security one."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01224768
+}

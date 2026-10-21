@@ -1,0 +1,128 @@
+{
+ "arm": "K1",
+ "repo": "fastify-static",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.03117992,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 4,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-2zaja_2j/r/index.js",
+   "/tmp/egf-2zaja_2j/r/lib/dirList.js",
+   "/tmp/egf-2zaja_2j/r/lib/errors.js",
+   "/tmp/egf-2zaja_2j/r/package.json"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "redirect-protocol-relative-open-redirect",
+    "file": "index.js",
+    "line": 783,
+    "claim": "getRedirectUrl does not neutralise a leading '/.' followed by '//', so a request path like /.//<dirname> yields a Location of //<dirname>/, a protocol-relative open redirect to the host named by an existing served directory. Conditional: requires redirect:true and an attacker-creatable directory named as a host in the served root.",
+    "source": "Raw request URL path, e.g. GET /.//evil.com (index.js:141-144 wildcard handler, prefix '/')",
+    "sink": "reply.redirect(getRedirectUrl(request.raw.url), 301) at index.js:319 (directory case) and index.js:157 (prefix route); Location header",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 141,
+      "note": "wildcard handler receives req; prefix '/' so matchRoutePrefix returns 0"
+     },
+     {
+      "file": "index.js",
+      "line": 144,
+      "note": "getPathnameForSend(req.raw.url) returns '/.//evil.com' (no '..' segment so dotDot guard at 769 does not trigger)"
+     },
+     {
+      "file": "index.js",
+      "line": 262,
+      "note": "pumpSendToReply dotDot check passes: no '..' segment"
+     },
+     {
+      "file": "index.js",
+      "line": 304,
+      "note": "send resolves '/.//evil.com' to root/evil.com; a directory yields type 'directory'"
+     },
+     {
+      "file": "index.js",
+      "line": 317,
+      "note": "only when opts.redirect === true (non-default)"
+     },
+     {
+      "file": "index.js",
+      "line": 319,
+      "note": "getRedirectUrl(request.raw.url) with raw url '/.//evil.com'"
+     },
+     {
+      "file": "index.js",
+      "line": 784,
+      "note": "leading-slash collapse only applies when url starts with '/' followed by '/' or '\\\\'; here url[1] is '.', so url stays '/.//evil.com'"
+     },
+     {
+      "file": "index.js",
+      "line": 792,
+      "note": "new URL('/.//evil.com','http://localhost.com/').pathname === '//evil.com' (single-dot segment dropped, empty segment kept)"
+     },
+     {
+      "file": "index.js",
+      "line": 794,
+      "note": "appends '/' -> '//evil.com/' returned as Location"
+     }
+    ],
+    "guards_checked": "Leading-'/'-collapse in getRedirectUrl only handles a run of slashes at the start of the URL; dotDotSegmentRegex (index.js:23) and getPathnameForSend dot-dot check (index.js:769) only reject '..' segments, not '.' followed by '//'; send's UP_PATH guard does not apply to '.'; no host or scheme allowlist exists on the redirect target. Not exploitable with an attacker-chosen host unless the attacker can create a directory in the served root (e.g. an upload feature that creates directories); the prefix redirect at index.js:155-159 is exact-match only and not affected."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "extended-folder-info-symlink-cycle",
+    "file": "lib/dirList.js",
+    "line": 25,
+    "claim": "_getExtendedInfo recurses into every directory found via fs.stat (which follows symlinks) with no visited-set or depth limit, so a symlink in the served tree that points to an ancestor makes each unauthenticated listing request walk an effectively unbounded, branching tree. Conditional: requires list.extendedFolderInfo: true and a symlink cycle in the served root (developer or repo content).",
+    "source": "Unauthenticated GET for a directory path that triggers listing (index.js:306-315 or 348/373 fallbacks) when the list option is enabled",
+    "sink": "dirList._getExtendedInfo recursion (lib/dirList.js:38-41), reached from dirList.list worker (lib/dirList.js:99-101)",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 306,
+      "note": "directory-type response with opts.list set calls dirList.send"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 131,
+      "note": "dirList.send calls dirList.list(dir, options, dotfiles)"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 98,
+      "note": "for each subdirectory, if options.extendedFolderInfo, call getExtendedInfo(path)"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 33,
+      "note": "fs.stat follows symlinks, so a symlink-to-ancestor reports isDirectory() true"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 41,
+      "note": "recursion into filePath with no visited set and no depth cap; each level re-lists and re-stats every child"
+     }
+    ],
+    "guards_checked": "Recursion is bounded only by the OS ELOOP/ENAMETOOLONG failure on deep symlink paths (~32-40 hops per resolution), which still allows large branching fan-out per request; no lstat, no realpath dedupe, no concurrency or time budget. The default list option is off, and the library's own glob at index.js:169 uses follow:true with cycle protection, which dirList does not replicate. Impact is CPU and fd exhaustion from one request; no data exposure."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

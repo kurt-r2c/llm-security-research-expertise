@@ -1,0 +1,115 @@
+{
+ "arm": "P",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.0047252200000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-90sllrgg/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches an arbitrary attacker-supplied URL server-side with no validation and returns the status code and first 500 characters of the response body to the caller, so internal HTTP services and cloud metadata endpoints are reachable and readable.",
+    "source": "app.py:15 - request.args.get(\"url\", \"\"), the 'url' query parameter of an unauthenticated GET /preview request from any client.",
+    "sink": "app.py:16 - requests.get(target, timeout=5), an outbound HTTP request made from the server.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "@app.route(\"/preview\") exposes the endpoint with no authentication decorator or check."
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target is read directly from the untrusted query string."
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "target is passed unmodified to requests.get; no scheme, host, IP-range, or port check; redirects are followed by default for GET."
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "resp.status_code and resp.text[:500] are returned to the requester, so the response is readable (full-read SSRF, not blind)."
+     }
+    ],
+    "guards_checked": "None on this path. No allowlist, no scheme restriction, no private/loopback/link-local IP blocking, no auth, no redirect control. The 5-second timeout limits duration only, not destination. requests only permits http/https schemes, which limits scheme abuse but not SSRF to internal hosts such as 127.0.0.1, 10.x, or 169.254.169.254."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The ALLOWED_HOSTS check at app.py:24-25 is in /partner (app.py:20-27), not /preview. /preview (app.py:13-17) has no auth, scheme, host, or IP validation before requests.get at line 16.",
+    "reason": "The url query parameter (app.py:15) is attacker-controlled and reaches requests.get unvalidated (app.py:16), and the response status and first 500 bytes are returned to the caller (app.py:17), so /preview is a full-read SSRF with no closing guard on its path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner validates only the hostname of the initial URL against an allowlist and then fetches it with redirects enabled. An allowlisted partner host that responds with a redirect to an internal address will be followed to that address, which the check never sees. The response reveals only the status code. Exploitation requires the attacker to control or open-redirect an allowlisted partner host, so the severity is lower than SSRF-1.",
+    "source": "app.py:22 - request.args.get(\"url\", \"\"), the 'url' query parameter of an unauthenticated GET /partner request.",
+    "sink": "app.py:26 - requests.get(target, timeout=5), which follows 3xx redirects by default, so the destination can differ from the validated host.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 20,
+      "note": "@app.route(\"/partner\") exposes the endpoint with no authentication."
+     },
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target is read from the untrusted query string."
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname, the only parse of the URL used for validation."
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "Allowlist check: host must be in ALLOWED_HOSTS = {\"api.partner.example\", \"cdn.partner.example\"} (app.py:9). The check passes for these two hosts."
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) re-parses the URL independently and follows redirects. The validated host is not re-checked after any redirect."
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "Only resp.status_code is returned, which limits the information an attacker can read."
+     }
+    ],
+    "guards_checked": "Hostname allowlist at app.py:23-25 (exact match on urlparse().hostname). Confirmed it blocks direct external and userinfo-based hosts such as https://api.partner.example@evil.example/, since urlparse returns evil.example. Not guarded: redirect following, IP literals on allowed names (not applicable because names are fixed), DNS rebinding (requires control of partner DNS), and no scheme check (requests rejects non-http(s) schemes). Not verified: parser differentials between urllib.parse and urllib3 for backslash or other unusual authority characters. That could bypass the allowlist, but I could not run code to test it, so it is not reported as a finding."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Exact hostname membership on the initial URL at app.py:23-24 (urlparse(target).hostname checked against ALLOWED_HOSTS at app.py:9). No re-validation after redirects at app.py:26 (requests.get follows 3xx by default), so this guard does not cover the redirect destination the claim is about.",
+    "reason": "Every trace line matches app.py: the unauthenticated query value `url` (app.py:22) is host-checked once (app.py:23-24) and then fetched with default redirect-following (app.py:26), so an allowlisted host can redirect to an internal address that the check never sees. Note that the rubric literally counts exact membership as closing, but that check only covers the initial URL, which is the gap this finding describes. The claim's severity is lower because exploitation needs an allowlisted partner host that is attacker-controlled or open-redirects, and the parser-differential idea is unverified and was not used."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00428886
+}

@@ -1,0 +1,183 @@
+{
+ "arm": "K1",
+ "repo": "lg-py-negative",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "58b2c8f2",
+ "status": "success",
+ "gen_cost": 0.0053189100000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-n5sxpmlh/r/bank.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "BANK-1",
+    "file": "bank.py",
+    "line": 10,
+    "claim": "Negative `amount` in /transfer lets an authenticated user take money from any existing account `to`: the balance check passes for negative amounts, the sender is credited and the recipient debited.",
+    "source": "request.json[\"amount\"] (bank.py:10), attacker-controlled JSON body; `to` (line 9) is also attacker-chosen",
+    "sink": "BAL[g.user] -= amount (line 13) and BAL[to] += amount (line 14) with no sign check",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount read from JSON body with no type or range validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < amount is False for any negative amount, so the guard never fires"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender balance reduced by a negative number, i.e. increased by |amount|"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "recipient balance increased by a negative number, i.e. reduced by |amount|"
+     }
+    ],
+    "guards_checked": "Line 11 is the only check and it does not reject amount <= 0. /withdraw (line 21) does reject it, so the omission is specific to /transfer. No validation layer in bank.py. Precondition: g.user is set by upstream auth, which is not in this repo and could not be verified.",
+    "repro": "POST /transfer {\"to\":\"victim\",\"amount\":-100} as an authenticated attacker: attacker balance +100, victim balance -100."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only line 11 (`if BAL[g.user] < amount: abort(400)`), which checks solvency but not `amount <= 0`, so a negative amount passes. No validation layer or auth decorator in bank.py. /withdraw (bank.py:21) does reject `amount <= 0`, but that check is absent from /transfer.",
+    "reason": "Every trace line matches bank.py: amount is read unvalidated at line 10, the only guard at line 11 does not reject negatives, and lines 13-14 move money in the attacker's favor. Any authenticated user (g.user is set upstream, outside this repo and unverified) can reach it, so the finding stands as written."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "BANK-2",
+    "file": "bank.py",
+    "line": 13,
+    "claim": "/transfer debits the sender before validating or crediting the recipient with no rollback, so a negative amount with an unknown or unhashable `to` mints money for the attacker.",
+    "source": "request.json[\"to\"] (bank.py:9) and request.json[\"amount\"] (bank.py:10), attacker-controlled",
+    "sink": "BAL[g.user] -= amount (line 13) executes before BAL[to] += amount (line 14) raises KeyError or TypeError",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "`to` is any JSON value; it is not checked against BAL keys or required to be a string"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender balance is written first, increasing it by |amount| when amount is negative"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] lookup raises KeyError for an unknown account or TypeError for a list/dict `to`; the exception propagates as a 500 and the line-13 write is not undone"
+     }
+    ],
+    "guards_checked": "No existence check on `to`, no try/except, no transaction or rollback, no ordering that credits before debiting. Flask does not roll back in-memory dict state. Precondition: authenticated caller (g.user, unverified).",
+    "repro": "POST /transfer {\"to\":\"nobody\",\"amount\":-1000000}: returns 500 but the attacker's balance has increased by 1,000,000 with no matching debit from any account. Repeat to mint arbitrary funds."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is the balance test at bank.py:11 (`BAL[g.user] < amount`), which a negative amount always passes. No existence check on `to`, no try/except, and no rollback between bank.py:13 and bank.py:14. The attacker's own balance is not checked against the amount's sign.",
+    "reason": "At bank.py:13 `BAL[g.user] -= amount` runs before `BAL[to] += amount` at bank.py:14 raises KeyError or TypeError for an unknown or unhashable `to`, leaving the sender credited with no debit anywhere. The attacker only needs to be an authenticated user (g.user is set outside this file, so that precondition is unverified here)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "BANK-3",
+    "file": "bank.py",
+    "line": 21,
+    "claim": "Python's json accepts NaN, and NaN passes both the withdraw and transfer balance guards. A single NaN write permanently corrupts the attacker's balance, and the corrupted balance then disables the sufficiency check, allowing unbacked transfers.",
+    "source": "request.json[\"amount\"] (bank.py:20 in /withdraw, bank.py:10 in /transfer), attacker-controlled; flask request.json parses NaN by default",
+    "sink": "BAL[g.user] -= amount (bank.py:23) and BAL[g.user] -= amount / BAL[to] += amount (bank.py:13-14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 20,
+      "note": "amount parsed from JSON; NaN accepted"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "`amount <= 0` is False for NaN and `BAL < NaN` is False, so the guard passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "attacker balance becomes NaN"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "with NaN balance, `BAL[g.user] < amount` is always False, so /transfer accepts any positive amount"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "recipient is credited with real value that was never debited from the attacker"
+     }
+    ],
+    "guards_checked": "Line 21 rejects only amount <= 0 and insufficient balance; neither rejects NaN. No isfinite or float-type check anywhere. Precondition: authenticated caller (g.user, unverified) and that flask's JSON parsing accepts NaN (true for default flask/json.loads; not verified against the installed Flask version).",
+    "repro": "POST /withdraw {\"amount\":NaN} (raw JSON token) sets own balance to NaN; then POST /transfer {\"to\":\"accomplice\",\"amount\":1000000} succeeds with no funds behind it."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. The only checks are bank.py:21 (`amount <= 0 or BAL[g.user] < amount`) and bank.py:11 (`BAL[g.user] < amount`). Neither rejects NaN, and no isfinite or type check exists anywhere in the directory. `g.user` is read at bank.py:11, 13, 21 and 23 but never assigned in bank.py, and no before_request or auth code exists in the directory.",
+    "reason": "The trace is accurate arithmetic: NaN passes the guards at bank.py:21 and bank.py:11, and the debits at bank.py:13 and bank.py:23 write NaN. However, `g.user` is never set in the available code, so as written every request raises AttributeError when BAL[g.user] is evaluated (bank.py:21 runs for NaN because `amount <= 0` is False), and the NaN write never happens. Whether the attacker can reach this depends on an auth layer that is not in this directory. The repro also needs \"accomplice\" to already exist in BAL, otherwise bank.py:14 raises KeyError; the candidate does not mention this."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "BANK-4",
+    "file": "bank.py",
+    "line": 21,
+    "claim": "Check-then-act without a lock in /withdraw and /transfer allows concurrent requests to pass the balance check together and overdraw the account.",
+    "source": "Two concurrent authenticated requests to /withdraw or /transfer for the same g.user",
+    "sink": "BAL[g.user] -= amount (bank.py:23 in /withdraw; bank.py:13 in /transfer)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "balance read and compared against amount in /withdraw"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "balance decremented later; another request can run between the check and the write"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "same pattern in /transfer, check at line 11, debit at line 13"
+     }
+    ],
+    "guards_checked": "No threading.Lock, no atomic update, no database transaction. Exploitability depends on the server running threads or workers that share BAL; a single-process threaded Flask dev server does allow this. Precondition: the attacker can send parallel requests and the balance is sufficient for only one of them.",
+    "repro": "With balance 100, send two concurrent POST /withdraw {\"amount\":100}; both can pass line 21 before either executes line 23, leaving the balance at -100."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. bank.py:21 and bank.py:11 check the balance, bank.py:23 and bank.py:13 debit it, and nothing between them locks, makes the update atomic, or uses a transaction. No lock or transaction exists anywhere in the repo, which contains only bank.py.",
+    "reason": "Every trace line matches: the balance check is at bank.py:21 (withdraw) and bank.py:11 (transfer) and the debit is at bank.py:23 and bank.py:13, with no effective guard between them, so a threaded server can interleave two requests from the same account. Caveat: g.user is never set in bank.py, so the authentication that sets it is outside the available code, and the race only fires if the server runs requests on concurrent threads or workers that share BAL."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.009423240000000001
+}

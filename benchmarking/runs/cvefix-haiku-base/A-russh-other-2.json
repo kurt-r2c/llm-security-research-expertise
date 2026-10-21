@@ -1,0 +1,249 @@
+{
+ "arm": "A",
+ "repo": "russh-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.017464570000000002,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 6,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-wkdpiccl/r/pageant/src/lib.rs",
+   "/tmp/egf-wkdpiccl/r/pageant/src/interface.rs",
+   "/tmp/egf-wkdpiccl/r/pageant/src/namedpipes.rs",
+   "/tmp/egf-wkdpiccl/r/pageant/src/wmmessage.rs",
+   "/tmp/egf-wkdpiccl/r/pageant/src/error.rs",
+   "/tmp/egf-wkdpiccl/r/pageant/Cargo.toml"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "pageant-namedpipe-server-unverified",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 33,
+    "claim": "The named-pipe client connects to a deterministically named pipe without verifying the server process, so a local process that creates the pipe first receives agent requests and can return forged responses.",
+    "source": "Pipe name is derived from the username and CryptProtectMemory(CROSS_PROCESS) of 'Pageant', which any local process can compute (namedpipes.rs:49-52). Precondition: real Pageant absent or raced.",
+    "sink": "ClientOptions::new().open(&pipe_name) at namedpipes.rs:33; the stream then carries list-identities and sign requests.",
+    "trace": [
+     {
+      "file": "pageant/src/lib.rs",
+      "line": 27,
+      "note": "PageantStream::new tries namedpipes first"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 29,
+      "note": "determine_pipe_name called"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 50,
+      "note": "get_username"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 51,
+      "note": "capi_obfuscate_string of 'Pageant'"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 52,
+      "note": "pipe name formatted"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 33,
+      "note": "pipe opened without server verification"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 46,
+      "note": "stream returned to caller"
+     }
+    ],
+    "guards_checked": "No GetNamedPipeServerProcessId, owner, path or session check. CryptProtectMemory errors are discarded (namedpipes.rs:110-114), so the name falls back to a plain hash. The name is not a secret. Response/request correlation is not checked."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "pageant-window-class-spoof",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 187,
+    "claim": "FindWindowW locates the agent by class and title only, so a same-session window named 'Pageant' receives WM_COPYDATA containing the shared-memory name and can read requests and return forged responses.",
+    "source": "Any same-session process that creates a window with class and title 'Pageant' and wins enumeration order, or runs while Pageant is absent.",
+    "sink": "SendMessageA(WM_COPYDATA) at wmmessage.rs:217-224, with the shared-memory name in the payload at wmmessage.rs:209-215.",
+    "trace": [
+     {
+      "file": "pageant/src/lib.rs",
+      "line": 40,
+      "note": "wmmessage fallback PageantStream::new"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 48,
+      "note": "query_pageant_direct run in a spawned task"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 203,
+      "note": "find_pageant_window"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 209,
+      "note": "map name placed in COPYDATASTRUCT"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 217,
+      "note": "SendMessageA blocks until the target window returns"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 230,
+      "note": "response read from the same mapping, unvalidated"
+     }
+    ],
+    "guards_checked": "No check of owning PID or image path. No request/response correlation. UIPI may limit some cross-integrity cases; not verified. A hostile window can block SendMessageA indefinitely, hanging a runtime worker."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "pageant-unbounded-length-prefix-buffering",
+    "file": "pageant/src/interface.rs",
+    "line": 44,
+    "claim": "The reader buffers up to a 4 GiB length-prefixed message before checking it against _AGENT_MAX_MSGLEN, so attacker-supplied bytes can exhaust client memory.",
+    "source": "Bytes written to the PageantStream. In agent-forwarding setups these may come from a remote SSH server; this depends on the calling stack, which is not in this repo.",
+    "sink": "BytesMut growth at interface.rs:36 and the wait for len+4 bytes at interface.rs:44.",
+    "trace": [
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 36,
+      "note": "read_buf drains the duplex without limit"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 43,
+      "note": "len read from u32 prefix, up to 4 GiB"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 44,
+      "note": "continues until len+4 bytes buffered, no cap"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 47,
+      "note": "split_to only after full buffering"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 140,
+      "note": "_AGENT_MAX_MSGLEN enforced only later in write"
+     }
+    ],
+    "guards_checked": "_AGENT_MAX_MSGLEN (interface.rs:195) is applied only after buffering. The duplex has no backpressure because the reader drains unconditionally. On 32-bit Windows, len+4 can wrap at interface.rs:44 and 47."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "pageant-mapview-unchecked-null",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 126,
+    "claim": "MapViewOfFile's result is not checked for null, so a failed mapping leads to a null-pointer write in MemoryMap::write.",
+    "source": "MapViewOfFile failure under resource exhaustion. Not attacker-controlled.",
+    "sink": "copy_nonoverlapping into view.Value.add(pos) at wmmessage.rs:150-153.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 126,
+      "note": "MapViewOfFile result stored without check"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 131,
+      "note": "Ok(Self) returned with null view"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 150,
+      "note": "copy into view.Value.add(pos)"
+     }
+    ],
+    "guards_checked": "pos+len > length bound at wmmessage.rs:140 guards length only, not the pointer."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "pageant-read-write-through-as-ptr",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 167,
+    "claim": "MemoryMap::read writes into a Vec through out.as_ptr() as *mut u8, which is undefined behaviour because the Vec is not mutable and as_ptr is documented read-only.",
+    "source": "Any call to MemoryMap::read. Not attacker-controlled.",
+    "sink": "copy_nonoverlapping into out at wmmessage.rs:166-170.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 164,
+      "note": "let out = vec![0; n] (immutable binding)"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 167,
+      "note": "out.as_ptr() cast to *mut u8 and written through"
+     }
+    ],
+    "guards_checked": "Length bound at wmmessage.rs:161 is correct. The issue is only the mutability of the write path."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "pageant-username-domain-collision",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 86,
+    "claim": "Stripping the '@domain' suffix from the username can make different users map to the same pipe name, producing a connect failure or a misdirected connection.",
+    "source": "Two users with the same SAM name in different domains, or a UPN containing '@'.",
+    "sink": "Pipe name formatted at namedpipes.rs:52.",
+    "trace": [
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 85,
+      "note": "find('@')"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 86,
+      "note": "drain removes the domain part"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 52,
+      "note": "pipe name built from the truncated name"
+     }
+    ],
+    "guards_checked": "The pipe DACL probably prevents cross-user access, so the likely effect is DoS rather than disclosure. Not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

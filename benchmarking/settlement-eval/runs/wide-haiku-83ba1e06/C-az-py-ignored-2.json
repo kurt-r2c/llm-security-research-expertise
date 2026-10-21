@@ -1,0 +1,138 @@
+{
+ "arm": "C",
+ "repo": "az-py-ignored",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01120072,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-vi13i_1k/expertise/software/language-footguns/python_footguns_expertise.md",
+   "/tmp/egf-vi13i_1k/expertise/software/appsec-web/distributed_authz_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "docs.py",
+    "line": 19,
+    "claim": "PUT /doc/<doc_id> overwrites any document body without an authorization check; can_edit() result is discarded, so require_edit is never enforced on this handler.",
+    "source": "Attacker-controlled doc_id (URL path) and request.json['body']; caller identity from g.user (set by unseen middleware).",
+    "sink": "doc['body'] = request.json['body'] at docs.py:20",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 16,
+      "note": "PUT route /doc/<doc_id> registered with no auth decorator in this file"
+     },
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "doc = DOCS[doc_id] loads any document by ID with no ownership filter"
+     },
+     {
+      "file": "docs.py",
+      "line": 19,
+      "note": "can_edit(g.user, doc) evaluated but return value discarded; no if/abort/require_edit"
+     },
+     {
+      "file": "docs.py",
+      "line": 20,
+      "note": "body written unconditionally"
+     },
+     {
+      "file": "docs.py",
+      "line": 21,
+      "note": "returns ok=True"
+     }
+    ],
+    "guards_checked": "can_edit (docs.py:7-8) logic is correct but unused as a gate; require_edit (docs.py:11-13) exists but is not called on this path; update_title (docs.py:27) does call require_edit, so the two handlers are inconsistent; no before_request hook or route decorator in this file. Fix: replace line 19 with require_edit(g.user, doc)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. can_edit (docs.py:7-8) returns a bool, but its result is discarded as a bare statement at docs.py:19, so nothing aborts before the write at docs.py:20. require_edit (docs.py:11-13) is never called on this route. The only other handler, update_title (docs.py:27), does call require_edit, so the omission is specific to this route. No before_request hook or route decorator appears in docs.py.",
+    "reason": "The PUT /doc/<doc_id> handler at docs.py:16-21 discards the can_edit(g.user, doc) result at docs.py:19 and writes doc[\"body\"] unconditionally at docs.py:20, so any caller who reaches the route can overwrite any document, while update_title at docs.py:27 enforces require_edit. The one caveat is that the unseen middleware that sets g.user could block some callers, but it is not an edit-authorization check on this path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "docs.py",
+    "line": 18,
+    "claim": "Differing error codes (500 for missing ID via KeyError, 403 for existing but unauthorized) let an attacker enumerate which document IDs exist.",
+    "source": "Attacker-controlled doc_id.",
+    "sink": "HTTP response status code (existence oracle)",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "DOCS[doc_id] raises KeyError for unknown IDs, surfaced as 500"
+     },
+     {
+      "file": "docs.py",
+      "line": 26,
+      "note": "same lookup in update_title"
+     },
+     {
+      "file": "docs.py",
+      "line": 13,
+      "note": "abort(403) for existing but non-editable documents"
+     }
+    ],
+    "guards_checked": "No 404 handling or uniform error response present; leak limited to ID existence."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. There is no try/except or 404 handling around the unguarded lookup at docs.py:18 and docs.py:26, and no uniform error response. The only check is require_edit's abort(403) at docs.py:13, which runs only after the lookup at docs.py:26 has already succeeded.",
+    "reason": "For an unknown ID, DOCS[doc_id] at docs.py:26 raises KeyError and returns 500, while for an existing document the require_edit call at docs.py:27 aborts with 403 at docs.py:13 when the caller is not an owner or editor, so the status code reveals whether an ID exists. The attacker only needs an authenticated low-privilege account, since g.user is populated outside this file and the 403 path depends on it. Severity is low (existence oracle, not content disclosure), and the claim should be stated as such."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "docs.py",
+    "line": 8,
+    "claim": "can_edit returns True when both user and doc['owner'] are None, which could let anonymous requests pass the check on ownerless documents. Conditional and unverified.",
+    "source": "g.user is None for anonymous requests (precondition, not visible in this file).",
+    "sink": "can_edit return value gating require_edit at docs.py:12 and the title update at docs.py:27",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 8,
+      "note": "doc['owner'] == user evaluates True when both are None"
+     },
+     {
+      "file": "docs.py",
+      "line": 12,
+      "note": "require_edit only aborts when can_edit is False"
+     },
+     {
+      "file": "docs.py",
+      "line": 27,
+      "note": "update_title relies on require_edit"
+     }
+    ],
+    "guards_checked": "Nothing in this file shows how documents are created or how g.user is set, so reachability cannot be confirmed here."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "require_edit (docs.py:11-13) aborts with 403 when can_edit returns False, and update_title (docs.py:27) relies on it. The bypass needs can_edit to return True, which happens at docs.py:8 only if doc[\"owner\"] is None and user is None. Nothing in docs.py shows how DOCS entries are created or whether g.user can be None. update_doc (docs.py:19) discards can_edit's result as a bare statement, so it has no guard at all, but that is a separate issue from this candidate's sink.",
+    "reason": "The trace is accurate: docs.py:8 evaluates True when both sides are None, and docs.py:12-13 aborts only on False, so require_edit at docs.py:27 is bypassed only if an ownerless document exists and g.user is None. Neither precondition is established in docs.py (no document creation or auth code is shown), so reachability cannot be decided from the available code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006207010000000001
+}

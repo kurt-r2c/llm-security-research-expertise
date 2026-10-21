@@ -1,0 +1,104 @@
+{
+ "arm": "A",
+ "repo": "az-go-checkperm",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.0041758,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-tks4fkb5/r/handlers.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTHZ-1",
+    "file": "handlers.go",
+    "line": 26,
+    "claim": "The purge handler checks the admin permission but discards the result, so any caller can invoke the destructive purgeAll operation.",
+    "source": "Any HTTP request that reaches the purge route with a user in context, including users without the admin permission.",
+    "sink": "purgeAll() at handlers.go:27 (protected admin-only destructive operation)",
+    "trace": [
+     {
+      "file": "handlers.go",
+      "line": 24,
+      "note": "purge(w, r) receives the request"
+     },
+     {
+      "file": "handlers.go",
+      "line": 25,
+      "note": "u := userFrom(r) loads the caller"
+     },
+     {
+      "file": "handlers.go",
+      "line": 26,
+      "note": "checkPerm(u, \"admin\") returns a bool that is discarded, so nothing is enforced"
+     },
+     {
+      "file": "handlers.go",
+      "line": 27,
+      "note": "purgeAll() runs unconditionally"
+     },
+     {
+      "file": "handlers.go",
+      "line": 28,
+      "note": "Writes \"purged\" to the caller"
+     }
+    ],
+    "guards_checked": "checkPerm (handlers.go:12-14) computes the permission but its result is unused. mustPerm (handlers.go:16-22) is the enforcing helper and is not called in purge. rotateKeys (handlers.go:31-38) correctly calls mustPerm and returns early, so purge is the inconsistent handler. No middleware in this repo enforces admin on the route. purgeAll and rotateAll are empty stubs (handlers.go:44-45), so impact is nil in this snapshot and becomes critical once purgeAll does real work."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "checkPerm (handlers.go:12-14) returns a bool that is discarded as a bare statement at handlers.go:26. mustPerm (handlers.go:16-22) is never called in purge. The only enforcing check in this snapshot is in rotateKeys (handlers.go:33). No route registration or middleware in this directory enforces admin on the purge path (Grep found no HandleFunc/Handle registration).",
+    "reason": "handlers.go:26 discards checkPerm's result, so purgeAll() at handlers.go:27 runs for any request that has a user in context (userFrom at handlers.go:25 panics otherwise), with no enforcing guard before it. Caveat: route registration is not in this snapshot, so the reachable-role claim rests on the handler code alone, and impact is nil while purgeAll is an empty stub (handlers.go:44)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTH-2",
+    "file": "handlers.go",
+    "line": 40,
+    "claim": "userFrom uses an unchecked type assertion, so a request reaching a handler without a stored *User panics, and handlers that rely on it dereference a nil user.",
+    "source": "A request that reaches a handler without auth middleware having stored a *User under userKey{} (depends on route registration, which is not in this repo).",
+    "sink": "Unchecked .(*User) assertion at handlers.go:40, followed by u.Perms access in checkPerm/mustPerm (handlers.go:13, :17)",
+    "trace": [
+     {
+      "file": "handlers.go",
+      "line": 25,
+      "note": "purge calls userFrom(r)"
+     },
+     {
+      "file": "handlers.go",
+      "line": 32,
+      "note": "rotateKeys calls userFrom(r)"
+     },
+     {
+      "file": "handlers.go",
+      "line": 40,
+      "note": "Unchecked type assertion panics if the context value is missing or of the wrong type"
+     }
+    ],
+    "guards_checked": "None in this file. net/http recovers panics per connection, so impact is request failure, not process crash. This is only a fail-open risk if a route is registered without auth; route registration is not in the repo, so this is low confidence and needs confirmation."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Per-request recovery from net/http (stdlib, not in repo). The panic at handlers.go:40 fires before any effect: purgeAll() at :27 and rotateAll() at :36 are never reached, so the failure is fail-closed. Separately, checkPerm at :26 returns a bool that is discarded, which is a real missing admin check in purge, but that is a different finding from this one.",
+    "reason": "The trace is accurate (userFrom at handlers.go:25, :32, and the unchecked assertion at :40), but a missing user makes the handler panic at :40 before purgeAll (:27) or rotateAll (:36) runs, so it fails closed and yields only a failed request, not a fail-open security issue. The real problem in this file is that purge discards the checkPerm result at handlers.go:26, which should be reported as its own finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00481323
+}

@@ -1,0 +1,193 @@
+{
+ "arm": "K1",
+ "repo": "svgsanitizer-injection",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.03384037,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 9,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-53ri0or9/r/src/Sanitizer.php",
+   "/tmp/egf-53ri0or9/r/src/svg-scanner.php",
+   "/tmp/egf-53ri0or9/r/src/Helper.php",
+   "/tmp/egf-53ri0or9/r/src/ElementReference/Resolver.php",
+   "/tmp/egf-53ri0or9/r/src/data/XPath.php",
+   "/tmp/egf-53ri0or9/r/src/ElementReference/Subject.php",
+   "/tmp/egf-53ri0or9/r/src/ElementReference/Usage.php",
+   "/tmp/egf-53ri0or9/r/src/data/AllowedTags.php",
+   "/tmp/egf-53ri0or9/r/src/data/AllowedAttributes.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/ElementReference/Resolver.php",
+    "line": 89,
+    "claim": "Duplicate element ids let an attacker hide a <use> expansion bomb from the threshold check. Subjects are keyed by id with last-wins, so the browser's first-id element is never in the reference graph, and the decoy the sanitizer sees has zero uses.",
+    "source": "Attacker-supplied SVG passed to Sanitizer::sanitize() (Sanitizer.php:216)",
+    "sink": "Client-side renderer expanding <use> chains (exponential, DoS); bypasses useThreshold",
+    "trace": [
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 89,
+      "note": "subjects[id] overwritten by later duplicate; first element dropped"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 97,
+      "note": "processReferences only walks subjects, so first-copy <use> edges never added"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 71,
+      "note": "findByElementId returns only the last-id subject"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 692,
+      "note": "countUse() on decoy returns 0, so use is kept"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 358,
+      "note": "use element passes isUseTagExceedingThreshold"
+     }
+    ],
+    "guards_checked": "useThreshold (default 1000) and NestingException depth check both operate only on last-wins subjects; no duplicate-id rejection. Not executed: no shell tool available; based on code reading."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/Sanitizer.php",
+    "line": 509,
+    "claim": "Normalizing xlink:HREF to xlink:href via setAttribute creates a non-namespaced attribute, so Helper::getElementHref no longer sees it and isUseTagDirty fails to flag an external <use> href.",
+    "source": "Attacker-supplied SVG: <use xlink:HREF=\"https://attacker.example/x.svg#a\"/> with xmlns:xlink declared",
+    "sink": "Serialized output contains a live xlink:href referencing an external document; violates the internal-only <use> policy",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 354,
+      "note": "cleanXlinkHrefs runs on the element"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 523,
+      "note": "isHrefSafeValue accepts https:// so value passes"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 509,
+      "note": "removeAttribute('xlink:HREF') then setAttribute('xlink:href') creates no-namespace attribute"
+     },
+     {
+      "file": "src/Helper.php",
+      "line": 25,
+      "note": "hasAttributeNS(XLINK, 'href') is false for no-namespace attribute"
+     },
+     {
+      "file": "src/Helper.php",
+      "line": 30,
+      "note": "localName 'xlink:href' != 'href', so loop skips it; getElementHref returns null"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 667,
+      "note": "isUseTagDirty returns false (null href), use kept"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (isHrefSafeValue) applied before normalization; isUseTagDirty applied after normalization but cannot see the renamed attribute. Browser cross-origin <use> restrictions may limit real-world impact (unverified). Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/Sanitizer.php",
+    "line": 596,
+    "claim": "removeRemoteReferences(true) does not remove several remote-reference forms: unquoted url(), href attributes with https:// or //, and <style> text or non-wrapped style attributes containing url()/@import.",
+    "source": "Attacker-supplied SVG passed to Sanitizer::sanitize() with removeRemoteReferences enabled (svg-scanner.php:97)",
+    "sink": "Sanitized output that still triggers remote fetches (tracking, IP disclosure) when rendered",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 444,
+      "note": "removeRemoteReferences gate applies only to attributes in cleanAttributesOnWhitelist"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 596,
+      "note": "regex requires a quote inside url(); unquoted url(https://...) returns false"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 523,
+      "note": "href https:// and // allowed by isHrefSafeValue and never passed to hasRemoteReference"
+     },
+     {
+      "file": "src/data/AllowedTags.php",
+      "line": 24,
+      "note": "style element allowed; its text content is never inspected"
+     }
+    ],
+    "guards_checked": "Option is opt-in; hasRemoteReference is applied to attribute values only, and only when the value is fully wrapped in url('...') with quotes. Low-severity hardening gap."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/ElementReference/Subject.php",
+    "line": 117,
+    "claim": "countUse() and hasInfiniteLoop() enumerate every path in the reference DAG without memoization, so a diamond ladder of depth 14 (about 2^14 paths) combined with ~10k <use> elements pointing at its top costs ~10^8 to 10^9 recursive calls per upload.",
+    "source": "Attacker-supplied SVG passed to Sanitizer::sanitize() (untrusted upload)",
+    "sink": "Server-side CPU exhaustion during sanitization (resource DoS); useThreshold is evaluated only after the full recursion",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 692,
+      "note": "isUseTagExceedingThreshold calls countUse() on each use target"
+     },
+     {
+      "file": "src/ElementReference/Subject.php",
+      "line": 117,
+      "note": "countUse recurses over every use edge with no visited set or memo"
+     },
+     {
+      "file": "src/ElementReference/Subject.php",
+      "line": 70,
+      "note": "hasInfiniteLoop recurses over every edge, bounded only by depth 15 not path count"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 82,
+      "note": "useNestingLimit=15 bounds depth, so 2^14 paths pass without NestingException"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 358,
+      "note": "each <use> triggers the full countUse before the threshold comparison"
+     }
+    ],
+    "guards_checked": "useNestingLimit (depth only) and useThreshold (applied after full computation). No cap on path count or number of use elements. Timing estimate not measured; based on code reading."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

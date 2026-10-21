@@ -1,0 +1,103 @@
+{
+ "arm": "D",
+ "repo": "az-py-idor",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.011431299999999998,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Bash": 1,
+   "Read": 2,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-box9hw4l/r/invoices.py",
+   "/tmp/egf-box9hw4l/r/.claude/skills/security-research/triage/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "invoices.py",
+    "line": 8,
+    "claim": "GET /invoice/<inv_id> returns any invoice by ID with no ownership or authentication check, enabling cross-customer IDOR (HIGH). The sibling route /my/invoice/<inv_id> enforces ownership, so this route is the only gap. Missing-ID (404) vs existing-ID (200) responses also let an attacker enumerate valid invoice IDs.",
+    "source": "Attacker-controlled path parameter inv_id on an unauthenticated or low-privilege HTTP request to GET /invoice/<inv_id> (invoices.py:7-8). Precondition: the route is reachable (public Flask route; no auth hook in this file).",
+    "sink": "INVOICES.get(inv_id) at invoices.py:9 followed by jsonify(inv) at invoices.py:10 returns the full invoice record, including the customer field, to the caller.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 7,
+      "note": "Route registered for GET /invoice/<inv_id>; no auth decorator or before_request guard in this file."
+     },
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "get_invoice(inv_id) takes the attacker-supplied ID directly; no g.user lookup."
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "INVOICES.get(inv_id) or abort(404): returns the record for any valid ID; 404 only when missing."
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "jsonify(inv) returns the full record to the caller without comparing inv['customer'] to any requester identity."
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "Contrast: /my/invoice/<inv_id> performs inv['customer'] != g.user['id'] -> abort(404). This check is absent from get_invoice."
+     }
+    ],
+    "guards_checked": "(1) Ownership check: absent in get_invoice; present only in get_my_invoice (line 16). (2) Authentication: no decorator or before_request in invoices.py; g.user is never set in this file, so upstream middleware must be verified out of band. If upstream enforces login, the finding is cross-customer IDOR by an authenticated low-privilege user (still HIGH). If no upstream auth exists, it is unauthenticated (HIGH). (3) Network reachability: public Flask routes; no loopback or internal binding in this file, so no downgrade (Check 3). (4) Self-affecting (Check 10): does not apply, the victim is another customer. (5) Severity: HIGH, not CRITICAL, because no mass-exfiltration path is shown in this file. Validation Tier 0: GET /invoice/<other-customer-id> with no or low-privilege credentials returns 200 with the record, while GET /my/invoice/<id> returns 404 for the same record."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:7-10 has no auth decorator, before_request hook, or ownership check on get_invoice. The only ownership check is at invoices.py:16-17 in get_my_invoice, which is a different route. A repo-wide grep finds no before_request, login_required, or g.user assignment anywhere, so no upstream guard is visible here.",
+    "reason": "The trace matches the code: invoices.py:9-10 returns any record by ID with no check, while invoices.py:16-17 enforces the customer match on the sibling route, and no guard exists in the repo (the only other match is a documentation file). Caveat: upstream middleware outside this directory could still add auth, but that would not stop a low-privilege customer from reading other customers' invoices, so the IDOR stands."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "NOTE-1",
+    "file": "invoices.py",
+    "line": 16,
+    "claim": "Not a finding: /my/invoice/<inv_id> and /my/invoices depend on g.user, which this file never sets. If upstream does not populate g.user, the routes raise AttributeError and return 500, which fails closed. Confirm upstream middleware sets g.user for every request.",
+    "source": "Missing g.user binding in this file (precondition for lines 16 and 23).",
+    "sink": "g.user['id'] comparisons at invoices.py:16 and :23.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "inv['customer'] != g.user['id'] would raise if g.user is unset."
+     },
+     {
+      "file": "invoices.py",
+      "line": 23,
+      "note": "List filter uses g.user['id'] the same way."
+     }
+    ],
+    "guards_checked": "Ownership check on line 16 returns 404 for both missing and non-owned records, so there is no enumeration oracle on this route. No bypass found. Recorded as a verification item, not a retained finding."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Ownership check at invoices.py:16-17 (inv[\"customer\"] != g.user[\"id\"] then abort(404)). Missing and non-owned records both return 404 (invoices.py:15 and :17), so there is no enumeration oracle. Unset g.user raises AttributeError (500) at invoices.py:16 and :23, which fails closed.",
+    "reason": "The trace at invoices.py:16 and :23 is accurate, but the only effect of a missing g.user is a fail-closed 500 with no data exposure, and the ownership check at invoices.py:16-17 returns the same 404 for missing and non-owned records, so this is not a vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0049470799999999995
+}

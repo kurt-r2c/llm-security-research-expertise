@@ -1,0 +1,146 @@
+{
+ "arm": "K1",
+ "repo": "russh-auth",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.03013946,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 11,
+   "Read": 12,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-qgwaxw1_/r/russh/src/server/encrypted.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/keys/agent/client.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/keys/agent/client.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/keys/agent/client.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/client/encrypted.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/helpers.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/session.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/client/kex.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/keys/known_hosts.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/server/encrypted.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/negotiation.rs",
+   "/tmp/egf-qgwaxw1_/r/russh/src/negotiation.rs"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "russh-cert-auth-no-type-or-principal-check",
+    "file": "russh/src/server/encrypted.rs",
+    "line": 714,
+    "claim": "Public-key certificate auth verifies only the certificate's signature and validity window. It never checks cert_type == User or that the requested username is in valid_principals before calling handler.auth_openssh_certificate. A host certificate, or a certificate for another principal, signed by a CA the application trusts can authenticate as any user the handler accepts.",
+    "source": "SSH publickey userauth request carrying a *-cert-v01@openssh.com certificate blob (attacker-controlled bytes from the network).",
+    "sink": "handler.auth_openssh_certificate(user, cert) at russh/src/server/encrypted.rs:782, which grants login when the application returns Accept.",
+    "trace": [
+     {
+      "file": "russh/src/server/encrypted.rs",
+      "line": 689,
+      "note": "PublicKeyOrCertificate::decode parses the attacker-supplied cert blob."
+     },
+     {
+      "file": "russh/src/server/encrypted.rs",
+      "line": 702,
+      "note": "Validity window check (valid_after/valid_before) against SystemTime::now."
+     },
+     {
+      "file": "russh/src/server/encrypted.rs",
+      "line": 714,
+      "note": "cert.verify_signature() checks only that the embedded CA signed the cert; no cert_type or principal check follows."
+     },
+     {
+      "file": "russh/src/server/encrypted.rs",
+      "line": 721,
+      "note": "Certificate public key is used as the pubkey for the signature check."
+     },
+     {
+      "file": "russh/src/server/encrypted.rs",
+      "line": 756,
+      "note": "Signature verification of the userauth request with the certificate's key."
+     },
+     {
+      "file": "russh/src/server/encrypted.rs",
+      "line": 782,
+      "note": "Certificate passed to the application handler, which alone decides acceptance."
+     },
+     {
+      "file": "russh/src/server/mod.rs",
+      "line": 291,
+      "note": "Default auth_openssh_certificate rejects, so exposure requires the application to override it and trust the CA."
+     }
+    ],
+    "guards_checked": "Validity window (encrypted.rs:702-711) and certificate signature (encrypted.rs:714) are enforced. The library performs no cert_type check and no valid_principals-vs-user check anywhere in src/server (grep found none). The default handler rejects (server/mod.rs:291-296). Not verified: whether ssh-key's verify_signature performs any extra checks, because the crate source is not in the local cargo registry."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "russh-known-hosts-algorithm-mismatch-unknown",
+    "file": "russh/src/keys/known_hosts.rs",
+    "line": 33,
+    "claim": "check_known_hosts_path returns Ok(false), meaning unknown, when a recorded key has a different algorithm from the presented key. Only same-algorithm mismatches return KeyChanged. A caller that learns and accepts on Ok(false) lets a MITM replace a host's key with one of a different type without a warning.",
+    "source": "Host key of a different algorithm presented by the server during the handshake (network-controlled).",
+    "sink": "Caller's host-key acceptance policy, driven by the Ok(false) return at known_hosts.rs:48.",
+    "trace": [
+     {
+      "file": "russh/src/keys/known_hosts.rs",
+      "line": 33,
+      "note": "Match on (algorithm equal, key equal); the (false, _) arm yields Ok(false)."
+     },
+     {
+      "file": "russh/src/keys/known_hosts.rs",
+      "line": 38,
+      "note": "KeyChanged is returned only for the (true, false) arm, i.e. same algorithm."
+     },
+     {
+      "file": "russh/src/keys/known_hosts.rs",
+      "line": 48,
+      "note": "Ok(false) is returned to the caller, indistinguishable from no entry."
+     }
+    ],
+    "guards_checked": "Same-algorithm key change is detected (known_hosts.rs:38). Exact host and hashed host matching is in place. Practical exploitability depends on the caller treating Ok(false) as accept-and-learn. OpenSSH behaves similarly, so this is an API-clarity risk rather than a library bypass."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "russh-known-hosts-revoked-ignored",
+    "file": "russh/src/keys/known_hosts.rs",
+    "line": 87,
+    "claim": "known_host_keys_path ignores @revoked marker lines. A revoked key is therefore not rejected and reads as unknown, which is exploitable only if the caller accepts unknown keys.",
+    "source": "A user-maintained known_hosts file containing an @revoked entry for a host (local configuration, plus the server-presented key).",
+    "sink": "check_known_hosts_path result at known_hosts.rs:48, consumed by the caller's host-key policy.",
+    "trace": [
+     {
+      "file": "russh/src/keys/known_hosts.rs",
+      "line": 92,
+      "note": "Line split on spaces; the first field is the marker or host pattern."
+     },
+     {
+      "file": "russh/src/keys/known_hosts.rs",
+      "line": 98,
+      "note": "match_hostname compares the host against the marker, so @revoked lines never match and are skipped."
+     },
+     {
+      "file": "russh/src/keys/known_hosts.rs",
+      "line": 48,
+      "note": "Result is Ok(false) for a revoked key, the same as an unknown key."
+     }
+    ],
+    "guards_checked": "Ordinary host lines are matched. There is no @revoked handling anywhere in src. Impact depends on the caller's policy for unknown keys."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

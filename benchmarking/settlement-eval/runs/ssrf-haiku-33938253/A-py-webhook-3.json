@@ -1,0 +1,108 @@
+{
+ "arm": "A",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.006434230000000001,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-8iaoux4n/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview route fetches an arbitrary attacker-supplied URL server-side and returns the status code and first 500 characters of the response body, allowing full-read SSRF to internal hosts and cloud metadata endpoints.",
+    "source": "request.args.get(\"url\") at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 14,
+      "note": "/preview route defined with no authentication"
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target taken directly from query parameter url"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get fetches target with no scheme, host, IP, or port validation"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status_code and resp.text[:500] returned to caller"
+     }
+    ],
+    "guards_checked": "None on the path: no auth, no scheme check, no hostname allowlist, no private/loopback/link-local IP block, no redirect control. Status: CONFIRMED by reading code."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The /preview handler (app.py:13-17) has no auth decorator, no hostname or scheme check, and no IP block. The only validation in app.py is the ALLOWED_HOSTS check in /partner (app.py:23-25), which is a separate route and does not cover /preview.",
+    "reason": "app.py:15 takes the url query parameter directly, app.py:16 passes it unvalidated to requests.get, and app.py:17 returns the status code and first 500 characters of the body, so any unauthenticated caller can make the server fetch internal hosts or metadata endpoints. The candidate cites line 14 for the route definition, but the decorator is at line 13 and the def at line 14, so the reference is accurate."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner allowlist checks only the initial URL's hostname; requests.get follows redirects by default, so an allowed partner host that redirects to an internal address bypasses the check. Response is status-code only (blind SSRF).",
+    "source": "request.args.get(\"url\") at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26 (allow_redirects defaults to True)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target taken from query parameter url"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "exact match of host against ALLOWED_HOSTS (defined app.py:9)"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get follows redirects; redirect targets are not re-validated"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "only status_code returned"
+     }
+    ],
+    "guards_checked": "Exact hostname allowlist at app.py:24 blocks direct requests to other hosts and userinfo@host tricks. Not checked: scheme, resolved IP, redirect targets (allow_redirects not disabled). Possible urlparse vs urllib3 parser differential (e.g. backslash in authority) was NOT verified; the sandbox denied running the Python check. Status: PLAUSIBLE; needs an allowed partner host that redirects (compromise or open redirect) to exploit."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:24 exact membership of urlparse(target).hostname in ALLOWED_HOSTS (app.py:9) blocks any attacker-chosen host on the initial request. No redirect validation exists at app.py:26, and allow_redirects is not disabled.",
+    "reason": "Every trace line (app.py:22-27) is accurate, and the query parameter is attacker-controlled, but the only route to an internal address is a redirect from an allowlisted partner host (app.py:26), and the redirect target is chosen by that partner, not the unauthenticated attacker, so the exploit requires compromising a partner host or finding an open redirect on one, which is a separate precondition the code does not show. The hostname check at app.py:24 closes the direct attacker-chosen-host path, so this is not a confirmed finding in this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00444867
+}

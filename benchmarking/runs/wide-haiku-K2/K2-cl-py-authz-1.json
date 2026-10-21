@@ -1,0 +1,153 @@
+{
+ "arm": "K2",
+ "repo": "cl-py-authz",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "254f349e",
+ "status": "success",
+ "gen_cost": 0.007538810000000002,
+ "trace": {
+  "tools": {
+   "Read": 5,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-chy712h2/expertise/INDEX.md",
+   "/tmp/egf-chy712h2/r/notes.py",
+   "/tmp/egf-chy712h2/expertise/cases/09-idor-find-by-id.md",
+   "/tmp/egf-chy712h2/expertise/cases/27-decoy-scoped-by-session.md",
+   "/tmp/egf-chy712h2/expertise/cases/01-perm-result-ignored.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "notes-share-null-read-bypass",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "The share endpoint stores any JSON value from request.json['user'] without validation. If the anonymous identity g.user is None, a stored null share entry makes can_view return true for anonymous readers. Exploitable only if the owner is tricked into sending null (for example via CSRF or a client bug), and only if g.user is None for unauthenticated requests, which is not visible in this file.",
+    "source": "request.json['user'] in share() (notes.py:45), attacker-controlled only through the owner's request body (CSRF or client bug)",
+    "sink": "Read authorization: can_view 'user in note[\"shared\"]' (notes.py:8) gating jsonify(n) in read() (notes.py:29)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "share() route registered as POST /n/<nid>/share"
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit(g.user, n) restricts share to the owner"
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "n['shared'].append(request.json['user']) stores null unvalidated"
+     },
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read() route GET /n/<nid>"
+     },
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "n = NOTES[nid]"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view(g.user, n) called with g.user possibly None"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view: None in [None] evaluates true, granting view access"
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "jsonify(n) returns the note body to the anonymous caller"
+     }
+    ],
+    "guards_checked": "share gated by require_edit owner check (notes.py:44); read gated by require_view (notes.py:28); no type or identity validation on the stored share value (notes.py:45); g.user population and CSRF protection not present in this file (unverified)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "No validation on the stored share value at notes.py:45, so the null entry itself is not blocked. The attacker-reachability gate is the owner-only check at notes.py:44 (require_edit), which an anonymous attacker cannot pass. Nothing in notes.py lets an anonymous caller write a null into n[\"shared\"].",
+    "reason": "The trace lines are accurate (notes.py:8, 28, 29, 44, 45), but the attacker cannot write the null: the only writer is share() at notes.py:44-45, gated by require_edit to the note owner, so the null must come from the owner's own request. The candidate itself concedes this needs CSRF or a client bug, and the code in this directory has no mechanism that makes it attacker-triggerable, so the finding fails the attacker-reachability check."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "notes-nid-existence-oracle",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Unknown note ids raise KeyError (HTTP 500) while existing but unauthorized notes return 403, letting an attacker enumerate which note ids exist. Severity depends on whether ids are guessable, which is not shown in this file.",
+    "source": "nid path parameter (attacker-controlled)",
+    "sink": "NOTES[nid] lookup and abort(403) in require_view/require_edit (notes.py:27, 34, 43)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read() route takes nid from URL"
+     },
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "NOTES[nid] raises KeyError for missing id, producing 500"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view aborts with 403 for existing but unauthorized note"
+     }
+    ],
+    "guards_checked": "Authorization gate itself is correct (403 on failed predicate); the difference in status code between missing and forbidden ids is the leak. Same pattern at notes.py:34 and :43."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. No handler or middleware in notes.py maps a missing id to 404 or the same status as a forbidden one. The `abort(403)` at notes.py:13 is a real gate, but it only fires after NOTES[nid] at notes.py:27 has already raised KeyError, so the missing-id and forbidden-id responses differ.",
+    "reason": "notes.py:27 raises KeyError (HTTP 500) for an unknown nid before require_view at notes.py:28 can return 403 for an existing but unshared note, so the status code distinguishes existing from missing ids; the same split appears at notes.py:34 and :43. The oracle is real but low severity, since it only reveals id existence and only if g.user is set by code outside this file (not shown). Severity depends on whether ids are guessable, as the candidate says."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "notes-shared-list-disclosure",
+    "file": "notes.py",
+    "line": 29,
+    "claim": "Any user with view access receives the full owner and shared list of the note, so a shared user can enumerate all other sharees. Possibly intended behavior.",
+    "source": "Authenticated viewer request to GET /n/<nid> (attacker is a legitimate viewer)",
+    "sink": "jsonify(n) returning owner and shared fields (notes.py:29)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view passes for a viewer"
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "jsonify(n) serializes the whole record including shared list"
+     }
+    ],
+    "guards_checked": "require_view gates access to the note but not which fields are returned; no field filtering present."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_view (notes.py:11-13) gates access by calling can_view (notes.py:7-8) and aborting with 403. Its result is not a field filter; the call at notes.py:28 is a bare statement that either aborts or returns, so it does not limit which fields jsonify(n) serializes at notes.py:29.",
+    "reason": "The trace matches the code: any user who passes require_view at notes.py:28 gets the whole note record, including the owner and shared list, from jsonify(n) at notes.py:29. The attacker is an existing viewer, so the only new knowledge is the sharee list, not write or edit power, which makes this a low-severity disclosure that may be intended, not a privilege escalation."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00626439
+}
