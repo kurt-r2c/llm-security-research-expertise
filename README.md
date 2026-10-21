@@ -6,6 +6,8 @@ Staff-level domain reference guides for security research and secure code review
 
 **AGPLv3.** See [`LICENSE`](LICENSE). This is a deliberate choice, not a default: AGPLv3's network-use clause means that embedding this corpus into a hosted product or service — including feeding it into an LLM's context, fine-tuning on it, or otherwise incorporating it into a system users interact with over a network — triggers the same copyleft obligations as distributing modified source, with no "we only host it, we don't distribute it" exception. If your organization wants to use this corpus in a commercial product without those obligations, that requires a separate license from the copyright holder — it isn't available by default.
 
+**Exception: [`benchmarking/`](benchmarking/) is MIT-licensed** (see [`benchmarking/LICENSE`](benchmarking/LICENSE)). It holds the ablation harness, raw run outputs and write-ups behind the talk "So Long And Thanks For All The Compute"; the evaluation method is meant to be reused without restriction. Its corpora are synthetic or public CVE code.
+
 ## Layout
 
 `software/static_analysis/` holds `marp_expertise.md` (Marp slide-deck authoring).

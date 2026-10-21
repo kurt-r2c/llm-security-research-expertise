@@ -1,0 +1,70 @@
+{
+ "arm": "C",
+ "repo": "h3-go-substr",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0160431,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-2pt53ipn/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-2pt53ipn/r/main.go",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-2pt53ipn/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-2pt53ipn/expertise/software/language-footguns/go_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches an arbitrary attacker-supplied URL with the default http.Get client after a substring check (strings.Contains(raw, \"example.io\")) that does not constrain the host. The full response body is copied back to the attacker, so this is non-blind SSRF that can reach internal services and cloud metadata.",
+    "source": "main.go:31 raw := r.FormValue(\"logo\") (query string or form body, unauthenticated)",
+    "sink": "main.go:36 resp, _ := http.Get(raw), followed by main.go:38 io.Copy(w, resp.Body) reflecting the response",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "Attacker-controlled input read from the 'logo' parameter with r.FormValue. No auth check in the handler."
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "Only validator: strings.Contains(raw, \"example.io\"). This is a substring match over the whole raw URL, not a host check, so the host can be anything as long as the string appears somewhere."
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) re-parses the same unmodified string with the default client. The client follows up to 10 redirects, has no timeout, and does no IP or DNS filtering."
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "defer resp.Body.Close() runs before the error is checked. The error is discarded at line 36, so a failed request leaves resp nil and this line panics."
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy streams the internal response body to the attacker. No status or size limit is applied, so this is a read-back SSRF."
+     }
+    ],
+    "guards_checked": "Only the substring check at main.go:32. Confirmed absent: host allowlist, parsed-hostname check, scheme allowlist, resolved-IP blocklist, DNS pinning, redirect restriction (default client follows redirects), response size or content-type limit. Go's http.Get rejects non-http(s) schemes, so file:// and gopher:// are not reachable. Example inputs that pass the check and reach internal targets: logo=http://169.254.169.254/latest/meta-data/?example.io (the query string satisfies the substring check) and logo=http://example.io@169.254.169.254/latest/meta-data/ (userinfo carries the substring). Also logo=http://example.io.attacker.test/ and a public URL that redirects to an internal address pass the check and are followed. I did not send any of these requests."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check in the /logo path is the substring test at main.go:32 (strings.Contains(raw, \"example.io\")), which does not constrain the parsed host. The exact-hostname allowlist (trusted map, main.go:10, checked at main.go:20) and the noRedirect client (main.go:12, 24) belong to the separate /cdn handler and are not applied to the /logo path, which calls the default http.Get at main.go:36.",
+    "reason": "The \"logo\" parameter is read unauthenticated at main.go:31, passes only the substring check at main.go:32, is fetched with the default client at main.go:36, and the full body is returned to the caller via io.Copy at main.go:38, so the SSRF is non-blind and unguarded. All trace lines match the file, including the nil-resp panic at main.go:37 when http.Get fails."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00234967
+}

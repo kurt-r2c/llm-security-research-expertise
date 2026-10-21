@@ -1,0 +1,64 @@
+{
+ "arm": "C",
+ "repo": "py-mirror",
+ "rep": 1,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.1791116,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Bash": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w5vaaleu/expertise/INDEX.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w5vaaleu/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w5vaaleu/r/mirror.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "The /mirror endpoint fetches a caller-supplied URL. The only check is `urlparse(url).hostname.endswith(\"example.com\")`. It has no leading dot, so it also accepts attacker-registered domains such as `evilexample.com` or `example.com.attacker.net`. This is not the same as the defined `ALLOWED_SUFFIX = \".example.com\"`, which is never used. The scheme is not restricted. The check runs on the hostname string before DNS resolution, so a name that resolves to a private IP also passes. The attacker controls DNS and can point `x.evilexample.com` at 169.254.169.254, 127.0.0.1 or an internal service, or use a rebinding record. The check parses with urllib and the fetch parses with httpx, which is a validator/fetcher parser mismatch that lets crafted URLs diverge. The response body is not returned, only `len(r.text)`, so this is a semi-blind SSRF. The length and the status-dependent behaviour are still an oracle for internal probing, and a 5xx raised by the fetch can also leak information.",
+    "source": "`url` query parameter of GET /mirror (FastAPI), fully attacker-controlled",
+    "sink": "httpx.AsyncClient().get(url) at mirror.py:16",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "`url: str` is read directly from the query string"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "urlparse(url).hostname is extracted for validation, using a different parser from the one httpx uses to fetch"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "Check is `host.endswith(\"example.com\")`. It has no dot boundary, it is a string suffix check, not an allowlist of resolved IPs, and it does not check the scheme or port"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "The original, unmodified `url` string is passed to httpx `c.get(url)`. The URL is not rebuilt from parsed components and no DNS pinning is done"
+     }
+    ],
+    "guards_checked": "Hostname suffix check without a leading dot (bypassable with `evilexample.com`, `attacker-example.com`, or any registrant-controlled name ending in example.com). The `ALLOWED_SUFFIX` constant is unused. There is no scheme check, no resolved-IP/private-range check, no DNS pinning, and no egress filtering in the code. httpx does not follow redirects by default, so redirect-based bypass is not a factor. /ping at mirror.py:23 uses a hardcoded URL and is not vulnerable."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only `host.endswith(\"example.com\")` at mirror.py:13, a suffix check with no leading dot. The `ALLOWED_SUFFIX` constant at line 7 is unused. There is no scheme check, no IP check, and no auth or middleware in the file.",
+    "reason": "The caller-controlled `url` (mirror.py:11) passes only the bypassable `endswith(\"example.com\")` check (mirror.py:13), so `evilexample.com` reaches `c.get(url)` at mirror.py:16 and the SSRF is real, though semi-blind because only `len(r.text)` is returned at line 17."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0339884
+}

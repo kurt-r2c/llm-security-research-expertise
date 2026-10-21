@@ -1,0 +1,100 @@
+{
+ "arm": "K1",
+ "repo": "node-avatar",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.006024389999999999,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wn9yckbk/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-avatar-redirect",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches an attacker-supplied URL with axios, which follows redirects by default. The only check is startsWith('https://') on the initial URL, so an attacker can redirect to internal or metadata addresses (including HTTPS-to-HTTP redirects).",
+    "source": "req.body.avatarUrl (server.js:10)",
+    "sink": "axios.get(url, { responseType: 'arraybuffer' }) (server.js:14)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "avatarUrl read directly from JSON body"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "only typeof string and startsWith('https://') checked; host not parsed or validated"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios GET with default redirect following (maxRedirects not set to 0); no per-hop check, no IP block, no timeout"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "response length returned to client as bytes, a size oracle on internal responses"
+     }
+    ],
+    "guards_checked": "Only the https:// prefix check on the initial string. No host parsing, private/loopback/link-local/metadata blocking, redirect limit or re-validation, IP pinning, timeout, or size limit. No package.json or lockfile present, so axios version could not be verified; default redirect following is standard across versions."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is typeof and startsWith(\"https://\") at server.js:11, which is a prefix check and does not close the finding. No host parsing, IP/private-range blocking, maxRedirects: 0, or timeout appears at server.js:14. The POST /profile/avatar route has no auth middleware (server.js:9), so the source is reachable by an unauthenticated caller.",
+    "reason": "req.body.avatarUrl (server.js:10) is attacker-controlled and only prefix-checked (server.js:11) before axios.get(url) (server.js:14), which follows redirects by default; the response size is returned to the caller (server.js:15). Every trace line matches the file. The axios version could not be verified (no package.json or lockfile), but default redirect following is standard. Even without the redirect, the https:// prefix alone lets the attacker name an internal https host directly, so the SSRF holds regardless of the redirect detail."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "path-injection-user-id",
+    "file": "server.js",
+    "line": 20,
+    "claim": "GET /users/:id encodes the id with encodeURIComponent, so the host is fixed and slashes are encoded. If the upstream user service decodes %2F before routing, a double-encoded id such as ..%2F..%2Fadmin reaches other internal paths. Medium-low confidence: depends on upstream behavior not visible in this repo.",
+    "source": "req.params.id path segment (server.js:18-19)",
+    "sink": "axios.get(`${USER_SVC}/v1/users/${id}`) (server.js:20)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 18,
+      "note": "route param :id, decoded once by Express, so ../../admin arrives as the value"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "encodeURIComponent re-encodes slashes to %2F; host and query/fragment injection blocked"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "URL built with encoded id; upstream decoding %2F would yield path traversal on users.internal"
+     }
+    ],
+    "guards_checked": "encodeURIComponent blocks host change and ?/# injection. No id format validation. Upstream routing behavior not verifiable from this repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "server.js:19 encodeURIComponent(req.params.id) encodes \"/\", \"?\", and \"#\", but it is not one of the closing guard types (no hostname membership or anchored match), and there is no id format validation; the host is a fixed constant at server.js:7.",
+    "reason": "The trace lines at server.js:18-20 are accurate and the id is attacker-controlled via the path, but the claimed path traversal only occurs if users.internal decodes %2F before routing (not visible in this repo), so the impact cannot be decided from this code; the claim's \"double-encoded\" example is also wrong, since the working payload is single-encoded (..%2F..%2Fadmin), which Express decodes to ../../admin at server.js:18 and encodeURIComponent re-encodes at server.js:19."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00458767
+}

@@ -1,0 +1,92 @@
+{
+ "arm": "C",
+ "repo": "az-py-ignored",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00739592,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-e7q0vn8d/r/docs.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "docs.py",
+    "line": 19,
+    "claim": "PUT /doc/<doc_id> overwrites a document's body without any authorization check. The result of can_edit() is computed and discarded, so any authenticated user who can reach the route can modify any document whose ID they know.",
+    "source": "Attacker-controlled doc_id path segment and JSON body (request.json['body']). Precondition: g.user set to an authenticated identity by middleware outside this file.",
+    "sink": "docs.py:20 doc['body'] = request.json['body'] (protected write)",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 16,
+      "note": "Route PUT /doc/<doc_id> maps to update_doc; no decorator or before_request enforces authz"
+     },
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "doc = DOCS[doc_id] loads the target document for any doc_id"
+     },
+     {
+      "file": "docs.py",
+      "line": 19,
+      "note": "can_edit(g.user, doc) evaluated but boolean not checked; no abort(403), unlike require_edit()"
+     },
+     {
+      "file": "docs.py",
+      "line": 20,
+      "note": "doc['body'] overwritten with attacker-supplied value; returns ok=True"
+     }
+    ],
+    "guards_checked": "1) can_edit() at docs.py:7-8 is a correct predicate but is not used as a guard at line 19. 2) require_edit() at docs.py:11-13 is the correct pattern, used only by update_title (line 27). 3) No before_request or route decorator in this file enforces authorization. 4) Authentication (setting g.user) is outside the audited code and was not verified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "can_edit() at docs.py:7-8 is evaluated at docs.py:19 but its bool result is discarded (bare statement, no abort or branch), so it does not block the write at docs.py:20. require_edit() at docs.py:11-13 is the effective pattern but is used only in update_title (docs.py:27), not in update_doc. No before_request hook or route decorator in docs.py enforces authorization on the PUT /doc/<doc_id> route (docs.py:16). Authentication that sets g.user is outside this file and was not verified.",
+    "reason": "At docs.py:19 the result of can_edit(g.user, doc) is discarded, with no abort(403) as require_edit() at docs.py:13 would do, so the write at docs.py:20 runs for any caller who reaches the route with a known doc_id, which is an authenticated low-privilege user as the candidate states."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "docs.py",
+    "line": 18,
+    "claim": "Missing documents raise an uncaught KeyError (HTTP 500) while existing documents the caller cannot edit return 403 in update_title, letting a caller enumerate which doc_ids exist.",
+    "source": "Attacker-controlled doc_id path segment. Precondition: authenticated caller.",
+    "sink": "Status differential: docs.py:18 and :26 (KeyError to 500) versus docs.py:27 and :12-13 (abort(403))",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 26,
+      "note": "DOCS[doc_id] raises KeyError for an unknown ID"
+     },
+     {
+      "file": "docs.py",
+      "line": 27,
+      "note": "require_edit aborts 403 when the doc exists but caller is not owner or editor"
+     }
+    ],
+    "guards_checked": "1) No existence check or uniform 404 for missing documents. 2) Impact limited to ID enumeration; document contents not exposed by this path."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. docs.py:26 does `DOCS[doc_id]` with no existence check or try/except, so a missing ID raises KeyError. docs.py:27 calls require_edit, which at docs.py:12-13 aborts 403 only when the doc exists and the caller can't edit it. The only file in the directory is docs.py, so there is no custom error handler to turn KeyError into a 404 or 403.",
+    "reason": "docs.py:26 raises KeyError for an unknown doc_id, which Flask returns as HTTP 500, while docs.py:27 and docs.py:12-13 return 403 for an existing doc the caller can't edit, so an authenticated caller can tell which IDs exist; the impact is limited to ID enumeration and no contents are exposed. Caveat: the authentication that sets g.user isn't in the directory, so the authenticated precondition is taken as stated."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00448866
+}

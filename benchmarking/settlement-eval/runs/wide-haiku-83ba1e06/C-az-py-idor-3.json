@@ -1,0 +1,129 @@
+{
+ "arm": "C",
+ "repo": "az-py-idor",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00884343,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Read": 2,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uvzy1qvi/r/invoices.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uvzy1qvi/expertise/software/language-footguns/python_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "invoices.py",
+    "line": 8,
+    "claim": "GET /invoice/<inv_id> returns any invoice by ID with no authentication and no ownership check (BOLA/IDOR), so any caller who can enumerate or guess IDs can read other customers' invoices.",
+    "source": "inv_id URL path parameter (attacker-controlled)",
+    "sink": "INVOICES.get(inv_id) (line 9) followed by jsonify(inv) (line 10) returning the full record",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 7,
+      "note": "Route registered with no auth decorator"
+     },
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "get_invoice(inv_id) takes attacker-controlled ID"
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "Lookup by raw ID; no customer scoping"
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "Full invoice dict serialized to caller"
+     }
+    ],
+    "guards_checked": "No login_required/auth decorator on route; no before_request in this file; no customer==g.user ownership comparison (contrast with /my/invoice at line 16); no rate limiting. Caveat: a global before_request outside this file could enforce login, but that would still not add an object-level check. Confirm whether this is intended as admin-only."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The route at invoices.py:7 has no auth decorator, and get_invoice (line 8) does a raw INVOICES.get(inv_id) with no ownership comparison, then returns the full record via jsonify (line 10). A grep for before_request, login_required, auth, and middleware across the directory found no matches, so no global auth hook exists in this codebase. The ownership check at line 16 (inv[\"customer\"] != g.user[\"id\"]) exists only in get_my_invoice, a different route.",
+    "reason": "Anonymous callers can reach get_invoice at invoices.py:8-10 with an arbitrary inv_id and receive any invoice, since no auth or ownership check sits between the path parameter and jsonify(inv) at line 10, unlike /my/invoice at line 16. Whether this is intended as admin-only cannot be determined from the code, but the sibling /my/ routes suggest per-customer scoping was meant to apply."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "invoices.py",
+    "line": 16,
+    "claim": "The /my/ routes depend on g.user, which this module never sets or enforces. If no upstream hook establishes it, the ownership check fails with a 500, or an anonymous g.user with id None could match invoices whose customer is None.",
+    "source": "g.user (request context, not set in this file)",
+    "sink": "Ownership comparison inv[\"customer\"] != g.user[\"id\"] (line 16) and customer filter (line 23)",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 14,
+      "note": "get_my_invoice route with no auth decorator"
+     },
+     {
+      "file": "invoices.py",
+      "line": 15,
+      "note": "Invoice fetched by attacker-supplied ID"
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "Compares customer to g.user['id'], g.user assumed set elsewhere"
+     }
+    ],
+    "guards_checked": "Ownership check present at line 16 and fails closed for typical values, returning 404 for both missing and not-owned invoices. No visible authentication enforcement or default for g.user in this file. Low confidence: depends on code outside the tree."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Ownership check at invoices.py:16 (abort(404) when inv[\"customer\"] != g.user[\"id\"]) and the 404 on missing invoice at invoices.py:15. No authentication decorator or g.user setup exists in the tree (the only file is invoices.py), so no auth guard is visible.",
+    "reason": "Every trace line matches the code: the /my/invoice route has no auth decorator (invoices.py:13-14), fetches by attacker-supplied ID (:15), and compares against g.user[\"id\"] (:16). Whether g.user is ever set, or whether an anonymous g.user can match a None customer, depends on a before_request hook or middleware outside this tree, so the reachability of the claimed failure cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "invoices.py",
+    "line": 23,
+    "claim": "If any stored invoice lacks a 'customer' key, the /my/invoices list raises KeyError and returns 500 to every user, an availability failure.",
+    "source": "Contents of INVOICES (precondition: a write path that inserts a malformed record, not visible here)",
+    "sink": "i[\"customer\"] in list comprehension (line 23)",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 21,
+      "note": "list_mine route"
+     },
+     {
+      "file": "invoices.py",
+      "line": 23,
+      "note": "Unguarded i[\"customer\"] over all INVOICES values"
+     }
+    ],
+    "guards_checked": "No try/except or .get() default; no validation on insert (not present in this file). Low severity; requires a write path outside this module."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:23 indexes i[\"customer\"] with no try/except or .get() default, and no validation exists in this directory. The Grep for INVOICES, insert, append and customer found no write path anywhere in the directory.",
+    "reason": "The trace is accurate: invoices.py:23 evaluates i[\"customer\"] for every value in INVOICES, so one record without that key would fail the whole /my/invoices response for every user, and no guard sits between them. Whether that record can exist depends on a write path that is not in the directory (the Grep found no insert or assignment into INVOICES), so the attacker's reach cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00613681
+}

@@ -1,0 +1,114 @@
+{
+ "arm": "K1",
+ "repo": "russh-other",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.01650747,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 6,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3f7jtuam/r/pageant/src/lib.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3f7jtuam/r/pageant/src/interface.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3f7jtuam/r/pageant/src/namedpipes.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3f7jtuam/r/pageant/src/wmmessage.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3f7jtuam/r/pageant/src/error.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3f7jtuam/r/pageant/Cargo.toml"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "PAGEANT-001",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 44,
+    "claim": "The WM_COPYDATA fallback reader accumulates an attacker-declared frame without any upper bound on the length prefix, so a peer can grow the client's buffer up to 4 GiB by streaming bytes. Impact is client memory exhaustion (availability only), and the path is narrow.",
+    "source": "Bytes written into PageantStream by the consumer. With SSH agent forwarding that is the remote SSH peer, relayed through the local client. The 4-byte big-endian length prefix is attacker-chosen (e.g. 0xFFFFFFFF).",
+    "sink": "BytesMut growth in the spawned reader task via two.read_buf(&mut buf) (wmmessage.rs:36) while the code waits for buf.len() >= len + 4 (wmmessage.rs:44).",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 30,
+      "note": "PageantStream::new() creates the duplex pair and spawns the reader task."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 31,
+      "note": "tokio::io::duplex capacity is 8192*100 bytes; it does not bound the BytesMut that the task drains into."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 36,
+      "note": "Task loops on read_buf, appending every received byte to buf with no cap."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 43,
+      "note": "len = BigEndian::read_u32(&buf) as usize, taken directly from the attacker-controlled prefix."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 44,
+      "note": "if buf.len() < len + 4 { continue; } keeps accumulating until the full claimed frame has arrived. No check that len <= _AGENT_MAX_MSGLEN happens here."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 140,
+      "note": "The only 8192-byte limit (MemoryMap::write) runs later, after the full frame has already been buffered."
+     },
+     {
+      "file": "pageant/src/lib.rs",
+      "line": 25,
+      "note": "Reachability: the named-pipe transport is tried first; this WM_COPYDATA path is used only when the pipe connection fails (lib.rs:38-48)."
+     }
+    ],
+    "guards_checked": "buf.len() < 4 guard (wmmessage.rs:40); duplex capacity (wmmessage.rs:31); MemoryMap::write bounds check (wmmessage.rs:140-142) and MemoryMap::read bounds check (wmmessage.rs:161), which only run after full accumulation; _AGENT_MAX_MSGLEN constant (interface.rs:195). None of them caps len before the buffer grows. Reachability: narrow, because the named-pipe path (namedpipes.rs) is preferred and this path needs the WM_COPYDATA fallback."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "PAGEANT-002",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 36,
+    "claim": "The reader handles only one complete frame per read_buf wake-up. A second complete frame already sitting in buf is not processed until more bytes arrive, so a client that pipelines requests stalls waiting for a response that never comes. This is a logic flaw with mainly self-inflicted availability impact.",
+    "source": "A client (or a remote peer via agent forwarding) writing two or more agent request frames in one burst.",
+    "sink": "The loop returns to read_buf at wmmessage.rs:36 after processing a single split_to at wmmessage.rs:47 and the write at wmmessage.rs:54, instead of draining every complete frame already in buf.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 36,
+      "note": "read_buf fills buf with two complete frames in one call."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 47,
+      "note": "split_to removes only the first frame; the second remains in buf."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 54,
+      "note": "The first response is written back, then control returns to the loop."
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 36,
+      "note": "read_buf blocks waiting for new bytes even though a complete second frame is already buffered, so the second request is never answered."
+     }
+    ],
+    "guards_checked": "Frame-completeness check (wmmessage.rs:44) is correct for a single frame. The stall is that no inner loop processes further buffered frames before the next read."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

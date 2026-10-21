@@ -1,0 +1,98 @@
+{
+ "arm": "C",
+ "repo": "inj-py-sql",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0068722,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-usrmbdr0/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "sqli-search-q",
+    "file": "app.py",
+    "line": 12,
+    "claim": "SQL injection in /search: the raw `q` query parameter is interpolated into an f-string SQL LIKE clause, letting an unauthenticated attacker break out of the string literal and append arbitrary SELECT clauses (e.g. UNION) to read any table in shop.db.",
+    "source": "request.args.get(\"q\") at app.py:11 (unauthenticated HTTP query string)",
+    "sink": "db.execute(f\"SELECT id, name FROM products WHERE name LIKE '%{term}%'\") at app.py:12",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 11,
+      "note": "term = request.args.get(\"q\", \"\") \u2014 attacker-controlled, no validation or length/charset check"
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "f-string concatenates term directly into the SQL text; a single quote closes the LIKE literal"
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "db.execute runs the attacker-shaped SQL on the shared sqlite3 connection; e.g. q=x' UNION SELECT name, sql FROM sqlite_master-- returns schema, and UNION SELECT over other tables returns their rows"
+     },
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "fetchall rows returned to the caller via jsonify, so UNION results are exfiltrated directly in the HTTP response"
+     }
+    ],
+    "guards_checked": "No parameter binding on this query (f-string used instead of ? placeholder). No input validation, escaping, allowlist or length limit on `q`. No authentication or authorization decorator on the route. Partial natural limit only: sqlite3.execute rejects multiple statements, so stacked writes (e.g. DROP/UPDATE) are blocked, but UNION-based and boolean-based read injection are not. The column count must match (2 columns) for UNION, which is easy to satisfy by inspection of the SELECT list. Not present: `%` in LIKE is not escaped, which is a minor wildcard issue on top of the injection."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The route at app.py:9-10 has no auth decorator. The value from request.args.get(\"q\") at app.py:11 is interpolated into the f-string SQL at app.py:12 with no parameter binding, escaping, allowlist, or length check. sqlite3's single-statement limit blocks stacked writes but not UNION-based reads, and the fetchall result is returned via jsonify at app.py:13.",
+    "reason": "The attacker is anonymous, the f-string at app.py:12 splices the unvalidated `term` from app.py:11 straight into SQL, and the rows come back through jsonify at app.py:13, so UNION-based reads of other tables work; the candidate's trace matches the file exactly."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "owner-enum-by-owner",
+    "file": "app.py",
+    "line": 25,
+    "claim": "Possible unauthenticated enumeration of product listings by owner: /by-owner returns product ids and names for any caller-supplied owner value with no authentication or ownership check. This is a finding only if product-to-owner association is meant to be private. Parameter binding here prevents SQL injection but does not address authorization.",
+    "source": "request.args.get(\"owner\", \"\") at app.py:24 (unauthenticated HTTP query string)",
+    "sink": "db.execute(\"SELECT id, name FROM products WHERE owner = ?\", (owner,)) at app.py:25, returning owner-filtered listings via jsonify at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "owner = request.args.get(\"owner\", \"\") \u2014 attacker chooses any owner identifier, including the empty string"
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "owner passed as a bound parameter to the owner-filtered SELECT; no injection, but the query returns all products belonging to that owner"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "matching id/name pairs returned to any anonymous caller; the route has no session, token, or tenant check"
+     }
+    ],
+    "guards_checked": "Parameterized query (prevents SQL injection at line 25). No authentication decorator, session check, or caller-identity comparison against `owner` anywhere in app.py. No restriction on which owner values can be queried. Whether this is a vulnerability depends on business intent for the owner column, which is not visible in this file. The /product/<int:pid> route at app.py:16-19 was checked and is not reported: it is parameterized with an int converter and does not return the owner column."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Parameterized query at app.py:25 (blocks SQL injection only). No authentication, session, or owner-identity check anywhere in app.py. The only other route (/product/<int:pid>, app.py:16-19) does not return owner.",
+    "reason": "The trace is accurate: app.py:24 takes an arbitrary `owner` from the query string, app.py:25 binds it into an owner-filtered SELECT, and app.py:26 returns id/name pairs to an anonymous caller with no check. Whether this is a vulnerability depends on whether product-to-owner mapping is meant to be private, which this file cannot show. The app also exposes all products publicly via /search (app.py:9-13), so unauthenticated listing may be intended."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00409696
+}

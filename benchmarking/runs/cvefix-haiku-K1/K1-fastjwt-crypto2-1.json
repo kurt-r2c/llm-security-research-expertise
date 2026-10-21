@@ -1,0 +1,190 @@
+{
+ "arm": "K1",
+ "repo": "fastjwt-crypto2",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.03295492,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-_3wabiri/r/src/decoder.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-_3wabiri/r/src/index.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-_3wabiri/r/src/signer.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-_3wabiri/r/src/verifier.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-_3wabiri/r/src/utils.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-_3wabiri/r/src/crypto.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-_3wabiri/r/src/error.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/decoder.js",
+    "line": 41,
+    "claim": "Signature segment is checked only against the base64url alphabet, not for canonical encoding. Trailing pad bits in the last character are ignored by Buffer.from(..., 'base64'), so one validly signed token has several distinct strings that all verify. The comments at decoder.js:5-9 and 32-34 say non-canonical tokens should be rejected, but the code does not enforce that.",
+    "source": "Token string from the holder of any legitimately issued token (attacker takes a valid token T and alters the last character of its signature segment).",
+    "sink": "verifier.js:169 verifySignature -> crypto.js:339 Buffer.from(signature,'base64') -> crypto.js:343 timingSafeEqual on decoded bytes. Acceptance is keyed on the token string, not a canonical form.",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 30,
+      "note": "signatureSegment = token.slice(lastSeparator+1)"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "BASE64URL_RE only checks the alphabet; a last character differing only in unused low bits passes"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 166,
+      "note": "Comment claims the signature is canonical here; that claim is false"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "verifySignature called on the non-canonical string"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 339,
+      "note": "Buffer.from decodes; unused trailing bits are discarded, so the same bytes result"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 343,
+      "note": "HS path compares bytes. HS256 has 2 unused bits in the last char (4 variants); RS256 has 4 (16 variants)"
+     }
+    ],
+    "guards_checked": "Alphabet regex (decoder.js:10,41) rejects '=' padding and non-alphabet characters. The signature is cryptographically verified over header.payload, which is unaffected by the signature segment. Header and payload cannot be altered because they are in the signing input; only the signature segment is malleable. The verifier cache (utils.js:45-58) keys on the full token string, so it does not dedupe variants. Impact requires an application that uses raw token strings as identity (one-time use, denylist, replay tracking)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/verifier.js",
+    "line": 133,
+    "claim": "When the token has no iat claim, the cache entry's expiry ignores exp. A token verified once before its exp is then accepted from cache until cacheTTL (default 600000 ms) after first verification, even after exp has passed.",
+    "source": "Token without an iat claim (signer noTimestamp:true, or an IdP that omits iat). Attacker holds such a token that was valid when first verified, and presents it again after exp.",
+    "sink": "Cache-hit return at verifier.js:376-377 (handleCachedResult), which returns a success without re-running the exp validator.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 117,
+      "note": "hasIat = payload.iat is a number; false for this token"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 119,
+      "note": "The exp-derived cacheValue[2] assignment is inside the hasIat block, so it is skipped"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 133,
+      "note": "cacheValue[2] = maxTTL = clockTimestamp + clockTolerance + cacheTTL, ignoring exp"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 136,
+      "note": "cache.set stores the success for cacheTTL"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 363,
+      "note": "Later call: cache lookup; min=0 and now<=max, so the cached success is returned"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 304,
+      "note": "exp validator (which would reject) is never reached on a cache hit"
+     }
+    ],
+    "guards_checked": "exp is enforced on the first, uncached verification (verifier.js:304-323). exp IS honored when iat is present (verifier.js:123-129). Error results are cached with errorCacheTTL=-1, so they are effectively not cached. Impact is bounded: the token must have been valid at first verification, and the extra window is at most cacheTTL. The cache is opt-in (verifier.js:580, createCache returns null unless cache is set)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/verifier.js",
+    "line": 311,
+    "claim": "Time-based claims are skipped when absent, so maxAge is silently not enforced for tokens without an iat claim. A token lacking iat is therefore never age-limited, even when maxAge is configured.",
+    "source": "Token without an iat claim, issued by the signer (noTimestamp) or a third-party IdP. Attacker holds an old such token.",
+    "sink": "The maxAge validator (verifier.js:616-618, modifier maxAge on claim iat) is never run, so the protected operation (age-bounded session acceptance) is not performed.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 616,
+      "note": "maxAge option registers the iat validator"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 304,
+      "note": "Loop over validators"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 311,
+      "note": "if (!(claim in payload)) continue; the iat validator is skipped when the claim is absent"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 293,
+      "note": "requiredClaims would reject this, but only if the app configured requiredClaims including 'iat'"
+     }
+    ],
+    "guards_checked": "The signature and algorithm are fully verified, so the token is legitimately issued. Only the issuer's omission of iat leads here. Mitigation is requiredClaims: ['iat'] (verifier.js:293-299). Attacker cannot add or remove claims in a signed token, so exploitation needs an issuer that emits iat-less tokens."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/verifier.js",
+    "line": 364,
+    "claim": "With the cache enabled, a Buffer token makes verify() throw a TypeError. hashToken calls token.split, which Buffer does not have. Every Buffer token fails, even though verify() explicitly accepts Buffers (verifier.js:353).",
+    "source": "Caller passes a Buffer token, for example a raw request body. Attacker controls the bytes.",
+    "sink": "Cache key derivation at verifier.js:364 -> utils.js:46 token.split('.',1)[0] throws synchronously, before any callback or TokenError handling.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Buffer tokens are accepted by the type check"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 363,
+      "note": "if (cache) branch entered when the cache option is set"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cacheKeyBuilder(token) called with the raw Buffer"
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "token.split on a Buffer throws TypeError"
+     }
+    ],
+    "guards_checked": "Type check at verifier.js:353 accepts Buffers. The cache-enabled path has no try/catch. Impact is availability and correctness, not authentication bypass: the call fails closed. The bug is only reachable with the cache option set and a Buffer input."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

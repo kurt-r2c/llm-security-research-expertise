@@ -1,0 +1,103 @@
+{
+ "arm": "B",
+ "repo": "mx-java-misnamed",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.05662299999999999,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/Admin.java",
+    "line": 26,
+    "claim": "Authorization bypass: wipe() calls requireRole(), which only returns a boolean and never throws, and discards the result. Any authenticated user without the OWNER role can wipe any tenant.",
+    "source": "Any authenticated caller of POST /tenants/{t}/wipe, with arbitrary User roles and an arbitrary tenant path parameter",
+    "sink": "repo.wipe(tenant) at src/Admin.java:27, a destructive deletion of tenant data",
+    "trace": [
+     {
+      "file": "src/Admin.java",
+      "line": 25,
+      "note": "wipe(User u, String tenant) is the handler for POST /tenants/{t}/wipe"
+     },
+     {
+      "file": "src/Admin.java",
+      "line": 26,
+      "note": "requireRole(u, \"OWNER\") is called and its boolean return value is ignored"
+     },
+     {
+      "file": "src/Admin.java",
+      "line": 14,
+      "note": "requireRole returns u.roles().contains(role). Its Javadoc says it does not throw, so a missing role has no effect"
+     },
+     {
+      "file": "src/Admin.java",
+      "line": 27,
+      "note": "repo.wipe(tenant) runs unconditionally"
+     }
+    ],
+    "guards_checked": "requireRole's result is unused. checkRole, which does throw, is used correctly in export() at line 32 but not in wipe(). No other authorization or tenant-membership check exists in the file. Only this one source file exists, so no upstream middleware could be inspected."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "requireRole at src/Admin.java:14-16 returns a boolean and never throws, and its result is discarded at line 26. checkRole (line 18-22) does throw, but it is only called in export() at line 32.",
+    "reason": "src/Admin.java:26 calls requireRole() as a bare statement and ignores its boolean result (defined at :14-16, Javadoc says it does not throw), so repo.wipe(tenant) at :27 runs for any authenticated user. The sibling export() at :32 uses the throwing checkRole() correctly, which highlights the bug."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "requireRole (Admin.java:14) returns a boolean and never throws; its result is discarded at line 26. No other check exists. checkRole (throws) is used only in export().",
+    "reason": "Admin.java:26 calls requireRole as a bare statement, discarding its boolean result (defined at :14-16, which never throws), so repo.wipe(tenant) at :27 runs for any authenticated user regardless of role."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/Admin.java",
+    "line": 32,
+    "claim": "Missing tenant-scoped authorization (cross-tenant IDOR): the OWNER role is a global flat role and is never tied to the tenant parameter. An OWNER of one tenant can export, and once F1 is fixed also wipe, any other tenant's data by changing {t}.",
+    "source": "An authenticated user holding OWNER in their own tenant, supplying another tenant's ID in the path of POST /tenants/{t}/export or /wipe",
+    "sink": "repo.export(tenant) at src/Admin.java:33 and repo.wipe(tenant) at src/Admin.java:27",
+    "trace": [
+     {
+      "file": "src/Admin.java",
+      "line": 4,
+      "note": "User holds only name and a flat Set<String> of roles, with no tenant association"
+     },
+     {
+      "file": "src/Admin.java",
+      "line": 18,
+      "note": "checkRole(u, role) tests role membership only and takes no tenant argument"
+     },
+     {
+      "file": "src/Admin.java",
+      "line": 32,
+      "note": "checkRole(u, \"OWNER\") passes for any OWNER regardless of the tenant"
+     },
+     {
+      "file": "src/Admin.java",
+      "line": 33,
+      "note": "repo.export(tenant) uses the attacker-supplied tenant string directly"
+     }
+    ],
+    "guards_checked": "The only check is the global role check. No comparison between the user's tenant and the requested tenant exists in this file. If roles are tenant-scoped elsewhere, for example by a role string that encodes the tenant, that code was not visible. Only src/Admin.java exists, so this is plausible rather than confirmed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "checkRole(u, \"OWNER\") at src/Admin.java:32 (throws SecurityException, but tests only flat role membership with no tenant). requireRole at :26 discards its result, so it is no guard (that is F1).",
+    "reason": "User at src/Admin.java:4 has only a flat role set, checkRole at :18-22 and its call at :32 compare \"OWNER\" with no tenant, and :33 passes the caller-supplied tenant straight to repo.export, so any OWNER can export any tenant. The one caveat is that OWNER may be intended as a global role, which this file cannot show."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "checkRole(u,\"OWNER\") at src/Admin.java:32 throws on a missing role, but it is a global role check with no tenant comparison. wipe() at line 26 calls requireRole, which returns a boolean that is discarded, so it is no guard at all (this is the F1 issue).",
+    "reason": "User has only a flat Set<String> of roles (src/Admin.java:4), checkRole matches the literal \"OWNER\" string (lines 18-19, 32), and the user-supplied tenant goes straight to repo.export (line 33) with no tenant binding. A role string that encodes the tenant could not match the literal \"OWNER\", so any OWNER can export any tenant. Caveat: if OWNER is a platform-wide superuser role, this is not a vulnerability, and nothing in this directory says so."
+   }
+  }
+ ],
+ "verify_cost": 0.0679004,
+ "verify_facts_cost": 0.0664424
+}

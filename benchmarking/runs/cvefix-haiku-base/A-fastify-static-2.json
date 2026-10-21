@@ -1,0 +1,268 @@
+{
+ "arm": "A",
+ "repo": "fastify-static",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "22d7688e",
+ "status": "success",
+ "gen_cost": 0.022551050000000003,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 4,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6djwhvj6/r/index.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6djwhvj6/r/lib/dirList.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6djwhvj6/r/lib/errors.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6djwhvj6/r/package.json"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "index.js",
+    "line": 790,
+    "claim": "Open redirect (protocol-relative) in getRedirectUrl: a request path beginning with '/.' followed by slashes is normalized by the WHATWG URL parser into '//host/...', so the Location header becomes protocol-relative. Severity LOW: the attacker can only choose a host name that equals an existing directory name under root, and only when redirect:true. PLAUSIBLE, not executed.",
+    "source": "Request-target URL req.raw.url, e.g. GET /.//assets (attacker-controlled, index.js:144 and 157)",
+    "sink": "reply.redirect(getRedirectUrl(req.raw.url), 301) emitting a Location header (index.js:319 for directories, index.js:157 for the prefix route)",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 144,
+      "note": "Wildcard handler takes raw req.raw.url into getPathnameForSend"
+     },
+     {
+      "file": "index.js",
+      "line": 152,
+      "note": "pumpSendToReply called with pathname '/.//assets'"
+     },
+     {
+      "file": "index.js",
+      "line": 262,
+      "note": "Non-leading '..' check does not match a single '.' segment, so it passes"
+     },
+     {
+      "file": "index.js",
+      "line": 302,
+      "note": "send() normalizes './/assets' to 'assets' and returns type 'directory' when that directory exists"
+     },
+     {
+      "file": "index.js",
+      "line": 319,
+      "note": "redirect branch calls getRedirectUrl(request.raw.url)"
+     },
+     {
+      "file": "index.js",
+      "line": 786,
+      "note": "Only leading '/' and '\\\\' runs are collapsed; the '/.' prefix is not stripped"
+     },
+     {
+      "file": "index.js",
+      "line": 790,
+      "note": "Result is '/' + './/assets' = '/.//assets'"
+     },
+     {
+      "file": "index.js",
+      "line": 792,
+      "note": "new URL('/.//assets', 'http://localhost.com/').pathname is '//assets' (single-dot segment dropped, empty segment kept)"
+     },
+     {
+      "file": "index.js",
+      "line": 794,
+      "note": "Returns '//assets/' as the Location"
+     }
+    ],
+    "guards_checked": "Leading-slash collapse at index.js:786-790 (does not cover '/.' prefix). Traversal guard index.js:262 (not triggered). redirect option must be true (index.js:317). Redirect only fires for an existing directory (index.js:302-319). Impact limited to directory names as hostnames."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "index.js",
+    "line": 56,
+    "claim": "Insecure default: dotfiles defaults to 'allow', so with the default wildcard route any dotfile under root (e.g. .env, .git/config) is served to unauthenticated clients when the root directory contains them. MEDIUM, configuration-dependent. Also, list mode does not hide dotfiles unless dotfiles is 'deny' or 'ignore' (lib/dirList.js:83-84).",
+    "source": "Unauthenticated GET request for a dotfile path, e.g. GET /.env or GET /.git/config",
+    "sink": "Static file send of a dotfile under the configured root (index.js:152 -> index.js:302 -> index.js:439 reply.send(stream))",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 56,
+      "note": "opts.dotfiles ??= 'allow' default"
+     },
+     {
+      "file": "index.js",
+      "line": 63,
+      "note": "dotfiles copied into sendOptions passed to @fastify/send"
+     },
+     {
+      "file": "index.js",
+      "line": 137,
+      "note": "Wildcard GET/HEAD route registered with no dotfile filter of its own"
+     },
+     {
+      "file": "index.js",
+      "line": 152,
+      "note": "pumpSendToReply serves the requested path"
+     },
+     {
+      "file": "index.js",
+      "line": 302,
+      "note": "@fastify/send is given dotfiles='allow', so it does not 404 dotfiles"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 83,
+      "note": "Directory listing filters dotfiles only when dotfiles is 'deny' or 'ignore'"
+     }
+    ],
+    "guards_checked": "No dotfile check in the wildcard route (index.js:137-154). The type declares 'allow'|'deny'|'ignore' (types/index.d.ts:66,117) with no secure default. Traversal guard is unrelated. Exploitable only when the served root contains dotfiles with secrets."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "index.js",
+    "line": 588,
+    "claim": "Existence oracle outside root for index files when preCompressed is enabled: a leading '..' request bypasses the traversal check, and findIndexFile stats a path outside root. The 404 vs 403 response difference reveals whether '<parent of root>/index.html' (or deeper ancestors) exists. LOW, information disclosure only; no file content is served.",
+    "source": "Raw request path with leading '..' segments, e.g. GET /../../ with an Accept-Encoding header (gzip/br/deflate)",
+    "sink": "statSync inside findIndexFile (index.js:588) reached via path.join(root, pathname, filename) with a pathname containing leading '..'",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 137,
+      "note": "Wildcard handler accepts the raw URL"
+     },
+     {
+      "file": "index.js",
+      "line": 262,
+      "note": "Leading '..' is exempt from the non-leading check, so it passes"
+     },
+     {
+      "file": "index.js",
+      "line": 280,
+      "note": "preCompressed with an Accept-Encoding header sets encoding"
+     },
+     {
+      "file": "index.js",
+      "line": 283,
+      "note": "pathname ends with '/', so findIndexFile is called"
+     },
+     {
+      "file": "index.js",
+      "line": 284,
+      "note": "findIndexFile(pathname, root, options.index) calls path.join(root, '/../../', 'index.html')"
+     },
+     {
+      "file": "index.js",
+      "line": 588,
+      "note": "statSync on a path outside root; non-directory existence returns truthy"
+     },
+     {
+      "file": "index.js",
+      "line": 285,
+      "note": "Not found -> callNotFound (404). Found -> proceeds to send(), which returns 403 for the leading '..' path, so the response differs"
+     }
+    ],
+    "guards_checked": "Non-leading '..' guard index.js:262 (exempts leading '..' by design). @fastify/send's UP_PATH guard (returns 403, not content). Only when preCompressed is true (index.js:273). Confirmed only by reading; no file content is exposed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "lib/dirList.js",
+    "line": 41,
+    "claim": "Unbounded recursive directory walk on an unauthenticated request when list.extendedFolderInfo is enabled: each listed subdirectory triggers a full recursive walk via fs.stat (which follows symlinks) with no depth limit or visited-set. A symlink cycle in root makes the walk non-terminating. LOW to MEDIUM availability (DoS amplification). Precondition: extendedFolderInfo:true; the cycle case also needs an attacker-created symlink.",
+    "source": "Unauthenticated GET of a directory listing URL (e.g. GET /) when list is enabled",
+    "sink": "Recursive fs walk in dirList._getExtendedInfo (lib/dirList.js:41) started from dirList.list (lib/dirList.js:99-101)",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 217,
+      "note": "sendDirectoryList -> dirList.send (also reached at index.js:307)"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 131,
+      "note": "dirList.list(dir, options, dotfiles) called with the listing directory"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 99,
+      "note": "options.extendedFolderInfo true -> getExtendedInfo on every subdirectory"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 58,
+      "note": "getExtendedInfo -> _getExtendedInfo(folderPath)"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 33,
+      "note": "fs.stat follows symlinks"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 38,
+      "note": "Directory -> recursion"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 41,
+      "note": "Recursion into subdirectory with no depth limit or visited-set check"
+     }
+    ],
+    "guards_checked": "fastq concurrency (lib/dirList.js:12, 49) only bounds parallelism, not depth or total work. No depth or symlink guard. Traversal guard isPathInsideRoot (lib/dirList.js:14-22) applies only to the listed dir, not the recursive walk. Option is off by default."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "index.js",
+    "line": 152,
+    "claim": "Fire-and-forget async call: pumpSendToReply is invoked without await or catch from the wildcard handler (and from sendFile/download decorators at index.js:102 and 123). Any rejection becomes an unhandled promise rejection, which crashes the Node process by default. I did not find a concrete attacker-triggerable throw, so this is a latent robustness risk, not a confirmed DoS. LOW, PLAUSIBLE.",
+    "source": "Any request that reaches the wildcard handler (untrusted URL, headers, Accept-Encoding)",
+    "sink": "Unawaited pumpSendToReply promise (index.js:152, unhandled rejection)",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 141,
+      "note": "Wildcard handler is not async and does not return the pumpSendToReply promise"
+     },
+     {
+      "file": "index.js",
+      "line": 152,
+      "note": "pumpSendToReply(req, reply, pathname, sendOptions.root) not awaited"
+     },
+     {
+      "file": "index.js",
+      "line": 280,
+      "note": "getEncodingHeader on untrusted accept-encoding header (accept-negotiator not present in repo, not verified)"
+     },
+     {
+      "file": "index.js",
+      "line": 302,
+      "note": "await send(...) with untrusted path; rejection would be unhandled"
+     }
+    ],
+    "guards_checked": "decodeURI failures caught (index.js:763-776). Null bytes -> 400 in send. No try/catch around the un-awaited call. @fastify/accept-negotiator and @fastify/send source are not in the repo, so their throw behaviour is unverified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

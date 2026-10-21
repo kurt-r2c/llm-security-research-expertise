@@ -1,0 +1,110 @@
+{
+ "arm": "K3",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.005599110000000001,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-niwnr_rq/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated GET /preview passes the attacker-supplied 'url' query parameter directly to requests.get with no scheme, host, IP, or port validation, and returns the status code and first 500 characters of the response body to the caller.",
+    "source": "app.py:15 request.args.get(\"url\") on route /preview (app.py:13-14)",
+    "sink": "app.py:16 requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "@app.route(\"/preview\") \u2013 no auth decorator or middleware on route"
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\") \u2013 attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "resp = requests.get(target, timeout=5) \u2013 outbound request to arbitrary URL, redirects followed by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "returns resp.status_code and resp.text[:500] to attacker \u2013 response reflected"
+     }
+    ],
+    "guards_checked": "None on path. No scheme allowlist, hostname/IP allowlist, private-address block, port restriction, redirect restriction, or auth check. Timeout of 5s limits duration only, not destination."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only host check in app.py is in /partner (app.py:23-25), which is a separate route and does not run on /preview. /preview (app.py:13-17) has no auth, scheme, host, IP, port, or redirect check before requests.get(target, timeout=5) at app.py:16. The 5s timeout limits duration only.",
+    "reason": "Every trace line matches the code: app.py:15 takes the url query parameter unvalidated, app.py:16 sends a GET to it with redirects followed by default, and app.py:17 returns the status code and resp.text[:500] to the caller. No closing guard exists on the /preview path, and the attacker controls the value."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "GET /partner validates the hostname of the initial URL against ALLOWED_HOSTS, but requests.get follows redirects by default, so an allowed partner host that issues a 3xx to an internal or arbitrary destination lets the attacker reach that destination. Conditional on an open redirect or attacker-controlled response on api.partner.example or cdn.partner.example, which cannot be verified from this repo.",
+    "source": "app.py:22 request.args.get(\"url\") on route /partner (app.py:20-21)",
+    "sink": "app.py:26 requests.get(target, timeout=5) with allow_redirects defaulting to True",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 20,
+      "note": "@app.route(\"/partner\") \u2013 no auth decorator"
+     },
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get(\"url\", \"\") \u2013 attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname \u2013 parsed hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "if host not in ALLOWED_HOSTS: reject \u2013 check applies only to the initial URL"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target, timeout=5) \u2013 follows 3xx redirects to any destination without re-validation"
+     }
+    ],
+    "guards_checked": "Hostname equality check at app.py:24 against {api.partner.example, cdn.partner.example}. Checked as sound for the initial URL: urlparse hostname rejects userinfo tricks (https://api.partner.example@evil.com resolves to evil.com), equality rejects suffix tricks (evil-api.partner.example), trailing-dot variants are rejected. Not enforced on redirect hops. No allow_redirects=False. Response body is not returned, only status code, so exploitation is limited to reaching internal targets and observing status."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Exact set membership on the parsed hostname at app.py:23-24 (`host not in ALLOWED_HOSTS`). It applies only to the initial URL. No allow_redirects=False and no re-validation of redirect hops at app.py:26.",
+    "reason": "Every trace line matches app.py:20-26 and the `url` parameter is attacker-controlled, so the membership check at app.py:24 is the only guard; it does not cover redirect hops that `requests.get` follows at app.py:26, but whether an allowed partner host actually issues a 3xx to an internal target depends on external server behavior that this repo cannot show."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0047972200000000005
+}

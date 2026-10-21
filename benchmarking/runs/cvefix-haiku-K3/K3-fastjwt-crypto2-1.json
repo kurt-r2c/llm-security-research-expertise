@@ -1,0 +1,227 @@
+{
+ "arm": "K3",
+ "repo": "fastjwt-crypto2",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3af06fea",
+ "status": "success",
+ "gen_cost": 0.03462145,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 7,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ti0zucle/r/src/index.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ti0zucle/r/src/verifier.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ti0zucle/r/src/decoder.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ti0zucle/r/src/signer.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ti0zucle/r/src/crypto.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ti0zucle/r/src/utils.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ti0zucle/r/src/error.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/verifier.js",
+    "line": 524,
+    "claim": "A DER-encoded public key passed as a Buffer with no algorithms restriction is classified as an HMAC secret, so an attacker can forge HS256 tokens signed with the public key bytes (algorithm confusion).",
+    "source": "Operator key option (Buffer, DER) with algorithms unset; attacker-controlled header alg (verifier.js:162)",
+    "sink": "verifier.js:524 prepareKeyOrSecret -> createSecretKey(keyBytes); crypto.js:341-345 HMAC verify",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 514,
+      "note": "non-function key goes to detectPublicKeyAlgorithms(key, [])"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 262,
+      "note": "all-HS shortcut does not apply, allowedAlgorithms empty"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 277,
+      "note": "Buffer converted with toString('utf-8')"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 88,
+      "note": "locatePem finds no -----BEGIN header in DER bytes, returns isRawSecret"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 170,
+      "note": "performDetectPublicKeyAlgorithms returns hsAlgorithms"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 518,
+      "note": "allowedAlgorithms set to HS256/HS384/HS512"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 524,
+      "note": "hsAlgorithms.includes(HS256) true -> secret KeyObject from DER bytes"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 162,
+      "note": "attacker alg HS256 passes allowlist"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 341,
+      "note": "HMAC over DER bytes compared with timingSafeEqual; matches attacker's HMAC"
+     }
+    ],
+    "guards_checked": "verifier.js:162 alg allowlist (only auto-detected HS set); crypto.js:88-96 PEM header detection (does not match DER); verifier.js:33-43 prepareKeyOrSecret (no asymmetric-material check); precondition: operator passes DER Buffer with no algorithms option. Not executed; read-only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/decoder.js",
+    "line": 41,
+    "claim": "Signature segment accepts non-canonical base64url (unused trailing bits ignored), so one valid token has several distinct valid string forms; the code comment at verifier.js:166-168 claims canonical signatures.",
+    "source": "Attacker holding any valid token edits the last signature character",
+    "sink": "crypto.js:339 Buffer.from(signature,'base64') in verifySignature",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "BASE64URL_RE checks alphabet only"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 70,
+      "note": "signature returned as raw string"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "verifySignature called with raw signature string"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 339,
+      "note": "non-canonical trailing bits decode to same bytes"
+     }
+    ],
+    "guards_checked": "Alphabet regex enforced (decoder.js:41). Signing input is raw header.payload so only signature segment varies. Forgery not possible; only string-form malleability. Impact depends on app denylist keyed by token string.",
+    "repro": "For HS256 (43-char signature), alter last char among the 4 values sharing the same top 4 bits; each decodes to identical 32 bytes and verifies.",
+    "sink_note": "Impact limited to applications that key revocation or replay checks on the raw token string."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/verifier.js",
+    "line": 133,
+    "claim": "With caching enabled, a token with exp but no iat is cached with TTL = cacheTTL, ignoring exp, so it is accepted after expiry for up to cacheTTL (default 600000 ms).",
+    "source": "Attacker holds an expired token lacking iat; cache option enabled",
+    "sink": "verifier.js:363-378 cache-hit check (tests min/max only)",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 117,
+      "note": "hasIat false when iat absent"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 120,
+      "note": "exp-based TTL block skipped because it is inside if(hasIat)"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 133,
+      "note": "cacheValue[2] set to maxTTL = now + cacheTTL + tolerance"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 370,
+      "note": "cache hit checks only min/max, never exp"
+     }
+    ],
+    "guards_checked": "Live validator verifier.js:311-322 enforces exp on cache miss, so only the cached path is wrong. Tokens with iat are correct (verifier.js:125, :134). Cache is opt-in (verifier.js:84-85, :580). Requires issuer omitting iat."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/verifier.js",
+    "line": 616,
+    "claim": "maxAge is silently not enforced when the token has no iat claim, because the validator is skipped for absent claims.",
+    "source": "Attacker holds token with no iat (signer noTimestamp, signer.js:96)",
+    "sink": "verifier.js:616-618 maxAge validator",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 616,
+      "note": "maxAge pushes iat validator"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 311,
+      "note": "claim absent -> continue, validator skipped"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 293,
+      "note": "requiredClaims enforces presence only if operator lists iat"
+     }
+    ],
+    "guards_checked": "requiredClaims (verifier.js:293-299) not on by default. Fail-open for tokens of unknown age."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/utils.js",
+    "line": 46,
+    "claim": "With cache enabled, verifying a Buffer token throws a TypeError from hashToken (Buffer has no split), instead of returning a TokenError.",
+    "source": "Attacker-supplied Buffer token (verifier.js:353 accepts Buffer)",
+    "sink": "utils.js:46 token.split('.',1) inside hashToken, called via verifier.js:364 cacheKeyBuilder",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Buffer token accepted by type check"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cacheKeyBuilder(token) called when cache enabled"
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "Buffer.prototype.split is not a function -> TypeError"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 113,
+      "note": "same path repeated in cacheSet"
+     }
+    ],
+    "guards_checked": "Type check at verifier.js:353 does not convert Buffer to string before cache key. Exception is synchronous, escapes callback path too. Denial of service / 500 in apps that do not catch."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

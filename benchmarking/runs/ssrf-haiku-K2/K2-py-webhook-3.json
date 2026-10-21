@@ -1,0 +1,102 @@
+{
+ "arm": "K2",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.0041789800000000005,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-76jqp70j/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-76jqp70j/r/app.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-76jqp70j/expertise/cases/04-url-validate-reparse.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-76jqp70j/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches an arbitrary attacker-supplied URL server-side with no scheme, host, or IP validation, and returns the response body to the caller, so it is a full-read SSRF.",
+    "source": "app.py:15 request.args.get(\"url\") (query parameter of GET /preview)",
+    "sink": "app.py:16 requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get('url', '') \u2014 attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) \u2014 no validation, redirects followed by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "resp.status_code and resp.text[:500] returned in JSON, giving the attacker a read channel"
+     }
+    ],
+    "guards_checked": "None on this path. No allowlist, no scheme check, no private/loopback/link-local IP block, no allow_redirects=False, no DNS pinning. Only the 5s timeout and 500-char truncation apply, and neither limits the target. Case 04/12 patterns apply; no decoy matches."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15 reads the attacker-controlled `url` query parameter, app.py:16 passes it unvalidated to requests.get (redirects followed by default), and app.py:17 returns the status and first 500 chars of the body, so /preview is a full-read SSRF; the host allowlist at app.py:24 exists only on the separate /partner route (lines 20-27) and does not cover /preview."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks the hostname of the initial URL against an allowlist, but requests.get follows redirects by default, so an allowlisted host can redirect the server to an internal or non-allowlisted address (for example http://169.254.169.254/ or http://127.0.0.1/), bypassing the check.",
+    "source": "app.py:22 request.args.get(\"url\") (query parameter of GET /partner)",
+    "sink": "app.py:26 requests.get(target, timeout=5) with redirects enabled",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get('url', '') \u2014 attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname \u2014 parsed only for the check"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "host not in ALLOWED_HOSTS \u2192 400; passes only for api.partner.example or cdn.partner.example"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) re-sends the raw string and follows 3xx Location headers without re-checking the host"
+     }
+    ],
+    "guards_checked": "Hostname allowlist on the initial URL (app.py:23-25): case-insensitive and exact-match, so suffix tricks like evil.partner.example fail. Scheme is effectively limited to http/https by requests. Not checked: redirect targets (allow_redirects not disabled), resolved IP (private/loopback/metadata ranges), and port. Exploitation requires an allowlisted partner host that returns a redirect, or an open redirect on one of them. Severity is lower than SSRF-1. Also, urlparse and urllib3 may disagree on certain malformed authorities (for example backslash-based forms); I did not verify this, so it is not reported as a separate finding."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the exact-match hostname check at app.py:23-24 (ALLOWED_HOSTS membership on urlparse(target).hostname). It runs once on the initial URL and does not cover redirect targets. requests.get at app.py:26 uses default allow_redirects for GET, and nothing after it re-validates the destination. No IP or private-range check and no redirect disabling exists anywhere in app.py.",
+    "reason": "The source is the unauthenticated `url` query parameter (app.py:22), and the only closing check is the initial exact-host allowlist at app.py:23-24; requests.get at app.py:26 follows 3xx redirects to any host with no re-check, so the bypass is real. Exploitation is conditional: it needs an allowlisted partner host that issues a redirect or an open redirect on one, which is outside this code, so severity should stay below SSRF-1."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00380362
+}

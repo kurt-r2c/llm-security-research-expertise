@@ -1,0 +1,139 @@
+{
+ "arm": "A",
+ "repo": "cl-js-inj",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.00524287,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-46ccd2ha/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "db.js",
+    "line": 9,
+    "claim": "GET /users has no authentication or tenant authorization; attacker-supplied req.query.org selects any org's users, returning id and name. Parameterized query prevents SQLi but not IDOR/cross-tenant enumeration.",
+    "source": "req.query.org (db.js:9)",
+    "sink": "req.pg.query SELECT id, name FROM users WHERE org = $1 (db.js:9) and res.json(rows) (db.js:10)",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "app.get('/users') route registered with no auth middleware"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.query.org passed as $1 with no binding to caller identity or session"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "SELECT id, name FROM users WHERE org = $1 executes for any org value"
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "all matching rows returned as JSON; iterating org values enumerates all tenants"
+     }
+    ],
+    "guards_checked": "SQL injection: parameterized query, not exploitable as injection. Authentication: none on route. Authorization/tenant binding: none. Rate limiting/pagination: none. req.pg is set outside this file and could not be verified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The /users route is registered directly with no auth middleware (db.js:8), and there is no app.use or other auth hook in db.js. req.query.org goes straight into the bound parameter $1 (db.js:9), and rows are returned unfiltered by caller identity (db.js:10). Parameterization (db.js:9) only prevents SQL injection and does not restrict which org is queried. req.pg is set outside this file and is a DB handle, not an auth control.",
+    "reason": "The trace matches the code: db.js:8 registers /users with no auth, db.js:9 binds the attacker-supplied req.query.org into the query, and db.js:10 returns all matching id and name rows, so an anonymous caller can enumerate any org's users. The only caveat is that an upstream proxy or gateway outside this file could add auth, but nothing in the code available shows one."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "db.js",
+    "line": 23,
+    "claim": "app.listen(3002) with no host binds to all interfaces, exposing all unauthenticated routes (including /users and /file) to the network.",
+    "source": "Network reachability to host (precondition)",
+    "sink": "Listening socket exposing routes at db.js:8, db.js:13, db.js:19",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "listen(3002) with no host argument binds all interfaces"
+     },
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "/users unauthenticated"
+     },
+     {
+      "file": "db.js",
+      "line": 13,
+      "note": "/file unauthenticated"
+     }
+    ],
+    "guards_checked": "No host restriction, firewall, or auth middleware present in this file. Deployment-level proxy or firewall could not be verified. Candidate only."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "No auth middleware or host restriction in db.js. /file has a containment check at db.js:15 (path must start with ROOT + path.sep), which blocks traversal but not network access. The only directory file is db.js, so no firewall, proxy, or deployment config is visible.",
+    "reason": "Trace is accurate: app.listen(3002) at db.js:23 has no host argument, and /users (db.js:8) has no auth check, so the code as written exposes it on all interfaces. Whether that is reachable by an attacker depends on deployment (firewall or proxy), which cannot be checked from this directory, so the finding can't be confirmed. The /file route is only traversal-contained at db.js:15, so its exposure is limited to files under public/, which is probably intended."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "db.js",
+    "line": 16,
+    "claim": "Conditional: GET /file serves any file under public/ to unauthenticated clients. Path traversal is blocked, so this is an exposure risk only if public/ contains non-public content.",
+    "source": "req.query.name (db.js:14)",
+    "sink": "res.sendFile(p) (db.js:16)",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 6,
+      "note": "ROOT = path.resolve('public')"
+     },
+     {
+      "file": "db.js",
+      "line": 14,
+      "note": "p = path.resolve(ROOT, req.query.name)"
+     },
+     {
+      "file": "db.js",
+      "line": 15,
+      "note": "403 unless p startsWith ROOT + path.sep"
+     },
+     {
+      "file": "db.js",
+      "line": 16,
+      "note": "sendFile(p) serves the file"
+     }
+    ],
+    "guards_checked": "Path traversal: path.resolve normalization plus prefix check with separator blocks escapes; absolute paths rejected; ROOT itself rejected. Non-string input throws to 500, no bypass. Express sendFile ignores dotfiles by default. Symlinks in public/ followed but require write access to public/, so not counted as attacker-exploitable. No authentication on route."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Path containment at db.js:15 (`if (!p.startsWith(ROOT + path.sep)) return res.status(403).end();`) runs on the normalized `p` from db.js:14 and returns before the sendFile at db.js:16, blocking traversal and absolute paths. ROOT is `path.resolve(\"public\")` at db.js:6. No authentication on the route, which is the only factor left.",
+    "reason": "All trace lines (db.js:6, 14, 15, 16) match the candidate's description, and the containment check at db.js:15 stops escapes from public/, so the route only serves files inside public/ as designed. The remaining \"exposure\" depends on public/ containing non-public files, which the snapshot does not show (the Glob returned only db.js, so public/ is absent here), so this is a conditional concern rather than a demonstrated vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00651674
+}

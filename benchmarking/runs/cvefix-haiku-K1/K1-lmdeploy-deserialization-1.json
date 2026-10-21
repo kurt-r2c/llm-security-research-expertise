@@ -1,0 +1,104 @@
+{
+ "arm": "K1",
+ "repo": "lmdeploy-deserialization",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.01633082,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 7,
+   "Read": 5,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-j7xmw389/r/lmdeploy/vl/media/connection.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-j7xmw389/r/lmdeploy/serve/processors/multimodal.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-j7xmw389/r/lmdeploy/serve/openai/chat_completions/serving.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-j7xmw389/r/lmdeploy/vl/media/image.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-j7xmw389/r/lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 130,
+    "claim": "Arbitrary local file read via file:// URLs or raw existing paths in image/video/audio URL fields; the file branch skips the SSRF guard and allowed_media_domains. Decoded contents can be sent to the model and returned in the completion.",
+    "source": "Chat completion request: image_url.url / video_url.url / audio_url.url string (serve/processors/multimodal.py:156-184)",
+    "sink": "open(file_path,'rb') in lmdeploy/vl/media/image.py:32; decord.VideoReader(str(filepath)) in lmdeploy/vl/media/video_loader.py:193",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/processors/multimodal.py",
+      "line": 162,
+      "note": "raw url string passed to load_from_url with allowed_media_domains"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 121,
+      "note": "urlparse; only http* schemes go to _load_http_url"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 126,
+      "note": "data: scheme handled separately"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 130,
+      "note": "file: scheme or os.path.exists(url) routes to local file branch, no allowlist or _is_safe_url check"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 115,
+      "note": "Path(url2pathname(netloc+path))"
+     },
+     {
+      "file": "lmdeploy/vl/media/image.py",
+      "line": 32,
+      "note": "open() of attacker-chosen path, decoded as image"
+     }
+    ],
+    "guards_checked": "_is_safe_url (HTTP branch only, connection.py:123-124); allowed_media_domains (HTTP branch only, :75); scheme allowlist (HTTP branch only, :71). No path root restriction exists. api_keys is opt-in (api_server.py:314-315), so default is unauthenticated. Exception text is returned to the client at serving.py:191/198. Not run; decode-failure response shape unverified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 83,
+    "claim": "DNS rebinding TOCTOU defeats the SSRF guard: _is_safe_url resolves the host at line 79, then requests re-resolves at line 83 with no IP pinning, so an attacker-controlled host can pass the check with a public IP and fetch from 127.0.0.1 or 169.254.169.254.",
+    "source": "Chat completion request: image/video/audio http(s) URL with an attacker-controlled hostname (serve/processors/multimodal.py:162-184)",
+    "sink": "client.get(parsed.url) at lmdeploy/vl/media/connection.py:83 (outbound request to internal address)",
+    "trace": [
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 79,
+      "note": "_is_safe_url resolves hostname via getaddrinfo, requires is_global on all results"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 83,
+      "note": "requests.Session.get re-resolves hostname; resolved address not pinned"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 85,
+      "note": "redirects are handled manually and re-checked, which is good, but does not close the rebinding gap"
+     }
+    ],
+    "guards_checked": "_is_safe_url is_global check on all resolved IPs (connection.py:26-54); scheme check (:71); allowed_media_domains exact-hostname match when configured (:75); manual redirect re-validation (:85-90); consistent urllib3 parse_url on both sides. Default with no allowlist leaves the rebinding window open. Only GET, response parsed as image bytes, so exfiltration is limited to decodable responses; blind SSRF and host/port timing oracle remain. Confidence medium: requires attacker-controlled DNS with short TTL. Not run."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

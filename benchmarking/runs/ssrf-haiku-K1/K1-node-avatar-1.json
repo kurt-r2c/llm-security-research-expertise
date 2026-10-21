@@ -1,0 +1,70 @@
+{
+ "arm": "K1",
+ "repo": "node-avatar",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.00355368,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-biyjmk9q/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches an arbitrary attacker-supplied URL server-side. The only check is that the string starts with 'https://'. The host is never validated, and redirects are followed by default, so the request can reach internal hosts and cloud metadata endpoints.",
+    "source": "req.body.avatarUrl (server.js:10), attacker-controlled JSON body on an unauthenticated route",
+    "sink": "axios.get(url, { responseType: 'arraybuffer' }) at server.js:14",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "Unauthenticated POST /profile/avatar handler; no auth middleware is registered on the app (only express.json at line 5)."
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl, raw attacker value."
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "Only check: typeof string and url.startsWith('https://'). No parsing of the URL, no host/IP allowlist, no private/loopback/link-local/metadata block."
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) is called with the unvalidated URL. axios follows redirects by default and does not re-check targets."
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "Response size (img.data.length) is returned to the attacker, so there is at least a length oracle on the internal response."
+     }
+    ],
+    "guards_checked": "(1) typeof === 'string' \u2013 passes for any string. (2) startsWith('https://') \u2013 satisfied by https://<any host>, e.g. https://127.0.0.1, https://10.0.0.5, https://internal-service, https://attacker.example that 302s to http://169.254.169.254/latest/meta-data/ (scheme change on redirect is not checked, so the http-only metadata endpoint is reachable). Not a bypass concern: no DNS/IP pinning, so DNS rebinding also works. No timeout or maxContentLength is set, which is a resource issue only and not reported separately. Route /users/:id (server.js:18-21) is not an SSRF: the host is the constant USER_SVC and the id is encodeURIComponent'd, so the attacker cannot change host or scheme (the path can still be shaped with '..', but that stays on users.internal)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. server.js:11 only checks typeof === \"string\" and url.startsWith(\"https://\"), which is a prefix check and does not close the finding. No auth middleware is registered: server.js:5 is only express.json(). No host or IP validation exists anywhere on the path before the sink at server.js:14.",
+    "reason": "The attacker-controlled req.body.avatarUrl (server.js:10) reaches axios.get at server.js:14 on an unauthenticated route (server.js:9), and the only check (server.js:11) is an https:// prefix test, so an attacker can point it at internal hosts or a redirecting https URL to the plain-http metadata endpoint, since axios follows redirects by default."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00210829
+}

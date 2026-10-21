@@ -1,0 +1,90 @@
+{
+ "arm": "K2",
+ "repo": "cl-js-inj",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "254f349e",
+ "status": "success",
+ "gen_cost": 0.00606496,
+ "trace": {
+  "tools": {
+   "Read": 2,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-y2zcobnl/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-y2zcobnl/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "db.js",
+    "line": 9,
+    "claim": "GET /users returns id and name of every user in any org the caller names, with no authentication and no check that the caller belongs to that org.",
+    "source": "req.query.org (db.js:9), attacker-controlled.",
+    "sink": "req.pg.query(...) at db.js:9 returns the user directory for that org; res.json(rows) at db.js:10.",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "Route registered with no auth middleware or session check."
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "org taken directly from query string and used as the filter; not compared to caller identity or org."
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "All matching rows returned; no limit or pagination."
+     }
+    ],
+    "guards_checked": "Parameterized query ($1) so no SQL injection; no auth middleware on this route in this file; no binding of org to caller tenant/session; no response field filtering. Confidence medium: global middleware outside this file is not visible."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8 registers GET /users with no auth middleware. db.js:9 takes req.query.org directly as the query parameter with no comparison to caller identity or session. db.js:10 returns all rows with no limit. The parameterized query ($1) at db.js:9 prevents SQL injection but is not an authorization control. The app has no app.use() anywhere in db.js (lines 5-23), and no other source files exist in the directory.",
+    "reason": "db.js:8-10 exposes id and name for every user in any org named in req.query.org with no authentication or org-membership check, so an anonymous attacker can enumerate any tenant's user directory. The only caveat is that req.pg (db.js:9) is not defined in this directory, so a global auth middleware could exist outside the provided code; nothing visible in the codebase guards this route."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "db.js",
+    "line": 9,
+    "claim": "If no middleware sets req.pg, a single unauthenticated GET /users request can crash the process.",
+    "source": "Any unauthenticated HTTP request to GET /users.",
+    "sink": "req.pg.query at db.js:9 throws TypeError inside async handler; unhandled rejection.",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.pg is never assigned in this file; access throws if undefined."
+     },
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "Express 4 does not catch async handler rejections; request gets no response and on Node 15+ the process terminates."
+     }
+    ],
+    "guards_checked": "No try/catch or .catch() around handler; no process-level unhandledRejection handler in this file. Confidence low: depends on unseen deployment setup."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8 registers the handler with no try/catch or .catch(). Nothing in the directory sets req.pg: db.js is the only file, and it has no app.use or middleware. The file has no process.on('unhandledRejection') handler. No guard sits between the anonymous request and the throw.",
+    "reason": "The trace matches the code: db.js:9 reads req.pg.query with req.pg never assigned, so an anonymous GET /users (db.js:8) throws a TypeError inside an async handler that Express 4 does not catch, leaving an unhandled rejection that crashes Node 15+ by default. The one residual uncertainty is a deployment that injects req.pg from outside this directory, which the available code cannot rule out, so the finding holds on the code as given."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00426036
+}

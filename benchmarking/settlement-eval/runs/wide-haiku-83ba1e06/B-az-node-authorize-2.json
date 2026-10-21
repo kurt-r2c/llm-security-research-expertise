@@ -1,0 +1,147 @@
+{
+ "arm": "B",
+ "repo": "az-node-authorize",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00584317,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3huuh8tz/r/api.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "DELETE /projects/:id has no authorization check. Any authenticated user can delete any project, including projects they don't own.",
+    "source": "Attacker-controlled path param req.params.id (api.js:17), plus any authenticated session (req.user, api.js:18). Precondition: a valid login.",
+    "sink": "req.store.projects.delete(project.id) (api.js:19), a destructive write on another owner's resource.",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 16,
+      "note": "Route handler for DELETE /projects/:id."
+     },
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "Loads the project by attacker-supplied id with no ownership or tenant scoping."
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "Calls authorized(req.user, project); the boolean return is discarded, so nothing is thrown."
+     },
+     {
+      "file": "api.js",
+      "line": 13,
+      "note": "authorized() computes ownerId === user.id || isAdmin, the correct predicate, but it is never enforced."
+     },
+     {
+      "file": "api.js",
+      "line": 19,
+      "note": "Deletes the project regardless of the check result."
+     },
+     {
+      "file": "api.js",
+      "line": 20,
+      "note": "Returns 204, confirming the deletion to the attacker."
+     }
+    ],
+    "guards_checked": "(1) authorize() at api.js:4 throws, but this route calls the non-throwing authorized() at api.js:12. (2) PUT at api.js:25 does call authorize(), so the delete route is inconsistent with it. (3) No router-level middleware in this file; upstream auth/role middleware is not in this directory and at most establishes identity, not per-resource ownership."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective. authorized() at api.js:12-14 returns a boolean, and the call at api.js:18 is a bare statement whose result is discarded, so nothing throws or aborts. The throwing authorize() at api.js:4-10 is not called on the DELETE route (it is only used by PUT at api.js:25). The directory holds no router-level or ownership middleware; the only other files are skill docs under .claude/skills.",
+    "reason": "The DELETE handler at api.js:18 calls the non-throwing authorized() and ignores its boolean result, so api.js:19 deletes the project for any authenticated user (api.js:17 loads it by attacker-supplied id with no ownership scoping), while the PUT route at api.js:25 correctly uses the throwing authorize()."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "api.js",
+    "line": 26,
+    "claim": "PUT /projects/:id/name stores req.body.name without type or length validation. Stored values can be non-strings or arbitrarily large.",
+    "source": "Attacker-controlled JSON body field req.body.name (api.js:26). Precondition: owner or admin of the project (enforced at api.js:25).",
+    "sink": "project.name assignment (api.js:26) and persistence/response via res.json(project) (api.js:27). Impact depends on downstream rendering, not in this directory.",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 23,
+      "note": "Route handler for PUT /projects/:id/name."
+     },
+     {
+      "file": "api.js",
+      "line": 25,
+      "note": "authorize() enforces ownership correctly."
+     },
+     {
+      "file": "api.js",
+      "line": 26,
+      "note": "req.body.name is assigned with no type, length, or content check."
+     },
+     {
+      "file": "api.js",
+      "line": 27,
+      "note": "Full project object is returned, echoing the stored value."
+     }
+    ],
+    "guards_checked": "Authorization is correct here. No schema validation, body size limit, or type check is visible in this file. Exploitability (stored XSS if rendered unescaped, object injection if non-strings reach a query) is unverified and needs the consumers of project.name."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "authorize() at api.js:4-10 is called at api.js:25 and throws 403 for non-owner, non-admin users, so only the project owner or an admin can reach the assignment at api.js:26. No type check, length check, or body size limit appears in api.js. The directory has no body-parser configuration or downstream consumer of project.name (only .claude/skills/security-research/* files exist), so express's default body limit is not visible here.",
+    "reason": "The trace is accurate (api.js:23, 25, 26, 27), and the attacker must already be the project owner or an admin (api.js:5, 25), so the write grants no new privilege. Any harm would depend on how other users render project.name, which is outside this directory, so exploitability cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "api.js",
+    "line": 17,
+    "claim": "A request for a nonexistent project id causes an unhandled TypeError instead of a 404, which may leak stack traces depending on the app's error handler.",
+    "source": "Attacker-controlled req.params.id for an id that does not exist. Precondition: any authenticated user.",
+    "sink": "authorized() at api.js:13 or authorize() at api.js:5 dereferences resource.ownerId on undefined.",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "projects.get() returns undefined for an unknown id."
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "authorized(req.user, undefined) is called."
+     },
+     {
+      "file": "api.js",
+      "line": 13,
+      "note": "undefined.ownerId throws TypeError, surfacing as a 500."
+     }
+    ],
+    "guards_checked": "No null check on project and no error middleware in this file. Impact depends on the global error handler, which is not in this directory. Robustness and information-disclosure risk, not a direct bypass."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. There is no null check on `project` between api.js:17 and api.js:18, and no try/catch or error middleware in api.js. The `authorized()` call at api.js:18 runs before any check, so `resource.ownerId` at api.js:13 throws on undefined.",
+    "reason": "The trace is accurate: `projects.get()` returns undefined for an unknown id (api.js:17), `authorized(req.user, project)` is called with it (api.js:18), and `resource.ownerId` at api.js:13 throws a TypeError before any authorization decision. No control in this file stops the throw, so an authenticated user gets an unhandled 500 with no 404, and stack-trace exposure depends on the global error handler outside this directory. This is a robustness and information-disclosure issue, not an authorization bypass. Separately, and not part of this finding: the discarded return value of `authorized()` at api.js:18 means the DELETE route at api.js:16-21 performs no ownership check for existing projects, so any authenticated non-admin can delete another user's project. That is a much more serious authorization flaw and should be reported on its own."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00703862
+}

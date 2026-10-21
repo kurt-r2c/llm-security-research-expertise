@@ -1,0 +1,255 @@
+{
+ "arm": "A",
+ "repo": "lmdeploy-deserialization",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.04018471,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 18,
+   "Read": 16,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "lmdeploy/vl/media/connection.py",
+   "lmdeploy/serve/processors/multimodal.py",
+   "lmdeploy/serve/openai/api_server.py",
+   "lmdeploy/vl/media/image.py",
+   "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+   "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+   "lmdeploy/pytorch/engine/executor/mp_executor.py",
+   "lmdeploy/serve/utils/server_utils.py",
+   "lmdeploy/serve/openai/endpoints/management.py",
+   "lmdeploy/serve/proxy/proxy.py",
+   "lmdeploy/serve/proxy/proxy.py",
+   "lmdeploy/serve/proxy/proxy.py",
+   "lmdeploy/pytorch/engine/model_agent/agent.py",
+   "lmdeploy/pytorch/engine/engine.py",
+   "lmdeploy/cli/utils.py",
+   "lmdeploy/pytorch/engine/model_agent/agent.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+    "line": 1289,
+    "claim": "Unauthenticated HTTP POST to /update_weights reaches pickle deserialization of attacker-supplied bytes, giving remote code execution under default settings.",
+    "source": "JSON field serialized_named_tensors in POST /update_weights (lmdeploy/serve/openai/protocol.py:539-541, route management.py:53-59)",
+    "sink": "ForkingPickler.loads(pybase64.b64decode(serialized_data)) at agent.py:1289",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/openai/endpoints/router.py",
+      "line": 14,
+      "note": "management.register always called; no feature flag"
+     },
+     {
+      "file": "lmdeploy/serve/openai/endpoints/management.py",
+      "line": 55,
+      "note": "update_params handler forwards request to engine"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/engine.py",
+      "line": 510,
+      "note": "Engine.update_params forwards to executor"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1277,
+      "note": "update_params entry"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1332,
+      "note": "reads request.serialized_named_tensors"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1289,
+      "note": "pickle deserialization of attacker bytes"
+     }
+    ],
+    "guards_checked": "api_keys default None (cli/utils.py:374) so AuthenticationMiddleware not installed (api_server.py:409-410); server binds 0.0.0.0 by default (cli/serve.py:46); no feature gate; validate_json_request only checks request shape (body not read). Also /init_weights_update_group (protocol.py:546-554) lets caller choose master_address/port."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lmdeploy/serve/proxy/proxy.py",
+    "line": 492,
+    "claim": "Unauthenticated /nodes/add lets a network attacker register a rogue backend that receives all client /v1 traffic, including the client Authorization header; /nodes/terminate and /nodes/terminate_all are also unauthenticated.",
+    "source": "POST /nodes/add body Node.url and status.models (proxy.py:55-58, 492-503)",
+    "sink": "Routing table used by /v1/chat/completions; header forwarding in _prepare_headers (proxy.py:450-451)",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 503,
+      "note": "node_manager.add(node.url, node.status) with no auth"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 165,
+      "note": "non-empty models: node registered immediately, no health check or URL validation"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 573,
+      "note": "/v1/chat/completions routes requests to registered nodes"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 387,
+      "note": "forward path builds headers via _prepare_headers"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 451,
+      "note": "copies all client headers including Authorization"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 194,
+      "note": "terminate_node sends GET {node_url}/terminate"
+     }
+    ],
+    "guards_checked": "server_utils.py:94 exempts /nodes prefix from token checks even when api_keys set; proxy middleware only installed when keys configured (proxy.py:924-927); no scheme/host/allowlist validation on node URL; add() with empty models makes outbound APIClient request to attacker URL (proxy.py:171-173)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 130,
+    "claim": "Media URL fields accept file:// URLs and raw filesystem paths, reading arbitrary local files; allowed_media_domains does not restrict this branch.",
+    "source": "image_url / video_url / audio_url string value in a chat request (multimodal.py:161-179)",
+    "sink": "open(file_path,'rb') in ImageMediaIO.load_file (lmdeploy/vl/media/image.py:32)",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/processors/multimodal.py",
+      "line": 162,
+      "note": "string media URL passed to load_from_url"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 130,
+      "note": "file scheme or os.path.exists(url) routes to file loader"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 115,
+      "note": "Path built from attacker string with no root restriction"
+     },
+     {
+      "file": "lmdeploy/vl/media/image.py",
+      "line": 32,
+      "note": "file opened and decoded by PIL"
+     }
+    ],
+    "guards_checked": "allowed_media_domains only checked in HTTP branch (connection.py:75), so bypassed for file reads; no path allowlist; server unauthenticated by default."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 83,
+    "claim": "SSRF guard resolves DNS once for validation but requests re-resolves at fetch time, so DNS rebinding can reach loopback or link-local addresses.",
+    "source": "hostname of an http(s) media URL in a chat request (multimodal.py:162)",
+    "sink": "client.get(parsed.url) at connection.py:83",
+    "trace": [
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 79,
+      "note": "_is_safe_url validation"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 41,
+      "note": "getaddrinfo resolution at check time"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 49,
+      "note": "non-global IP rejected at check time"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 83,
+      "note": "second DNS resolution by requests at fetch time, no IP pinning"
+     }
+    ],
+    "guards_checked": "scheme check (connection.py:71); optional domain allowlist (connection.py:75, off by default); manual redirect re-validation (connection.py:85-90) is correct; non-global IP check defeated by TOCTOU."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+    "line": 305,
+    "claim": "Pickle RPC over a localhost ZMQ ROUTER socket deserializes any received bytes; exploitable only by local processes or users.",
+    "source": "bytes received on ROUTER socket bound to tcp://localhost random port (zmq_rpc.py:123-126)",
+    "sink": "pickle.loads(request_data) at zmq_rpc.py:305 (also 447, 451, 572 on client side)",
+    "trace": [
+     {
+      "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+      "line": 126,
+      "note": "bind_to_random_port on localhost"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+      "line": 304,
+      "note": "recv_multipart from any local peer"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+      "line": 305,
+      "note": "pickle.loads on untrusted bytes"
+     }
+    ],
+    "guards_checked": "loopback-only bind; code comment warns against external exposure; no authentication on socket. Local-only, low severity on single-user hosts."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 83,
+    "claim": "Media fetch reads the entire remote response body into memory with no size cap, allowing memory exhaustion via a large response.",
+    "source": "attacker-chosen remote URL in a chat request (multimodal.py:162)",
+    "sink": "response.content at connection.py:93 after client.get at :83",
+    "trace": [
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 83,
+      "note": "requests.get with 10s timeout (socket timeout, not total deadline)"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 93,
+      "note": "response.content loads full body into memory"
+     }
+    ],
+    "guards_checked": "timeout is per socket operation, not total; no Content-Length cap, no streaming limit. Low severity."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,371 @@
+{
+ "arm": "A",
+ "repo": "fastjwt-crypto",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.10381527,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 8,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/index.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/decoder.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/signer.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/verifier.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/utils.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/crypto.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/error.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-21jwanga/r/src/index.d.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/verifier.js",
+    "line": 548,
+    "claim": "Sync verifier configured with HS-only algorithms and a public PEM/certificate or public JWK/JWKS JSON as key accepts HS* tokens HMAC-keyed with the public key bytes, so anyone holding the public key can forge tokens (algorithm confusion). Config-dependent.",
+    "source": "Precondition: developer sets algorithms to HS-only (e.g. ['HS256']) and passes public key material as key. Attacker has the public key text (public by design) and crafts an HS256 token.",
+    "sink": "HMAC verification keyed with public key bytes (verifier.js:177 -> crypto.js:396-399), accepting the forged token.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 548,
+      "note": "detectPublicKeyAlgorithms(key, allowedAlgorithms) called with the HS-only list"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 317,
+      "note": "Shortcut: if every provided algorithm is HS*, return providedAlgorithms immediately"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 319,
+      "note": "Skips PEM classification (221-242) and assertNotAsymmetricJwkJson (143-147)"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 556,
+      "note": "prepareKeyOrSecret(key, true) turns the public key bytes into an HMAC secret"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 170,
+      "note": "Algorithm allowlist accepts HS256 because it is configured"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 177,
+      "note": "verifySignature HMAC over attacker-chosen input using the public key bytes; passes for a forged token"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 462,
+      "note": "Inconsistency: async path calls detectPublicKeyAlgorithms without the list, gets RSA/EC algorithms, and rejects at 465 (async is safe, sync is not)"
+     }
+    ],
+    "guards_checked": "Algorithm allowlist (verifier.js:170) passes; signature check (verifier.js:177) passes with public-key bytes; empty-key check (verifier.js:533-544, crypto.js:81-85) does not apply; PEM classification (crypto.js:221-242) and JWK guard (crypto.js:100-147) are bypassed by the all-HS shortcut."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/decoder.js",
+    "line": 41,
+    "claim": "Signature segment is not canonical base64url: the final character's unused padding bits can vary, giving several distinct token strings that verify with the same signature bytes. Controls keyed on the raw token string (denylists, single-use or replay caches, per-token rate limits) can be bypassed. The code comments claim non-canonical tokens are rejected, which is not what the code does.",
+    "source": "Attacker takes any valid token and edits the last base64url character of the signature segment within the unused low bits. Precondition: application keys a control on the raw token string.",
+    "sink": "Signature verification accepts the variant (verifier.js:177 -> crypto.js:394-398), so string-keyed controls see a new value and do not match the revoked or used token.",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 30,
+      "note": "signatureSegment taken as the raw slice after the last '.'"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "Only the alphabet regex (BASE64URL_RE, line 10) is checked; no canonical-encoding check"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 70,
+      "note": "Signature returned unchanged"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 177,
+      "note": "verifySignature called with the raw signature segment"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 394,
+      "note": "Buffer.from(signature, 'base64') silently discards padding bits, so the variant decodes to identical bytes"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 398,
+      "note": "timingSafeEqual on decoded bytes: variant passes"
+     }
+    ],
+    "guards_checked": "Base64url alphabet check (decoder.js:10, 41-43). No length or trailing-bit canonicality check exists. Comments at decoder.js:5-9, 32-34 and verifier.js:174-176 claim canonical enforcement that is absent. Not executed: relies on Node's lenient base64 decoding."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/verifier.js",
+    "line": 121,
+    "claim": "With caching enabled, a non-TokenError thrown during key preparation is cached as a success value. A later cache hit returns the native Error object as the decoded payload. Plausible: requires a malformed key from the key fetcher.",
+    "source": "Precondition: cache enabled; async key fetcher returns a key whose PEM header is RSA PUBLIC KEY with a malformed body (or another value that makes createPublicKey throw); attacker's kid routes the token to that key. Attacker signature is irrelevant because the failure occurs before signature verification.",
+    "sink": "Cache hit returns the Error object as a successful payload (verifier.js:383 -> handleCachedResult 161), which the application may treat as authenticated claims.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 462,
+      "note": "detectPublicKeyAlgorithms(currentKey) on the fetched key"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 234,
+      "note": "RSA PKCS1 header returns rsaAlgorithms without parsing the body"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 470,
+      "note": "prepareKeyOrSecret called with the malformed key"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 44,
+      "note": "createPublicKey throws a native (non-TokenError) error"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 474,
+      "note": "catch calls cacheSet with the native error"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 121,
+      "note": "cacheSet only special-cases TokenError; native error falls through to the success branch"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 144,
+      "note": "Error stored as the cached value with expiry from cacheTTL (up to 10 minutes)"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 383,
+      "note": "Next call with same token hits the cache before decode and signature checks"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 161,
+      "note": "handleCachedResult: non-TokenError value returned as success via callback(null, cached)"
+     }
+    ],
+    "guards_checked": "TokenError-only branch in cacheSet (verifier.js:121). Expiry bounds (verifier.js:129-143) do not limit it when the token has no exp. Cache is off by default (verifier.js:612). Signature check is never reached on this path."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/verifier.js",
+    "line": 477,
+    "claim": "In complete mode, the async path returns input as the full token (including signature), while the sync path returns the signing input (header.payload). Inconsistent output; code that re-verifies or hashes input gets different data by mode.",
+    "source": "Any caller using complete: true with the async verifier.",
+    "sink": "Returned decoded object's input field (verifier.js:477) vs sync (verifier.js:432 via decoder.js:70).",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 70,
+      "note": "Sync path input is token.slice(0, lastSeparator), the signing input"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 432,
+      "note": "Sync returns input from decoder"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 477,
+      "note": "Async returns input: token, the full token including signature"
+     }
+    ],
+    "guards_checked": "None relevant; this is a logic inconsistency, not an authorization check."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/verifier.js",
+    "line": 231,
+    "claim": "validateCrit skips all checks when crit is a falsy non-array value (false, 0, empty string, null), contrary to RFC 7515 \u00a74.1.11 which requires a non-empty array when crit is present.",
+    "source": "Attacker-supplied token header containing crit set to a falsy non-array value, validly signed by the issuer or on a verifier that does not require signature.",
+    "sink": "Acceptance of a token the spec requires to be rejected (protected operation: critical-extension enforcement).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 291,
+      "note": "validateCrit(header, allowedCritHeaders) called after signature check"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 231,
+      "note": "if (!header.crit) return skips validation for falsy crit values"
+     }
+    ],
+    "guards_checked": "Signature check runs first (verifier.js:288). Non-empty-array and string-entry checks (verifier.js:234-241) are bypassed for falsy values. Impact requires the application to rely on crit semantics."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "src/utils.js",
+    "line": 46,
+    "claim": "With caching enabled, a Buffer token causes an uncaught TypeError because hashToken calls token.split, which Buffer lacks. Availability issue only.",
+    "source": "Caller passes a raw Buffer token (accepted at verifier.js:361) to a verifier with cache enabled.",
+    "sink": "Synchronous exception from cache key construction (verifier.js:372), bypassing the callback in async mode.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 361,
+      "note": "Buffer tokens accepted by the type check"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 372,
+      "note": "cacheKeyBuilder(token) called before decode when cache is enabled"
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "hashToken calls token.split('.', 1), which is undefined on Buffer, so a TypeError is thrown"
+     }
+    ],
+    "guards_checked": "Type check at verifier.js:361 permits Buffers. No Buffer-to-string conversion before the cache lookup."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "src/verifier.js",
+    "line": 383,
+    "claim": "Cached success payloads are stored and returned by reference. If application code mutates decoded claims, the mutation persists in the cache and is visible to later verifications of the same token until expiry.",
+    "source": "Application code mutating the object returned by verify.",
+    "sink": "Shared cached object returned to subsequent callers (verifier.js:383, stored at verifier.js:144 and 432/477).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 432,
+      "note": "Sync success stores the payload reference in the cache via cacheSet"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 144,
+      "note": "cache.set stores the same object reference"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 383,
+      "note": "Later cache hit returns the same mutated object"
+     }
+    ],
+    "guards_checked": "No copy or freeze of the cached value. Depends entirely on application mutation behaviour."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F8",
+    "file": "src/verifier.js",
+    "line": 72,
+    "claim": "Claim RegExp matchers (allowedAud, allowedIss, etc.) are applied unanchored, and the ReDoS check only emits a warning while still using the unsafe pattern. An unanchored pattern can match attacker-chosen substrings such as evil.example.com.attacker.",
+    "source": "Attacker-controlled aud or iss claim in a validly signed token (e.g. from a tenant or client they control), or a crafted value under an unsafe pattern.",
+    "sink": "Claim validation acceptance (verifier.js:201 validateClaimValues) of a token whose audience or issuer should be rejected; ReDoS on attacker-supplied claim value.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 72,
+      "note": "RegExp wrapped with an unanchored test()"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 653,
+      "note": "allowedJti/aud/iss/sub/nonce matchers pushed as validators"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 201,
+      "note": "validateClaimValues accepts if any matcher matches any value"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 597,
+      "note": "Only a ReDoS warning is emitted; no anchoring requirement"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 54,
+      "note": "safeRegex check emits a warning but does not refuse the pattern"
+     }
+    ],
+    "guards_checked": "Signature check (verifier.js:177) and claim type checks (verifier.js:182-194) run first. Safe-regex check is warn-only. No anchoring enforcement. Requires application to use RegExp matchers and an attacker holding a validly signed token."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F9",
+    "file": "src/signer.js",
+    "line": 113,
+    "claim": "The signer's header option is spread after alg, typ and kid, so additionalHeader can override the alg recorded in the header while the signature uses the configured algorithm. If user-controlled header values reach the signer, an attacker can emit tokens with mismatched alg, kid, jku, or x5u.",
+    "source": "Application passing user-controlled values into createSigner's header option.",
+    "sink": "Emitted token header (signer.js:113-118 -> encoded at 154-161 and 195-200) with an alg that differs from the signing algorithm.",
+    "trace": [
+     {
+      "file": "src/signer.js",
+      "line": 113,
+      "note": "header built as {alg, typ, kid, ...additionalHeader}, so additionalHeader wins"
+     },
+     {
+      "file": "src/signer.js",
+      "line": 159,
+      "note": "Signature computed with the configured algorithm, not header.alg"
+     },
+     {
+      "file": "src/signer.js",
+      "line": 200,
+      "note": "Async path signs with the configured algorithm as well"
+     }
+    ],
+    "guards_checked": "Type check that header is an object (signer.js:335-337). No key or alg protection against overrides. Only relevant if the application passes user-controlled header values."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,79 @@
+{
+ "arm": "P",
+ "repo": "az-py-ignored",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.004541750000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-eh6u7xqt/r/docs.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "authz-update-doc-unchecked",
+    "file": "docs.py",
+    "line": 19,
+    "claim": "update_doc never enforces edit permission: the result of can_edit(g.user, doc) is discarded, so any caller whose g.user is set can overwrite the body of any document, including documents they neither own nor edit.",
+    "source": "doc_id URL segment (docs.py:16) and the JSON body field request.json['body'] (docs.py:20), supplied by any HTTP client that can reach PUT /doc/<doc_id>.",
+    "sink": "doc['body'] assignment at docs.py:20, which mutates stored document content without an authorization check.",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 16,
+      "note": "Route PUT /doc/<doc_id> dispatches to update_doc with attacker-controlled doc_id."
+     },
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "doc = DOCS[doc_id] loads the target document (KeyError for unknown IDs gives a 500, not a bypass)."
+     },
+     {
+      "file": "docs.py",
+      "line": 19,
+      "note": "can_edit(g.user, doc) is called but its boolean result is ignored; no abort(403) or require_edit call follows."
+     },
+     {
+      "file": "docs.py",
+      "line": 20,
+      "note": "doc['body'] = request.json['body'] writes attacker-supplied content unconditionally."
+     },
+     {
+      "file": "docs.py",
+      "line": 21,
+      "note": "Returns jsonify(ok=True), confirming success to the caller."
+     },
+     {
+      "file": "docs.py",
+      "line": 7,
+      "note": "can_edit computes owner==user or user in editors, so the correct decision is available but unused on this path."
+     },
+     {
+      "file": "docs.py",
+      "line": 27,
+      "note": "Contrast: update_title calls require_edit(g.user, doc), which aborts 403 (docs.py:11-13); the same check is missing from update_doc."
+     }
+    ],
+    "guards_checked": "can_edit is computed but not enforced (docs.py:19); require_edit is not called in update_doc (docs.py:17-21); no before_request auth or ownership check exists in this file. g.user is never set in this repo, so if it is unset, line 19 raises AttributeError and the request returns 500 before the write (fails closed in that case). Whether anonymous callers can reach the route depends on code outside this repository, which was not provided. Only docs.py (30 lines) exists in the repo; no tests or config were available to confirm intent."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. can_edit (docs.py:7) is computed at docs.py:19 but its bool is discarded as a bare statement. require_edit (docs.py:11-13) is not called in update_doc (docs.py:17-21). No before_request hook or ownership check exists in docs.py. The only incidental block is that g.user is unset in-repo, which raises AttributeError at docs.py:19 and returns a 500 before the write, but that is an accident of the missing user binding, not an authorization control.",
+    "reason": "update_doc at docs.py:19 calls can_edit(g.user, doc) as a bare statement, so its False result never reaches an abort(403) and docs.py:20 writes doc[\"body\"] unconditionally, unlike update_title which uses require_edit at docs.py:27. Any request that reaches this route with g.user set, which is the normal state for an authenticated caller, can overwrite a document it does not own or edit; the exact reachable role depends on upstream auth code not in this repo."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00247584
+}

@@ -1,0 +1,108 @@
+{
+ "arm": "B",
+ "repo": "mx-py-alias",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.0575911,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 18,
+    "claim": "Authorization bypass on DELETE. `is_allowed` (returns a bool) is imported under the name `require_allowed`, so the name suggests it enforces. The return value is discarded and no 403 is raised. Any caller can delete any file.",
+    "source": "Any HTTP client sending DELETE /files/<fid> with any or no X-Session-User-Verified header. The fid must exist in STORE.",
+    "sink": "del STORE[fid] at views.py:19",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 4,
+      "note": "`from acl import is_allowed as require_allowed` aliases the boolean predicate to an enforcement-sounding name"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "f = STORE[fid] fetches the resource with no ownership check"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "require_allowed(g.user, f, \"delete\") returns False but the result is ignored; nothing aborts"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "del STORE[fid] runs unconditionally"
+     },
+     {
+      "file": "acl.py",
+      "line": 4,
+      "note": "is_allowed only returns a bool; it does not abort. ensure_allowed at acl.py:8 is the version that aborts, and rename_file uses it"
+     }
+    ],
+    "guards_checked": "Checked for abort/raise in the delete handler (none). Checked acl.is_allowed (returns bool only). Checked before_request (only sets g.user, no auth enforcement). Compared with rename_file, which correctly uses ensure_allowed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: acl.is_allowed returns a bool only (acl.py:4-5) and its result is discarded at views.py:18; before_request only sets g.user (views.py:10-12); ensure_allowed (acl.py:8-10) aborts but is used only in rename_file",
+    "reason": "views.py:18 calls require_allowed, which is the aliased bool-returning is_allowed (views.py:4, acl.py:4), as a bare statement, so del STORE[fid] at views.py:19 runs for any unauthenticated caller, unlike rename_file which uses ensure_allowed at views.py:26."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: acl.is_allowed (acl.py:4) returns a bool only; before_request load_user (views.py:10-12) only sets g.user; no abort in delete_file",
+    "reason": "views.py:4 aliases bool-returning is_allowed (acl.py:4) as require_allowed, views.py:18 discards its result, and views.py:19 deletes unconditionally, unlike rename_file which uses aborting ensure_allowed (views.py:26, acl.py:10); any client, even anonymous, can delete an existing file."
+   }
+  },
+  {
+   "finding": {
+    "file": "views.py",
+    "id": "F2",
+    "line": 12,
+    "claim": "Authentication is based on a client-supplied header. g.user is taken verbatim from X-Session-User-Verified, with no session, signature or proxy-trust check. An attacker can impersonate any user named in a resource's grants and pass the ACL checks. This includes the rename endpoint, which does enforce ACLs.",
+    "source": "The X-Session-User-Verified request header, set to any value",
+    "sink": "ensure_allowed at views.py:26, then f[\"name\"] = request.json[\"name\"] at views.py:27 (also the delete handler)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user = request.headers.get(\"X-Session-User-Verified\") is attacker-controlled"
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "ensure_allowed(g.user, f, \"write\") trusts that identity"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "The grants lookup is keyed on the spoofed username string"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "The resource is modified as the impersonated user"
+     }
+    ],
+    "guards_checked": "No authentication middleware, token verification or session lookup exists in the code. Nothing strips the header at the app level. A fronting proxy that overwrites the header could mitigate this, but none is visible in the repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "ensure_allowed (acl.py:8-10) aborts 403 if the user lacks the grant, but it is keyed on the spoofed g.user. Nothing in the repo verifies or strips the header, and no proxy config is visible. The delete handler's require_allowed is an alias of is_allowed (views.py:4), which returns a bool that views.py:18 discards, so delete has no effective guard at all.",
+    "reason": "views.py:12 sets g.user from the client-controlled X-Session-User-Verified header and views.py:26 passes it to ensure_allowed (acl.py:5, 9-10), so any anonymous caller who knows a grantee name passes the write check and reaches views.py:27. One correction: the delete handler is worse than described, because views.py:18 discards the bool from is_allowed, so DELETE is unauthorized even without spoofing."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Upstream trusted identity middleware (per maintainer facts) is presumed to supply the X-Session-User-Verified header. Within the code, ensure_allowed (acl.py:8-10) aborts 403 on rename. The delete handler's require_allowed is actually is_allowed (views.py:4, 18), which returns a bool that is discarded.",
+    "reason": "The trace lines are accurate (views.py:12, 26, 27; acl.py:5), but the maintainer states request identity is populated by trusted upstream middleware, and the header name \"X-Session-User-Verified\" is consistent with a proxy-set value, so header spoofing at views.py:12 is out of scope; the real, separate bug is views.py:18, where the bool result of the aliased is_allowed is discarded and any caller can delete."
+   }
+  }
+ ],
+ "verify_cost": 0.06875110000000001,
+ "verify_facts_cost": 0.06868060000000001
+}

@@ -1,0 +1,134 @@
+{
+ "arm": "A",
+ "repo": "az-node-authorize",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.00518348,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-53yvsf2y/r/api.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "DELETE /projects/:id has no effective authorization. authorized() returns a boolean that is discarded, so any authenticated user can delete any project by ID, including projects owned by others and admins' projects.",
+    "source": "Attacker-controlled req.params.id, plus any caller with a req.user object (no ownership required)",
+    "sink": "req.store.projects.delete(project.id) at api.js:19 (destructive write)",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 16,
+      "note": "router.delete('/projects/:id') registered with no authorization middleware"
+     },
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "project loaded by attacker-supplied req.params.id"
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "authorized(req.user, project) called but its boolean result is discarded, so it is a no-op"
+     },
+     {
+      "file": "api.js",
+      "line": 19,
+      "note": "project deleted regardless of ownership"
+     },
+     {
+      "file": "api.js",
+      "line": 20,
+      "note": "responds 204"
+     }
+    ],
+    "guards_checked": "authorized() at api.js:12-14 is computed and ignored (line 18). authorize() at api.js:4-10 throws on failure but is not called on this route (the PUT route at api.js:25 does call it). No route-level or middleware authorization is visible in this directory; mounting code and auth middleware are unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "authorized() at api.js:12-14 is called at api.js:18 but its boolean result is discarded, so it blocks nothing. authorize() at api.js:4-10 is never called on the DELETE route (only on the PUT route at api.js:25). No route-level or middleware auth is registered on the DELETE route at api.js:16. The directory contains only api.js, so the mounting code and any upstream auth middleware are not visible.",
+    "reason": "The DELETE handler at api.js:16-21 calls authorized() at api.js:18 as a bare statement, so its false result never stops the delete at api.js:19, while the same file's PUT route at api.js:25 does call the throwing authorize(); the attacker needs only an authenticated req.user, which is the assumed precondition. Residual uncertainty is limited to unseen upstream middleware, which would have to enforce ownership on this path to change the verdict."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "api.js",
+    "line": 5,
+    "claim": "The admin check is inconsistent between helpers. authorize() uses a truthy test (!user.isAdmin), so a truthy non-boolean isAdmin grants admin. authorized() uses a strict check (=== true).",
+    "source": "req.user.isAdmin value (precondition: can be a truthy non-boolean, e.g. the string 'false')",
+    "sink": "Owner-check bypass in authorize() at api.js:5, which gates PUT /projects/:id/name at api.js:25",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 5,
+      "note": "authorize() grants access when !user.isAdmin is false, i.e. when isAdmin is any truthy value"
+     },
+     {
+      "file": "api.js",
+      "line": 13,
+      "note": "authorized() uses strict === true, so the two helpers disagree"
+     },
+     {
+      "file": "api.js",
+      "line": 25,
+      "note": "PUT name route calls authorize() and relies on the truthy admin check"
+     }
+    ],
+    "guards_checked": "Strict boolean check in authorized() at api.js:13 (not used on the PUT route). Where req.user is built and whether isAdmin is always boolean is outside this directory and unverified."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "The only control on the PUT /projects/:id/name path is the ownership test in authorize() at api.js:5 (throws 403 unless resource.ownerId === user.id or user.isAdmin is truthy). The strict === true check at api.js:13 is in authorized(), which the PUT route does not call. Nothing else in this directory validates req.user or isAdmin.",
+    "reason": "The trace matches the code: authorize() at api.js:5 uses a truthy test while authorized() at api.js:13 uses === true, and the PUT route at api.js:25 calls authorize(). The bypass needs req.user.isAdmin to be a truthy non-boolean (for example the string 'false'), and where req.user is built is not in this directory, so that precondition cannot be checked here. An authenticated user with a boolean isAdmin of false is correctly blocked by api.js:5."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "api.js",
+    "line": 5,
+    "claim": "The owner check in authorize() passes when both ownerId and user.id are undefined, so an ownerless project may be accessible to a user object with no id.",
+    "source": "Precondition: project record has no ownerId AND req.user has no id",
+    "sink": "Owner-check bypass in authorize() at api.js:5, gating PUT /projects/:id/name at api.js:25",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 5,
+      "note": "resource.ownerId !== user.id evaluates undefined !== undefined as false, so the check passes"
+     },
+     {
+      "file": "api.js",
+      "line": 25,
+      "note": "PUT name route relies on authorize() for the owner check"
+     }
+    ],
+    "guards_checked": "No null or undefined guard on ownerId or user.id. Data model and auth layer are outside this directory and unverified."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "No null/undefined guard in api.js. The check at api.js:5 short-circuits on `resource.ownerId !== user.id` being false when both are undefined, so `!user.isAdmin` is never evaluated and nothing throws. The only other control, `authorized()` at api.js:12-13, is not called on the PUT path; api.js:18 calls it as a bare statement and discards its result, but that is the DELETE route, not this one.",
+    "reason": "The trace is accurate: api.js:5 evaluates `undefined !== undefined` as false and so passes, and api.js:25 gates the PUT /projects/:id/name route on it. Whether the precondition is reachable depends on the auth middleware (which sets req.user without an id) and the data model (which creates projects without ownerId), and both live outside this directory, so reachability cannot be decided from api.js alone."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0061653
+}

@@ -1,0 +1,98 @@
+{
+ "arm": "A",
+ "repo": "lg-php-token",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.046387,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "Password reset token is checked with loose comparison (==). If the stored token is a numeric-looking string such as '0e12345', any other '0e...' string (or a numeric equivalent like '0') compares equal. On PHP < 8, a JSON-decoded int 0 also equals any non-numeric stored token. An attacker can then reset any account's password without the real token.",
+    "source": "Attacker-supplied $email and $token arguments (presumably from a password-reset request). The attacker only needs a victim's email and a reset to have been requested.",
+    "sink": "UPDATE users SET pw = ... WHERE email = ... (line 5-6), which sets the victim's password to the attacker's chosen value.",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 2,
+      "note": "reset_password_loose receives attacker-controlled $email, $token, $new"
+     },
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "Loads the stored token for the victim's email"
+     },
+     {
+      "file": "reset.php",
+      "line": 4,
+      "note": "$row['token'] == $token uses loose type-juggling comparison, with no timing-safe or strict check"
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "The password hash is overwritten, giving account takeover"
+     }
+    ],
+    "guards_checked": "Checked for strict comparison, hash_equals, type casting, token expiry, attempt rate limiting and caller-side validation. None exist in this function. The sibling reset_password() uses hash_equals with a string cast, but this function is a separate exported entry point that remains exploitable if called. The other source files are absent, so the callers cannot be checked."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in reset_password_loose; the sibling reset_password (reset.php:14) uses hash_equals with a (string) cast, but nothing in the code shows that the loose function is the one called",
+    "reason": "The loose `==` at reset.php:4 is real and unguarded (no expiry, rate limit or strict check), but exploitation depends on unseen callers and runtime facts. Those are whether the function is reachable, whether $token can arrive as int 0 (only exploitable on PHP < 8), and whether stored tokens can be \"0e\u2026\" numeric strings; reset.php is the only file here, so none of these can be checked."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in reset_password_loose; no strict comparison, hash_equals, string cast, expiry or rate limit. Only the sibling reset_password (reset.php:14) is hardened, and it is a separate function.",
+    "reason": "reset.php:4 uses `==` on the stored token and the attacker-supplied $token with no guard before the password UPDATE at reset.php:5-6, so an anonymous attacker can take over an account when type juggling matches (e.g. int 0 from JSON on PHP<8, a \"0e\u2026\" stored token, or a NULL or empty stored token against \"\"), although exploitability depends on the caller and the token format."
+   }
+  },
+  {
+   "finding": {
+    "file": "reset.php",
+    "line": 14,
+    "id": "F2",
+    "claim": "Reset tokens have no expiry and are not invalidated after a successful reset, in both reset functions. A token that leaks or was issued earlier stays valid and can be replayed to reset the password again. Nothing limits guessing attempts. If the table holds several rows per email, only the first row is checked.",
+    "source": "Attacker-held or leaked reset token, or repeated guesses of $token for a known $email.",
+    "sink": "UPDATE users SET pw = ... (lines 15-16)",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 13,
+      "note": "Selects the token by email only, with no expiry or created_at condition and no ORDER BY, so any row may be returned"
+     },
+     {
+      "file": "reset.php",
+      "line": 14,
+      "note": "Compares the token only; there is no attempt counter"
+     },
+     {
+      "file": "reset.php",
+      "line": 15,
+      "note": "Updates the password but never DELETEs or marks the reset row as used"
+     }
+    ],
+    "guards_checked": "Looked for expiry-column checks, a DELETE of the resets row after use, attempt limiting and transaction or locking. None are present in this file. Callers are not available, so any external rate limiting cannot be ruled out."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only hash_equals constant-time compare at reset.php:14, and a loose == in reset_password_loose at line 4; no expiry, single-use deletion, attempt limit or locking)",
+    "reason": "reset.php:13 selects the token by email only with no expiry condition, and neither reset.php:15-16 nor reset.php:5-6 deletes or marks the row as used, so a leaked or old token can be replayed by an anonymous caller. External rate limiting in callers can't be checked, but the missing expiry and missing invalidation are in this file."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "reset.php:13-16 (and the loose twin at 3-6) selects the token by email with no expiry or ORDER BY, compares it with no attempt limit, then updates users.pw and never deletes or marks the resets row, so an anonymous caller holding a leaked token can replay it."
+   }
+  }
+ ],
+ "verify_cost": 0.0649396,
+ "verify_facts_cost": 0.06550260000000001
+}

@@ -1,0 +1,217 @@
+{
+ "arm": "A",
+ "repo": "cl-py-authz",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00546483,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-s2561pht/r/notes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Note-ID existence oracle (low). A missing note raises an unhandled KeyError (500), while an existing note the caller cannot view returns 403, so an attacker can enumerate valid note IDs. The same pattern appears at lines 34 and 43.",
+    "source": "Path parameter <nid> on GET /n/<nid> (attacker-controlled, notes.py:25-26).",
+    "sink": "NOTES[nid] lookup at notes.py:27 (also :34, :43), which raises KeyError for unknown IDs.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 25,
+      "note": "Route /n/<nid> accepts any string as nid."
+     },
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "NOTES[nid] raises KeyError when nid is absent; there is no .get() or 404 handling."
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view runs only after a successful lookup, so the 403 path is reached only for existing notes."
+     },
+     {
+      "file": "notes.py",
+      "line": 13,
+      "note": "abort(403) for existing notes the caller cannot view."
+     }
+    ],
+    "guards_checked": "No guard on the missing-key path. require_view (notes.py:11-13) runs only after the lookup succeeds, so 500 vs 403 separates existing from missing IDs. Not an authz bypass: access to note contents is still blocked."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the missing-key path. notes.py:27, 34 and 43 index NOTES[nid] directly with no .get() or 404 handling. require_view (notes.py:11-13) and require_edit (notes.py:20-22) run only after that lookup succeeds, so they cannot change the outcome for a missing ID. Nothing in notes.py sets g.user or adds a before_request check.",
+    "reason": "At notes.py:27 an unknown nid raises KeyError, which Flask returns as a 500, while an existing note the caller cannot view hits abort(403) at notes.py:13, so the response code separates existing from missing IDs; the same pattern holds at notes.py:34 and :43. The attacker only needs to reach the route with some identity, and that the oracle exists does not depend on anything outside this file. Severity is low because contents remain protected by the 403."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "Logic flaw: no revocation (medium if revocation is a product requirement). The shared list is append-only. No route removes a user, and can_view keeps granting access indefinitely, so an owner cannot revoke a collaborator's access.",
+    "source": "Owner's POST /n/<nid>/share body (request.json['user']) at notes.py:45.",
+    "sink": "Persistent grant: n['shared'].append at notes.py:45, consulted by can_view at notes.py:8 for read at notes.py:26-29.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "POST /n/<nid>/share route."
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit: only the owner may share."
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "User appended to shared; there is no matching remove operation."
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view grants access while the user remains in shared, with no expiry or revocation."
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "read enforces can_view, so the grant persists for every subsequent read."
+     }
+    ],
+    "guards_checked": "require_edit (notes.py:20-22, :44) correctly restricts sharing to the owner, and can_view (notes.py:7-8) correctly gates reads. The issue is the absence of any revoke path, not a bypass."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22, called at notes.py:44) restricts POST /n/<nid>/share to the owner. can_view (notes.py:7-8) and require_view (notes.py:11-13, called at notes.py:28) gate reads. None of these is bypassed, but no code path removes a user from n[\"shared\"], so grants persist.",
+    "reason": "Every trace line matches the code (route at notes.py:41, owner-only require_edit at :44, append at :45, can_view at :8, require_view at :28), but the file has no bypass and no attacker: the only actor affected is the owner, who already controls sharing. The missing revoke path (no removal in notes.py:41-46) is a feature gap that becomes a security issue only if a revocation requirement exists, and nothing in the code states one, so this is not a confirmed vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "Unvalidated, unbounded collaborator input (low). request.json['user'] is appended without type checks, validation that the user exists, or dedupe. Repeated calls grow the list without limit, and read responses (line 29) grow with it.",
+    "source": "Owner-supplied JSON field 'user' in POST /n/<nid>/share (notes.py:45).",
+    "sink": "n['shared'].append at notes.py:45; the growing list is serialized by jsonify(n) at notes.py:29.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 42,
+      "note": "share handler receives the request."
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit: owner only."
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "Unchecked value appended; duplicates and non-string types are accepted."
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "Full note, including the growing shared list, is returned to every viewer."
+     }
+    ],
+    "guards_checked": "Owner-only check at notes.py:44. Input is not validated, deduplicated, or size-capped anywhere in the file. Impact is limited to the owner's own note but enables memory and response-size growth."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "notes.py:44 require_edit (notes.py:20-22) restricts the share endpoint to the note owner; the appended value is not validated, deduplicated, or capped anywhere in notes.py. The owner-only check is the effective control, and it blocks everyone except the owner.",
+    "reason": "The trace is accurate (notes.py:42-45 and 29), but the only actor who can reach the append is the note owner, enforced by require_edit at notes.py:44 and defined at notes.py:20-22. That owner can already write an unbounded `body` through PUT at notes.py:37, so the growth of `shared` gives them no power they lack, and it can only hurt their own note. At most this is a hardening note about missing input validation, not a vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "notes.py",
+    "line": 29,
+    "claim": "Information disclosure (low, possibly intended). read returns the whole note, including owner and the full shared list, to any user who can view it, so every collaborator can see who else has access.",
+    "source": "Any authorized viewer's GET /n/<nid> (notes.py:26).",
+    "sink": "jsonify(n) response at notes.py:29, which serializes owner and shared.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read route."
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view: owner or listed collaborator passes."
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "Entire note dict, including 'owner' and 'shared', is serialized."
+     }
+    ],
+    "guards_checked": "require_view (notes.py:11-13, :28) gates access to the note. No field filtering exists, so collaborator identities leak to other collaborators. Not an unauthorized-access bypass."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_view (notes.py:11-13, called at notes.py:28) only checks that the caller is the owner or in note[\"shared\"]. No field filtering exists, so jsonify(n) at notes.py:29 returns owner and shared to any caller who passes that check.",
+    "reason": "The trace matches the code: notes.py:28 gates on can_view, and notes.py:29 serializes the whole note including owner and shared, so any collaborator can read the full access list. The attacker is an already-authorized collaborator and the membership list is not shown to be something they already control, so this is a real but low-severity disclosure; whether it is a defect depends on whether membership is meant to be confidential between collaborators, which the code does not say."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "notes.py",
+    "line": 37,
+    "claim": "Resource exhaustion (low). The PUT body is stored with no length or schema validation, and the file sets no request size limit, so a note owner can push arbitrarily large bodies into process memory across many notes.",
+    "source": "Owner's PUT /n/<nid> JSON body field 'body' (notes.py:37).",
+    "sink": "n['body'] assignment at notes.py:37 into the in-process NOTES store.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 33,
+      "note": "PUT route."
+     },
+     {
+      "file": "notes.py",
+      "line": 35,
+      "note": "can_edit: owner only; non-owners get 403."
+     },
+     {
+      "file": "notes.py",
+      "line": 37,
+      "note": "request.json['body'] stored unbounded in NOTES (in-memory global dict)."
+     }
+    ],
+    "guards_checked": "can_edit (notes.py:16-17, :35) restricts writes to the owner. No MAX_CONTENT_LENGTH or size check exists in this file. Any app-level limit set elsewhere is unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "can_edit (notes.py:16-17) is a bool check used in an if/abort at notes.py:35-36, so it restricts writes to the owner but does not limit size. No MAX_CONTENT_LENGTH, body-length check, or schema validation exists in notes.py, and no other file is present to set one. The assignment at notes.py:37 runs unbounded.",
+    "reason": "notes.py:37 stores request.json[\"body\"] with no size check, and the only guard (can_edit, notes.py:35-36) limits writes to the note owner, not to a bounded size, so any authenticated owner can push arbitrarily large bodies into the global NOTES dict at notes.py:4. Impact is low: the attacker must already own a note, and any server-level body limit lives outside this file and could not be verified."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01055064
+}

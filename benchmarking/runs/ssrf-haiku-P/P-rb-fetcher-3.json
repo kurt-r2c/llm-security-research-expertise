@@ -1,0 +1,95 @@
+{
+ "arm": "P",
+ "repo": "rb-fetcher",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.0062090800000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-opvgl30g/r/app.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.rb",
+    "line": 8,
+    "claim": "The /rss route passes the attacker-controlled query parameter u directly to URI.open and returns the first 400 bytes of the response, giving non-blind SSRF to any host, port, or scheme open-uri accepts, including internal services and cloud metadata endpoints.",
+    "source": "params[:u] from the HTTP query string of GET /rss, supplied by any unauthenticated client (app.rb:8).",
+    "sink": "URI.open(params[:u]).read at app.rb:8, an outbound HTTP/HTTPS/FTP request to an attacker-chosen URL.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "get \"/rss\" route handler begins."
+     },
+     {
+      "file": "app.rb",
+      "line": 8,
+      "note": "params[:u] is passed unchanged to URI.open, which performs the outbound request, and .read pulls the full body."
+     },
+     {
+      "file": "app.rb",
+      "line": 9,
+      "note": "data[0, 400] returns the first 400 bytes of the fetched response to the caller, so the SSRF is non-blind."
+     }
+    ],
+    "guards_checked": "None. No scheme, host, port, or IP validation exists on this path. open-uri follows HTTP redirects by default, so an allowlist would also need per-redirect checks. Adjacent, not SSRF: strings without a URL scheme fall back to Kernel#open, which may allow local file reads (for example u=/etc/passwd). This was not verified by running Ruby."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.rb:7-9 matches the claim: get \"/rss\" takes params[:u] unchanged into URI.open(...).read (line 8) and returns data[0, 400] (line 9), so the response is non-blind. The only input is the unauthenticated query string, and nothing on this route validates scheme, host, or IP. The TRUSTED check at app.rb:14 belongs to the separate /trusted route and does not apply here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.rb",
+    "line": 15,
+    "claim": "The /trusted route checks only uri.host against an exact-match allowlist. The port and scheme are not restricted, so a client can reach any port on feeds.example.net or news.example.net and receive the full response body.",
+    "source": "params[:u] from the HTTP query string of GET /trusted, supplied by any unauthenticated client (app.rb:13).",
+    "sink": "Net::HTTP.get(uri) at app.rb:15, an outbound request to the attacker-chosen port on an allowlisted host, with the full body returned.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 13,
+      "note": "params[:u].to_s is parsed with URI.parse; the port and scheme are left unvalidated."
+     },
+     {
+      "file": "app.rb",
+      "line": 14,
+      "note": "TRUSTED.include?(uri.host) is an exact match against feeds.example.net and news.example.net (TRUSTED at app.rb:5); anything else returns 400."
+     },
+     {
+      "file": "app.rb",
+      "line": 15,
+      "note": "Net::HTTP.get(uri) connects to uri.port on the allowlisted host and returns the full body."
+     }
+    ],
+    "guards_checked": "Exact host match at app.rb:14 (case and trailing-dot variants fail closed). Userinfo tricks such as http://feeds.example.net@evil.com/ fail because uri.host is evil.com. Net::HTTP.get does not follow redirects. file:// and other hostless URIs are rejected. Not checked: port (any port is allowed), and scheme (ftp:// is sent as plain HTTP to port 21). DNS rebinding was dropped because the attacker cannot control DNS for the allowlisted names. Impact is limited to these two hosts, and its severity depends on whether they expose internal services on other ports."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.rb:14 \u2014 `TRUSTED.include?(uri.host)` is an exact-match membership check on the parsed hostname against feeds.example.net and news.example.net (TRUSTED at app.rb:5). Per the verification rubric, exact hostname set membership closes the finding.",
+    "reason": "The trace lines at app.rb:13, 14, and 15 are accurate and the source at app.rb:13 is attacker-controlled, but the exact hostname allowlist at app.rb:14 is a closing guard under the rubric, so the claimed SSRF is refuted. The residual port and scheme freedom (any port on the two allowlisted hosts, and ftp:// sent as HTTP) is not an SSRF to an attacker-chosen host under the stated criteria. It is worth flagging separately as a hardening issue if those hosts expose services on other ports."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00415924
+}

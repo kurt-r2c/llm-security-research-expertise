@@ -1,0 +1,110 @@
+{
+ "arm": "A",
+ "repo": "inj-py-sql",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.00471421,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lkg9qb6w/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "sqli-search-q",
+    "file": "app.py",
+    "line": 12,
+    "claim": "Unauthenticated SQL injection in /search: the raw `q` query parameter is interpolated into an f-string SQL statement, letting an attacker close the LIKE string literal and append arbitrary SELECT clauses (e.g. UNION SELECT) to read any table in shop.db, such as user credentials.",
+    "source": "app.py:11 request.args.get(\"q\", \"\") (attacker-controlled HTTP query string, no authentication required)",
+    "sink": "app.py:12 db.execute(f\"SELECT id, name FROM products WHERE name LIKE '%{term}%'\") \u2014 string-built SQL executed against shop.db; rows returned verbatim via jsonify at app.py:13",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 11,
+      "note": "term = request.args.get(\"q\", \"\") \u2014 attacker controls the full value"
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "term is concatenated into the SQL text inside a single-quoted LIKE literal with no escaping or parameter binding"
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "db.execute runs the resulting statement on the shared sqlite3 connection"
+     },
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "fetchall() results are returned to the client as JSON, so injected UNION rows are visible to the attacker"
+     }
+    ],
+    "guards_checked": "No parameterization on this query (f-string used). No input validation, length limit, or allowlist on q. No escaping of quotes. No authentication or authorization decorator on the route. Checked the sqlite3 driver's behaviour: execute() rejects multiple statements, so stacked queries (e.g. DROP/INSERT after a semicolon) are blocked, but UNION-based and subquery-based reads are not blocked. Exploit example input (not executed, Bash unavailable): x%' UNION SELECT id, password_hash FROM users -- (the users table is assumed for illustration; its schema is not in the repo). Column count matches the two selected columns, so the UNION is structurally valid."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:11 reads q with no validation or allowlist. app.py:12 builds the SQL with an f-string and runs it with no parameter binding. The route at app.py:9 has no auth decorator, so the attacker is anonymous. app.py:13 returns fetchall() output as JSON, so injected UNION rows are visible to the caller.",
+    "reason": "The trace matches app.py:11-13: the anonymous attacker-controlled q (app.py:11) is interpolated unescaped into the LIKE literal (app.py:12) and the results are returned verbatim (app.py:13), with no effective control between them. The exact table named in the exploit (users) is not in the repo, but the injection itself is real and would read any table in shop.db."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "missing-authz-all-routes",
+    "file": "app.py",
+    "line": 24,
+    "claim": "No authentication or authorization anywhere in the app. /by-owner lets any anonymous caller enumerate products for an arbitrary owner value, which is a plausible information-disclosure issue if owner identity or product ownership is meant to be private. Confidence is low because the schema and intended access model are not in the repo.",
+    "source": "app.py:24 request.args.get(\"owner\", \"\") (attacker-controlled, unauthenticated)",
+    "sink": "app.py:25 db.execute(\"SELECT id, name FROM products WHERE owner = ?\", (owner,)) \u2014 protected data is products rows filtered by owner, returned at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 9,
+      "note": "/search route has no auth decorator or before_request hook"
+     },
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "/by-owner route has no auth decorator or before_request hook"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "owner is taken from the query string with no check that the caller is that owner"
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "query is parameterized, so this is an access-control issue, not injection"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "matching rows are returned to the anonymous caller"
+     }
+    ],
+    "guards_checked": "Query is parameterized (no SQLi here). No session, token, or ownership check exists in the file or on any route. Cannot determine from the repo whether products or owner values are sensitive, so this is a candidate for the team to confirm, not a confirmed defect."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. No auth decorator, before_request hook, session, or ownership check exists in app.py. The only control is the parameterized query at app.py:25, which blocks injection but not access. The repo has only app.py, with no schema, no shop.db, and no access-model docs.",
+    "reason": "The trace is accurate: app.py:24 takes owner from the query string, app.py:25 filters products by it with no check, and app.py:26 returns the rows to an anonymous caller. Whether this is a vulnerability depends on whether product-to-owner mappings are meant to be private, and the repo does not show that intended access model, so it cannot be confirmed or refuted from the code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00420168
+}

@@ -1,0 +1,126 @@
+{
+ "arm": "A",
+ "repo": "h1-py-helper",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.00607638,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 3,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-tmxi388q/r/views.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-tmxi388q/r/validators.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 fetches an attacker-supplied URL server-side with only a scheme check, enabling SSRF to loopback, RFC1918, link-local/metadata addresses, with redirects followed and the response body returned to the caller.",
+    "source": "views.py:19 request.args.get(\"url\")",
+    "sink": "views.py:22 requests.get(url, timeout=5)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url read from query string, unnormalized"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) gate"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "returns urlparse(url).scheme in (http, https); only check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) follows redirects by default; response text[:200] returned to attacker"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (http/https) only. No hostname, resolved-IP, port, or redirect-target validation."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. views.py:20-21 calls is_http_url, which at validators.py:7 is a scheme-only check (urlparse(url).scheme in (\"http\", \"https\")). No hostname, resolved-IP, or redirect check exists on the /fetch2 path. views.py:22 calls requests.get(url, timeout=5) with redirects left at the default (allowed for GET), and views.py:22 returns .text[:200] to the caller. The closing check is_safe_url (validators.py:10-18) is used only by /fetch (views.py:12), not /fetch2. views.py has no before_request hook or middleware.",
+    "reason": "The source is request.args at views.py:19, which is unauthenticated, and the only gate before the sink at views.py:22 is the scheme-only is_http_url at validators.py:7, so loopback, RFC1918, and metadata addresses remain reachable with redirects followed and the body returned."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch validates the resolved IP once, then fetches the URL with a second DNS lookup; a DNS-rebinding attacker can return a public address at check time and an internal address at connect time, bypassing the private-IP check. Possible IPv4-mapped IPv6 bypass of the flag checks is unverified.",
+    "source": "views.py:11 request.args.get(\"url\")",
+    "sink": "views.py:14 requests.get(url, allow_redirects=False)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url read from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) gate"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse(url)"
+     },
+     {
+      "file": "validators.py",
+      "line": 12,
+      "note": "requires http/https scheme and hostname"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(hostname, port or 443): first DNS resolution"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "rejects if any address is private/loopback/link_local/reserved"
+     },
+     {
+      "file": "validators.py",
+      "line": 18,
+      "note": "returns True"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url) performs second DNS resolution at connect time; no IP pinning"
+     }
+    ],
+    "guards_checked": "Scheme allowlist; hostname required; all resolved addresses checked for private/loopback/link-local/reserved; allow_redirects=False; timeout=5. Missing: resolve-once/connect-to-validated-IP pinning. Unverified: ipaddress flags for IPv4-mapped IPv6 (::ffff:127.0.0.1) may not be caught."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none closing. validators.py:12 is a scheme and hostname check, and validators.py:14-17 is an IP-range check on a single getaddrinfo result. Neither is hostname set membership or an anchored match, so neither closes the finding under the rubric. views.py:14 uses allow_redirects=False, which blocks redirect-based bypass but not DNS rebinding.",
+    "reason": "The url comes from the unauthenticated query string at views.py:11, is_safe_url at views.py:12 resolves DNS once (validators.py:14) and only checks IP ranges, and requests.get at views.py:14 resolves the hostname again with no IP pinning, so a rebinding DNS answer can pass the check and reach an internal address. The IPv4-mapped IPv6 sub-claim is not verified here and is not needed for the verdict."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0042271900000000005
+}

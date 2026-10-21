@@ -1,0 +1,115 @@
+{
+ "arm": "C",
+ "repo": "mx-py-alias",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00680832,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": []
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 18,
+    "claim": "DELETE /files/<fid> has no effective authorization check. require_allowed is an alias for acl.is_allowed, which returns a bool and never aborts, so its result is discarded and any caller, including one with no identity header (g.user is None), can delete any file in STORE.",
+    "source": "Unauthenticated HTTP DELETE /files/<fid>. The request needs no X-Session-User-Verified header; g.user becomes None (views.py:12).",
+    "sink": "del STORE[fid] (views.py:19), a protected state-changing operation.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user = request.headers.get(...) returns None when the header is absent; nothing validates it."
+     },
+     {
+      "file": "views.py",
+      "line": 16,
+      "note": "delete_file(fid) is routed for DELETE with no auth decorator."
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "f = STORE[fid] loads any stored record; no ownership check."
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "require_allowed(g.user, f, 'delete') calls acl.is_allowed (aliased at views.py:4)."
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "is_allowed returns False for None or unlisted users because grants.get(user, []) is empty. It only returns a bool and does not abort."
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "The False return value is discarded. There is no if, raise, or abort, so execution continues."
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "del STORE[fid] runs, so the file is deleted."
+     }
+    ],
+    "guards_checked": "Checked acl.py:4-5 (is_allowed returns a bool, no abort), acl.py:8-10 (ensure_allowed is the only function that aborts, and views.py:18 does not use it), views.py:10-12 (before_request only assigns the header, no rejection of missing identity), and the absence of any auth decorator or other middleware on the route. The only effective control is the one that is missing. Impact is the same whether or not the header is set: any file can be deleted."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective. views.py:4 aliases is_allowed as require_allowed, and acl.py:5 returns a bool without aborting. views.py:18 discards that bool as a bare statement. The abort-capable ensure_allowed (acl.py:8-10) is imported at views.py:3 but never called on the DELETE route. views.py:10-12 only assigns g.user from the header and rejects nothing. The DELETE route at views.py:15 has no auth decorator.",
+    "reason": "The delete_file route at views.py:18 calls require_allowed, which is is_allowed (views.py:4), and acl.py:5 only returns a bool, so the result is discarded and views.py:19 deletes the file for any caller, including one with g.user None (views.py:12), with no effective check."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "views.py",
+    "line": 12,
+    "claim": "The user identity used for every authorization decision comes from a client-supplied request header that the code never verifies. Despite the name X-Session-User-Verified, nothing in this code verifies it. If the service is reachable without a trusted gateway that strips and re-sets this header, any client can impersonate any user.",
+    "source": "Attacker-controlled HTTP request header X-Session-User-Verified, for example X-Session-User-Verified: alice.",
+    "sink": "Authorization decisions in ensure_allowed (views.py:26, abort on failure) and the rename write at views.py:27, plus the delete check at views.py:18 once F1 is fixed.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user is set directly from the request header with no signature, token, or allowlist check."
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "ensure_allowed(g.user, f, 'write') treats the spoofed name as the principal."
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "The grants lookup is keyed on the spoofed name, so an attacker who sets the name of a user holding 'write' passes."
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "f['name'] is overwritten for the file."
+     }
+    ],
+    "guards_checked": "Checked views.py:10-12 for any verification of the header (none), any trust-boundary or gateway-stripping logic in this repo (none present), and whether a signature or session token backs the value (none). This is only exploitable if the deployment exposes the app without a gateway that strips and sets this header, which cannot be verified from these two files. The name suggests the authors assumed a verified upstream. Per the distributed authz guide, a header-trusted identity is a known anti-pattern unless every path to the backend goes through the gateway."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None verify the header. The only checks are the grants lookup in acl.py:4-5 (is_allowed) and the abort(403) in acl.py:8-10 (ensure_allowed), called at views.py:26. Both are effective, but they key on the unverified g.user, so they do not stop a spoofed identity. No gateway-stripping or signature logic exists in views.py or acl.py. The Glob shows only these two files in the repo.",
+    "reason": "views.py:12 sets g.user straight from the client-supplied X-Session-User-Verified header, and views.py:26 with acl.py:5-10 trusts that name for the 'write' grant, so any client that can reach the app without a header-stripping gateway can act as any granted user; the one assumption is direct reachability, which the repo cannot confirm. Separately, views.py:18 discards the bool from require_allowed (acl.py:4 returns a bool, does not abort), so the delete check is not enforced today."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0046970399999999995
+}

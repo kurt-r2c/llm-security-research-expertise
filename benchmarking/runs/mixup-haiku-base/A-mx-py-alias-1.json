@@ -1,0 +1,125 @@
+{
+ "arm": "A",
+ "repo": "mx-py-alias",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "61bf4c6b",
+ "status": "success",
+ "gen_cost": 0.00470557,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f3qu4094/r/acl.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f3qu4094/r/views.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "delete-missing-authz",
+    "file": "views.py",
+    "line": 18,
+    "claim": "delete_file ignores the boolean returned by is_allowed, so any caller (including unauthenticated, g.user=None) can delete any stored file.",
+    "source": "Any HTTP client sending DELETE /files/<fid> with no credentials; g.user is None when the X-Session-User-Verified header is absent (views.py:10-12).",
+    "sink": "del STORE[fid] (views.py:19), returning ok=True (views.py:20).",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 10,
+      "note": "before_request load_user runs for every request"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user = request.headers.get('X-Session-User-Verified'); None if absent"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "f = STORE[fid] loads the target"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "require_allowed(g.user, f, 'delete') called; return value discarded"
+     },
+     {
+      "file": "acl.py",
+      "line": 4,
+      "note": "is_allowed defined as a predicate returning bool, never aborting"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "returns 'delete' in grants.get(user, []); False for None or ungranted users"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "del STORE[fid] executes regardless of the check result"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "returns ok=True"
+     }
+    ],
+    "guards_checked": "is_allowed is a non-enforcing predicate and its result is ignored at views.py:18; ensure_allowed (acl.py:8-10, abort(403)) exists but is not used in delete_file (views.py:4 imports is_allowed under alias require_allowed); no login decorator, CSRF check, or ownership check in views.py."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "views.py:18 calls is_allowed (imported as require_allowed) as a bare statement, so its bool return is discarded; acl.py:4-5 is a non-aborting predicate; the enforcing helper ensure_allowed (acl.py:8-10, abort(403)) is imported at views.py:3 but not used in delete_file; no login decorator, CSRF, or ownership check exists in views.py or elsewhere in the directory (only views.py and acl.py present).",
+    "reason": "Anonymous DELETE /files/<fid> reaches del STORE[fid] at views.py:19 because the is_allowed result on views.py:18 is discarded, so no effective control blocks it; the trace matches views.py:10-20 and acl.py:4-5."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "header-identity-spoofing",
+    "file": "views.py",
+    "line": 12,
+    "claim": "Caller identity is taken from a client-settable X-Session-User-Verified header without any verification, so any client can impersonate any user if no trusted proxy strips and re-sets it.",
+    "source": "Request header X-Session-User-Verified, fully attacker-controlled when the app is directly reachable.",
+    "sink": "Authorization decisions using g.user: delete check (views.py:18) and rename check (views.py:26) via acl.py:5 grant lookup.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user copied from request header without signature or token validation"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "delete authorization keyed on g.user"
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "rename authorization keyed on g.user via ensure_allowed"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "grants.get(user) lookup trusts the supplied user string"
+     }
+    ],
+    "guards_checked": "None in the code shown. No signature, token, or trusted-source allow-list. Exploitability depends on deployment: only exploitable if no upstream layer strips inbound copies of the header and sets it itself. Unverifiable from this directory."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": false,
+    "guard_found": "None on the identity source: views.py:12 copies X-Session-User-Verified into g.user with no signature, token, or allow-list check. The rename path has one effective control, ensure_allowed (acl.py:8-10), which aborts with 403 when is_allowed (acl.py:5) is false, and views.py:26 uses its result correctly. The delete path has no effective control: views.py:18 calls require_allowed (is_allowed) as a bare statement, so its bool result is discarded and deletion proceeds for any caller.",
+    "reason": "views.py:12 trusts a client-supplied header as identity, and views.py:26 uses that identity via ensure_allowed (acl.py:8-10) to gate rename, so spoofing the header to a user with a grant bypasses it. Trace step views.py:18 is misdescribed: is_allowed is called as a bare statement with its result discarded, so delete is not gated by identity at all (a separate and stronger defect). Exploitability still depends on whether an upstream layer strips and re-sets the header, which is not visible in this directory, but the code shown has no such control."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0049683
+}

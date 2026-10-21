@@ -1,0 +1,112 @@
+{
+ "arm": "D",
+ "repo": "php-feed",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.011230470000000001,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Read": 3,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-www1mw2d/r/.claude/skills/security-research/infrastructure/SKILL.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-www1mw2d/r/import.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-www1mw2d/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated POST branch fetches an arbitrary attacker-supplied URL with file_get_contents and echoes the body length, enabling SSRF to internal hosts and cloud metadata endpoints.",
+    "source": "$_POST['feed'] (import.php:11-12), unauthenticated POST",
+    "sink": "file_get_contents($_POST['feed']) (import.php:12)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Branch condition checks REQUEST_METHOD === 'POST' && isset($_POST['feed']); no session or admin check on this path"
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "$_POST['feed'] passed directly to file_get_contents (source and sink on the same line)"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "Response returns strlen($xml), a body-length oracle; body itself is not returned"
+     }
+    ],
+    "guards_checked": "Authentication: none on this branch (require_admin only guards the webhook branch). URL allowlist, scheme restriction, hostname check: none. Redirects: PHP http stream wrapper follows redirects by default and the code does not disable this, so an external redirect can reach RFC-1918 or 169.254.169.254. Scheme: file:// and php:// are not blocked (local file read beyond SSRF; only length is returned). Severity HIGH because unauthenticated and length echo is a real return channel; blind-SSRF reading would be MEDIUM."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The POST branch at import.php:11 has no session or admin check, and $_POST['feed'] goes straight to file_get_contents at import.php:12. require_admin (import.php:4-9) is only called on the webhook branch at import.php:18. No URL, host, or scheme validation exists anywhere in the file.",
+    "reason": "The trace is accurate: import.php:11-12 passes unauthenticated $_POST['feed'] directly to file_get_contents, and import.php:13 echoes strlen($xml) as a return channel, with no closing guard anywhere on the path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated webhook setter passes an unvalidated URL to curl_exec, allowing blind SSRF to internal hosts from an admin session; response body is discarded.",
+    "source": "$_POST['set_webhook'] (import.php:17-19), POST gated by admin session",
+    "sink": "curl_init($hook) / curl_exec($ch) (import.php:20, import.php:22)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch condition isset($_POST['set_webhook'])"
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() called; returns 403 unless $_SESSION['is_admin'] is non-empty (import.php:4-9)"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook'] assigned without validation"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) creates handle with attacker-supplied URL"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec($ch) dispatches the request; result is discarded"
+     },
+     {
+      "file": "import.php",
+      "line": 23,
+      "note": "Echoes 'ok'; no response body returned (blind channel)"
+     }
+    ],
+    "guards_checked": "Admin gate require_admin(): empty-session check only, constrains caller not target URL. URL allowlist, scheme restriction, hostname check: none. Redirects: CURLOPT_FOLLOWLOCATION not set, PHP default off, so not followed. Response not returned, so blind; admin-equivalent access does not close SSRF to internal or metadata targets, so MEDIUM."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 gates the caller to admin sessions (empty($_SESSION['is_admin']) returns 403). No URL allowlist, scheme, or host check exists on $hook before curl_init at import.php:20.",
+    "reason": "The trace lines all exist and match the claim (import.php:17-23), but the value reaching curl_init is $_POST['set_webhook'] (import.php:19), which is only reachable after require_admin() (import.php:18) restricts the request to admin sessions, so the source is not controllable by an unauthenticated or low-privilege attacker and the finding does not meet the CONFIRMED bar."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0038027499999999997
+}

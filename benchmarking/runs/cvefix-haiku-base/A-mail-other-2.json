@@ -1,0 +1,181 @@
+{
+ "arm": "A",
+ "repo": "mail-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.02262051,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 8,
+   "Read": 12,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/network/delivery_methods/sendmail.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/network/delivery_methods/file_delivery.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/network/delivery_methods/exim.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/network/retriever_methods/imap.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/network/retriever_methods/pop3.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/attachments_list.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/message.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/smtp_envelope.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/network/delivery_methods/smtp.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/fields/content_disposition_field.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/fields/parameter_hash.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-l4gzx4o6/r/lib/mail/smtp_envelope.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lib/mail/network/retriever_methods/pop3.rb",
+    "line": 131,
+    "claim": "POP3 retriever disables TLS certificate verification when enable_ssl is set, so the username and password are sent over a connection an on-path attacker can impersonate the server on.",
+    "source": "Network position between the application and the POP3 server (on-path MITM, hostile DNS or Wi-Fi). Precondition: retriever_method :pop3 with :enable_ssl => true.",
+    "sink": "pop3.start(settings[:user_name], settings[:password]) at pop3.rb:133, which sends credentials over the TLS session with no peer verification. Retrieved mail is also handed to the app via Mail.new at pop3.rb:76/84.",
+    "trace": [
+     {
+      "file": "lib/mail/network/retriever_methods/pop3.rb",
+      "line": 131,
+      "note": "pop3.enable_ssl(OpenSSL::SSL::VERIFY_NONE) when settings[:enable_ssl] is truthy"
+     },
+     {
+      "file": "lib/mail/network/retriever_methods/pop3.rb",
+      "line": 133,
+      "note": "pop3.start sends USER/PASS over the unverified TLS session"
+     },
+     {
+      "file": "lib/mail/network/retriever_methods/pop3.rb",
+      "line": 76,
+      "note": "Attacker-served mail is parsed with Mail.new and yielded to the app"
+     }
+    ],
+    "guards_checked": "Only the enable_ssl truthiness check. No verify-mode setting exists for POP3, unlike SMTP (smtp.rb:187-196 honours :openssl_verify_mode and defaults to Net::SMTP's verifying context). IMAP (imap.rb:170) passes no custom SSL context, so it inherits net-imap's default verification. I did not confirm the net-imap default in this tree."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lib/mail/attachments_list.rb",
+    "line": 44,
+    "claim": "Attachment filenames are interpolated into Content-Type and Content-Disposition header strings without escaping. A name containing a double quote can inject extra header parameters that change the filename the recipient sees (e.g. spoofing the extension). A name containing CR/LF may also inject whole headers, though I did not confirm that part.",
+    "source": "The attachment name: the hash key in attachments[name]=, or the basename from add_file. Precondition: the app builds the name from user-controlled input.",
+    "sink": "The header strings built at attachments_list.rb:44-46, serialised by ContentDispositionField#encoded (content_disposition_field.rb:35-36) and ParameterHash#encoded (parameter_hash.rb:51).",
+    "trace": [
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 42,
+      "note": "[]= receives the attacker-influenced name"
+     },
+     {
+      "file": "lib/mail/encodings.rb",
+      "line": 110,
+      "note": "ASCII-only names are returned unchanged by decode_encode (encodings.rb:110-111)"
+     },
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 44,
+      "note": "Name is placed raw inside filename=\"...\" in content_type and line 46 in content_disposition"
+     },
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 85,
+      "note": "Part.new(hash) stores the raw strings as header fields"
+     },
+     {
+      "file": "lib/mail/fields/common_field.rb",
+      "line": 69,
+      "note": "ensure_filename_quoted only quotes an unquoted filename= value; it does not escape embedded quotes or CR/LF"
+     },
+     {
+      "file": "lib/mail/fields/parameter_hash.rb",
+      "line": 51,
+      "note": "quote_token re-quotes the parsed value"
+     },
+     {
+      "file": "lib/mail/utilities.rb",
+      "line": 68,
+      "note": "dquote escapes only \\\\ and \"; it does not strip CR/LF, so a raw newline survives if the parser kept it"
+     }
+    ],
+    "guards_checked": "decode_encode (ASCII passthrough, no escaping). ensure_filename_quoted (no escaping). dquote (quote and backslash only, no CR/LF handling). SmtpEnvelope#validate_addr rejects CR/LF but only for envelope addresses, not header values (smtp_envelope.rb:50). No validation of the attachment name anywhere in the path."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lib/mail/attachments_list.rb",
+    "line": 50,
+    "claim": "Attachment and add_file read any local file path given to them and attach its contents to outgoing mail, so an app that passes a user-controlled path enables arbitrary file read and exfiltration.",
+    "source": "The path argument: {filename: path} in attachments[]=, add_file(String), or Mail.read(filename). Precondition: the app passes an attacker-influenced path.",
+    "sink": "File.open(path, 'rb') { |f| f.read } at attachments_list.rb:50, which copies the file into the message body (sent to the recipient or returned by Mail.read). Also message.rb:1769 and mail.rb:169.",
+    "trace": [
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 49,
+      "note": "value.delete(:filename) takes the caller-supplied path"
+     },
+     {
+      "file": "lib/mail/attachments_list.rb",
+      "line": 50,
+      "note": "File.open reads any readable path with no restriction"
+     },
+     {
+      "file": "lib/mail/message.rb",
+      "line": 1767,
+      "note": "add_file(String) takes the path and reads it at 1769"
+     },
+     {
+      "file": "lib/mail/mail.rb",
+      "line": 169,
+      "note": "Mail.read(filename) opens an arbitrary path"
+     }
+    ],
+    "guards_checked": "No path allow-list, no symlink or traversal checks, no size limit. File.basename is applied only to the attachment name (message.rb:1768), not to the read path. This is likely an API-contract issue rather than a library bug, so severity depends entirely on the calling app."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "lib/mail/network/retriever_methods/imap.rb",
+    "line": 79,
+    "claim": "IMAP find passes :keys straight into UID SEARCH as the raw search string. If an app builds keys from user input, it may be able to inject extra IMAP commands. Unverified: depends on whether net-imap rejects CR/LF in string arguments.",
+    "source": "The :keys option. Precondition: an app concatenates user-controlled text into a string passed as keys.",
+    "sink": "imap.uid_search(options[:keys], ...) at imap.rb:79, which writes the search string into the IMAP command stream.",
+    "trace": [
+     {
+      "file": "lib/mail/network/retriever_methods/imap.rb",
+      "line": 32,
+      "note": "Docs say keys may be a raw string holding the entire search string"
+     },
+     {
+      "file": "lib/mail/network/retriever_methods/imap.rb",
+      "line": 74,
+      "note": "validate_options defaults keys to 'ALL' but otherwise keeps the caller's value"
+     },
+     {
+      "file": "lib/mail/network/retriever_methods/imap.rb",
+      "line": 79,
+      "note": "Raw value handed to uid_search without validation"
+     }
+    ],
+    "guards_checked": "validate_options (imap.rb:147-160) only sets defaults. No CR/LF or parenthesis check in this repo. Mailbox names go through encode_utf7 (imap.rb:156) but are not otherwise checked. Whether net-imap escapes or rejects CR/LF was not verified because it is an external gem not in this tree."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

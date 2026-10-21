@@ -1,0 +1,99 @@
+{
+ "arm": "P",
+ "repo": "inj-rb-marshal",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.0063879,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-24klri0j/r/app.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.rb",
+    "line": 6,
+    "claim": "POST /restore passes unauthenticated client-supplied params[:state] through Base64.decode64 into Marshal.load, enabling arbitrary object instantiation and likely RCE via a gadget chain (chain not verifiable: no Gemfile in repo); at minimum a DoS path.",
+    "source": "HTTP POST parameter 'state' on /restore (app.rb:5-6), supplied by any unauthenticated network client.",
+    "sink": "Marshal.load(Base64.decode64(params[:state])) at app.rb:6.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 5,
+      "note": "Route POST /restore defined with no authentication."
+     },
+     {
+      "file": "app.rb",
+      "line": 6,
+      "note": "params[:state] read from request; Base64.decode64 is lenient and unvalidated."
+     },
+     {
+      "file": "app.rb",
+      "line": 6,
+      "note": "Decoded bytes passed directly to Marshal.load; no safe mode, no class allowlist, no signature/HMAC, no size limit."
+     },
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "state.inspect returned to client, reflecting the constructed object graph."
+     }
+    ],
+    "guards_checked": "None present: no authentication, no authorization, no integrity check (signature/HMAC), no type or class allowlist, no size limit, no input validation in app.rb. Repo contains no Gemfile/config/tests that could add guards."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The route at app.rb:5 has no authentication, and app.rb:6 passes params[:state] through Base64.decode64 straight into Marshal.load with no class allowlist, signature/HMAC, size limit, or validation. The only other code in the repo is /import (app.rb:10-13), which uses JSON.parse and does not guard this route. No Gemfile or config exists to add a guard.",
+    "reason": "The POST /restore route at app.rb:5 is reachable anonymously, and app.rb:6 runs Marshal.load on attacker-supplied base64 with no effective control, so untrusted deserialization is confirmed. The RCE-via-gadget-chain part of the claim is not verifiable here because there is no Gemfile, but the unauthenticated Marshal.load sink itself is confirmed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.rb",
+    "line": 12,
+    "claim": "POST /import reflects JSON object keys unescaped into a text/html response, enabling reflected XSS on the app origin via a cross-site text/plain form POST (no CORS preflight).",
+    "source": "Keys of the JSON object in the raw request body of POST /import (app.rb:10-11), supplied by any client including cross-site HTML forms.",
+    "sink": "HTTP response body rendered as text/html (Sinatra default for string return), built at app.rb:12.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 10,
+      "note": "Route POST /import defined with no authentication or CSRF protection."
+     },
+     {
+      "file": "app.rb",
+      "line": 11,
+      "note": "request.body.read passed to JSON.parse without Content-Type check; any body the parser accepts is used."
+     },
+     {
+      "file": "app.rb",
+      "line": 12,
+      "note": "data.keys.join(',') returned unescaped as response body; Sinatra serves it as text/html."
+     }
+    ],
+    "guards_checked": "No HTML escaping, no Content-Type enforcement, no CSRF token or origin check. Exploit body is valid JSON produced via text/plain form encoding, e.g. field name {\"<img src=x onerror=alert(1)>\":1,\" with value \":0} yielding {\"<img src=x onerror=alert(1)>\":1,\"=\":0}. Requires victim to visit attacker page; impact limited while app has no cookies/sessions."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.rb:10-12 has no auth, no Content-Type check, no CSRF or origin check, and no HTML escaping. Sinatra serves a string return as text/html by default, so the reflected keys are rendered as markup.",
+    "reason": "The attacker is anonymous, and app.rb:11 parses any body with JSON.parse regardless of Content-Type, so a cross-site text/plain form can send a valid JSON object whose key contains markup, which app.rb:12 returns unescaped as text/html. Impact is limited because the app sets no cookies or sessions, but the reflected XSS on the app origin is real."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00412295
+}

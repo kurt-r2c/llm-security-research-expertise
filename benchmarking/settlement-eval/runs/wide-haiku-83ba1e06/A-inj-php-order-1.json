@@ -1,0 +1,92 @@
+{
+ "arm": "A",
+ "repo": "inj-php-order",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0038443900000000005,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-x4jozgth/r/list.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLI-1",
+    "file": "list.php",
+    "line": 6,
+    "claim": "SQL injection in list_users_sorted: the raw $_GET['sort'] value is concatenated into an ORDER BY clause with no whitelist, cast, or binding. An attacker can inject arbitrary SQL expressions (for example scalar or boolean subqueries) and extract data through ordering-based oracles.",
+    "source": "$_GET['sort'] (list.php:5), HTTP query parameter, attacker-controlled.",
+    "sink": "$pdo->query(\"SELECT id, name FROM users ORDER BY \" . $sort) (list.php:6), executed against the SQLite database.",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 5,
+      "note": "$sort = $_GET['sort'] ?? 'id'; attacker supplies any string, no validation."
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "$sort is concatenated directly into the SQL text. ORDER BY cannot be parameterized, so a whitelist is the required control, and none exists here."
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "$pdo->query executes the string. SQLite accepts subqueries and CASE expressions in ORDER BY, e.g. sort=(CASE WHEN (SELECT substr(password,1,1) FROM users LIMIT 1)='a' THEN id ELSE name END), which leaks data through row ordering."
+     }
+    ],
+    "guards_checked": "No whitelist or allow-list on $sort. No intval or type cast. No prepared statement or bound parameter (ORDER BY cannot be bound anyway). No authentication or authorization check in the file. PDO::query on SQLite runs only the first statement, so stacked queries are not possible, but subquery-based extraction still works. Precondition: list_users_sorted must be reachable from a web endpoint. The file as provided calls none of its functions, so exploitability depends on the calling code, which is not in the directory."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. list.php:5 takes $_GET['sort'] with no validation, and list.php:6 concatenates it into the ORDER BY string and passes it to $pdo->query. No allowlist, cast, or bound parameter sits between source and sink. The safe variant at list.php:11 is a separate function (list_users_safe) that the candidate does not cover.",
+    "reason": "The trace is accurate and the sink at list.php:6 is unguarded, but list.php never calls list_users_sorted (grep finds only its definition at list.php:4), and no other file in the directory calls it, so whether an attacker can reach it depends on a caller that is not provided."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTHZ-1",
+    "file": "list.php",
+    "line": 4,
+    "claim": "Missing access control on user-data functions. list_users_sorted (line 4) returns every user's id and name, and find_user (line 15) returns the id and name for any email address. Neither checks who is calling, and find_user is an unthrottled email-to-user oracle that enables account enumeration.",
+    "source": "Any caller that can reach these functions through a web endpoint. The attacker-controlled inputs are $_GET['sort'] (line 5) and $_GET['email'] (line 17).",
+    "sink": "Bulk user listing (list.php:6, list.php:12) and user lookup by email (list.php:16-18), both returning user records.",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 4,
+      "note": "list_users_sorted has no session, token, role, or ownership check before it queries users."
+     },
+     {
+      "file": "list.php",
+      "line": 9,
+      "note": "list_users_safe has the same missing authorization check."
+     },
+     {
+      "file": "list.php",
+      "line": 15,
+      "note": "find_user takes an arbitrary email from $_GET['email'] (line 17) and returns the matching id and name (line 18). Any caller learns whether an email is registered."
+     }
+    ],
+    "guards_checked": "Parameter binding in find_user (line 16-17) prevents SQL injection, but it does not limit who can call the function or how often. No authentication, authorization, rate limiting, or CSRF protection appears in this file. Severity is low to medium and depends on whether these functions are exposed to unauthenticated users; the calling code is not in the directory."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None in list.php. find_user uses a prepared statement with a bound parameter (list.php:16-17), which blocks SQL injection but is not an authorization or rate-limit control. list_users_sorted (list.php:4-7) and list_users_safe (list.php:9-13) contain no session, role, or ownership check.",
+    "reason": "The trace is accurate: list.php:4 and list.php:9 query all users with no authorization check, and list.php:15-18 returns id and name for any $_GET['email'], which works as an enumeration oracle. However, list.php never calls any of these functions, so this file alone produces no HTTP-reachable behavior, and whether an unauthenticated caller can reach them depends on calling code and web-server configuration outside this directory (for example, a front controller or .htaccess auth), which I cannot see."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0053109
+}

@@ -1,0 +1,102 @@
+{
+ "arm": "K2",
+ "repo": "h2-node-admin",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.00473317,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-tlr5dyr1/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-tlr5dyr1/r/routes.js",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-tlr5dyr1/expertise/cases/04-url-validate-reparse.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-tlr5dyr1/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "routes.js",
+    "line": 20,
+    "claim": "Unauthenticated POST /hooks/test passes attacker-controlled req.body.callback directly to axios.post, enabling blind SSRF with status-code oracle.",
+    "source": "req.body.callback (routes.js:20), unauthenticated pub router",
+    "sink": "axios.post(req.body.callback, { ping: true }) (routes.js:20)",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 19,
+      "note": "pub.post('/hooks/test') registered on pub router with no auth middleware"
+     },
+     {
+      "file": "routes.js",
+      "line": 20,
+      "note": "req.body.callback used as URL for axios.post with no validation"
+     },
+     {
+      "file": "routes.js",
+      "line": 21,
+      "note": "r.status returned to caller, giving internal-host status oracle"
+     }
+    ],
+    "guards_checked": "None: no scheme allowlist, no host/IP allowlist, no private/loopback/link-local blocking, no DNS pinning, redirects followed by default (axios maxRedirects not disabled). Assumes express body parser mounted upstream (not in this directory)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. routes.js:19 registers `pub.post(\"/hooks/test\")` with no middleware; the only guard, `requireAdmin` (routes.js:7-10), is attached to `admin` alone (routes.js:12), not `pub`. routes.js:20 passes `req.body.callback` straight to `axios.post` with no scheme, host, IP, or redirect checks.",
+    "reason": "The URL comes from the request body at routes.js:20 on a router with no auth (routes.js:19), and nothing validates it before the request is sent, so an unauthenticated caller can make the server send a POST to an arbitrary URL. Two caveats: the status oracle is weaker than claimed, because axios rejects non-2xx by default so routes.js:21 only returns successful statuses and the attacker mostly learns success versus error; and I could not confirm from this directory that `pub` is mounted without an upstream auth middleware, though the code shows no auth on it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "routes.js",
+    "line": 15,
+    "claim": "Admin-gated GET /diagnostics/fetch passes req.query.url directly to axios.get, allowing SSRF from an admin session; only the session role check guards it.",
+    "source": "req.query.url (routes.js:15), query string of GET /diagnostics/fetch",
+    "sink": "axios.get(req.query.url) (routes.js:15)",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 7,
+      "note": "requireAdmin checks req.session.role === 'admin'"
+     },
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) applies gate to all admin routes"
+     },
+     {
+      "file": "routes.js",
+      "line": 15,
+      "note": "req.query.url passed directly to axios.get"
+     },
+     {
+      "file": "routes.js",
+      "line": 16,
+      "note": "r.status returned to caller"
+     }
+    ],
+    "guards_checked": "Admin session role gate only (routes.js:7-12). No URL scheme, host, or IP validation; redirects followed by default. Trust in req.session.role depends on session handling outside this directory (not audited)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "Every trace line checks out (routes.js:8 role check, :12 admin.use, :15 axios.get(req.query.url), :16 returns only r.status), and no URL validation exists, but the source is not attacker-controlled by an unauthenticated or low-privilege user: routes.js:8 and :12 limit the route to sessions with role \"admin\", so the URL comes from an already-privileged admin. Any escalation would depend on session handling, which was not audited, so this is not a standalone SSRF finding from this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00396509
+}

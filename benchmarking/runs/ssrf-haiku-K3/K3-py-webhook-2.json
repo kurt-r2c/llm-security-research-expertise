@@ -1,0 +1,109 @@
+{
+ "arm": "K3",
+ "repo": "py-webhook",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.00663525,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ixwchypo/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview endpoint passes the raw `url` query parameter to requests.get with no scheme, host, IP, port, or redirect restrictions, and returns the status code and first 500 characters of the response body to the caller.",
+    "source": "app.py:15 request.args.get(\"url\") on GET /preview (app.py:13-14, no auth decorator)",
+    "sink": "app.py:16 requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "@app.route(\"/preview\") registers the route with no authentication or authorization check"
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\") takes the attacker-supplied URL verbatim"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target, timeout=5) fetches the attacker-chosen URL from the server, following redirects by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "returns resp.status_code and resp.text[:500] to the caller, so the response is readable (non-blind)"
+     }
+    ],
+    "guards_checked": "None on this path. The only guard is the \"\" default, which requests rejects. No scheme, host, IP, port, or private-range allowlist. No redirect control. Impact: any unauthenticated client can reach loopback, RFC1918 hosts, and cloud metadata endpoints such as 169.254.169.254, and read up to 500 characters of the response."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The /preview handler (app.py:13-17) has no auth decorator and no URL validation; the only validation in the file is the host allowlist at app.py:23-25, which is on the separate /partner route and does not cover /preview.",
+    "reason": "The trace matches the code: app.py:15 reads the attacker-supplied `url` query parameter, app.py:16 passes it unvalidated to requests.get (which follows redirects by default), and app.py:17 returns the status code and the first 500 characters of the body, so the SSRF is non-blind and reachable without authentication."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "Conditional candidate: /partner enforces a hostname allowlist on the initial URL only. requests.get follows redirects by default, so an allowed partner host that redirects to an internal target would bypass the check. Blind (status code only). Not confirmed: needs an open redirect or compromised host on api.partner.example or cdn.partner.example, which this repo cannot show.",
+    "source": "app.py:22 request.args.get(\"url\") on GET /partner (app.py:20-21, no auth decorator)",
+    "sink": "app.py:26 requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get(\"url\", \"\") takes the attacker-supplied URL"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname extracts the hostname from the original URL"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "if host not in ALLOWED_HOSTS checks exact membership in {api.partner.example, cdn.partner.example}; the return value is enforced"
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "returns 400 on disallowed host, so the sink is not reached"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) follows redirects by default; the allowlist is not re-applied to redirect targets"
+     }
+    ],
+    "guards_checked": "Hostname allowlist at app.py:24-25 is enforced and checked before the sink. urlparse().hostname handles userinfo (allowed@evil) and case. Redirect-following after validation is the unchecked gap. Fix: allow_redirects=False, or validate each redirect hop. Response returns only the status code (app.py:27)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-24: `urlparse(target).hostname` is checked with exact set membership against ALLOWED_HOSTS ({\"api.partner.example\", \"cdn.partner.example\"}), and app.py:25 returns 400 before the sink at app.py:26. Redirect-following at app.py:26 is not re-checked, but that depends on an external host behaving badly, not on anything in this repo.",
+    "reason": "The trace matches the code (app.py:22-26), and the exact hostname set check at app.py:24 is one of the closing guards, so the finding is refuted. The redirect gap at app.py:26 is real but conditional on an open redirect or compromised host on an allowlisted partner domain, which this repo cannot show, so it should be recorded as a hardening note (use allow_redirects=False), not as a confirmed SSRF."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00386944
+}

@@ -1,0 +1,258 @@
+{
+ "arm": "A",
+ "repo": "fastjwt-jwk",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "22d7688e",
+ "status": "success",
+ "gen_cost": 0.0280555,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 8,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/index.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/decoder.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/signer.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/verifier.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/utils.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/crypto.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/error.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8854iyh9/r/src/index.d.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/verifier.js",
+    "line": 133,
+    "claim": "With cache enabled, a successful verification is cached for the full cacheTTL (default 600000 ms) even when the token's exp has already passed, because the cache lifetime is derived from exp only when iat is a numeric claim. A token with no numeric iat (e.g. issued with noTimestamp) is therefore accepted from cache after expiry, for up to cacheTTL.",
+    "source": "Attacker holds a genuinely signed, short-lived token that lacks a numeric iat claim (for example one minted by signer option noTimestamp:true, which src/signer.js:96 produces, with exp still set by expiresIn at src/signer.js:97-99). The attacker is the token holder, or has captured one, and replays it after exp.",
+    "sink": "Cache hit at src/verifier.js:364-378 returns the cached payload without re-running exp validation (src/verifier.js:304-322), so the expired token is accepted as authenticated.",
+    "trace": [
+     {
+      "file": "src/signer.js",
+      "line": 96,
+      "note": "noTimestamp omits iat from the issued token; exp is still computed from iat+expiresIn (lines 97-99)"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 426,
+      "note": "First verify at t0 succeeds (exp still valid) and calls cacheSet on the success path"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 117,
+      "note": "cacheSet: hasIat = typeof payload.iat === 'number' is false"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 120,
+      "note": "The block that derives cache max from exp (line 125) and maxAge (line 127) is skipped entirely"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 133,
+      "note": "cacheValue[2] stays 0 so it is set to maxTTL = clockTimestamp + clockTolerance + cacheTTL, i.e. now + 600s by default (cacheTTL default at line 499)"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "Later verify at t0+120s: cache.get returns [payload, 0, maxTTL]"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 368,
+      "note": "Range check: min === 0 and now <= max both pass, so this is a cache hit"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 377,
+      "note": "handleCachedResult returns the stale payload; verifyToken and its exp check are never reached"
+     }
+    ],
+    "guards_checked": "Type check before cache (verifier.js:353). Cache is off unless the cache option is set (verifier.js:83-86, 580), so this needs cache:true or a number. Signature is verified before caching (verifier.js:280, 426), so the attacker needs a token that was once valid. cacheTTL is an upper bound (verifier.js:133-134) but is not tied to exp when iat is absent. Error results are cached separately (verifier.js:110-115) and do not apply here. Same root cause for maxAge: with ignoreExpiration:true (verifier.js:123 skips the exp block) the maxAge window is also not applied to the cache lifetime, so maxAge is bypassed from cache for up to cacheTTL. Not run; derived from reading the code."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/verifier.js",
+    "line": 311,
+    "claim": "Claim validators are skipped when the claim is absent from the payload (\"if (!(claim in payload)) continue\"). exp, iat (maxAge), aud, iss, sub, nonce and jti are therefore not enforced unless listed in requiredClaims, so a validly signed token missing exp never expires.",
+    "source": "A token signed by a key the verifier trusts but lacking the claim, e.g. a token minted by the same issuer for another purpose or long-lived service token with no exp, or any issuer that omits aud/iss.",
+    "sink": "Verifier returns the payload as authenticated (verifier.js:426 / 471), so the token is accepted for session or authorization purposes.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 293,
+      "note": "requiredClaims is the only check that rejects missing claims; it is optional and unset by default"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 304,
+      "note": "Loop over validators: exp, nbf, iat (maxAge), jti, aud, iss, sub, nonce"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 311,
+      "note": "If the claim is not in payload the validator is skipped; no error is raised"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 606,
+      "note": "exp validator is only registered when ignoreExpiration is false; absent exp therefore never expires"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 616,
+      "note": "maxAge validator on iat is skipped when iat is absent, so maxAge is silently not enforced"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 624,
+      "note": "allowedAud/allowedIss validators are skipped when aud/iss is absent"
+     }
+    ],
+    "guards_checked": "Signature verification (verifier.js:280) and typ (286) run first, so the attacker needs a validly signed token or a verifier that accepts unsigned tokens. requiredClaims (293-299) is the intended mitigation and is off by default. This is partly by design since RFC 7519 makes these claims optional, but it is a fail-open default for security-sensitive claims. Not run; derived from reading the code."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/crypto.js",
+    "line": 387,
+    "claim": "Non-canonical base64url signatures are accepted. The decoder only checks the base64url character set, not trailing bits, so several distinct token strings decode to the same signature bytes and verify. This breaks any application logic keyed on the raw token string.",
+    "source": "Attacker holds a valid token and changes the unused low bits of the final base64url character of the signature segment, producing a different string with the same signature.",
+    "sink": "Application-level revocation or replay denylists keyed on the raw token string (the library's own cache is keyed on a hash of the full string and is not affected).",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 10,
+      "note": "BASE64URL_RE = /^[A-Za-z0-9_-]*$/ allows any final character; the comment at lines 5-9 says canonicality is enforced"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "Signature segment is checked against the charset only; trailing-bit canonicality is not checked"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "verifySignature called with the raw signature segment"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 387,
+      "note": "signature = Buffer.from(signature, 'base64'); Node ignores the unused trailing bits"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 391,
+      "note": "timingSafeEqual on decoded bytes, so all variants of the final character match"
+     }
+    ],
+    "guards_checked": "Charset check (decoder.js:35-43) and timingSafeEqual (crypto.js:391) are present. Byte-level comparison is correct, so forgery is not possible; only string-level uniqueness is broken. HS256 has 4 variants per signature (43 chars, 2 unused bits); RS256 has 16 (342 chars, 4 unused bits). Not run; derived from reading the code and Node base64 decoding semantics.",
+    "repro": "Take a valid HS256 token. Replace the last signature character c with another character whose value differs only in the low 2 bits (e.g. 'A' <-> 'B' <-> 'C' <-> 'D'). The modified token should still verify. Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/verifier.js",
+    "line": 364,
+    "claim": "With cache enabled, verify() calls cacheKeyBuilder(token) before decoding, and the default builder hashToken calls token.split(), which throws TypeError for Buffer input. Buffer tokens, which the type checks and typings accept, therefore fail with a non-TokenError exception.",
+    "source": "Caller passes a Buffer token, for example a raw request body, to verify() on a verifier with cache enabled.",
+    "sink": "Exception escapes verify() before any TokenError handling, so callers that map TokenError to 401 return 500 or an unhandled error.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Type check accepts Buffer tokens"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 363,
+      "note": "if (cache) branch entered"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cacheKeyBuilder(token) called with the raw Buffer"
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "hashToken: token.split('.', 1) is not a function on Buffer, throwing TypeError"
+     },
+     {
+      "file": "src/index.d.ts",
+      "line": 50,
+      "note": "VerifierSync<T = Bufferable> types Buffer tokens as valid input"
+     }
+    ],
+    "guards_checked": "Type check at verifier.js:353 accepts Buffers. No Buffer-to-string conversion happens before cache lookup, unlike decode (verifier.js:387 -> decoder.js:14-15). The only effect I found is an exception (fail-closed). Not run; derived from reading the code.",
+    "repro": "createVerifier({ key: 'secret', algorithms: ['HS256'], cache: true })(Buffer.from(validToken)) should throw TypeError: token.split is not a function. Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/crypto.js",
+    "line": 153,
+    "claim": "The guard against using raw JWK/JWKS JSON as an HMAC secret only runs when the key has no PEM header and inspects only the first trimmed character and top-level shape. Other encodings let a public JWK be used as an HS256 secret, so anyone holding the public key can forge tokens.",
+    "source": "Operator passes a serialized JWK/JWKS as the verifier key with no algorithms restriction (or with HS256 in the list). Attacker holds the public JWK, which is public by design.",
+    "sink": "detectPublicKeyAlgorithms returns hsAlgorithms (crypto.js:220) and the JWK bytes are used as HMAC secret (verifier.js:464 / 524), so the attacker's HS256 token verifies (verifier.js:169).",
+    "trace": [
+     {
+      "file": "src/crypto.js",
+      "line": 150,
+      "note": "locatePem: no BEGIN header found, so isRawSecret = true"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 153,
+      "note": "assertNotAsymmetricJwkJson is called only on this path"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 93,
+      "note": "isAsymmetricJwkJson: checks only trimmedKey[0] is '{' or '[' (line 98)"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 105,
+      "note": "A leading NUL or zero-width char (U+200B, not removed by trim()) makes firstChar not '{', so parsing is skipped and false is returned"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 113,
+      "note": "Only top-level kty and top-level keys are checked; a wrapper object such as {\"jwks\":{\"keys\":[...]}} is not detected"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 220,
+      "note": "Raw secret path returns hsAlgorithms, so HS256 is allowed"
+     }
+    ],
+    "guards_checked": "The guard exists and handles the common forms (plain JWK, JWKS array, {keys:[...]}, leading whitespace via trim()). The HS-only short-circuit (crypto.js:310) skips detection entirely, which is intentional for raw secrets. Precondition is operator misconfiguration (passing JWK JSON as the verifier key), so severity is low. Not run; derived from reading the code."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,110 @@
+{
+ "arm": "K1",
+ "repo": "py-webhook",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.00404773,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0fo08owv/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches an arbitrary attacker-supplied URL with no validation and returns the status code and first 500 characters of the response body, giving a non-blind SSRF that can reach internal hosts, localhost services, and cloud metadata endpoints.",
+    "source": "app.py:15 request.args.get(\"url\") (query parameter of GET /preview)",
+    "sink": "app.py:16 requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "@app.route(\"/preview\") registers the route with no auth decorator or guard in this file"
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\"), attacker-controlled, no parsing, scheme, or host check"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) issues the request from the server, following redirects by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "resp.status_code and resp.text[:500] are returned in the JSON response, so the attacker reads the response"
+     }
+    ],
+    "guards_checked": "None on this path. No allowlist, no scheme check, no private/loopback/link-local/metadata IP block, no redirect restriction, no IP pinning. Scheme is limited by requests to http/https, so file:// is not reachable (InvalidSchema). Authentication could be enforced by an upstream gateway, which is not in this repo. Precondition: the route is reachable by an attacker."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15 takes the `url` query parameter unchanged, app.py:16 passes it straight to requests.get (which follows redirects by default), and app.py:17 returns the status code and first 500 characters of the body, so the attacker reads the response; the only host check in the file (app.py:23-24) is on the separate /partner route and does not cover /preview. Authentication could still be enforced by an upstream gateway outside this repo, which this code cannot show."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks the host of the original URL against an allowlist, but requests.get follows redirects by default, so an allowlisted partner host that redirects can send the server to any internal or metadata URL.",
+    "source": "app.py:22 request.args.get(\"url\") (query parameter of GET /partner)",
+    "sink": "app.py:26 requests.get(target, timeout=5), with redirects followed by default",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target taken from the query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname, parsed once for the check"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "exact-match membership in ALLOWED_HOSTS = {api.partner.example, cdn.partner.example}, so substring tricks fail"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) re-fetches the unmodified original URL and follows any 30x Location to any host, which the check never sees"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "Only resp.status_code is returned, so exploitation is blind except for status codes, which still allow internal port and service probing and side-effecting GETs"
+     }
+    ],
+    "guards_checked": "Scheme is not checked, but requests rejects non-http(s) schemes. Host check is exact-match on the parsed hostname (not startswith/contains), so direct host spoofing is blocked. The check does not cover redirects (allow_redirects defaults to True for GET), resolved IP (no pinning, DNS for the partner hosts is trusted), or private IP ranges. Exploitation requires an open redirect or attacker-controlled response on api.partner.example or cdn.partner.example. Parser differentials between urllib.parse and urllib3 were not verified. Not confirmed by running the code."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-25: host = urlparse(target).hostname, then `if host not in ALLOWED_HOSTS` returns 400. This is exact set membership on the parsed hostname, which the rubric counts as a closing guard. Redirects are not blocked anywhere: requests.get at app.py:26 has no allow_redirects=False and no re-check of the final URL.",
+    "reason": "All five trace lines (app.py:22, 23, 24, 26, 27) exist and match the description, and the query parameter is attacker-controlled (app.py:22). Exact hostname membership at app.py:24 is a closing guard for the original URL, and the claimed bypass needs a 30x from api.partner.example or cdn.partner.example (app.py:9), which the attacker does not control and which the candidate did not verify exists. Redirect-following is a real hardening gap worth fixing (set allow_redirects=False or re-validate each hop), but it is not a confirmed SSRF on this code alone."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0041474500000000004
+}

@@ -1,0 +1,120 @@
+{
+ "arm": "A",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.0047732,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3ukux6ur/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-preview-unvalidated",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches an arbitrary caller-supplied URL with no validation and returns the status code and first 500 chars of the body, enabling SSRF to internal hosts and cloud metadata endpoints with readable responses.",
+    "source": "request.args.get(\"url\") at app.py:15 (attacker-controlled query parameter)",
+    "sink": "requests.get(target, timeout=5) at app.py:16",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 14,
+      "note": "preview() routed at /preview; no auth decorator or check"
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\") takes raw query value"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) fetches attacker-chosen URL"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status code and resp.text[:500] returned to caller, so response is readable (non-blind)"
+     }
+    ],
+    "guards_checked": "None. No scheme check, no host/IP allowlist, no private/loopback/link-local block, no redirect control."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:14-17 has no auth, host, scheme, or IP check before requests.get(target) at app.py:16; the only allowlist (app.py:23-24) is in the separate /partner handler at app.py:20-27 and does not apply to /preview.",
+    "reason": "The url query parameter at app.py:15 flows unvalidated into requests.get at app.py:16, and the status and first 500 characters of the response are returned to the caller at app.py:17, so the SSRF is readable and attacker-controlled. The trace is accurate apart from the route decorator sitting on app.py:13 rather than line 14, which does not affect the finding."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-partner-redirect-bypass",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks the hostname allowlist once against the original URL, then calls requests.get on the same URL with redirects enabled by default, so an allowed host can redirect to an internal address and the check is bypassed. A parser differential between urlparse and urllib3 may also allow bypass (unverified).",
+    "source": "request.args.get(\"url\") at app.py:22 (attacker-controlled query parameter)",
+    "sink": "requests.get(target, timeout=5) at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 21,
+      "note": "/partner route, no auth"
+     },
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target taken from query string"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "allowlist check: host must be in ALLOWED_HOSTS {api.partner.example, cdn.partner.example}"
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "reject with 400 if not allowed"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(original target) with default allow_redirects=True; redirect targets are not re-validated"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "status code returned to caller"
+     }
+    ],
+    "guards_checked": "Exact-match hostname allowlist at app.py:24 (rejects userinfo tricks like http://api.partner.example@evil.example and trailing-dot variants). Not covered: redirects (no allow_redirects=False or per-hop check), scheme restriction, private/link-local IP blocking at resolution time, and urlparse vs urllib3 parsing consistency (backslash-in-userinfo differential untested; urllib3 version not pinned in repo)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "app.py:24-25 is an exact set-membership check on urlparse(target).hostname, but it runs only on the original URL. Nothing at app.py:26 sets allow_redirects=False or re-checks redirect hops, so the guard does not cover the redirect path.",
+    "reason": "The trace matches app.py:21-27: target comes unauthenticated from request.args at app.py:22, the allowlist is checked once at app.py:24, and requests.get at app.py:26 follows redirects by default, so an allowed host can redirect to an internal address (the response status is returned to the caller at app.py:27). I classed this as CONFIRMED because the exact-match guard is bypassed by the redirect path the claim describes, though under the literal rubric the line-24 check would count as closing; the urllib3 parser-differential part stays unverified and I did not rely on it."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00417542
+}

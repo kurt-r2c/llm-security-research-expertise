@@ -1,0 +1,69 @@
+{
+ "arm": "C",
+ "repo": "node-avatar",
+ "rep": 1,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.1739646,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-isy2g0o0/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-isy2g0o0/r/server.js",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-isy2g0o0/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches a user-supplied URL server-side. The only check is a `startsWith(\"https://\")` prefix test. Nothing restricts the host, resolved IP, or redirect targets. axios follows redirects by default (up to 5), so an attacker-controlled https URL can 302 to http://169.254.169.254/... or http://users.internal:8080/... and the server will fetch it, because the scheme check is not re-applied on redirect. The attacker can also point directly at internal https hosts or at hostnames that resolve to private IPs (including via DNS rebinding). Only the byte length of the response is returned, so this is mostly blind SSRF with a size oracle. It still allows internal port and host probing and reaching the cloud metadata service or internal APIs via redirect.",
+    "source": "req.body.avatarUrl (JSON body of POST /profile/avatar)",
+    "sink": "axios.get(url, { responseType: \"arraybuffer\" }) at server.js:14",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "Route handler for POST /profile/avatar; body parsed by express.json()"
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl is attacker-controlled"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "Only validation: typeof string and url.startsWith(\"https://\"). No host allowlist, no private-IP check, and the check is not applied to redirects"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) is called with the original string. It resolves DNS itself and follows redirects by default, including to http:// and internal addresses"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "Response size is reflected to the caller (img.data.length), giving an oracle for blind probing"
+     }
+    ],
+    "guards_checked": "Checked for a scheme allowlist: there is an https-prefix check only, and it is bypassed by a redirect to http://. Checked for a host or domain allowlist, private/loopback/link-local IP blocklist, DNS resolution and pinning, maxRedirects: 0, and an egress proxy: none are present. Checked for URL parsing: none, just a string prefix, so `https://internal-host/`, `https://127.0.0.1/` and `https://x@internal/` all pass. Checked for content-type or size limits: none."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only typeof string and startsWith(\"https://\") prefix check at server.js:11; no auth middleware, no host allowlist, no maxRedirects:0)",
+    "reason": "server.js:10 takes req.body.avatarUrl from an unauthenticated JSON body, server.js:11 applies only a non-closing https prefix check, and server.js:14 calls axios.get with default redirect following, so SSRF to internal hosts is reachable with the size returned at server.js:15."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0341547
+}

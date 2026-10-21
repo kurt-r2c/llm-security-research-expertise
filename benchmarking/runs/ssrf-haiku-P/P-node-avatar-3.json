@@ -1,0 +1,100 @@
+{
+ "arm": "P",
+ "repo": "node-avatar",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00649329,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-u4uqjc3f/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "Blind SSRF: POST /profile/avatar passes the client-supplied avatarUrl to axios.get without a host, IP, or redirect check. Only an https:// prefix is enforced, and only on the initial URL.",
+    "source": "req.body.avatarUrl (server.js:10), supplied by any client that can reach port 3000 in a JSON request body; no authentication.",
+    "sink": "axios.get(url, {responseType: 'arraybuffer'}) at server.js:14, an outbound HTTP(S) request from the server.",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "Route POST /profile/avatar registered; express.json() at line 5 parses the body."
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl, taken unchanged from the request body."
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "Only typeof string and startsWith('https://') are checked; a 400 is returned otherwise."
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get follows the attacker URL, including redirects (axios default in Node, not verifiable in repo). No timeout or size cap. Redirects to http://169.254.169.254 or internal hosts are not re-checked."
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "Only img.data.length is returned, so the response is a size oracle. Non-2xx responses throw unhandled at line 14, leaving the client hanging, which gives a port and service-existence oracle."
+     }
+    ],
+    "guards_checked": "typeof string check (line 11): blocks non-strings only. startsWith('https://') (line 11): case-sensitive, does not restrict host, IP, or port, and does not cover redirects. No allow-list, no DNS/IP range check, no redirect policy, no try/catch or timeout around line 14. Express/axios versions not present in repo, so redirect default and unhandled-rejection behavior are unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. server.js:11 only checks typeof string and a case-sensitive startsWith('https://'), which does not restrict host, IP, port, or redirects. No allow-list, IP-range check, redirect policy, or try/catch/timeout exists around server.js:14.",
+    "reason": "The attacker-controlled req.body.avatarUrl (server.js:10, unauthenticated POST /profile/avatar at server.js:9) reaches axios.get at server.js:14 with only an https:// prefix check at server.js:11, so any https host or internal https service is reachable. Two caveats: the response is returned as a byte length (server.js:15), so it is a size oracle rather than fully blind, and the redirect-following behavior is an axios default not verifiable from this repo, but neither changes the verdict because the initial-URL SSRF is unguarded."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-1-note",
+    "file": "server.js",
+    "line": 14,
+    "claim": "Unhandled rejection on axios failure: no try/catch around the axios call, so errors from line 14 are not converted to an HTTP response. Availability issue related to SSRF-1, not a separate SSRF.",
+    "source": "Same as SSRF-1: req.body.avatarUrl, server.js:10.",
+    "sink": "Unhandled promise rejection from axios.get at server.js:14; may crash the process depending on Node version and Express version (unverified).",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get rejects on non-2xx, network error, or timeout."
+     },
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "Express 4 does not catch rejections from async handlers, so no response is sent."
+     }
+    ],
+    "guards_checked": "None around line 14."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": false,
+    "guard_found": "none: server.js:14 has no try/catch and nothing wraps the axios.get call. The only check is server.js:11, a typeof/startsWith(\"https://\") check that does not restrict the host.",
+    "reason": "The cited lines exist and match the claim (source at server.js:10, sink at server.js:14, no try/catch), but the trace's key step, that Express does not catch async rejections at server.js:9, depends on the Express major version, and no package.json or lockfile exists in the directory to confirm it is Express 4 rather than Express 5. Because that premise is unverified, I mark trace_ok=false and the verdict UNVERIFIABLE; the separate SSRF-1 finding is not affected by this note."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00455911
+}

@@ -1,0 +1,112 @@
+{
+ "arm": "K2",
+ "repo": "go-proxy",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.0045022,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-k8z4ghwo/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-k8z4ghwo/r/main.go",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-k8z4ghwo/expertise/cases/04-url-validate-reparse.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-k8z4ghwo/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "The /fetch handler passes the attacker-supplied `target` query parameter directly to http.Get with no validation, and streams the full response body back to the caller. This allows full-response SSRF to any http/https destination reachable from the server, including loopback, RFC1918 ranges, and cloud metadata endpoints such as 169.254.169.254.",
+    "source": "main.go:15 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:16 http.Get(target); response echoed via main.go:22 io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "http.HandleFunc(\"/fetch\", fetch) exposes the handler with no auth or middleware."
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target is read from the untrusted query string."
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "Passed unparsed and unchecked to http.Get, which follows redirects by default."
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "Response body of the internal request is copied to the HTTP response, so the result is readable, not blind."
+     }
+    ],
+    "guards_checked": "None on this path. No scheme check, no host allowlist, no IP/private-range block, no redirect restriction, no client timeout. Go's http client only accepts http and https schemes, which limits the scheme attack surface but does not restrict the host."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the /fetch path. The allowlist at main.go:9-12 and the hostname check at main.go:27 belong only to safeFetch (/safe, registered at main.go:42), not to fetch (main.go:14-23) that /fetch routes to (main.go:41).",
+    "reason": "The /fetch route (main.go:41) hands the unauthenticated query parameter target (main.go:15) straight to http.Get (main.go:16) with no host or IP check, and the response is copied back to the caller (main.go:22), so the claimed full-response SSRF is accurate; the only allowlist in the file guards the separate /safe handler."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "In /safe, the host allowlist is enforced on the initial URL only. http.Get uses the default client, which follows up to 10 redirects, and the redirect targets are never checked. If an allowlisted host (images.example.org or docs.example.org) redirects, the server will fetch an attacker- or internal-chosen URL such as 169.254.169.254 or localhost, and return the body.",
+    "source": "main.go:26 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:31 http.Get(u.String()) with redirect following enabled, body echoed via main.go:37",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "http.HandleFunc(\"/safe\", safeFetch) exposes the handler."
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target is parsed once with url.Parse into u."
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "Allowlist check: u.Hostname() must be an exact key in the allowed map, else 403."
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "u.String() is fetched. The same parsed value is used, so there is no parser differential. The default client follows 3xx Location headers to any host."
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "Body of the redirected response is copied back to the caller."
+     }
+    ],
+    "guards_checked": "(a) Parser consistency: the checked u is the value fetched (via u.String()), so no re-parse differential. (b) Userinfo trick http://images.example.org@evil.example/ resolves Hostname() to evil.example and is rejected. (c) Scheme: Go's client only allows http/https. (d) Case and trailing-dot variants fail closed because the map lookup is exact. (e) Port is ignored by Hostname(), so the port is not restricted, but only on the allowlisted host itself. (f) DNS rebinding: not reported, because it requires control of the example.org zone, which the attacker does not have. (g) Redirect following to non-allowlisted hosts: NOT guarded. This is the flaw. Exploitation requires an open redirect or attacker-controlled response on an allowlisted host, so this is a conditional, medium-confidence candidate."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is the exact-key lookup `allowed[u.Hostname()]` at main.go:27, which runs on the initial URL. The fetch at main.go:31 uses the default client (http.Get), which follows redirects to any host, and no CheckRedirect policy is set anywhere in main.go. The source is `r.URL.Query().Get(\"target\")` at main.go:26, which is attacker-controlled.",
+    "reason": "The allowlist at main.go:27 is applied only to the initial URL, and the default client at main.go:31 follows redirects to arbitrary hosts with no CheckRedirect guard, so an unauthenticated attacker who can reach an allowlisted host that redirects can make the server fetch internal URLs and return the body at main.go:37. Exploitation depends on an open redirect or attacker-controlled response on images.example.org or docs.example.org, which is outside this code, so the finding is conditional."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00392039
+}

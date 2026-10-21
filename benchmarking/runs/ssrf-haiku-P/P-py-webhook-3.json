@@ -1,0 +1,145 @@
+{
+ "arm": "P",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00546199,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-d0ojrmj8/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview proxies an arbitrary attacker-supplied URL with no validation and reflects the status code and first 500 characters of the response body to the caller.",
+    "source": "Query parameter 'url' read at app.py:15 via request.args.get(\"url\", \"\"); supplied by any remote client.",
+    "sink": "requests.get(target, timeout=5) at app.py:16; response returned via jsonify at app.py:17.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "Attacker-controlled 'url' query parameter assigned to target without modification."
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "Server issues GET to target with requests; no scheme, host, IP-range, or port check; redirects followed by default."
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "resp.status_code and resp.text[:500] returned to the caller, so responses from internal hosts are readable."
+     }
+    ],
+    "guards_checked": "None on the path. No scheme, host, IP-range, port, or redirect restrictions anywhere in app.py. No tests or config present in the repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The ALLOWED_HOSTS allowlist (app.py:9) and host check (app.py:23-25) apply only to the /partner route. /preview (app.py:13-17) has no validation before requests.get at app.py:16.",
+    "reason": "The attacker-controlled 'url' query parameter at app.py:15 flows unchecked into requests.get at app.py:16, and the status code and first 500 characters of the body are returned at app.py:17; the only host allowlist (app.py:24) is on the separate /partner route."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner allowlist checks only the initial URL's hostname; requests follows redirects to arbitrary hosts, so an allowlisted host that redirects can reach internal addresses (blind SSRF with status-code oracle).",
+    "source": "Query parameter 'url' read at app.py:22; supplied by any remote client.",
+    "sink": "requests.get(target, timeout=5) at app.py:26, with default allow_redirects=True.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "Attacker-controlled 'url' assigned to target."
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname computed for the check."
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "host compared against ALLOWED_HOSTS (defined at app.py:9); only the first URL is validated."
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) follows any 3xx Location to any host; destination is never re-checked."
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "Only resp.status_code returned, making the attack blind but still an oracle for internal reachability."
+     }
+    ],
+    "guards_checked": "Hostname allowlist at app.py:23-25 (applies to initial URL only). No scheme check, no allow_redirects=False, no per-hop re-validation, no IP-range check. Effectiveness depends on whether an allowlisted partner host has an open redirect, which the repo cannot confirm."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Exact hostname set membership at app.py:23-24 (urlparse(target).hostname checked against ALLOWED_HOSTS, defined at app.py:9). It validates only the initial URL. No allow_redirects=False at app.py:26, no per-hop re-check, and no IP-range check. The guard does not cover redirect hops, so it does not close this redirect-based claim.",
+    "reason": "The trace matches the code: target is taken from the query string at app.py:22, the hostname is checked once at app.py:23-24, and requests.get(target, timeout=5) at app.py:26 follows redirects by default, so any redirect from an allowlisted host to an internal address is fetched and its status code is returned at app.py:27. Exploitation still depends on an allowlisted partner host returning a redirect (open redirect or compromise), which this repo cannot confirm, so the impact is conditional. Separately, /preview at app.py:15-16 has no allowlist at all, which is a stronger finding that the candidate does not mention."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-3",
+    "file": "app.py",
+    "line": 26,
+    "claim": "Possible parser differential between urllib.parse.urlparse (used for the allowlist check) and urllib3 (used by requests to send the request) could let a URL pass the check while requests connects to a different host.",
+    "source": "Query parameter 'url' read at app.py:22; supplied by any remote client.",
+    "sink": "requests.get(target, timeout=5) at app.py:26.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "Attacker-controlled 'url' assigned to target."
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "Host extracted with urlparse, e.g. 'https://evil.example\\@api.partner.example/' yields hostname 'api.partner.example'."
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "Check passes because the parsed host is allowlisted."
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests/urllib3 may parse the host as 'evil.example'; unverified, as no code could be executed and behavior varies by version."
+     }
+    ],
+    "guards_checked": "Hostname allowlist at app.py:23-25. The check and the request use different parsers, and no normalization or re-parsing is applied before the request."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-24: `host = urlparse(target).hostname` followed by `if host not in ALLOWED_HOSTS`, an exact membership check on the parsed hostname against {\"api.partner.example\", \"cdn.partner.example\"}, which is one of the closing guards the policy names.",
+    "reason": "The source is attacker-controlled (app.py:22), but the exact-hostname set membership check at app.py:23-24 is a closing guard, and the parser-differential claim at app.py:26 is speculation that the code cannot confirm, so the finding does not hold."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00653575
+}

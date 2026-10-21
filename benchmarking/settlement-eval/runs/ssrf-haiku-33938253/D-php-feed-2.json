@@ -1,0 +1,107 @@
+{
+ "arm": "D",
+ "repo": "php-feed",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01150752,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qzbh21c9/r/.claude/skills/security-research/infrastructure/SKILL.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qzbh21c9/r/.claude/skills/security-research/ssrf/SKILL.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qzbh21c9/r/import.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated POST 'feed' parameter is passed to file_get_contents, letting an external caller make the server fetch arbitrary http(s) URLs, including internal and metadata addresses. Only the body length is echoed back, so the attacker gets a blind SSRF with a length oracle. Redirects are followed by default, so an external host can redirect to internal targets. Rated MEDIUM because the response is not returned (blind SSRF); HIGH is arguable if the length oracle is judged sufficient.",
+    "source": "$_POST['feed'] (import.php:11), attacker-controlled POST body, no authentication on this branch",
+    "sink": "file_get_contents($_POST['feed']) (import.php:12), PHP stream wrapper issues the outbound request",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Branch runs for any POST with 'feed' set, before the require_admin() check that only guards the webhook branch"
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "Raw POST value passed directly to file_get_contents; no parsing, scheme check, or host check"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "Only strlen($xml) is echoed; body is not returned to the caller (length oracle only)"
+     }
+    ],
+    "guards_checked": "Authentication/authorization: none on the feed branch. Scheme restriction: none. Host/IP allowlist: none, so RFC-1918, loopback and 169.254.169.254 are reachable. Redirect handling: file_get_contents follows redirects by default and nothing disables it. Timeout: none set. file:// and php:// wrappers also accepted (separate local-file-read concern, out of SSRF scope)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. import.php:11 checks only the request method and that 'feed' is set; require_admin() (import.php:4-9) is called only in the set_webhook branch at import.php:18. No scheme, host, or IP check exists between the source (import.php:11) and the sink at import.php:12. The file has no includes, so no guard lives elsewhere in the directory.",
+    "reason": "The raw $_POST['feed'] at import.php:11 reaches file_get_contents() at import.php:12 with no authentication, scheme, or host validation, and import.php:13 echoes only strlen($xml), so this is the blind SSRF with a length oracle the candidate described; the trace lines match the file."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated 'set_webhook' value is passed to curl_init and curl_exec with no scheme, host or IP restriction, so an admin can make the server request internal or metadata addresses. The response body is discarded, so this is blind SSRF. Rated MEDIUM: admin-only access does not close SSRF to internal targets, and the admin-equivalence exception does not apply because nothing shows the admin role grants OS-level access.",
+    "source": "$_POST['set_webhook'] (import.php:19), gated by require_admin() (import.php:18)",
+    "sink": "curl_init($hook) / curl_exec($ch) (import.php:20-22)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() returns 403 unless $_SESSION['is_admin'] is non-empty; the flag is set outside this repo"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "Value copied from POST without validation"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "Value used directly as the cURL URL"
+     },
+     {
+      "file": "import.php",
+      "line": 21,
+      "note": "CURLOPT_RETURNTRANSFER set, but output is never echoed; handler responds with 'ok' (blind)"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec performs the outbound request"
+     }
+    ],
+    "guards_checked": "Admin gate: truthy-session check only, and $_SESSION['is_admin'] is never set in this file so its strength is unverified here. Scheme restriction: none (no CURLOPT_PROTOCOLS). Host/IP allowlist: none. Redirect handling: CURLOPT_FOLLOWLOCATION not set, so redirects are not followed. Response returned: no (blind)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "import.php:4-9 require_admin(): truthy-session check on $_SESSION['is_admin'] (flag set outside this repo); no scheme, host, or IP restriction on the curl path",
+    "reason": "The set_webhook value reaching curl_init at import.php:20 is only reachable after the admin gate at import.php:18, so it is an admin-only setting rather than attacker-controlled input."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00544971
+}

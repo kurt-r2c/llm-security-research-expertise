@@ -1,0 +1,94 @@
+{
+ "arm": "K1",
+ "repo": "az-node-massassign",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "58b2c8f2",
+ "status": "success",
+ "gen_cost": 0.00499259,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-edo3k49f/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me runs Object.assign(req.user, req.body) with no field allowlist, so any authenticated user can overwrite any stored user field (role, is_admin, tenant_id, owner_id, etc.) on their own record.",
+    "source": "HTTP JSON body of PUT /me (req.body), reachable by any authenticated caller",
+    "sink": "req.store.save(req.user) at users.js:6, persisting the mutated user record",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "PUT /me route handler, no route-level auth guard in this file"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign(req.user, req.body) copies every attacker-supplied key onto req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save(req.user) persists the mutated record"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json(req.user) returns the full mutated object"
+     }
+    ],
+    "guards_checked": "No field allowlist or schema validation in users.js. No route-level auth guard in this file; req.user population middleware is not in the repo. Route only touches req.user, so no cross-user IDOR here. Exploitability depends on privilege-bearing fields in the user schema, which is not in the repo. Confidence medium."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:4 has no route-level auth guard, and users.js:5 has no field allowlist or schema validation before Object.assign(req.user, req.body). The repo contains only users.js, so the req.user population middleware, the auth check, and the user schema are not available to inspect.",
+    "reason": "The trace is accurate: users.js:5 copies the whole req.body onto req.user, users.js:6 saves it, and users.js:7 returns it, with no allowlist in the file. Whether an authenticated attacker can actually escalate depends on privilege-bearing fields (role, is_admin, tenant_id) existing in the user schema and on req.user being populated from a trusted source, and neither is in the repo, so the security impact cannot be confirmed from the code available (the sibling /me/profile at users.js:11-12 shows an allowlist pattern, which supports the defect but does not settle exploitability)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Object.assign with a JSON body containing an own __proto__ key invokes the __proto__ setter on req.user, replacing that object's prototype with attacker-controlled data, so inherited properties (e.g. role) can be read by downstream checks.",
+    "source": "HTTP JSON body of PUT /me containing a '__proto__' key, e.g. {\"__proto__\":{\"role\":\"admin\"}}",
+    "sink": "Prototype of req.user at users.js:5, read by any downstream authorization check that reads inherited properties",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies own key '__proto__' from req.body, invoking the Object.prototype.__proto__ setter on req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "Mutated req.user (with attacker prototype) is saved"
+     }
+    ],
+    "guards_checked": "No __proto__/constructor key filter. Global Object.prototype is not modified, only the prototype of this one req.user object. Impact depends on downstream authz reading inherited properties, which is not visible in this repo. Confidence low to medium."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 has no __proto__/constructor key filter and no own-property allowlist; users.js:6 saves req.user unchanged. No other guard exists in the repo (only users.js is present).",
+    "reason": "The trace is accurate: users.js:5 Object.assign uses [[Set]] semantics, so an own \"__proto__\" key from req.body invokes the Object.prototype.__proto__ setter on req.user, and no control blocks it (users.js:5-6). However, the attacker is any authenticated user acting only on their own object, and the security impact depends on downstream authorization code that is not in this repository. The same route also allows direct mass assignment of a \"role\" key at users.js:5, so the prototype trick adds no privilege the attacker does not already have if that key is persisted, which makes the claimed impact unverifiable from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0044979700000000004
+}

@@ -1,0 +1,100 @@
+{
+ "arm": "B",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.06026150000000001,
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "The /fetch2 endpoint fetches an attacker-supplied URL. The only check is the scheme (http or https), so the attacker can reach loopback, RFC1918 addresses, cloud metadata (169.254.169.254) and internal services. Redirects are followed by default, which gives a second way to reach internal hosts.",
+    "source": "request.args.get('url') in fetch2 (views.py:19)",
+    "sink": "requests.get(url, timeout=5) (views.py:22)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) is the only guard"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "checks only that urlparse(url).scheme is http or https, with no host or IP check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) is called with the default allow_redirects=True, and the first 200 characters of the response body are returned to the caller"
+     }
+    ],
+    "guards_checked": "Scheme allowlist only (validators.is_http_url). There is no hostname or IP validation, no allowlist, and no redirect restriction. The response body is reflected, so this is full-read SSRF."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only the scheme check in validators.is_http_url, validators.py:7; the stronger is_safe_url is used only on /fetch, not /fetch2)",
+    "reason": "views.py:19-22 passes the query-string url through only the scheme check at validators.py:7 into requests.get(url, timeout=5), which follows redirects by default and returns the first 200 characters of the body, so there is no host or IP guard."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "The /fetch endpoint validates the URL with is_safe_url and disables redirects, but the check can be bypassed. The validator resolves the hostname with getaddrinfo, and requests.get then resolves it again, so a DNS-rebinding host that returns a public IP first and an internal IP second passes the check (TOCTOU). The blocklist also has gaps. It does not use ip.is_global, so ranges such as CGNAT 100.64.0.0/10 and multicast are allowed. This is a lower-confidence finding than SSRF-1 because a plain internal URL is blocked.",
+    "source": "request.args.get('url') in fetch (views.py:11)",
+    "sink": "requests.get(url, timeout=5, allow_redirects=False) (views.py:14)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) is called"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse is used to extract the hostname"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo resolves the hostname once, only for validation"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "blocks is_private, is_loopback, is_link_local and is_reserved only; CGNAT (100.64/10) and multicast are not covered"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url) resolves the hostname again and connects to whatever it returns, because the validated IP is not pinned"
+     }
+    ],
+    "guards_checked": "Scheme allowlist, hostname required, resolved-IP blocklist, and allow_redirects=False. Redirects are therefore not a bypass. The remaining bypasses are DNS rebinding between validation and request, and incomplete IP range coverage. There is no IP pinning and no is_global check."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "is_safe_url resolved-IP blocklist (is_private/loopback/link_local/reserved) at validators.py:16 plus scheme allowlist and allow_redirects=False; none are a closing guard (no host allowlist, no IP pinning, no is_global).",
+    "reason": "The url comes from request.args (views.py:11), and the validator resolves the host once (validators.py:14) with only a partial blocklist (validators.py:16), so requests.get at views.py:14 re-resolves it. That allows DNS rebinding, and CGNAT 100.64/10 and multicast are not blocked."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0633351
+}

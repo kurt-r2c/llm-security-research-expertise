@@ -1,0 +1,64 @@
+{
+ "arm": "C",
+ "repo": "node-avatar",
+ "rep": 3,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.180094,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Bash": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ggbspekj/expertise/INDEX.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ggbspekj/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ggbspekj/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "The avatar endpoint fetches a user-supplied URL server-side. The only check is that the string starts with \"https://\". There is no host allowlist, no resolved-IP check, and no restriction on redirects. An attacker can point it at internal HTTPS services, such as https://users.internal or any internal host with a TLS listener. They can also point it at an attacker-controlled HTTPS server that 302-redirects to http://169.254.169.254/latest/meta-data/... or http://users.internal:8080/.... axios follows redirects by default (up to 5, including https to http), so the scheme check is bypassed on the redirect hop. The response is only reflected as a byte length (bytes: img.data.length), so this is semi-blind. It still gives internal reachability, port and service probing through status, error and timing differences, and a size oracle. Cloud metadata and credentials are reachable only through the request itself, not read back directly.",
+    "source": "POST /profile/avatar JSON body field avatarUrl (req.body.avatarUrl)",
+    "sink": "axios.get(url, { responseType: \"arraybuffer\" }) at server.js:14",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "const url = req.body.avatarUrl; attacker-controlled JSON field"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "Only validation: typeof string and startsWith(\"https://\"). There is no parsing, no host or IP check, and the check is not repeated after redirects."
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) is called with the original string. Default maxRedirects is 5, so redirects are followed to any scheme or host, including http://169.254.169.254 and internal hosts."
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "The response size is returned to the caller, which gives a partial oracle. Errors are unhandled, so failures also leak through a 500 or a dropped connection, and in this Express setup an unhandled async rejection could crash the process."
+     }
+    ],
+    "guards_checked": "The https:// prefix check only restricts the initial scheme. It does not restrict the host, so internal HTTPS hosts and public hosts that redirect inward are accepted. A case-sensitive prefix check means HTTPS:// is rejected, which is irrelevant to the attack. There is no DNS resolution or private-IP blocklist or allowlist, so DNS rebinding and a hostname that resolves to an internal IP both work. The code sets no maxRedirects:0 and has no beforeRedirect hook. There is no egress proxy in the code. Network-level egress filtering and IMDSv2 are not visible in the repo, so I could not confirm them."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only a scheme-prefix check, url.startsWith(\"https://\"), at server.js:11; no host allowlist, IP check, or maxRedirects restriction)",
+    "reason": "server.js:10 takes req.body.avatarUrl from an unauthenticated route, server.js:11 only checks the \"https://\" prefix, and server.js:14 passes it to axios.get with default redirect following, so a closing guard is absent."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0347355
+}

@@ -1,0 +1,102 @@
+{
+ "arm": "K2",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "c6805ce7",
+ "status": "success",
+ "gen_cost": 0.0532125,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6nr0_78a/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6nr0_78a/r/app.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6nr0_78a/expertise/cases/12-ssrf-resolve-then-fetch.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6nr0_78a/expertise/cases/04-url-validate-reparse.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview fetches any user-supplied URL with no validation and returns status and up to 500 chars of the body. This is full SSRF: it can reach cloud metadata (169.254.169.254), localhost, and internal services, and the response is reflected.",
+    "source": "request.args.get('url') in preview()",
+    "sink": "requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get('url') (attacker-controlled)"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) with no scheme, host, or IP check; redirects followed"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "response status and body returned to the attacker"
+     }
+    ],
+    "guards_checked": "None. No allowlist, no private-IP check, no scheme restriction, and allow_redirects is left at its default of True."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15 takes request.args[\"url\"] and app.py:16 passes it straight to requests.get with no host/scheme check (the ALLOWED_HOSTS check at app.py:24 exists only in /partner), and app.py:17 returns status and 500 chars of the body; no auth or middleware exists in this single-file app."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks the host allowlist on urlparse(target).hostname, then passes the raw string to requests.get. Redirects are followed by default, so an open redirect on an allowed host sends the request to an internal target. The check and the fetch also use different parsers (urllib.parse vs urllib3/requests), so parser-differential URLs such as backslash or userinfo tricks may pass the check while requests connects elsewhere. Only the status code is returned, so this is blind SSRF.",
+    "source": "request.args.get('url') in partner()",
+    "sink": "requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target taken from the query string"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "membership check against ALLOWED_HOSTS"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get on the original raw string with redirects enabled and no scheme restriction"
+     }
+    ],
+    "guards_checked": "Hostname allowlist (exact set membership, which is reasonable). Not checked: scheme, allow_redirects=False, and use of the same parsed value for the fetch. Exploitation depends on an open redirect on an allowed partner host or on a parser differential, so this is lower confidence than finding 1."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-25 exact set membership of urlparse(target).hostname in ALLOWED_HOSTS (two fixed partner hosts)",
+    "reason": "The trace is accurate and the source (app.py:22) is attacker-controlled, but the exact hostname-set check at app.py:23-25 is a closing guard; the redirect and parser-differential routes need an open redirect on a partner host or a specific parser bug, and nothing in the code shows either (residual hardening gap: no allow_redirects=False at app.py:26)."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0583114
+}

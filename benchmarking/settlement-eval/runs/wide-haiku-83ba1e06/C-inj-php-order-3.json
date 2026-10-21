@@ -1,0 +1,83 @@
+{
+ "arm": "C",
+ "repo": "inj-php-order",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00843577,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "Grep": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-srtwhygu/r/list.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLI-1",
+    "file": "list.php",
+    "line": 6,
+    "claim": "list_users_sorted() concatenates the raw $_GET['sort'] value into an ORDER BY clause and runs it via PDO::query, giving an attacker SQL injection in the ORDER BY expression. Because ORDER BY is an expression context, a scalar subquery can be used as a yes/no oracle over any table in app.db (e.g. the users table or sqlite_master), so data can be extracted one bit at a time from the row order.",
+    "source": "$_GET['sort'] (list.php:5), attacker-controlled HTTP query parameter; the ?? 'id' only substitutes a default when the key is unset.",
+    "sink": "$pdo->query(\"SELECT id, name FROM users ORDER BY \" . $sort) at list.php:6, raw SQL execution with no parameter binding.",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 5,
+      "note": "$sort = $_GET['sort'] ?? 'id' reads the attacker-controlled value directly from the superglobal."
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "The value is concatenated into the SQL string and passed to PDO::query, which takes raw SQL; no prepare or bind."
+     }
+    ],
+    "guards_checked": "No allowlist, no quoting or escaping, no type check (is_numeric, ctype), no prepared statement. ORDER BY identifiers cannot be bound as parameters, so the only real fix is a column allowlist, which this function lacks. The ?? default covers only the unset case. No authentication or authorization check exists in this file, so the endpoint is reachable by anyone who can reach the caller. Stacked-query execution via PDO::query on SQLite is not verified here; the subquery-based oracle is the demonstrated path. Repro (non-destructive ordering test): ?sort=(CASE WHEN (SELECT COUNT(*) FROM sqlite_master WHERE name='users')=1 THEN id ELSE name END) changes row order only when the condition is true. Precondition: list_users_sorted is called from a request handler with the superglobal, which the function reads directly, so any HTTP exposure of it is exploitable."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. list.php:5 reads $_GET['sort'] with only a `??` default, and list.php:6 concatenates it into the ORDER BY string passed to $pdo->query() with no allowlist, quoting, type check, or prepared statement. The allowlist in list_users_safe (list.php:10-12) is in a different function and is not used by list_users_sorted.",
+    "reason": "The trace is accurate (list.php:5-6 do what the candidate says, and no guard exists in list_users_sorted), but no code in this directory calls list_users_sorted (list.php:4-7 only defines it, and nothing else in the tree references it), so whether an attacker can reach it over HTTP depends on a request handler that is not present here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ENUM-1",
+    "file": "list.php",
+    "line": 17,
+    "claim": "find_user() returns the id and name of whichever user has a given email address with no authentication or rate limiting visible in this code. If the function is exposed to unauthenticated requests, it works as an email-to-identity oracle for account enumeration and PII disclosure. This is a conditional, lower-confidence candidate: it depends on how the caller exposes it, which is not in this repo.",
+    "source": "$_GET['email'] ?? '' (list.php:17), attacker-controlled HTTP query parameter, plus the absence of any caller-side authentication in this file.",
+    "sink": "Data-returning query at list.php:16-18: SELECT id, name FROM users WHERE email = ? with $stmt->fetch() returning the matching row.",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 17,
+      "note": "$_GET['email'] is bound as a parameter (SQL injection is not possible here)."
+     },
+     {
+      "file": "list.php",
+      "line": 18,
+      "note": "fetch() returns the matching user's id and name, so the response reveals whether the email exists and who owns it."
+     }
+    ],
+    "guards_checked": "The query is parameterized, so there is no injection. No authentication, authorization, rate limiting, or 'only return own record' check exists in this file. The finding applies only if a caller exposes find_user over HTTP without those controls. Repo does not show a caller, so reachability is unverified."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. The query at list.php:16 is parameterized and list.php:17 binds $_GET['email'] as a parameter, so there is no injection, but nothing in the file checks authentication, authorization, or rate limiting before fetch() at list.php:18.",
+    "reason": "The trace is accurate: list.php:17 binds the attacker-controlled $_GET['email'] and list.php:18 returns the matching id and name. But list.php never calls find_user() (the file only defines it at list.php:15-19), and the directory holds no other PHP file, so no HTTP entry point in this repo reaches it, and whether an unauthenticated caller exists elsewhere cannot be determined from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00442606
+}

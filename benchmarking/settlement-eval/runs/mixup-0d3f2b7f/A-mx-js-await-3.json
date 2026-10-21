@@ -1,0 +1,139 @@
+{
+ "arm": "A",
+ "repo": "mx-js-await",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.0410324,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "server.js",
+    "line": 20,
+    "claim": "authorize() is async but is not awaited in the DELETE handler. The delete runs regardless of the authorization result, so any caller can delete any report. The rejection from the 403 throw is also unhandled, which on Node 15+ can crash the process.",
+    "source": "Any request to DELETE /reports/:id. The :id path param is attacker-controlled and the caller needs no grant.",
+    "sink": "db.reports.remove(report.id) at server.js:21",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 18,
+      "note": "DELETE /reports/:id handler receives an attacker-chosen id"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "The report is loaded by id with no ownership check"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "authorize() returns a promise that is never awaited, so execution continues before the grant check resolves"
+     },
+     {
+      "file": "server.js",
+      "line": 21,
+      "note": "db.reports.remove runs unconditionally"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "The 403 throw becomes an unhandled promise rejection, because Express 4 does not catch async errors and nothing awaits the promise. This can crash the process (DoS) on Node 15+."
+     }
+    ],
+    "guards_checked": "The authorize() call exists but is not awaited. The PUT handler at line 27 does await it, which confirms the intended pattern. No other middleware enforces authorization. The only middleware sets req.user from the session. There is no router-level guard and no error handler."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:9-16 throws 403 on a missing grant, but the DELETE handler calls it as a bare statement at line 20 without await, so the throw never stops line 21. The only middleware (lines 4-7) just sets req.user. There is no router-level guard and no error handler.",
+    "reason": "server.js:20 calls async authorize() without await, so db.reports.remove at server.js:21 runs regardless of the grant check, and the 403 throw at server.js:14 becomes an unhandled rejection. The PUT handler at server.js:27 awaits it, which shows the intended pattern."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:9-16 throws on a missing grant, but the DELETE handler calls it at line 20 without await or .catch. No router-level guard or error handler exists. The only middleware (lines 4-7) copies the session user into req.user.",
+    "reason": "The DELETE handler at server.js:20 calls the async authorize() without await, so the 403 throw at server.js:11-14 becomes an unhandled rejection and db.reports.remove at server.js:21 still runs for any caller, while the PUT handler at server.js:27 does await it."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "server.js",
+    "line": 28,
+    "claim": "The PUT handler passes the whole request body to db.reports.update, so a caller with write access can mass-assign any field. That includes owner, id and permission-related fields.",
+    "source": "req.body JSON on PUT /reports/:id from a user with 'write' on the report",
+    "sink": "db.reports.update(report.id, req.body)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 3,
+      "note": "express.json() parses the attacker-controlled body"
+     },
+     {
+      "file": "server.js",
+      "line": 28,
+      "note": "The unfiltered body goes straight into the update"
+     }
+    ],
+    "guards_checked": "There is no field allowlist or schema validation. I could not see the db layer, so whether it filters fields is unverified. Severity depends on what db.reports.update does with unexpected keys."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:27 is correctly awaited, so a write grant is required. There is no field allowlist or schema validation on req.body.",
+    "reason": "The trace is accurate (express.json at server.js:3, unfiltered req.body passed at server.js:28 after an awaited write-grant check at :27), but db is undefined in this repo, which contains only server.js, so I can't tell whether db.reports.update filters or rejects owner/id/permission keys."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "authorize(req.user, \"write\", report) at server.js:27 is properly awaited and throws 403, so only users with 'write' reach the update. There is no field allowlist or schema validation. The db layer is not in this directory.",
+    "reason": "server.js:28 passes the unfiltered req.body (parsed at server.js:3) to db.reports.update after only a write-grant check at server.js:27, so any write-level user can submit arbitrary fields such as owner or id. The db layer's handling of unexpected keys can't be seen, so the actual impact is unverified."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "server.js",
+    "line": 5,
+    "claim": "The middleware reads req.session.user with no session middleware installed and no authentication check. If the session is missing, this throws a TypeError. If a session exists but has no user, req.user is undefined and authorize() throws a TypeError on user.id. Nothing rejects unauthenticated requests up front.",
+    "source": "Any unauthenticated request",
+    "sink": "req.session.user at line 5, and user.id at line 10",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 4,
+      "note": "Global middleware has no session setup and no 401 on a missing user"
+     },
+     {
+      "file": "server.js",
+      "line": 5,
+      "note": "req.session is undefined unless session middleware is mounted, which throws a TypeError"
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "user.id is dereferenced with an undefined user"
+     }
+    ],
+    "guards_checked": "No express-session or other session middleware is present in this file, and there is no authentication gate. Session middleware might be added elsewhere, but only server.js exists here. Combined with F1, the unauthenticated DELETE path depends on the session setup, so impact is mainly a 500/DoS. In a deployment where a session exists without a user, the F1 flaw still lets the delete go through."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none: there is no session middleware and no 401 check. The only control is authorize() at server.js:9-16, which throws 403 on missing grants but throws a TypeError at :10 when user is undefined. The DELETE handler at :20 calls it without await, so the result is discarded.",
+    "reason": "Lines 4-5 and 10 do what the finding says: server.js:5 dereferences req.session.user with no session setup or 401, and server.js:10 dereferences user.id. An anonymous request therefore gets a 500 or an unhandled rejection, and when a session exists without a user the DELETE at :20 still proceeds because authorize() is not awaited. Impact is mostly a crash or DoS, and the delete bypass is really F1."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:9-16 fails closed on PUT (server.js:27, awaited). A missing user makes it throw at line 10 and no write happens. Session identity is populated by trusted upstream middleware per the project facts.",
+    "reason": "The lines exist as described, but the \"no session middleware\" premise at server.js:5 is excluded by the project facts. For a missing user, the awaited authorize() at server.js:27 rejects before the write at line 28, so the only real consequence is a hung or failed request. The unauthenticated DELETE at server.js:20-21 is the separate F1 bug (authorize not awaited), not a distinct flaw in this middleware."
+   }
+  }
+ ],
+ "verify_cost": 0.09466379999999999,
+ "verify_facts_cost": 0.095058
+}

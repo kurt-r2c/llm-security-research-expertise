@@ -1,0 +1,147 @@
+{
+ "arm": "B",
+ "repo": "inj-php-order",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00948877,
+ "trace": {
+  "tools": {
+   "Bash": 4,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-cktsgclz/r/list.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "list.php",
+    "line": 6,
+    "claim": "SQL injection via unsanitized $_GET['sort'] concatenated into ORDER BY in list_users_sorted; allows blind boolean extraction of any table data (read-only, one statement per PDO query).",
+    "source": "$_GET['sort'] (list.php:5)",
+    "sink": "$pdo->query(\"SELECT id, name FROM users ORDER BY \" . $sort) (list.php:6)",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 5,
+      "note": "$sort = $_GET['sort'] ?? 'id' \u2014 attacker-controlled, no validation"
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "raw concatenation into ORDER BY, executed via PDO::query"
+     }
+    ],
+    "guards_checked": "None: no allowlist, no quoting, no type check; query() used instead of prepare(); ORDER BY cannot be bound as a parameter. Reachability depends on an external route (not in this file); PHP display_errors and runtime behavior not verified (PHP execution was not approved, so repro is unverified)."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. list.php:5 takes $_GET['sort'] with no allowlist, quoting, or type check, and list.php:6 concatenates it into ORDER BY and runs it through PDO::query(). The allowlisted variant list_users_safe (list.php:9-12) is a separate function and is not called by list_users_sorted.",
+    "reason": "The trace is accurate and nothing in list_users_sorted (list.php:4-7) blocks the concatenation, but list.php never calls list_users_sorted and the directory contains no other PHP file, so whether an anonymous or low-privilege user can reach this function cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "list.php",
+    "line": 6,
+    "claim": "Unauthenticated full user directory exposure: list_users_sorted and list_users_safe return every id and name in users with no auth/authz check or pagination.",
+    "source": "No caller input required; any caller that reaches the function",
+    "sink": "fetchAll() over SELECT id, name FROM users (list.php:6 and list.php:12)",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 4,
+      "note": "list_users_sorted entry, no session/role check"
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "unrestricted SELECT of all users, fetchAll() with no LIMIT"
+     },
+     {
+      "file": "list.php",
+      "line": 9,
+      "note": "list_users_safe entry, same lack of authorization"
+     },
+     {
+      "file": "list.php",
+      "line": 12,
+      "note": "same unrestricted SELECT"
+     }
+    ],
+    "guards_checked": "None in this file. Exposure depends on whether a caller route enforces authentication; none was found in the codebase."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None in list.php. list_users_sorted (list.php:4-6) and list_users_safe (list.php:9-12) have no session, role, or auth check, and no pagination or LIMIT. The Glob of the directory shows no router, entry point, or caller that includes list.php, so no control exists in the code available.",
+    "reason": "The trace is accurate: list.php:6 and list.php:12 run an unfiltered `SELECT id, name FROM users` with no authorization in the functions, but list.php only defines functions (list.php:4-19) and nothing in the repo calls them or routes HTTP requests to them, so whether an unauthenticated attacker can reach this exposure cannot be decided from the code here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "list.php",
+    "line": 17,
+    "claim": "Unauthenticated email-to-identity lookup in find_user acts as an account-existence and user-ID/name oracle; no rate limit or uniform response; fetch() returns arbitrary row if email is non-unique.",
+    "source": "$_GET['email'] (list.php:17)",
+    "sink": "SELECT id, name FROM users WHERE email = ? returned via fetch() (list.php:16-18)",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 17,
+      "note": "$_GET['email'] ?? '' passed to execute()"
+     },
+     {
+      "file": "list.php",
+      "line": 18,
+      "note": "fetch() returns id and name for the matching row"
+     }
+    ],
+    "guards_checked": "Parameterized query prevents SQL injection; no authentication, no rate limiting, no uniqueness enforcement on email. Exposure depends on whether a caller route is public."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Parameterized query at list.php:16-17 (prepare/execute with a bound ?) blocks SQL injection but not enumeration. No authentication, authorization, rate limiting, or uniform-response control exists anywhere in list.php or elsewhere in the directory.",
+    "reason": "The trace is accurate: list.php:17 binds $_GET['email'] ?? '' into the query and list.php:18 fetch() returns id and name, with no auth check on that path. But find_user is defined at list.php:15-19 and never called in this file, and the directory holds no other caller or routing, so no anonymous HTTP path to it is shown; whether it is publicly reachable cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "list.php",
+    "line": 2,
+    "claim": "Relative SQLite path 'sqlite:app.db' resolves against the process working directory; if app.db is placed inside a web-served directory, the full database (including credential hashes) can be downloaded.",
+    "source": "Deployment configuration (working directory and file location), not user input",
+    "sink": "Raw app.db file served statically by the web server",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 2,
+      "note": "new PDO('sqlite:app.db') resolves relative to CWD"
+     }
+    ],
+    "guards_checked": "None in code. Only applies if app.db resides under the web root and is served directly; not verifiable from this codebase alone."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in code. The only directory listing is list.php plus .claude/skills files, with no app.db, web server config, or document-root config to show whether app.db is web-served.",
+    "reason": "list.php:2 does open `sqlite:app.db` with a relative path, so the trace is accurate, but whether the database is downloadable depends on deployment (app.db sitting under a statically served web root), which nothing in this directory shows, so the finding can be neither confirmed nor refuted from the code alone."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.008321960000000002
+}

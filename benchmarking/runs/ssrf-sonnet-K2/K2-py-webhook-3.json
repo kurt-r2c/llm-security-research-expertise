@@ -1,0 +1,102 @@
+{
+ "arm": "K2",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "c6805ce7",
+ "status": "success",
+ "gen_cost": 0.053819599999999995,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-40q03ncr/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-40q03ncr/r/app.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-40q03ncr/expertise/cases/12-ssrf-resolve-then-fetch.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-40q03ncr/expertise/cases/04-url-validate-reparse.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview fetches an arbitrary user-supplied URL with no validation and returns the status code and the first 500 characters of the body. This is full-read SSRF. It can reach internal services, cloud metadata (169.254.169.254) and localhost.",
+    "source": "request.args.get('url') in preview(), the ?url= query parameter",
+    "sink": "requests.get(target, timeout=5), with the response body returned in the JSON",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get('url', '') (attacker-controlled)"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) is called directly; redirects are followed by default and any scheme, host or IP is accepted"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "resp.status_code and resp.text[:500] are returned to the attacker"
+     }
+    ],
+    "guards_checked": "None. No scheme check, host allow-list, private-IP block, or redirect restriction on this path."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15-17 takes the url query parameter and passes it straight to requests.get at line 16, then returns the status code and the first 500 characters of the body; the route has no auth, no before_request hooks and no host or scheme check (the ALLOWED_HOSTS check at line 24 applies only to /partner)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "The /partner allow-list check is bypassable. It validates only the hostname parsed by urlparse. The request is then sent by requests (urllib3) with allow_redirects left at its default of True. If any allow-listed host has an open redirect, or if the two parsers disagree on a crafted URL, the request reaches an arbitrary host. Only the status code is returned, so this is blind SSRF. The redirect route depends on an allow-listed host exposing an open redirect, which I could not verify from this code.",
+    "source": "request.args.get('url') in partner(), the ?url= query parameter",
+    "sink": "requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get('url') (attacker-controlled)"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname is parsed with urllib.parse"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "Check: host must be in ALLOWED_HOSTS"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) re-parses the raw string with a different parser and follows redirects, so the check on the first hop does not cover later hops"
+     }
+    ],
+    "guards_checked": "Hostname allow-list on the urlparse result only. There is no scheme restriction, no allow_redirects=False, no pinning of the parsed URL, and no IP check. Matches the pattern in case 04 (url-validate-reparse)."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Exact set membership of urlparse(target).hostname in ALLOWED_HOSTS (app.py:23-25); no allow_redirects=False or scheme check.",
+    "reason": "The trace matches app.py:22-26 and the source is attacker-controlled. However, app.py:24 is an exact hostname set-membership guard, so exploitation depends on an allow-listed host exposing an open redirect (or a urlparse/urllib3 parser differential), and neither can be determined from this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0615335
+}

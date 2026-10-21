@@ -1,0 +1,99 @@
+{
+ "arm": "C",
+ "repo": "h4-java-stored",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01017879,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-z4da24_2/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-z4da24_2/r/src/Profile.java",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-z4da24_2/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "src/Profile.java",
+    "line": 23,
+    "claim": "Blind SSRF: the nightly sync() sends a server-side GET to an arbitrary, unvalidated URL stored from the icon field of PUT /profile. Any host and port reachable from the job's network (internal services, 169.254.169.254 metadata, localhost) can be targeted. The response body is read but never returned to the attacker, so the impact is blind (internal probing, side-effecting GETs, and IMDSv1 credential fetch with no exfil path in this code).",
+    "source": "PUT /profile request body, `icon` parameter of Profile.update(String webhook, String icon) at src/Profile.java:11, stored unvalidated at src/Profile.java:16 (`this.iconUrl = icon;`)",
+    "sink": "c.send(HttpRequest.newBuilder().uri(URI.create(iconUrl)).GET().build(), HttpResponse.BodyHandlers.ofByteArray()) at src/Profile.java:23-24 (java.net.http.HttpClient)",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 11,
+      "note": "update(webhook, icon): attacker-controlled `icon` enters the method via PUT /profile"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 16,
+      "note": "icon is stored in this.iconUrl with no validation (no scheme, host, IP, or port check)"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 20,
+      "note": "sync(HttpClient c) runs as a nightly job over the stored state"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 23,
+      "note": "URI.create(iconUrl) turns the stored string into a URI with no re-validation"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 23,
+      "note": "c.send(...).GET() issues the server-side request; response body is consumed by ofByteArray() with no size limit and not returned to the caller"
+     }
+    ],
+    "guards_checked": "(1) No validation on the icon path: update() at src/Profile.java:11-17 only checks webhook, and icon is stored as-is at :16. (2) No host allowlist, no private/loopback/link-local IP block, no DNS pinning. (3) Scheme: java.net.http.HttpClient only performs http/https requests, so file:, ftp:, and jar: are not reachable through this sink. (4) Redirects: HttpClient defaults to Redirect.NEVER, so there is no redirect-following bypass unless the injected client `c` is configured with a follow policy. That configuration is not visible in this repo, so this is a dependency to verify. (5) Credentials: the request carries no auth headers. (6) Authorization on PUT /profile is not visible in this code, so the attacker is assumed to be any user allowed to update their own profile; the route is not in this repo. The finding is therefore a deferred, stored, blind SSRF whose reach depends on the job's network position."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. src/Profile.java:11-17 validates only `webhook` (regex at :12). `icon` is stored unchecked at :16 and reaches `URI.create(iconUrl)` and `c.send(...GET()...)` at :23-24 with no scheme, host, IP, or port check.",
+    "reason": "Every trace line matches: `update(webhook, icon)` at src/Profile.java:11 stores `icon` unvalidated at :16, and `sync()` at :20-24 passes it straight to a server-side GET via `URI.create(iconUrl)`. The source is the request-supplied `icon` parameter of the PUT /profile handler (the comment at :10 says so), and no closing guard exists in the repo. Caveats that don't change the verdict: the route, its authorization, and the injected `HttpClient` redirect policy are not in this repo, so the reach depends on those."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-NOTE-webhook",
+    "file": "src/Profile.java",
+    "line": 12,
+    "claim": "Not a finding: webhookUrl (POST sink at line 21-22) is validated by a full-string, anchored regex `https://hooks\\.example\\.com/[A-Za-z0-9]{20}` (String.matches). The host is fixed and the dot is escaped, and the path allows only alphanumerics, so no userinfo, fragment, port, or host control is possible. Only a 20-character path is attacker-controlled on a fixed external host.",
+    "source": "PUT /profile `webhook` parameter at src/Profile.java:11",
+    "sink": "c.send POST at src/Profile.java:21-22",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 12,
+      "note": "anchored regex check; String.matches requires a full match"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 15,
+      "note": "stored only after validation passes"
+     }
+    ],
+    "guards_checked": "Anchored full-match regex, escaped dots, fixed host, alphanumeric-only path. Attacker cannot change the host, scheme, or port, so there is no SSRF to internal targets."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "src/Profile.java:12 `webhook.matches(\"https://hooks\\\\.example\\\\.com/[A-Za-z0-9]{20}\")`: a full-string anchored match (String.matches) with the host fixed, the dot escaped, and the path limited to exactly 20 alphanumeric characters. This rules out userinfo, port, fragment, query, scheme change, and path traversal. The check runs before the value is stored at line 15.",
+    "reason": "The trace is accurate: the anchored full-match regex at src/Profile.java:12 runs before the store at line 15 and the POST sink at lines 21-22, and it fixes the scheme and host and allows only 20 alphanumeric path characters, so an attacker cannot redirect the request to an internal target."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00436225
+}

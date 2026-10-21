@@ -1,0 +1,133 @@
+{
+ "arm": "B",
+ "repo": "az-py-idor",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.008282139999999999,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Read": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-gxcfxg52/r/invoices.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "invoices.py",
+    "line": 7,
+    "claim": "GET /invoice/<inv_id> returns any invoice to any caller with no authentication or ownership check (IDOR / missing authorization).",
+    "source": "Unauthenticated HTTP request; attacker controls the inv_id path segment (invoices.py:7-8).",
+    "sink": "INVOICES.get(inv_id) followed by jsonify(inv), returning the full invoice object (invoices.py:9-10).",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 7,
+      "note": "Route registered with no auth decorator."
+     },
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "Handler takes inv_id from the URL; g.user is never read."
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "Dict lookup on the attacker-chosen ID; missing IDs return 404."
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "Full invoice, including the customer field, returned as JSON."
+     }
+    ],
+    "guards_checked": "No auth decorator on the route. No ownership comparison, unlike /my/invoice/<id> (line 16). No before_request in this file. Only the 404 for unknown IDs applies. Global auth layer and ID generation are outside this tree and unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:7 has only @app.route with no auth decorator. invoices.py:8-10 never reads g.user, and there is no before_request hook. The /my/invoice/<inv_id> route at invoices.py:16-17 has an ownership check, but it is on a different route and does not apply to /invoice/<inv_id>. The Glob of the working tree found no other Python, middleware, or config files, so no global auth layer exists in this tree. A gateway or proxy outside the tree could still add auth at runtime, but that cannot be verified from the code provided.",
+    "reason": "The trace matches invoices.py:7-10: the route at line 7 has no auth, and lines 9-10 return the full invoice for any inv_id with no ownership check, unlike the guarded /my/invoice route at lines 16-17. An anonymous attacker can reach it, and no control in the tree blocks it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "invoices.py",
+    "line": 16,
+    "claim": "Ownership check on /my/invoice/<id> depends on g.user set by code outside this directory. If that code can yield a user with id None, invoices with customer=None would match (conditional, unverified).",
+    "source": "g.user, populated by external middleware not in this tree (invoices.py:16, 23).",
+    "sink": "Equality check inv['customer'] != g.user['id'] gating jsonify(inv) (invoices.py:16-18).",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 15,
+      "note": "Invoice fetched by ID."
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "Compares invoice customer to g.user['id']; without g.user this raises (500), not a bypass."
+     },
+     {
+      "file": "invoices.py",
+      "line": 17,
+      "note": "Mismatch returns 404, so existence is not revealed."
+     },
+     {
+      "file": "invoices.py",
+      "line": 18,
+      "note": "Match returns the invoice."
+     }
+    ],
+    "guards_checked": "Strict != comparison; mismatch and missing both return 404 (no existence oracle). Bypass requires upstream anonymous/null user with id None and an invoice with customer=None, not verifiable here. Missing g.user raises AttributeError, which could leak a traceback if debug mode is on."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Strict `!=` comparison at invoices.py:16 gating the return at line 18; mismatch and missing invoice both return 404 via abort at lines 15 and 17. No other auth middleware or customer=None filtering exists in this tree.",
+    "reason": "The trace lines match the code (invoices.py:15-18), but whether the bypass is reachable depends on g.user being set by middleware outside this tree (invoices.py:16) and on that middleware ever yielding a user with id None, while invoices with customer=None (invoices.py:23 filter) would also need to exist; none of that can be decided from the files here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "invoices.py",
+    "line": 23,
+    "claim": "/my/invoices scans every invoice in the global store per request and returns full records with no pagination or field filtering (cost and data-minimisation issue, informational).",
+    "source": "Any authenticated caller; no request parameters.",
+    "sink": "Linear scan of INVOICES.values() (invoices.py:23) with full objects serialised by jsonify.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 21,
+      "note": "Route with no pagination or limit."
+     },
+     {
+      "file": "invoices.py",
+      "line": 23,
+      "note": "O(N) filter over all stored invoices per request, then full-object serialisation."
+     }
+    ],
+    "guards_checked": "Results scoped to g.user['id'], so no cross-customer leak; only scan cost and payload size at issue."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None blocks the scan cost or payload size. The only control is the customer filter at invoices.py:23 (`i[\"customer\"] == g.user[\"id\"]`), which scopes results to the caller but still iterates all of INVOICES. No pagination or limit exists on the route at invoices.py:21-23. No auth decorator appears in this file; g.user is used without a check here, so authentication is assumed to happen elsewhere.",
+    "reason": "The trace is accurate: invoices.py:21-23 has no pagination, and the comprehension at line 23 scans every stored invoice for each request before serialising the matches. Any authenticated user can trigger this, and nothing blocks it, but the impact is only scan cost and payload size (informational), since the caller receives only their own records."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006072190000000001
+}

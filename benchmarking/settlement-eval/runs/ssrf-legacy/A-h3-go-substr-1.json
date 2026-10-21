@@ -1,0 +1,90 @@
+{
+ "arm": "A",
+ "repo": "h3-go-substr",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.046421500000000004,
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-logo-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches a user-supplied URL after only checking that the string contains \"example.io\". An attacker can pass any URL with that substring in the host, path, query or userinfo, so the server will request internal or arbitrary hosts and return the response body.",
+    "source": "r.FormValue(\"logo\") (query or form parameter \"logo\") at main.go:31",
+    "sink": "http.Get(raw) at main.go:36, with the response body copied back to the client at main.go:38",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw = r.FormValue(\"logo\"), attacker-controlled"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "strings.Contains(raw, \"example.io\") is the only check and is trivially bypassed"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) uses the default client, which follows redirects and has no host or IP restrictions"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy(w, resp.Body) returns the full response to the attacker, so this is not blind SSRF"
+     }
+    ],
+    "guards_checked": "Only the substring check at main.go:32. It does not parse the URL and does not check scheme, hostname, or resolved IP. Payloads such as http://169.254.169.254/latest/meta-data/?x=example.io, http://example.io.attacker.com/ or http://attacker.com/example.io pass it. The default client also follows redirects, so an allowed host could redirect to an internal one. There is no private-IP or DNS-rebinding protection."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only strings.Contains(raw, \"example.io\") at main.go:32 (substring check, not a closing guard); no auth/middleware, no URL parsing, scheme or host allowlist on this path. The trusted-host map at main.go:10 is used only by /cdn.",
+    "reason": "main.go:31 takes the attacker-controlled \"logo\" form value, main.go:32 only does a substring check, and main.go:36 http.Get(raw) with default redirect-following returns the body to the client at main.go:38, so URLs like http://169.254.169.254/?x=example.io pass."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-cdn-reviewed-not-vulnerable",
+    "file": "main.go",
+    "line": 25,
+    "claim": "Reviewed and judged NOT exploitable: the /cdn handler uses a parsed-hostname exact-match allowlist (only cdn.example.io) and disables redirects. The only remaining risk is that the scheme and port are not restricted, which is minor since the host is fixed. Listed for completeness, not as a vulnerability.",
+    "source": "r.FormValue(\"u\") at main.go:15",
+    "sink": "c.Get(u.String()) at main.go:25",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "url.Parse of the user-supplied value"
+     },
+     {
+      "file": "main.go",
+      "line": 20,
+      "note": "u.Hostname() must exactly match a key in the trusted map (cdn.example.io)"
+     },
+     {
+      "file": "main.go",
+      "line": 24,
+      "note": "Client with CheckRedirect returning ErrUseLastResponse, so redirects are not followed"
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "Request goes to the allowlisted host only"
+     }
+    ],
+    "guards_checked": "Exact-match hostname allowlist and redirects disabled. This blocks the substring, userinfo and redirect bypasses. The residual risk is DNS control of cdn.example.io, which is out of scope."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact-match set membership on parsed u.Hostname() against trusted map {cdn.example.io} (main.go:20), plus redirects disabled via CheckRedirect (main.go:12, 24)",
+    "reason": "The trace is accurate (main.go:15, 20, 24, 25), and the exact parsed-hostname allowlist at main.go:20 closes the SSRF, so the /cdn sink at main.go:25 only reaches cdn.example.io. Separately, the /logo handler at main.go:32 uses a substring check and is a different, exploitable flow that this finding does not cover."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0627901
+}

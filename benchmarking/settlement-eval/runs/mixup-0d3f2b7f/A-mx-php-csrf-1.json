@@ -1,0 +1,129 @@
+{
+ "arm": "A",
+ "repo": "mx-php-csrf",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.047109200000000004,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "actions.php",
+    "line": 16,
+    "claim": "transfer_funds calls check_csrf() (returns a boolean) instead of verify_csrf() (which exits with 403), and discards the result. The CSRF check is never enforced, so a cross-site forged POST transfers funds from the victim's account.",
+    "source": "Cross-site forged POST to the transfer endpoint from an attacker page. The victim's session cookie is sent automatically. The attacker supplies amt and to, and a missing or wrong token is accepted.",
+    "sink": "UPDATE acct SET bal = bal - ? / bal + ? at lines 17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 4,
+      "note": "check_csrf only returns a bool and does not halt"
+     },
+     {
+      "file": "actions.php",
+      "line": 16,
+      "note": "return value ignored, so execution continues with an invalid or absent token"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debits the victim's account (session uid)"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credits the attacker-chosen account in $_POST['to']"
+     }
+    ],
+    "guards_checked": "Compared with update_profile (line 22), which correctly uses verify_csrf. No SameSite cookie setting or Origin/Referer check is visible in this file, and session_start() sets none. No other authentication or confirmation step is on the path."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:4-6) returns a bool and does not abort. Its result is discarded at line 16. verify_csrf (line 8) would abort but is not called in transfer_funds. No SameSite, Origin or Referer check exists, and this is the only file.",
+    "reason": "actions.php:16 calls check_csrf() as a bare statement and ignores its boolean result, so lines 17-18 run without a valid token. Only an authenticated victim's session is needed, and the attacker just forges a cross-site POST. update_profile at line 22 correctly uses verify_csrf."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:4-6) only returns a bool and is called as a bare statement at line 16. verify_csrf (the aborting version) is used only in update_profile at line 22. No SameSite, Origin or Referer check exists anywhere in the directory.",
+    "reason": "actions.php:16 discards the boolean from check_csrf, so lines 17-18 run and debit the session user and credit the attacker-chosen $_POST['to'] with no CSRF enforcement. Any cross-site page can trigger this using the victim's session cookie."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "transfer_funds does no validation of the amount, balance or recipient. A negative amt reverses the transfer, so the attacker's account is debited and the victim's credited, which drains any account the attacker names in 'to'. There is also no check for insufficient funds, a non-numeric or zero amount, a nonexistent recipient, or self-transfer. The two UPDATEs are not wrapped in a transaction, so a failure between them loses or creates money.",
+    "source": "Authenticated user's POST fields amt and to (for example amt=-1000, to=<victim id>)",
+    "sink": "UPDATE acct SET bal = bal - ? WHERE id = ? (line 17) and UPDATE acct SET bal = bal + ? WHERE id = ? (line 18)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "$_POST['amt'] is bound directly, with no sign, range or balance check; the debit applies to the session user"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "the same unvalidated amt credits $_POST['to']; with a negative amt, the named account is debited and the attacker credited"
+     }
+    ],
+    "guards_checked": "Queries are parameterized, so there is no SQL injection. No amount validation, authorization check on the recipient, balance check, DB-level CHECK constraint (not visible here) or transaction was found in this file."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only check_csrf() at actions.php:16, and its bool result is discarded (a bare statement, so it blocks nothing). Even if it were enforced, it only stops cross-site forgery and does nothing for amount, balance, or recipient validation. The queries are parameterized, which stops SQLi only. There is no transaction and no ownership check on 'to'.",
+    "reason": "actions.php:17-18 bind the raw $_POST['amt'] and $_POST['to'] into bal - ? and bal + ? with no sign, balance, or recipient checks. A negative amt therefore credits the session user and debits the victim, and the check_csrf call at line 16 is a bare statement whose result is ignored."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:16) is called as a bare statement and its boolean result is discarded, so it blocks nothing; no amount, balance, recipient or transaction controls exist.",
+    "reason": "actions.php:17-18 bind unvalidated $_POST['amt'] and $_POST['to'] into the debit and credit UPDATEs, and the only guard, check_csrf at line 16, returns a bool that is ignored (unlike verify_csrf, which exits), so an authenticated user can send a negative amt to take funds from any account."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "transfer_funds and update_profile use $_SESSION['uid'] without checking that a user is logged in. A session with no uid binds NULL as the id. This is likely harmless on its own, but it is missing an authentication guard.",
+    "source": "Unauthenticated request that has a session but no uid",
+    "sink": "UPDATE statements keyed on NULL id",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "$_SESSION['uid'] is used without an isset check (a PHP notice, and a NULL bind)"
+     },
+     {
+      "file": "actions.php",
+      "line": 23,
+      "note": "the same pattern in update_profile"
+     }
+    ],
+    "guards_checked": "No login check is present in this file. A callers' router may enforce authentication, but none is visible, so this is low severity."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "verify_csrf (actions.php:8) aborts on failure, but it protects only update_profile. transfer_funds calls check_csrf (actions.php:16), which returns a bool, and discards the result. Neither function checks login state.",
+    "reason": "Lines 17 and 23 use $_SESSION['uid'] with no login check, as claimed. The impact is worse than \"harmless\" in transfer_funds: check_csrf at line 16 is a bare call whose result is ignored. A session with no uid therefore matches no row in the debit at line 17, but the credit at line 18 still adds attacker-chosen amt to any $_POST['to'] account, so funds can be created without a debit."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "verify_csrf (actions.php:8-13) aborts with 403 and guards update_profile (line 22). In transfer_funds, check_csrf (line 16) returns a bool that is discarded, so there is no effective guard. Neither function checks that $_SESSION['uid'] is set.",
+    "reason": "The missing login check is real: actions.php:17 and :23 use $_SESSION['uid'] with no check. The impact is understated. In transfer_funds, the debit at line 17 matches no row when uid is NULL. The credit at line 18 still runs for an attacker-chosen $_POST['to'], because the check_csrf result at line 16 is discarded. An anonymous session can therefore credit any account without a matching debit. In update_profile, the NULL id (line 23) is harmless."
+   }
+  }
+ ],
+ "verify_cost": 0.0920819,
+ "verify_facts_cost": 0.0958017
+}

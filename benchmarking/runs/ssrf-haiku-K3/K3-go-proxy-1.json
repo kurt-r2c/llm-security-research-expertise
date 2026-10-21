@@ -1,0 +1,120 @@
+{
+ "arm": "K3",
+ "repo": "go-proxy",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.0070437699999999995,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w16kxa33/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "Unauthenticated /fetch passes the raw query parameter `target` straight to http.Get with no scheme, host, or IP validation, and streams the response body back to the caller. Full-response SSRF to any internal or metadata endpoint reachable from the server.",
+    "source": "main.go:15 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:16 http.Get(target); response relayed at main.go:22 io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "http.HandleFunc(\"/fetch\", fetch) registers route with no auth middleware"
+     },
+     {
+      "file": "main.go",
+      "line": 14,
+      "note": "fetch handler entry"
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target read from query string, unvalidated"
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get(target) issues server-side request to attacker-chosen URL"
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "response body copied to attacker-visible response"
+     }
+    ],
+    "guards_checked": "None on this path: no url.Parse, no scheme check, no hostname allowlist (the `allowed` map at main.go:9-12 is not referenced here), no IP/private-range block, no redirect check, no auth on route."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the /fetch path. main.go:14-23 has no url.Parse, scheme check, hostname or IP validation, redirect check, or auth. The `allowed` map at main.go:9-12 is referenced only by safeFetch at main.go:27, which is a separate handler on /safe (main.go:42), so it does not guard /fetch.",
+    "reason": "The `target` query value at main.go:15 flows unvalidated into http.Get at main.go:16 and the response body is copied back to the client at main.go:22, and the route at main.go:41 is registered with no authentication, so any remote caller can make the server fetch arbitrary URLs, including internal or metadata endpoints."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "/safe enforces a hostname allowlist only on the initial URL; the default http.Get client follows redirects (up to 10) with no CheckRedirect, so an allowed host that redirects to an internal address bypasses the allowlist. Conditional on an open redirect or attacker-influenced content existing on images.example.org or docs.example.org, which is not verifiable from this repo.",
+    "source": "main.go:26 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:31 http.Get(u.String()) with redirect following; response relayed at main.go:37 io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "http.HandleFunc(\"/safe\", safeFetch) registers route with no auth middleware"
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "safeFetch handler entry"
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target read and parsed with url.Parse"
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "allowed[u.Hostname()] check on initial URL only; passes for images.example.org or docs.example.org"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get follows 3xx redirects by default; no CheckRedirect configured, so redirect targets are unvalidated"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "body from redirect target copied to response"
+     }
+    ],
+    "guards_checked": "main.go:27 allowlist on Hostname of parsed URL (enforced on first hop only). Verified SAFE for the first hop: url.Parse error short-circuits to 403 before deref; check and request use the same parsed object; userinfo '@' trick resolves to real host and fails; case variants and trailing-dot hostnames fail closed; only http/https issued by Go client. Not enforced: redirect targets (no CheckRedirect at main.go:31). Name-based check does not address DNS rebinding (not reported; requires attacker-controlled DNS for allowed names)."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "main.go:27 exact map membership on u.Hostname() (images.example.org, docs.example.org). This closes only the initial URL. No CheckRedirect is set on the default client at main.go:31, so redirect targets get no check.",
+    "reason": "Every trace line checks out (route at main.go:42, source at main.go:26, allowlist at main.go:27, http.Get at main.go:31, body relay at main.go:37), and the target is attacker-controlled from an unauthenticated query parameter. The bypass, however, needs an allowed host (images.example.org or docs.example.org) to issue a redirect to an internal address, and nothing in this repo shows that such a redirect exists, so exploitability cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00410833
+}

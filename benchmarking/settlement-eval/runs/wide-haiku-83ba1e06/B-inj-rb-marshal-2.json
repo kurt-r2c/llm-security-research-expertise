@@ -1,0 +1,152 @@
+{
+ "arm": "B",
+ "repo": "inj-rb-marshal",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00826417,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-4nvstd2n/r/app.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.rb",
+    "line": 6,
+    "claim": "Unauthenticated POST /restore passes attacker-supplied base64 data straight into Marshal.load, which is code-execution-equivalent. RCE needs a gadget chain in loaded gems (unverified, no lockfile). Even without RCE it allows DoS via crafted object graphs and leaks object internals via inspect at line 7. The design also lets clients return server state with no integrity protection.",
+    "source": "params[:state] on POST /restore (app.rb:5-6), reachable by any network client with no authentication",
+    "sink": "Marshal.load(Base64.decode64(params[:state])) at app.rb:6",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 5,
+      "note": "post \"/restore\" route accepts the request with no auth check"
+     },
+     {
+      "file": "app.rb",
+      "line": 6,
+      "note": "params[:state] read and passed to Base64.decode64 (lenient, no validation)"
+     },
+     {
+      "file": "app.rb",
+      "line": 6,
+      "note": "decoded bytes passed to Marshal.load, instantiating arbitrary classes"
+     },
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "state.inspect returned in response body, disclosing deserialized object internals"
+     }
+    ],
+    "guards_checked": "No authentication or authorization on the route. No HMAC or signature on the state blob. No class allowlist. Base64 decoding is not validation. Sinatra default Rack::Protection does not inspect parameter contents. Fix: drop Marshal from this path; use schema-validated JSON, and keep state server-side or sign it with HMAC and verify before use."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.rb:5 defines post \"/restore\" with no auth check. app.rb:6 passes params[:state] through Base64.decode64 into Marshal.load with no HMAC, signature, or class allowlist. Nothing in the repo wraps or validates this route. Sinatra's default Rack::Protection does not inspect parameter contents. app.rb:7 returns state.inspect, so deserialized object internals reach the response body.",
+    "reason": "The trace is accurate: the unauthenticated route at app.rb:5 feeds attacker-controlled base64 into Marshal.load at app.rb:6 and returns state.inspect at app.rb:7, with no effective control in between. Caveat: remote reachability depends on deployment (Sinatra in development binds to localhost by default), and RCE depends on gadgets that cannot be verified without a lockfile, but the unsafe deserialization and information disclosure are confirmed by the code."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.rb",
+    "line": 11,
+    "claim": "Unhandled exceptions from malformed bodies may be rendered to the client with stack traces and file paths. This only applies if Sinatra runs in development mode, which is the default when RACK_ENV is unset. Confidence is medium because deployment config is not visible.",
+    "source": "Malformed request body sent to POST /import (app.rb:11) or POST /restore (app.rb:6)",
+    "sink": "Unhandled exception rendered by Sinatra error handler (show_exceptions in development)",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 11,
+      "note": "JSON.parse(request.body.read) raises JSON::ParserError on malformed input with no rescue"
+     },
+     {
+      "file": "app.rb",
+      "line": 6,
+      "note": "Marshal/Base64 errors on malformed state propagate with no rescue"
+     }
+    ],
+    "guards_checked": "No rescue or error handler in app.rb. No environment enforcement visible in the repo. Mitigation: set RACK_ENV=production and add explicit error handling that returns generic responses."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. app.rb has no rescue or error handler. The only other repo files are .claude/skills/security-research/*. No Gemfile, config.ru, or RACK_ENV/environment setting exists in the repo.",
+    "reason": "The trace is accurate: app.rb:11 calls JSON.parse(request.body.read) and app.rb:6 calls Marshal.load(Base64.decode64(params[:state])) with no rescue, and the endpoints are anonymous. Whether stack traces actually reach clients depends on the run mode, which Sinatra's show_exceptions only enables in development (its default when RACK_ENV is unset), and no deployment config in the repo sets RACK_ENV, so the condition cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "app.rb",
+    "line": 12,
+    "claim": "/import returns attacker-controlled JSON keys unescaped in a response with Sinatra's default text/html content type, a reflected XSS vector. Probably blocked by Sinatra's default HttpOrigin protection for cross-site POSTs, so confidence is low and the Sinatra version is unverified.",
+    "source": "JSON object keys in the POST /import request body (app.rb:11)",
+    "sink": "data.keys.join(\",\") returned as HTML response body (app.rb:12)",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 11,
+      "note": "request.body.read parsed as JSON with no type or schema check"
+     },
+     {
+      "file": "app.rb",
+      "line": 12,
+      "note": "keys joined and returned raw as the response body, default content type text/html"
+     }
+    ],
+    "guards_checked": "No output encoding. Sinatra default Rack::Protection::HttpOrigin should reject mismatched Origin headers with 403, which would block a cross-site text/plain form POST. Sinatra version not verified. Fix: return text/plain or JSON, or escape with ERB::Util.h."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Sinatra's default-on Rack::Protection::HttpOrigin, which is not disabled in app.rb (no `set :protection, false`). It rejects a POST whose Origin header differs from the app's origin, and modern browsers send Origin on cross-site form POSTs, so the text/plain form-CSRF body that would make the JSON parse never reaches app.rb:12. The Sinatra version is unverified because no Gemfile or Gemfile.lock exists in the directory, so this rests on the default configuration.",
+    "reason": "The trace matches the code (app.rb:11 parses the raw body as JSON, app.rb:12 returns the joined keys with Sinatra's default text/html type), and a cross-site text/plain form POST that would deliver the payload is rejected by the default-on HttpOrigin protection, which the app does not disable. Residual uncertainty is that the Sinatra version cannot be confirmed without a Gemfile."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "app.rb",
+    "line": 11,
+    "claim": "/import has no body size limit, so unbounded request.body.read is a memory DoS vector. Separately, a top-level JSON array or scalar makes data.keys at line 12 raise NoMethodError and return a 500. This is a logic/correctness flaw with limited security impact.",
+    "source": "Request body of POST /import, any size and any top-level JSON type",
+    "sink": "request.body.read at app.rb:11 (unbounded memory allocation); data.keys at app.rb:12 (NoMethodError on non-Hash)",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 11,
+      "note": "request.body.read reads the full body with no size cap"
+     },
+     {
+      "file": "app.rb",
+      "line": 12,
+      "note": "data.keys called without checking data is a Hash; Array or String input raises NoMethodError"
+     }
+    ],
+    "guards_checked": "No size limit on the body. No type check on parsed data. Fix: cap the body size and check data.is_a?(Hash) before calling keys."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.rb:11 reads the full body with request.body.read and no size cap. app.rb:12 calls data.keys with no is_a?(Hash) check. No authentication or middleware in app.rb gates the route.",
+    "reason": "The trace matches app.rb:11-12: the body is read unbounded and the parsed value goes straight to data.keys, so a top-level JSON array or scalar raises NoMethodError and returns a 500. The route is anonymous (app.rb:10), and no guard exists in the code provided. The security impact is low, as the candidate itself notes. The unbounded read is a plausible memory-exhaustion vector, but any server-level body limit (Puma/Rack config) is not in the provided code and could not be checked."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0096621
+}

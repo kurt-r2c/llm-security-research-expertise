@@ -1,0 +1,57 @@
+{
+ "arm": "B",
+ "repo": "mx-go-err",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.05138859999999999,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.go",
+    "line": 26,
+    "claim": "Authorization result is ignored in dropTable. Any request that reaches the handler runs DROP TABLE, whether or not the user has the dba role. The same line also builds the SQL from user input (SQL injection) and userFrom can panic on a missing user.",
+    "source": "Any user that can reach /admin/drop. They need no dba role. The table name comes from the attacker-controlled form value 't'.",
+    "sink": "runSQL(\"DROP TABLE \" + r.FormValue(\"t\")) at api.go:27",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 44,
+      "note": "/admin/drop is registered to dropTable with no auth middleware"
+     },
+     {
+      "file": "api.go",
+      "line": 25,
+      "note": "userFrom(r) reads the user from the request context"
+     },
+     {
+      "file": "api.go",
+      "line": 26,
+      "note": "Authorize(u, \"dba\") returns an error for non-dba users, but the return value is discarded"
+     },
+     {
+      "file": "api.go",
+      "line": 27,
+      "note": "The handler continues and runs runSQL with the string-concatenated, attacker-controlled table name"
+     }
+    ],
+    "guards_checked": "Authorize at api.go:26 has its error discarded, so it does not enforce anything. Compare vacuum at api.go:33-36, which checks the error and returns 403. There is no input validation or allowlist on 't', no parameterization (DDL identifiers cannot be parameterized, so an allowlist is needed), and no middleware on the mux. userFrom at api.go:22 uses an unchecked type assertion, so a request with no user in the context panics. That is only a crash, and net/http recovers from handler panics."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Authorize at api.go:26 is discarded, so it enforces nothing. However, userFrom (api.go:22) uses an unchecked type assertion on a context value that nothing in the codebase sets. No WithValue or \"user\" key exists anywhere in the directory, and the mux at api.go:44 has no middleware.",
+    "reason": "The trace lines are accurate, and the discarded Authorize result at api.go:26 plus the concatenated SQL at api.go:27 are real defects. But no code sets the \"user\" context value, so userFrom at api.go:22 panics on every request and the handler aborts at api.go:25 before runSQL at api.go:27 runs. The claimed anonymous DROP TABLE is therefore not reachable in this codebase as written, and it becomes exploitable only if auth middleware that populates the user is added."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 is a bare statement, so its returned error is discarded and nothing is enforced. There is no middleware, allowlist or validation on 't'. userFrom (api.go:22) is an unchecked type assertion.",
+    "reason": "api.go:26 discards the error from Authorize, so any authenticated user reaches api.go:27 and runs DROP TABLE with the attacker-controlled form value 't' concatenated in, while vacuum (api.go:33-36) shows the correct check-and-403 pattern that dropTable lacks."
+   }
+  }
+ ],
+ "verify_cost": 0.046792400000000005,
+ "verify_facts_cost": 0.0351167
+}

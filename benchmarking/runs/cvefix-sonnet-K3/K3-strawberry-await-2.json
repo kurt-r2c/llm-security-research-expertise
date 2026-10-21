@@ -1,0 +1,88 @@
+{
+ "arm": "K3",
+ "repo": "strawberry-await",
+ "rep": 2,
+ "model": "sonnet",
+ "suite": "cvefix",
+ "config_id": "a748edfc",
+ "status": "success",
+ "gen_cost": 0.32794249999999997,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 14,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/file_uploads/utils.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/http/async_base_view.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/http/async_base_view.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/http/base.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/http/sync_base_view.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/types/graphql.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/schema/schema.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/subscriptions/protocols/graphql_transport_ws/handlers.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/subscriptions/protocols/graphql_ws/handlers.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/permission.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/extensions/query_depth_limiter.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/extensions/max_aliases.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/extensions/disable_introspection.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f1t9xjrb/r/strawberry/http/ides.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "strawberry/extensions/query_depth_limiter.py",
+    "line": 272,
+    "claim": "Exponential-time fragment traversal in the validation-rule extensions (QueryDepthLimiter, and MaxAliasesLimiter with the same pattern). Fragment expansion is not memoized, and `visited_fragments` only guards the current path, so cycles are caught but a DAG is walked once per path. A document with a chain of fragments, each spreading the next one twice (`fragment f0 on Query { ...f1 ...f1 } fragment f1 on Query { ...f2 ...f2 } ... fragment fN on Query { __typename }`), costs O(2^N) steps. Spreads do not increase `depth_so_far`, so the `depth_so_far > max_depth` cutoff never fires. The limiter meant to protect the server therefore becomes a CPU-exhaustion vector: an unauthenticated request of a few hundred bytes pins a worker.",
+    "source": "Attacker-controlled GraphQL query text in the HTTP POST/GET body or a websocket subscribe message (unauthenticated where the endpoint is public). The server must have QueryDepthLimiter or MaxAliasesLimiter enabled.",
+    "sink": "determine_depth() in query_depth_limiter.py recursing through FragmentSpreadNode with no cache. count_fields_with_alias() in max_aliases.py recurses the same way.",
+    "trace": [
+     {
+      "file": "strawberry/http/async_base_view.py",
+      "line": 254,
+      "note": "schema.execute is called with the attacker's query text"
+     },
+     {
+      "file": "strawberry/schema/schema.py",
+      "line": 713,
+      "note": "_run_validation runs after parsing, once the operation type has been checked"
+     },
+     {
+      "file": "strawberry/extensions/query_depth_limiter.py",
+      "line": 133,
+      "note": "DepthLimitValidator.__init__ computes depths for all operations in the document"
+     },
+     {
+      "file": "strawberry/extensions/query_depth_limiter.py",
+      "line": 142,
+      "note": "determine_depth is called for each operation"
+     },
+     {
+      "file": "strawberry/extensions/query_depth_limiter.py",
+      "line": 272,
+      "note": "FragmentSpreadNode branch recurses into the fragment with depth_so_far unchanged and visited_fragments extended only for the current path, so every path through the fragment DAG is re-walked"
+     },
+     {
+      "file": "strawberry/extensions/query_depth_limiter.py",
+      "line": 290,
+      "note": "Fragment and inline-fragment definitions iterate all selections, doubling the work per level"
+     },
+     {
+      "file": "strawberry/extensions/max_aliases.py",
+      "line": 99,
+      "note": "Same unmemoized fragment recursion; there is no depth bound at all"
+     }
+    ],
+    "guards_checked": "The depth_so_far > max_depth check (query_depth_limiter.py:231) only counts field nesting, not fragment-only chains. visited_fragments (:274, :285) is per-path, so it stops cycles but not DAG fan-out. max_tokens, if configured, bounds query size but the doubling chain fits in a few hundred tokens. The schema validation rules (NoFragmentCycles etc.) do not stop a valid fragment DAG. Rule constructors run before the visitor starts, so the cost is paid even if another rule would reject the document. I did not execute a PoC; this is based on reading the code."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

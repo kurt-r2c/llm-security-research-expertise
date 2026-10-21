@@ -1,0 +1,150 @@
+{
+ "arm": "K1",
+ "repo": "rubysdk-dos",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.051768789999999995,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 7,
+   "Read": 11,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/client/oauth/discovery.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/client/oauth/flow.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/client/stdio.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/server/pagination.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/server/transports/streamable_http_transport.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/client/http.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/server.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/server.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/server/transports/streamable_http_transport.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/client/oauth/client_credentials_provider.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0lfeajr_/r/lib/mcp/client/oauth/storage_backed_provider.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-resource-metadata-blind",
+    "file": "lib/mcp/client/oauth/flow.rb",
+    "line": 37,
+    "claim": "A malicious or compromised MCP server can make the client send unauthenticated GET requests to attacker-chosen loopback http and arbitrary https hosts via the resource_metadata URL in WWW-Authenticate. The response is not returned to the attacker, so the impact is blind SSRF: reachability oracle and GET side effects on internal services.",
+    "source": "WWW-Authenticate resource_metadata parameter in a 401/403 response from the MCP server (lib/mcp/client/http.rb:465-469 parse_www_authenticate_from_error)",
+    "sink": "http_get(url) in lib/mcp/client/oauth/flow.rb:764-766, a Faraday GET to the attacker-supplied URL",
+    "trace": [
+     {
+      "file": "lib/mcp/client/http.rb",
+      "line": 415,
+      "note": "run_oauth_flow! takes params from the 401 WWW-Authenticate header"
+     },
+     {
+      "file": "lib/mcp/client/http.rb",
+      "line": 476,
+      "note": "run_full_authorization_flow! passes resource_metadata_url into flow.run!"
+     },
+     {
+      "file": "lib/mcp/client/http.rb",
+      "line": 486,
+      "note": "attempt_refresh also forwards resource_metadata_url to flow.refresh!"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 37,
+      "note": "run! calls ensure_secure_url! on resource_metadata_url"
+     },
+     {
+      "file": "lib/mcp/client/oauth/discovery.rb",
+      "line": 181,
+      "note": "secure_url? allows any https host and http loopback hosts (127.0.0.0/8, ::1, localhost)"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 208,
+      "note": "fetch_protected_resource_metadata builds candidates with the attacker URL first"
+     },
+     {
+      "file": "lib/mcp/client/oauth/discovery.rb",
+      "line": 79,
+      "note": "protected_resource_metadata_urls puts resource_metadata_url at the front of the list"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 225,
+      "note": "locate_authorization_server rescues AuthorizationError and discards the PRM error, so no response content is surfaced"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 764,
+      "note": "http_get issues the GET with no timeout and no IP or private-range filtering"
+     }
+    ],
+    "guards_checked": "secure_url? requires https or loopback http only; no private, RFC1918, or link-local block; no resolved-IP pinning; no redirect control (Faraday does not follow redirects by default); no auth headers sent on the discovery GET; PRM errors swallowed at flow.rb:226-233, so no body read-back. Severity low to medium. Static reading only; not run."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "client-secret-to-attacker-as",
+    "file": "lib/mcp/client/oauth/flow.rb",
+    "line": 696,
+    "claim": "The client_credentials client_secret is sent as HTTP Basic credentials to a token_endpoint chosen by the MCP server through PRM authorization_servers, with no binding between the configured credential and the authorization server it is sent to.",
+    "source": "PRM document (authorization_servers[0] and the AS metadata token_endpoint), reached via the attacker-controlled resource_metadata URL or by the malicious server itself",
+    "sink": "post_to_token_endpoint sends Authorization: Basic base64(client_id:client_secret) to token_endpoint (lib/mcp/client/oauth/flow.rb:696 and :707)",
+    "trace": [
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 236,
+      "note": "locate_authorization_server takes the first authorization_servers entry from the PRM"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 237,
+      "note": "ensure_secure_url! checks https only"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 261,
+      "note": "issuer equals discovery URL, which an attacker AS trivially satisfies"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 102,
+      "note": "run_client_credentials! builds the grant"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 674,
+      "note": "post_to_token_endpoint loads client_id and client_secret from client_information"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 696,
+      "note": "client_secret is base64-encoded into the Authorization header"
+     },
+     {
+      "file": "lib/mcp/client/oauth/flow.rb",
+      "line": 707,
+      "note": "http_post_form posts to the attacker-chosen token_endpoint"
+     },
+     {
+      "file": "lib/mcp/client/oauth/client_credentials_provider.rb",
+      "line": 69,
+      "note": "the client_secret was stored from developer config"
+     }
+    ],
+    "guards_checked": "ensure_secure_endpoints! requires https on token_endpoint; resource_covers? (flow.rb:513-525) checks PRM resource only when PRM advertises it, so omitting it bypasses the check; issuer check passes for attacker AS; no pinning of AS to developer configuration. Precondition: malicious or compromised MCP server. Impact: disclosure of a long-lived client secret. Partly a design-trust question per MCP spec (PRM may name the AS); severity low to medium. Static reading only; not run."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

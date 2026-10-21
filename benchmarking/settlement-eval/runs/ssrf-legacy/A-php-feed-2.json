@@ -1,0 +1,90 @@
+{
+ "arm": "A",
+ "repo": "php-feed",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.0404903,
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF: the server fetches an arbitrary URL supplied in the POST 'feed' parameter. file_get_contents also accepts non-HTTP wrappers (file://, php://, ftp://, gopher-like), so internal services, cloud metadata (169.254.169.254) and local files are reachable. Only the response length is echoed, which still allows blind probing of internal hosts and ports through response size and timing differences.",
+    "source": "$_POST['feed'] (HTTP POST body, no authentication)",
+    "sink": "file_get_contents($_POST['feed'])",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Condition: POST request with 'feed' set. No auth check."
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "$_POST['feed'] passed directly to file_get_contents()"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "strlen of the fetched body is returned to the attacker, giving a size oracle"
+     }
+    ],
+    "guards_checked": "No require_admin() call on this path (it is defined at line 4 but only used at line 18). No scheme or host allowlist, no private/loopback/link-local IP blocking, no DNS-rebinding protection. allow_url_fopen is assumed to be at its default (on)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "import.php:11-13 passes $_POST['feed'] straight to file_get_contents() and echoes strlen() with no auth, as the finding says; require_admin() (line 4) is only called at line 18, and there is no scheme or host validation."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated SSRF: the 'set_webhook' value is passed straight to curl_init and curl_exec. The request is made server-side to any URL, including internal hosts and metadata endpoints. curl also accepts schemes such as file://, gopher:// and dict:// unless restricted. The response is not returned, so this is blind SSRF. Exploitation requires an admin session, or a way to obtain one such as CSRF against an admin (no CSRF token is checked).",
+    "source": "$_POST['set_webhook'] (HTTP POST body, requires $_SESSION['is_admin'])",
+    "sink": "curl_init($hook) followed by curl_exec($ch)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch entered when POST 'set_webhook' is set"
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks $_SESSION['is_admin']"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook']"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the target URL"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec issues the request"
+     }
+    ],
+    "guards_checked": "require_admin() is present, which limits the attacker to admins. There is no URL scheme restriction (no CURLOPT_PROTOCOLS), no host or IP allowlist, no private-range blocking, and CURLOPT_FOLLOWLOCATION is not set, so redirects are not followed. There is no CSRF token."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 (session is_admin check); no URL/host/scheme validation and no CSRF token",
+    "reason": "The trace is accurate (import.php:17-22), but the sink at import.php:20 is only reachable after require_admin() at import.php:18 passes on $_SESSION['is_admin'], so the source is admin-only and not controllable by an unauthenticated or low-privilege attacker. The CSRF route is speculative: the session cookie has no SameSite attribute set in the code, and modern browsers default to Lax, which blocks cross-site POSTs."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0622413
+}

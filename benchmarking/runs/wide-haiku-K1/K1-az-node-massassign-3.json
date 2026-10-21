@@ -1,0 +1,131 @@
+{
+ "arm": "K1",
+ "repo": "az-node-massassign",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "58b2c8f2",
+ "status": "success",
+ "gen_cost": 0.00421255,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-f_f_xprm/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me mass-assigns the entire request body onto the authenticated user record. Any logged-in user can set any user-model field (e.g. role, isAdmin, tenantId, plan, or id) and have it persisted. CONDITIONAL: the exploit depends on the user model having such fields, which is not visible in this repo.",
+    "source": "req.body (attacker-controlled JSON) at users.js:4-5",
+    "sink": "req.store.save(req.user) at users.js:6 persists the mutated user object",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "Route PUT /me; no field allowlist or schema validation before use"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign(req.user, req.body) copies every own key of the body onto req.user, including privileged or ownership fields"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save(req.user) persists the modified record with no re-check of which fields changed"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json(req.user) returns the modified record, confirming the write to the client"
+     }
+    ],
+    "guards_checked": "Route is self-scoped (acts on req.user, not a URL id), so no IDOR via path id. No allowlist, schema, or field-level check in this file. Upstream auth middleware that sets req.user is not in the repo, so its role checks cannot be verified. Escalation to admin is only possible if the user model has such a field. Variant: if the body sets id to another user's id and store.save upserts by id, this overwrites the victim's record (also unverifiable here). Variant: a body key \"__proto__\" sets req.user's prototype (not global pollution), so inherited properties such as isAdmin would be read by checks within the same request, but would not persist."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js. No field allowlist, schema, or ownership check at users.js:4-7. The auth middleware that sets req.user and any role checks are not in the repo (Glob shows users.js is the only file).",
+    "reason": "Every trace line matches users.js:5-7 (Object.assign(req.user, req.body) at line 5, store.save at line 6, res.json at line 7), and nothing in the file blocks a mass-assigned field. Whether this is exploitable depends on the user model's privileged fields and on the upstream auth middleware, neither of which is in the repo, so the escalation cannot be confirmed or refuted here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile wipes fields the client omits. Object.assign copies undefined values, so a request with only displayName silently sets bio to undefined and clears it in the store.",
+    "source": "req.body at users.js:11 (displayName and bio may be absent)",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12 followed by req.store.save at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Destructures displayName and bio from req.body; absent keys become undefined"
+     },
+     {
+      "id": "F2",
+      "file": "users.js",
+      "line": 12,
+      "note": "Object.assign copies the undefined values onto req.user, overwriting existing data"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "Persists the cleared fields"
+     }
+    ],
+    "guards_checked": "No partial-update semantics or undefined-field filtering. Impact is data integrity for the owning user only, so this is a logic flaw, not a cross-user issue. Low severity.",
+    "line_numbers_note": "Logic flaw, low severity"
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:10-15 has no undefined-field filtering or validation, and the only other route (users.js:4-8) is a separate PUT /me that is not on this path. No middleware in the directory filters the body. The only other file is none; the directory contains only users.js.",
+    "reason": "Line 11 destructures displayName and bio from req.body, and line 12 passes them as shorthand properties to Object.assign, which copies undefined-valued own properties onto req.user, so an authenticated user who sends only displayName clears bio before req.store.save at line 13 persists it. The attacker is the owning authenticated user acting on their own profile, so this is a low-severity data-integrity logic flaw, not a cross-user vulnerability; whether the store keeps undefined or drops it on serialization does not change that bio is cleared."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "users.js",
+    "line": 6,
+    "claim": "Save result is not awaited or checked, so the endpoint can report success for a write that failed or has not completed. This applies to both PUT /me (line 6) and PUT /me/profile (line 13).",
+    "source": "Store write outcome (req.store.save) at users.js:6 and users.js:13",
+    "sink": "res.json success response at users.js:7 and users.js:14",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save(req.user) is called without await or error handling"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "Response is sent immediately, regardless of whether the save succeeded"
+     }
+    ],
+    "guards_checked": "Whether store.save is async cannot be verified from this repo. If it returns a Promise that rejects, the rejection is unhandled. Low severity; logic and reliability issue, not a direct security bypass."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. No store implementation or req.store middleware exists in the directory (Grep for \"save|store\" matches only users.js:6 and users.js:13), so nothing checks or awaits the save result before the response at users.js:7 and users.js:14.",
+    "reason": "The trace is accurate: users.js:6 and :13 call req.store.save without await or error handling, and users.js:7 and :14 respond unconditionally. Whether that produces a false success depends on the save contract, which is not in this repo. If save is synchronous and throws, Express returns a 500 and the claim fails; if it returns a Promise or a status flag, the claim holds, so the finding cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00623232
+}

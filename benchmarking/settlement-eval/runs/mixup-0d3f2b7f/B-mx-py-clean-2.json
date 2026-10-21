@@ -1,0 +1,67 @@
+{
+ "arm": "B",
+ "repo": "mx-py-clean",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.054953600000000005,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 11,
+    "claim": "The user identity is taken straight from the client-supplied header X-Session-User-Verified. The app does no signature, session or token validation. Unless an upstream proxy strips and re-sets this header (nothing in this repo shows that), any caller can impersonate any user. That bypasses the ACL on both the delete and rename routes.",
+    "source": "Attacker-controlled HTTP request header X-Session-User-Verified",
+    "sink": "ACL-protected operations: del STORE[fid] (views.py:18) and f[\"name\"] = ... (views.py:27)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "g.user = request.headers.get('X-Session-User-Verified') is set with no verification"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "ensure_allowed(g.user, f, 'delete') receives the spoofed identity"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "is_allowed checks grants.get(user) against the attacker-chosen name, so naming the file owner passes the check"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "the file is deleted"
+     },
+     {
+      "file": "views.py",
+      "line": 25,
+      "note": "the same spoofed identity passes the 'write' check on rename"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "the file name is overwritten"
+     }
+    ],
+    "guards_checked": "The ACL logic in acl.py is applied on both routes and denies by default for unknown users. It trusts g.user, though, and g.user is unauthenticated. I found no authentication decorator, signature check or session store in the repo. I could not check for a trusted reverse proxy that strips this header, because infrastructure config is not in the repo. Missing-header requests give user=None, which is denied unless grants has a None key. Minor: STORE[fid] raises KeyError, so unknown ids return a 500 instead of a 404."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "ACL only (acl.py:4-10, is_allowed/ensure_allowed). ensure_allowed aborts 403 and is_allowed's result is tested at views.py:25, so both work. They check g.user, which is the unauthenticated header. No auth decorator, signature check or session store in the repo. A trusted proxy that strips the header could exist, but nothing in the repo shows one.",
+    "reason": "views.py:11 sets g.user straight from the client header, and acl.py:5 only checks grants.get(user). An anonymous caller who knows or guesses a grantee's name can pass the checks at views.py:17 and views.py:25, then delete (views.py:18) or rename (views.py:27). The only open point is an upstream proxy that strips the header, which this repo can't show."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "ACL checks at views.py:17 (ensure_allowed aborts 403) and views.py:25 (is_allowed result tested, returns 403); acl.py:5 denies by default. The identity is supplied by trusted upstream middleware per the maintainer's project facts.",
+    "reason": "The trace lines are accurate (views.py:11, 17, 18, 25, 27; acl.py:5). The maintainer states that request identity such as g.user comes from trusted upstream middleware, so the X-Session-User-Verified header at views.py:11 is the trusted identity channel and an attacker cannot spoof it. The ACL at views.py:17 and views.py:25 is enforced and denies by default."
+   }
+  }
+ ],
+ "verify_cost": 0.040918,
+ "verify_facts_cost": 0.0381229
+}

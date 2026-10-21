@@ -1,0 +1,194 @@
+{
+ "arm": "P",
+ "repo": "az-node-massassign",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.0066645,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-i3aog43o/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me performs unfiltered mass assignment: Object.assign(req.user, req.body) lets an authenticated caller write any field of the user record, which is then persisted via req.store.save. Impact (privilege escalation or account takeover) depends on whether the user schema has privileged or identity fields, which could not be verified from this repository.",
+    "source": "req.body (HTTP JSON body of PUT /me, fully attacker-controlled by any authenticated user), users.js:4-5",
+    "sink": "req.store.save(req.user) at users.js:6 (persistence of the user record)",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "router.put('/me') handler receives the request"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies every own property of req.body onto req.user with no allowlist"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save persists the modified user object"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json returns the modified object to the client"
+     }
+    ],
+    "guards_checked": "No field allowlist, schema validation, or per-field authorization in users.js. Authentication assumed from upstream middleware that sets req.user; not present in repository, so unverified. Contrast with /me/profile (users.js:11-12), which uses an explicit allowlist."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 Object.assign(req.user, req.body) has no allowlist or schema check, and users.js:6 req.store.save(req.user) persists the result with no check. The only other control is the implicit upstream auth that sets req.user, which is not in this repository. The allowlist at users.js:11-12 applies only to /me/profile, not /me.",
+    "reason": "Every trace line matches users.js:4-7: the PUT /me handler at line 4 copies all of req.body onto req.user at line 5, saves it at line 6, and returns it at line 7 with no filtering, so any caller that reaches the route can write any field. Whether this amounts to privilege escalation or account takeover depends on the user schema, which is not in the repository, so the severity claim is unverified even though the mass-assignment flaw itself is confirmed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 5,
+    "claim": "A JSON body containing a '__proto__' key changes the prototype of req.user via Object.assign's [[Set]] semantics. Effect is confined to the req.user object, not Object.prototype, so exploitability is low and requires later code to trust inherited properties.",
+    "source": "req.body containing an own '__proto__' property (attacker-controlled JSON body), users.js:5",
+    "sink": "Prototype of req.user (users.js:5), then persisted at users.js:6",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign sets target['__proto__'] = attacker value, replacing req.user's prototype"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save persists the object; inherited properties no longer reflect own data"
+     }
+    ],
+    "guards_checked": "No key filtering on req.body. No visible code reading inherited properties of req.user. Global Object.prototype is not reached because the target is req.user."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": false,
+    "guard_found": "none in users.js (no key filtering on req.body); the candidate's claimed persistence step is not supported, since the prototype change is not an own property and save(req.user) serializes own data only",
+    "reason": "users.js:5 does use Object.assign(req.user, req.body), so a JSON \"__proto__\" key would invoke the __proto__ setter and change req.user's prototype, but users.js:6 persisting req.user does not persist an inherited prototype (the only file here, so store and req.user definitions are unverifiable), and the attacker is an authenticated user only changing their own object, where mass assignment at users.js:5 already gives them any own-property write, so this adds no reachable impact beyond that."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "users.js",
+    "line": 12,
+    "claim": "Profile update overwrites existing displayName and bio with undefined when the client omits them, because Object.assign copies undefined-valued properties. A partial update therefore wipes the omitted field.",
+    "source": "req.body.displayName and req.body.bio, which may be absent (users.js:11)",
+    "sink": "Persisted user record via req.store.save at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Destructures displayName and bio from req.body; absent fields become undefined"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Object.assign copies undefined values onto req.user, clearing existing data"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "save persists the cleared record; JSON serialization drops undefined keys"
+     }
+    ],
+    "guards_checked": "No partial-update handling or defaults. Effect limited to the caller's own record; logic flaw, low severity."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none. No partial-update handling or defaults in users.js:10-15. The only other control is the auth that populates req.user, which is not in this directory, but it only establishes that the caller owns the record.",
+    "reason": "The trace is accurate: users.js:11-12 builds {displayName, bio} with undefined values and Object.assign copies them, so omitted fields are cleared. But the caller can only affect their own record, and the same caller can already overwrite or clear those fields through PUT /me at users.js:5 (Object.assign(req.user, req.body)), so the wipe grants no power they lack. That makes it a functional partial-update bug, not a security vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "users.js",
+    "line": 12,
+    "claim": "displayName and bio are stored without type or length validation. Impact (NoSQL operator injection in later queries, or stored XSS if rendered unescaped) is unverified because the store and rendering code are not in the repository.",
+    "source": "req.body.displayName and req.body.bio of PUT /me/profile, any JSON type and length (users.js:11)",
+    "sink": "Persisted user record via req.store.save (users.js:13); downstream query or render sites unknown",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Values taken from req.body without type checks"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Values assigned to req.user unchanged"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "Values persisted without validation"
+     }
+    ],
+    "guards_checked": "None in this file. Downstream handling not visible."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js: no type or length validation on displayName/bio at users.js:11-13. req.user population (auth) and req.store.save are not in the repository (only users.js exists), so downstream sanitization or escaping cannot be checked.",
+    "reason": "The trace is accurate (users.js:11 destructures displayName/bio from req.body, :12 assigns them to req.user, :13 saves them unvalidated), and the attacker is an authenticated user editing their own profile, but the claimed impact depends on downstream NoSQL queries or unescaped rendering that are not in the repository, so exploitability cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "users.js",
+    "line": 7,
+    "claim": "Responses return the full req.user object (also users.js:14). If the user record contains password hashes, tokens, or internal fields, they are disclosed to the client. Unverified because the record schema is not in the repository.",
+    "source": "req.user, loaded by upstream middleware not in the repository",
+    "sink": "HTTP response body via res.json (users.js:7 and users.js:14)",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json(req.user) serializes the entire user object"
+     },
+     {
+      "file": "users.js",
+      "line": 14,
+      "note": "Same full-object serialization on the profile route"
+     }
+    ],
+    "guards_checked": "No field filtering before serialization in this file."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. No field filtering exists at users.js:7 or users.js:14; req.user is serialized whole via res.json. The only other code in the directory is users.js itself, so the upstream middleware that sets req.user and the user schema are not present.",
+    "reason": "Both trace lines exist and match the claim (users.js:7 `res.json(req.user)` and users.js:14 `res.json(req.user)`), but whether the record holds password hashes, tokens, or internal fields cannot be determined from this repository, and req.user is the authenticated caller's own record, so any exposure is self-disclosure unless the upstream loader attaches other users' data."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01116893
+}

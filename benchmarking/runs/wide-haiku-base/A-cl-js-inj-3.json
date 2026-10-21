@@ -1,0 +1,94 @@
+{
+ "arm": "A",
+ "repo": "cl-js-inj",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.00471998,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-gylccims/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "db.js",
+    "line": 8,
+    "claim": "The /users endpoint has no authentication or org-authorization check, so any network caller can list id and name of every user in any org by changing the org query parameter.",
+    "source": "Attacker-controlled req.query.org (db.js:9), reachable without credentials on port 3002 (db.js:23).",
+    "sink": "Reading user records from the users table (db.js:9), returned to the caller as JSON (db.js:10).",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "app.get('/users') is registered with no auth middleware in this file or on this route"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.query.org is passed directly as $1 into SELECT id, name FROM users WHERE org = $1"
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "All matching rows are returned via res.json(rows) with no check of the requester's identity or org membership"
+     },
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "app.listen(3002) binds the app with no authentication layer"
+     }
+    ],
+    "guards_checked": "Parameterized query ($1) prevents SQL injection, so this is not an injection finding. No auth middleware, session, token, or org-membership check appears in this file. req.pg is not defined here, so database-level row security is unknown. Confidence depends on whether a gateway in front of port 3002 enforces auth, which cannot be seen from this code. Likely high severity if reachable beyond a trusted network."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in db.js. Line 8 registers /users with no middleware, and the file has no app.use, auth, session, or org-membership check. The only check in the file is the path-containment test at line 15, which applies to /file, not /users. Line 9 passes req.query.org straight into the query as $1, which prevents SQL injection but does not authorize the caller. Line 10 returns every row with res.json. The directory contains only db.js, so no gateway or req.pg row-level-security setup is visible.",
+    "reason": "The trace matches the code: app.get(\"/users\") at db.js:8 has no auth, req.query.org is used as the filter at db.js:9, the rows are returned at db.js:10, and app.listen(3002) at db.js:23 binds the app with no auth layer. Nothing in db.js blocks an anonymous caller from enumerating users in any org. The one open question is whether an upstream gateway or req.pg-level row security exists, which this directory cannot show, so the severity depends on deployment exposure."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "db.js",
+    "line": 9,
+    "claim": "If req.pg is not set by upstream middleware, /users throws inside an async Express 4 handler, which can leave the request hanging or crash the process via an unhandled rejection. Low severity and conditional; robustness more than security.",
+    "source": "Any unauthenticated GET /users request (db.js:8).",
+    "sink": "Availability: req.pg.query at db.js:9 with req.pg undefined.",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.pg.query is called; if req.pg is undefined this throws a TypeError inside an async handler"
+     },
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "The handler is async with no try/catch, so Express 4 does not route the rejection to its error handler"
+     }
+    ],
+    "guards_checked": "No req.pg assignment exists in this file. Applicability depends on the Express version and on middleware not visible here. Confidence is low."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. Nothing in the directory assigns req.pg or registers middleware (only db.js:1-23 exists, and the grep for req.pg/.pg=/app.use finds only db.js:9). The handler at db.js:8-11 has no try/catch, and its only await (db.js:9) is unguarded.",
+    "reason": "Anonymous GET /users (db.js:8) reaches req.pg.query at db.js:9 with no visible middleware setting req.pg, so the async handler rejects with a TypeError that Express 4 does not catch, leaving the request unanswered and, on Node 15+, crashing the process via an unhandled rejection. This holds only if no upstream middleware outside this directory sets req.pg, which the candidate itself flags as its main uncertainty, so severity is low and it is primarily a robustness issue."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00450689
+}

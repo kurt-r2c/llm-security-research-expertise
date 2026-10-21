@@ -1,0 +1,175 @@
+{
+ "arm": "P",
+ "repo": "az-node-authorize",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.004722779999999999,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qn4_9uqv/r/api.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "DELETE /projects/:id has no effective authorization check. Any caller who reaches the route can delete any project, including projects owned by other users, because the ownership predicate's result is discarded.",
+    "source": "req.params.id (api.js:17), attacker-controlled path parameter. Caller identity comes from req.user, populated by upstream middleware not present in this repository.",
+    "sink": "req.store.projects.delete(project.id) at api.js:19, a destructive write to the project store, followed by 204 at api.js:20.",
+    "trace": [
+     {
+      "file": "api.js:16",
+      "line": 16,
+      "note": "router.delete('/projects/:id') handler begins; no route-level auth middleware is defined in this file."
+     },
+     {
+      "file": "api.js:17",
+      "line": 17,
+      "note": "project = req.store.projects.get(req.params.id), with no check that the project belongs to req.user."
+     },
+     {
+      "file": "api.js:18",
+      "line": 18,
+      "note": "authorized(req.user, project) is called as a bare statement. authorized() (api.js:12-14) returns a boolean and never throws, so a false result has no effect."
+     },
+     {
+      "file": "api.js:19",
+      "line": 19,
+      "note": "req.store.projects.delete(project.id) runs unconditionally for any project that exists."
+     },
+     {
+      "file": "api.js:20",
+      "line": 20,
+      "note": "Responds 204, so the deletion is reported as success."
+     }
+    ],
+    "guards_checked": "Compared with the sibling PUT route at api.js:23-28, which calls authorize() (api.js:4-10). authorize() throws a 403 on failure, but the DELETE route calls the non-throwing authorized() instead and ignores its return value. No other guard exists in the file. Upstream middleware that might restrict DELETE is not in the repository and could not be checked. Not verified: whether req.user can be unauthenticated. If it can, the impact is worse."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. api.js:12-14 authorized() returns a boolean, and api.js:18 calls it as a bare statement so the result is discarded. The throwing authorize() (api.js:4-10) is used only by the PUT route at api.js:25. No route-level middleware is in the repo; the directory contains only api.js.",
+    "reason": "Every trace line matches api.js:16-20, and the ownership check at api.js:18 is a discarded boolean from authorized() (api.js:12-14), so any caller reaching DELETE /projects/:id deletes any existing project (api.js:19) and gets 204 (api.js:20). The remaining caveat is that upstream middleware, which is not in the repo, could restrict this route to admins; in that case the finding would not be a vulnerability, but the repo alone does not show that restriction."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "api.js",
+    "line": 5,
+    "claim": "Admin check is inconsistent between helpers. authorize() grants access on any truthy user.isAdmin, while authorized() requires isAdmin === true. If isAdmin can carry a non-boolean value that is controllable by a caller, authorize() grants admin rights that authorized() would deny.",
+    "source": "user.isAdmin, which is supplied by upstream code not in this repository (for example, token claims or session data). Whether a caller can influence it is unknown.",
+    "sink": "authorize() permits the PUT name change at api.js:25-26 for a non-owner.",
+    "trace": [
+     {
+      "file": "api.js:5",
+      "line": 5,
+      "note": "if (resource.ownerId !== user.id && !user.isAdmin): a truthy non-boolean such as the string 'false' or 1 passes as admin."
+     },
+     {
+      "file": "api.js:25",
+      "line": 25,
+      "note": "PUT /projects/:id/name calls authorize(req.user, project)."
+     },
+     {
+      "file": "api.js:26",
+      "line": 26,
+      "note": "project.name = req.body.name is then written, so a non-owner can rename the project."
+     },
+     {
+      "file": "api.js:13",
+      "line": 13,
+      "note": "authorized() uses strict user.isAdmin === true, which is the stricter pattern. The two helpers disagree on the same concept."
+     }
+    ],
+    "guards_checked": "Checked whether the discrepancy can be reached through this file alone. It cannot: the value of isAdmin is set outside the repository, so exploitability depends entirely on the upstream auth layer. Rated low confidence and conditional. Reported as a departure from the stricter check in authorized() (api.js:13)."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None in the repo between the caller and authorize() at api.js:25-26. The only checks are authorize()'s own test at api.js:5 and the separate authorized() helper at api.js:13. Whether isAdmin can be attacker-controlled depends on upstream auth code that is not in this repository.",
+    "reason": "The trace lines (api.js:5, 13, 25-26) match the candidate, but whether a caller can make user.isAdmin truthy and non-boolean is decided by upstream code outside this repo, so exploitability cannot be confirmed here. Separately, api.js:18 calls authorized() as a bare statement and discards its result, so the DELETE /projects/:id route has no effective check at all and any authenticated user can delete any project; that is a stronger issue the candidate missed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "api.js",
+    "line": 17,
+    "claim": "Project existence can be probed by an unauthorized caller. A missing id causes a TypeError (500) rather than a clean 404, while an existing project owned by someone else gets a 403, so the two responses differ.",
+    "source": "req.params.id (api.js:24 for PUT, api.js:17 for DELETE), attacker-controlled.",
+    "sink": "HTTP response status differs between nonexistent and forbidden projects, leaking which project ids exist.",
+    "trace": [
+     {
+      "file": "api.js:24",
+      "line": 24,
+      "note": "projects.get(req.params.id) returns undefined for a nonexistent id."
+     },
+     {
+      "file": "api.js:25",
+      "line": 25,
+      "note": "authorize() reads resource.ownerId on undefined, which throws a TypeError, so the response is 500."
+     },
+     {
+      "file": "api.js:25",
+      "line": 25,
+      "note": "For an existing project owned by another user, authorize() throws the 403 error built at api.js:6-7."
+     }
+    ],
+    "guards_checked": "No not-found handling exists in either route. Unknown error handling in the upstream error middleware could change the status codes. Low severity, and it applies only where F1 does not already allow deletion."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The 403 comes from authorize() throwing at api.js:5-8, and nothing in api.js checks for a missing project before line 25 dereferences it. Express's default handler returns 500 for the TypeError and honors err.status=403 for the forbidden case. No error middleware is in this directory.",
+    "reason": "The PUT trace holds: projects.get returns undefined for a missing id (api.js:24), so authorize() reads undefined.ownerId at api.js:5 and throws a 500 TypeError, while an existing project owned by someone else throws the 403 at api.js:6-7, so an authenticated user can tell existing ids from missing ones. The anchor at api.js:17 is the DELETE route, which has no 403 differential because its authorized() result is discarded at api.js:18, so that part of the claim should be read as the PUT route only. Severity is low because the attacker only learns existence, and the router's auth middleware is not in the directory, so the attacker's required role is unverified."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "api.js",
+    "line": 26,
+    "claim": "PUT name accepts any JSON type and length with no validation, and the response returns the full project object.",
+    "source": "req.body.name (api.js:26), attacker-controlled request body. Body parsing happens upstream and is not in this repository.",
+    "sink": "project.name is stored unchecked at api.js:26, and the entire project record is serialized at api.js:27.",
+    "trace": [
+     {
+      "file": "api.js:26",
+      "line": 26,
+      "note": "project.name = req.body.name with no type, length, or content check."
+     },
+     {
+      "file": "api.js:27",
+      "line": 27,
+      "note": "res.json(project) returns the whole stored object, with no field filtering."
+     }
+    ],
+    "guards_checked": "No input validation exists in this file. Whether the store or a schema layer validates is unknown. Low severity: stored-value type confusion or oversized names only matter if the store or consumers mishandle them."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "authorize() at api.js:4-10 is called at api.js:25 and throws a 403 for any user who is neither the project owner nor an admin, so only the owner or an admin can reach api.js:26-27.",
+    "reason": "Both trace lines are accurate (api.js:26 assigns req.body.name unchecked, api.js:27 returns the whole project), but the only callers who reach them are the project owner or an admin (api.js:25 authorize throws otherwise), so the unvalidated type or length affects only data the caller already controls and gives no cross-user or privilege impact; the in-repo code shows no security consequence, and the candidate itself rates it low and depends on unknown store behavior."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.008985050000000001
+}

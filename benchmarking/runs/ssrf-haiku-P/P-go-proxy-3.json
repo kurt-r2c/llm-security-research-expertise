@@ -1,0 +1,120 @@
+{
+ "arm": "P",
+ "repo": "go-proxy",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00510534,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-pypflnxu/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "The /fetch handler passes an unvalidated, attacker-supplied URL to http.Get and streams the response body back to the caller, allowing full-read SSRF to any host or port reachable from the server (loopback, RFC1918, cloud metadata such as 169.254.169.254).",
+    "source": "HTTP query parameter 'target' read at main.go:15 (r.URL.Query().Get(\"target\")). Any unauthenticated client that can reach the listener on :8080 (main.go:43, bound to all interfaces) controls it.",
+    "sink": "http.Get(target) at main.go:16; response body copied to the client via io.Copy(w, resp.Body) at main.go:22.",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "/fetch is registered to the fetch handler with no auth or middleware."
+     },
+     {
+      "file": "main.go",
+      "line": 43,
+      "note": "Server listens on \":8080\" on all interfaces."
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target is taken directly from the query string."
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "No parsing, scheme check, host check, or IP-range check; target goes straight into http.Get."
+     },
+     {
+      "file": "main.go",
+      "line": 17,
+      "note": "Transport error is returned to the caller as text via http.Error (error text can reveal reachability of internal hosts)."
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "Full upstream body is copied back to the attacker, so the request is non-blind."
+     }
+    ],
+    "guards_checked": "None present on this path. Go's default client only speaks http/https, so file:// and gopher:// are not reachable, but that does not limit the host, port, or IP range. Redirects are followed by default. The allowlist exists only in safeFetch (main.go:9-12), which this handler does not use."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the /fetch path. The only allowlist is at main.go:9-12 and is enforced only in safeFetch (main.go:27), which /fetch does not use. Redirects are followed by default.",
+    "reason": "main.go:15 takes target from the unauthenticated query string, main.go:16 passes it unvalidated to http.Get, and main.go:22 streams the response body back to the caller, with no closing guard on this path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "The /safe handler checks the hostname only on the initial URL. http.Get follows redirects by default, so an allowlisted host that returns a 3xx Location pointing at an internal or metadata address causes the server to fetch it and return the body. This is conditional on an allowlisted host being open-redirecting or compromised.",
+    "source": "HTTP query parameter 'target' at main.go:26 (r.URL.Query().Get(\"target\")), controlled by the attacker, which selects an allowlisted host such as images.example.org or docs.example.org. The redirect target is supplied by whatever server answers for that allowlisted host.",
+    "sink": "http.Get(u.String()) at main.go:31; response body copied back at main.go:37.",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "/safe is registered to safeFetch."
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target is parsed with url.Parse."
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "Guard: err check (short-circuits, so nil u is never dereferenced) and allowed[u.Hostname()] hostname lookup against the two allowlisted names."
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get(u.String()) uses the default client, which follows up to 10 redirects with no CheckRedirect (Go net/http stdlib behaviour, not code in this repo). The allowlist is not re-applied to Location targets."
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "Body of the redirected, unvalidated response is returned to the attacker."
+     }
+    ],
+    "guards_checked": "Hostname allowlist at main.go:27 (exact, case-sensitive match on Hostname(), so userinfo tricks like http://images.example.org@169.254.169.254 are blocked because Hostname() returns the real host). Scheme is not checked, but Go's client rejects non-http(s) schemes. No port check, so any port on an allowlisted host is reachable. No CheckRedirect, no IP-range check, no timeout. Severity depends on whether images.example.org or docs.example.org can redirect to attacker-chosen hosts; the example.org names are placeholders and I could not verify their real owners or redirect behaviour from this repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is the exact hostname lookup at main.go:27 (`allowed[u.Hostname()]`), which runs once on the initial URL. Nothing at main.go:31 sets a CheckRedirect policy or re-validates Location targets. Because the lookup uses the parsed Hostname(), userinfo tricks are blocked. The gap is only the redirect path.",
+    "reason": "The attacker-controlled `target` (main.go:26) passes the exact hostname check at main.go:27, then `http.Get` at main.go:31 uses the default client, which follows up to 10 redirects with no CheckRedirect, so the response body from an internal or metadata address reached through an allowlisted host's Location header is returned at main.go:37. Exploitation needs an allowlisted host that redirects to an attacker-chosen target, which I could not verify from this repo (the example.org names are placeholders), so severity depends on those external hosts."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004799520000000001
+}

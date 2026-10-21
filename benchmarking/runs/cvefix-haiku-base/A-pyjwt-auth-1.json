@@ -1,0 +1,230 @@
+{
+ "arm": "A",
+ "repo": "pyjwt-auth",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.03221461,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jsm7hl7r/r/jwt/api_jws.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jsm7hl7r/r/jwt/api_jwt.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jsm7hl7r/r/jwt/algorithms.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jsm7hl7r/r/jwt/jwks_client.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jsm7hl7r/r/jwt/api_jwk.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jsm7hl7r/r/jwt/utils.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jsm7hl7r/r/jwt/jwk_set_cache.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "jwt/jwks_client.py",
+    "line": 198,
+    "claim": "Unknown-kid tokens force an unthrottled synchronous JWKS refetch on every request (DoS). Medium severity, high confidence.",
+    "source": "kid header of an unauthenticated token (get_signing_key_from_jwt reads it unverified)",
+    "sink": "Outbound HTTP fetch in fetch_data via get_signing_keys(refresh=True), default timeout 30s",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 224,
+      "note": "decode_token with verify_signature=False reads header"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 251,
+      "note": "_validate_headers checks kid is a string only"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 225,
+      "note": "header.get('kid') passed to get_signing_key"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 203,
+      "note": "cache miss triggers get_signing_keys(refresh=True)"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 117,
+      "note": "fetch_data issues urllib request, no negative cache or rate limit"
+     }
+    ],
+    "guards_checked": "kid must be str (api_jws.py:430-432); cache consulted first but bypassed on miss; lru_cache does not cache exceptions so every unknown kid refetches; no rate limiting or negative caching anywhere on the path"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "jwt/jwks_client.py",
+    "line": 100,
+    "claim": "With cache_keys=True, a signing key removed or rotated out of the JWKS keeps verifying tokens until LRU eviction. Low severity, informational; behavior is documented.",
+    "source": "Any token whose kid previously resolved to a key",
+    "sink": "_verify_signature uses the cached PyJWK key (api_jws.py:400-416)",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 102,
+      "note": "lru_cache wraps get_signing_key keyed on kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 185,
+      "note": "successful lookups are cached with no time-based expiry"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 213,
+      "note": "get_signing_key_from_jwt returns cached key without rechecking JWK Set"
+     }
+    ],
+    "guards_checked": "None on key age or continued presence in JWKS; docstring (jwks_client.py:44-52) states there is no time-based expiration"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "jwt/utils.py",
+    "line": 33,
+    "claim": "Signature segment accepts non-canonical base64url (non-validating decoder), so a valid token with junk characters appended to the signature segment verifies. Low severity; token-string malleability. Medium confidence, from reading only, not executed.",
+    "source": "Attacker holding a valid token appends non-alphabet characters (e.g. 4 x '!') to the signature segment",
+    "sink": "Signature bytes decoded and compared in alg.verify (api_jws.py:416)",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 362,
+      "note": "base64url_decode(crypto_segment)"
+     },
+     {
+      "file": "jwt/utils.py",
+      "line": 33,
+      "note": "base64.urlsafe_b64decode discards non-alphabet chars, so decoded bytes are identical"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 416,
+      "note": "HMAC/RSA/EC verify passes on identical bytes"
+     }
+    ],
+    "guards_checked": "Signing input excludes the signature segment, so header and payload are integrity-protected; padding errors caught at api_jws.py:363-364; compare is constant-time on decoded bytes. Only the raw token string differs, so impact requires app-level keying on the token string"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "jwt/algorithms.py",
+    "line": 331,
+    "claim": "Algorithm-confusion guard for HMAC relies on is_pem_format regex that requires newline after BEGIN/END markers; a public key in a non-matching PEM layout (e.g. trailing spaces) may be accepted as an HMAC secret. Low severity; unverified: depends on whether OpenSSL/cryptography loads that layout.",
+    "source": "Token header alg=HS256 (api_jws.py:382), precondition: application allows HS* alongside RS*/ES* with the same public key bytes",
+    "sink": "HMACAlgorithm.sign/verify uses server public-key bytes as HMAC secret (algorithms.py:407-411)",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 404,
+      "note": "get_algorithm_by_name(alg) selects HMAC from attacker-chosen header alg"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 331,
+      "note": "is_pem_format check; returns False for non-matching PEM layout"
+     },
+     {
+      "file": "jwt/utils.py",
+      "line": 119,
+      "note": "regex requires \\r?\\n after BEGIN and before END"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 344,
+      "note": "JWK-shaped check only catches JSON with kty"
+     }
+    ],
+    "guards_checked": "Caller-supplied algorithms allow-list (api_jws.py:386-387, documented as required); PEM regex; JWK kty check; HMAC key emptiness check. Whether a non-matching layout loads as a public key was not verified"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "jwt/api_jwt.py",
+    "line": 477,
+    "claim": "Claim validators catch only ValueError on int() conversion, so null or Infinity iat/nbf/exp raises TypeError/OverflowError instead of InvalidTokenError. Low severity, hardening; not a bypass.",
+    "source": "iat/nbf/exp values in a token payload; requires valid signature or verify_signature=False with explicit verify_exp/verify_iat enabled",
+    "sink": "int() in _validate_iat/_validate_nbf/_validate_exp",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 275,
+      "note": "payload decoded after signature check"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 403,
+      "note": "_validate_iat called when verify_iat"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 477,
+      "note": "int(payload['iat']) except ValueError only"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 506,
+      "note": "int(payload['exp']) same pattern"
+     }
+    ],
+    "guards_checked": "Claim checks run only after signature verification unless verify_signature=False; _merge_options disables verify_* by default when verify_signature=False (api_jwt.py:81-89)"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "jwt/jwks_client.py",
+    "line": 77,
+    "claim": "JWKS fetch hardening gaps: scheme is checked only on the initial URI, redirects are followed without re-checking, and the response body is read with no size limit. Low severity; exploitable only if the caller builds uri from untrusted input or the endpoint is compromised.",
+    "source": "Caller-supplied uri (or compromised JWKS endpoint)",
+    "sink": "urllib urlopen and json.load of the response body",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 78,
+      "note": "scheme check on initial URI only"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 118,
+      "note": "urlopen follows redirects by default"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 121,
+      "note": "json.load reads unbounded body"
+     }
+    ],
+    "guards_checked": "http/https scheme check at construction; file:// blocked by urllib redirect handling (not verified); no SSRF protection to internal hosts; no size limit"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

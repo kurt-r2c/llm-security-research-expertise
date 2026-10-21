@@ -1,0 +1,99 @@
+{
+ "arm": "C",
+ "repo": "py-webhook",
+ "rep": 2,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.1727036,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-1u51h_fb/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-1u51h_fb/r/app.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-1u51h_fb/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview fetches an arbitrary user-supplied URL with no validation, giving full-read SSRF (status code and first 500 bytes of the body are returned). An attacker can reach cloud metadata (169.254.169.254), loopback, and internal services such as status.internal.example. requests follows redirects by default.",
+    "source": "request.args.get('url') (query parameter 'url') at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16, with the response reflected via jsonify at app.py:17",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get('url', '') is attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "target passed unchanged to requests.get; no scheme, host or IP check, and redirects are followed"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status code and the first 500 characters of the body are returned to the attacker"
+     }
+    ],
+    "guards_checked": "None. No allowlist, no scheme check, no resolved-IP check, and no allow_redirects=False. I did not find any auth decorator or middleware in app.py."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15 reads the url query parameter and app.py:16 passes it straight to requests.get, and app.py:17 returns the status and first 500 body characters. There is no host check, unlike /partner at app.py:23-25, and no auth. app.py is the only Python file, so no middleware exists."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks urlparse(target).hostname against an allowlist and then passes the original, unmodified string to requests.get. This is a validator/fetcher parser differential (urllib.parse vs urllib3), so a crafted URL such as one using backslash or userinfo tricks could pass the check but be fetched from a different host. requests also follows redirects by default, so any open redirect on an allowed host sends the request to an arbitrary destination. The allowlist is a host-string check only, with no scheme restriction and no resolved-IP check. Exploitability depends on the Python and urllib3 versions in use. The response body is not returned, but the status code is, which makes it a blind or oracle SSRF.",
+    "source": "request.args.get('url') (query parameter 'url') at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26, with the status code returned at app.py:27",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target is attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname, parsed by urllib.parse"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "host compared against ALLOWED_HOSTS, a pre-DNS string comparison"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "the original target string is re-parsed by requests/urllib3 and fetched, with redirects followed"
+     }
+    ],
+    "guards_checked": "Hostname allowlist (ALLOWED_HOSTS) using urlparse. It is a real allowlist, but it parses with a different parser than the fetcher, does not rebuild the URL from the parsed parts, and does not disable redirects or restrict the scheme. /health at app.py:32 is not a finding because STATUS_URL comes from an environment variable, not from the request."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact set membership of urlparse(target).hostname in ALLOWED_HOSTS (app.py:23-25)",
+    "reason": "The trace is accurate and `url` is attacker-controlled (app.py:22), but app.py:23-25 does exact set membership on the parsed hostname, which closes the finding under the guard rules; the parser-differential and open-redirect paths are speculative, with no code in this repo showing them."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0602161
+}

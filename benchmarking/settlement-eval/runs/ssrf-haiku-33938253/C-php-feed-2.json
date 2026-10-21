@@ -1,0 +1,107 @@
+{
+ "arm": "C",
+ "repo": "php-feed",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.011014120000000002,
+ "trace": {
+  "tools": {
+   "Read": 5,
+   "Bash": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-39wtmea4/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-39wtmea4/r/import.php",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-39wtmea4/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-39wtmea4/expertise/software/language-footguns/php_footguns_expertise.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-39wtmea4/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF and local file read via file_get_contents() on a raw POST parameter. Any visitor can make the server fetch an arbitrary URI, including internal HTTP services and file://, php://, or phar:// URIs.",
+    "source": "import.php:11 \u2014 $_POST['feed'] (no auth, no type or format check)",
+    "sink": "import.php:12 \u2014 file_get_contents($_POST['feed'])",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Branch taken when REQUEST_METHOD is POST and 'feed' is set. require_admin() is not called on this branch."
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "file_get_contents() receives the attacker string as-is and fetches it. PHP stream wrappers and http redirects are followed."
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "Only strlen($xml) is echoed. The body is not returned, so exfiltration is a length oracle. A failed fetch may still leak through PHP warnings if display_errors is on."
+     }
+    ],
+    "guards_checked": "No scheme allowlist, host or IP denylist, DNS pinning, port restriction, redirect limit, or auth check on this path. require_admin() guards only the set_webhook branch. The only conditional is the POST and isset check. Whether allow_url_fopen is enabled is a deployment setting not visible in this file; if it is disabled, http(s) fetches fail but file:// reads still work."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only conditional on the path is import.php:11 (POST and isset($_POST['feed'])). require_admin() at import.php:4-9 is only called on the set_webhook branch at import.php:18, and nothing before the sink at import.php:12 validates the scheme, host, or port.",
+    "reason": "import.php:11 takes $_POST['feed'] with no auth check, and import.php:12 passes it unvalidated to file_get_contents(), so any unauthenticated visitor can fetch an arbitrary URI or read local files, with only strlen() echoed back at import.php:13."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 22,
+    "claim": "Admin-gated blind SSRF via libcurl. The set_webhook value is used as the request URL without any scheme or host validation, and the response body is discarded.",
+    "source": "import.php:19 \u2014 $_POST['set_webhook']",
+    "sink": "import.php:20-22 \u2014 curl_init($hook) / curl_exec($ch)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch taken when 'set_webhook' is posted."
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks $_SESSION['is_admin']. Anything other than an empty value passes, and nothing in this file sets it."
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook is assigned directly from the POST value."
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) uses the string as CURLOPT_URL. libcurl's default protocol set includes file://, gopher://, ftp://, and others."
+     },
+     {
+      "file": "import.php",
+      "line": 21,
+      "note": "RETURNTRANSFER is set, but the return value of curl_exec is discarded. The response is never echoed, so the attack is blind."
+     }
+    ],
+    "guards_checked": "require_admin() is the only check. It is an authorization gate, not URL validation, so the URL itself is unconstrained. No CURLOPT_PROTOCOLS_STR or CURLOPT_PROTOCOLS restriction, no host or IP filter, and no redirect cap (CURLOPT_FOLLOWLOCATION is not set, so redirects are not followed). Admin is required, so exposure is limited to admins or to anyone who can forge the is_admin session value."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 is an authorization check only. No URL, scheme, or host validation, no CURLOPT_PROTOCOLS restriction, and no CURLOPT_FOLLOWLOCATION set anywhere in the directory. It does not close the URL sink, but it does restrict the source to admins.",
+    "reason": "The trace at import.php:17-22 is accurate, but the source is not attacker-controllable by an unauthenticated or low-privilege user: import.php:18 calls require_admin(), which exits with 403 unless $_SESSION['is_admin'] is set (import.php:5-7). The candidate's \"forge the is_admin session value\" path is unsupported by the code, since the session is server-side and nothing in the directory shows a forgery route. Exposure is limited to admins, which is the admin-only case the verifier rules exclude. The unauthenticated `feed` branch at import.php:11-13 is a separate issue and is not covered by this finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0042568499999999995
+}

@@ -1,0 +1,102 @@
+{
+ "arm": "K2",
+ "repo": "h3-go-substr",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.00427734,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-hwoq2_mv/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-hwoq2_mv/r/main.go",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-hwoq2_mv/expertise/cases/04-url-validate-reparse.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-hwoq2_mv/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches an attacker-supplied URL. The only check is a substring match for \"example.io\" on the raw string, and the default Go HTTP client follows redirects. An attacker can reach internal hosts or cloud metadata and read the response back.",
+    "source": "main.go:31 r.FormValue(\"logo\") (query string or form body, fully attacker-controlled)",
+    "sink": "main.go:36 http.Get(raw), with the response body copied to the client at main.go:38 via io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw := r.FormValue(\"logo\"); attacker-controlled value taken without parsing"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "strings.Contains(raw, \"example.io\") is a substring test on the raw string, not a host check. Passes for http://169.254.169.254/latest/meta-data/?example.io, http://127.0.0.1:8080/admin#example.io, or http://attacker.tld/?x=example.io"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) uses http.DefaultClient, which has no CheckRedirect. A redirect from an allowed-looking URL to an internal address is followed, so the check at line 32 does not constrain the final destination."
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy(w, resp.Body) returns the fetched body to the attacker, making this a full-read SSRF rather than blind"
+     }
+    ],
+    "guards_checked": "Line 32 substring check: bypassed by any host or path that contains the string. No scheme restriction beyond what Go's client enforces (http/https only, so http://internal is allowed). No parsed-host allow-list, no DNS or IP pinning, and no redirect restriction. Error from http.Get is discarded; a failed request leaves resp nil and line 37 would panic. That is a separate crash issue, not SSRF."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. main.go:32 is only strings.Contains(raw, \"example.io\"), a substring test on the raw string, which the guard rules say does not close the finding. No parsed-host check, redirect restriction, or IP pinning exists on the path from main.go:31 to main.go:38. The hardened check at main.go:20 and the noRedirect client at main.go:12/24 belong to the separate /cdn handler and do not guard /logo.",
+    "reason": "The /logo handler takes the attacker-controlled \"logo\" value at main.go:31, passes it to http.Get(raw) at main.go:36 with the default client (which follows redirects), and copies the response to the client at main.go:38, so the only check at main.go:32 is a bypassable substring match and the SSRF is full-read. The trace is accurate: every cited line exists and does what the candidate says, including the nil-resp panic at main.go:37 that the candidate correctly marks as a separate issue."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "NOTE-cdn-safe",
+    "file": "main.go",
+    "line": 25,
+    "claim": "Not a finding. The /cdn handler matches the 04-url-validate-reparse and 12-ssrf-resolve-then-fetch safe patterns: the parsed URL is checked and fetched from the same value, the host is compared exactly against a fixed allow-list, and redirects are disabled.",
+    "source": "main.go:15 r.FormValue(\"u\")",
+    "sink": "main.go:25 c.Get(u.String())",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "url.Parse on the attacker value"
+     },
+     {
+      "file": "main.go",
+      "line": 20,
+      "note": "u.Hostname() must be exactly \"cdn.example.io\" in the trusted map; userinfo tricks such as http://cdn.example.io@evil.com resolve Hostname() to evil.com and are rejected"
+     },
+     {
+      "file": "main.go",
+      "line": 24,
+      "note": "CheckRedirect: noRedirect returns http.ErrUseLastResponse, so 3xx responses are returned to the caller and not followed"
+     }
+    ],
+    "guards_checked": "Exact hostname allow-list (map lookup, not substring). Same parsed value is validated and requested. Redirects disabled. Connection targets the fixed trusted name, so attacker input cannot choose the destination IP. Residual issues are non-SSRF: err ignored at line 25, nil resp dereference at line 26 on error, and the handler streams whatever the trusted host returns."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "main.go:20 `trusted[u.Hostname()]` is an exact map-membership check on the parsed hostname, which is a closing guard. The same parsed `u` is used for the request at main.go:25. main.go:12 and main.go:24 disable redirects via CheckRedirect.",
+    "reason": "The trace matches the code (main.go:15 parse, main.go:20 exact hostname allow-list, main.go:24 no-redirect client, main.go:25 request from the same value), and the source r.FormValue(\"u\") at main.go:15 is attacker-controlled, but the exact hostname check at main.go:20 closes the SSRF because Go's Hostname() strips userinfo, so \"http://cdn.example.io@evil.com\" yields \"evil.com\" and is rejected. The only residual is that an attacker can choose a port on cdn.example.io (for example \"http://cdn.example.io:6379/\") since Hostname() ignores the port, which is not a destination-host SSRF; the nil-response dereference at main.go:26 is a separate crash bug, not SSRF."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00423181
+}

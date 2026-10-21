@@ -1,0 +1,94 @@
+{
+ "arm": "P",
+ "repo": "cl-js-inj",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.0067433,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lj8r5506/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "db.js",
+    "line": 8,
+    "claim": "GET /users returns id and name for any org chosen by the caller, with no authentication or authorization check (broken access control / cross-tenant disclosure).",
+    "source": "req.query.org, supplied by any unauthenticated HTTP client via GET /users?org=... (db.js:9).",
+    "sink": "req.pg.query SELECT id, name FROM users WHERE org = $1, serialized back via res.json (db.js:9-10).",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "app.get('/users') async handler; no identity or membership check."
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "org taken from req.query.org and bound as $1 to the query."
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "all returned rows sent to the client via res.json."
+     }
+    ],
+    "guards_checked": "Parameterized query prevents SQL injection. No authn/authz middleware in this file. Caveat: if upstream middleware enforces auth and scopes org, this is out of scope; none is visible in the repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8 registers app.get(\"/users\") with no auth or org-membership middleware. db.js:9 binds req.query.org directly as $1, which blocks SQL injection but not cross-tenant selection. db.js:10 returns all rows via res.json. The only other file is none (Glob shows db.js alone), and db.js:23 calls app.listen on this same app, so no upstream router sits in front of this route.",
+    "reason": "An anonymous client can call GET /users?org=X at db.js:9 and receive every id and name for that org via res.json at db.js:10, with no authn/authz check anywhere in db.js:8-10 or in the single-file app that listens at db.js:23. Caveat: req.pg is never set in this repo, so as written the handler would throw at db.js:9 unless a pg middleware is attached elsewhere; that does not block the access-control flaw once it is wired up."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "db.js",
+    "line": 9,
+    "claim": "Any unauthenticated request to /users throws a TypeError because req.pg is never assigned in this file; the async handler's rejection is not caught by Express 4, so the request hangs or the process crashes on Node 15+.",
+    "source": "Any HTTP client sending GET /users (db.js:8).",
+    "sink": "req.pg.query at db.js:9 with req.pg undefined (availability / unhandled rejection).",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "async handler registered; no try/catch."
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.pg read; undefined unless upstream middleware sets it, so .query throws."
+     },
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "app.listen(3002) exposes the route to the network."
+     }
+    ],
+    "guards_checked": "No try/catch, no error middleware, no assignment of req.pg anywhere in the repo. Conditional: only if no upstream middleware sets req.pg. Express version unknown (no package.json); on Express 5 the rejection goes to the error handler and does not crash."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only file in the repo is db.js. The route at db.js:8 has no auth middleware, no try/catch, and no error handler. A grep for req.pg, .pg=, and pg= finds only the read at db.js:9. Nothing assigns req.pg. The app.listen(3002) at db.js:23 binds with no host argument, so the route is network-reachable.",
+    "reason": "Anonymous GET /users reaches `req.pg.query` at db.js:9 with `req.pg` never assigned (the grep finds no assignment in the repo), so it throws a TypeError. Express 4 does not catch the rejected promise from the async handler at db.js:8, so the request hangs and, on Node 15+, the unhandled rejection can crash the process. The crash is version-dependent: on Express 5 the rejection goes to the error handler and returns a 500 without crashing. The request-level TypeError is certain; the process-crash impact needs Express 4, which cannot be confirmed without a package.json."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00452899
+}

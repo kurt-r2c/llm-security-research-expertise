@@ -1,0 +1,175 @@
+{
+ "arm": "A",
+ "repo": "sqlite3ruby-other",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.03289733,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 6,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jjyvkw5g/r/ext/sqlite3/database.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jjyvkw5g/r/ext/sqlite3/statement.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jjyvkw5g/r/ext/sqlite3/aggregator.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jjyvkw5g/r/ext/sqlite3/backup.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jjyvkw5g/r/ext/sqlite3/extconf.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-jjyvkw5g/r/ext/sqlite3/exception.c"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "ext/sqlite3/database.c",
+    "line": 839,
+    "claim": "Ruby exceptions raised by user collation comparators (and authorizer, busy handler, trace callbacks) are not wrapped in rb_protect, so they longjmp through sqlite3_step/sqlite3_prepare, leaving the db mutex locked and VDBE state corrupted (DoS / connection deadlock).",
+    "source": "Attacker-stored row bytes reaching a user collation (ORDER BY col COLLATE x), or attacker SQL reaching the authorizer, causing the app callback to raise (e.g. ArgumentError on invalid UTF-8).",
+    "sink": "rb_funcall(comparator, \"compare\") inside rb_comparator_func, invoked from sqlite3_step which holds db->mutex.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 142,
+      "note": "sqlite3_step acquires db mutex and executes the statement"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 816,
+      "note": "rb_comparator_func invoked by SQLite during sort"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 839,
+      "note": "rb_funcall without rb_protect; exception longjmps past sqlite3_mutex_leave"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 143,
+      "note": "post-step errinfo check never reached"
+     }
+    ],
+    "guards_checked": "rb_protect used for scalar functions (database.c:581) and aggregators (aggregator.c:143,161) but not for collation (database.c:839), authorizer (database.c:738), busy handler (database.c:365), or trace (database.c:328)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "ext/sqlite3/database.c",
+    "line": 520,
+    "claim": "On 64-bit builds, Ruby Bignum values in int64 range (and out-of-range ones) returned from user SQL functions fall through to sqlite3_result_double, losing precision. Similarly statement.c binds out-of-int64 bignums as double silently.",
+    "source": "Integer values in [2^62, 2^63) or outside int64, from a bound parameter or from a user SQL function computing a 64-bit ID/hash/permission value.",
+    "sink": "sqlite3_result_double (database.c:521) and sqlite3_bind_double (statement.c:293) storing the value as REAL, which changes SQL equality/range results.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 510,
+      "note": "case T_BIGNUM block; bignum_to_int64 only compiled under SIZEOF_LONG < 8, so empty on 64-bit"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 520,
+      "note": "fall-through into case T_FLOAT"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 521,
+      "note": "sqlite3_result_double(NUM2DBL(result))"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 285,
+      "note": "bind T_BIGNUM: in-range handled, out-of-range falls through"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 292,
+      "note": "case T_FLOAT: sqlite3_bind_double"
+     }
+    ],
+    "guards_checked": "bignum_to_int64 used on bind path for in-range values only and only on 32-bit function-result path; no rejection of out-of-range values anywhere."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "ext/sqlite3/statement.c",
+    "line": 143,
+    "claim": "step() treats any non-nil rb_errinfo() as a pending callback exception. Inside a rescue/ensure block, $! is non-nil, so step executes the statement, then clears $! and raises the unrelated outer exception, discarding the step result.",
+    "source": "Precondition: application calls stmt.step inside a rescue or ensure clause while an exception is in flight.",
+    "sink": "sqlite3_step executes the statement (including writes); rb_set_errinfo(Qnil) and rb_exc_raise re-raise the stale exception.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 142,
+      "note": "sqlite3_step runs the statement, side effects committed"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 143,
+      "note": "rb_errinfo() != Qnil true because of enclosing rescue"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 147,
+      "note": "stale exception fetched"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 149,
+      "note": "stale exception re-raised; step result lost"
+     }
+    ],
+    "guards_checked": "Only a nil check on rb_errinfo(); no check that the exception originated from a callback during this step."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "ext/sqlite3/database.c",
+    "line": 422,
+    "claim": "statement_timeout= ignores the configured ms value: the deadline is set to the current time on the first progress callback, so any statement running past about 2000 VM ops is interrupted regardless of the setting. Fail-closed, not an attacker bypass.",
+    "source": "Application configuration (statement_timeout=), not attacker-controlled.",
+    "sink": "Progress handler returning 1 to abort the statement with SQLITE_INTERRUPT.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 442,
+      "note": "stmt_timeout stored, never read by handler"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 419,
+      "note": "first callback sets stmt_deadline = now"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 422,
+      "note": "second callback: now is after deadline, return 1 (interrupt)"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 82,
+      "note": "prepare clears deadline, so cycle repeats per statement"
+     }
+    ],
+    "guards_checked": "None; the deadline is not computed as start + stmt_timeout."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

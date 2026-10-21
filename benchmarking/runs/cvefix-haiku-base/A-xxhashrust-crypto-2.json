@@ -1,0 +1,96 @@
+{
+ "arm": "A",
+ "repo": "xxhashrust-crypto",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.01696764,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 4,
+   "Read": 10,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/utils.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/lib.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh3.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh32.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh3.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh3.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh3.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh3.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh3.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-wy93i4os/r/src/xxh3.rs"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "XXH32-LEN-TRUNC-OOB-WRITE",
+    "file": "src/xxh32.rs",
+    "line": 106,
+    "claim": "Xxh32::update computes the buffered-path check with a 32-bit truncated input length. For a slice whose length is a multiple of 2^32 plus a small remainder (e.g. exactly 2^32 bytes with mem_size 0), the check `mem_size + (input.len() as u32) < 16` passes, and the full untruncated input.len() is then copied into the 16-byte self.mem buffer. In release builds this is a heap/stack buffer overflow of attacker-sized length; the only bounds check is a debug_assert.",
+    "source": "Caller-supplied byte slice passed to Xxh32::update (src/xxh32.rs:102). Precondition: a single slice of length >= 2^32 bytes on a 64-bit target, with (len mod 2^32) + mem_size < 16. The length is attacker-controlled only if the application hashes attacker-sized input (e.g. a large uploaded or mmapped file).",
+    "sink": "ptr::copy_nonoverlapping in utils.rs:48 writing src.len() bytes into self.mem (16 bytes, src/xxh32.rs:84 `mem: [u32; 4]`).",
+    "trace": [
+     {
+      "file": "src/xxh32.rs",
+      "line": 103,
+      "note": "total_len wrapping_add(input.len() as u32): length truncated to 32 bits (not itself a memory-safety issue)"
+     },
+     {
+      "file": "src/xxh32.rs",
+      "line": 104,
+      "note": "is_large_len computed from truncated length (wrong flag for >=4GiB inputs; hash-quality only, not memory safety)"
+     },
+     {
+      "file": "src/xxh32.rs",
+      "line": 106,
+      "note": "guard `(self.mem_size + input.len() as u32) < CHUNK_SIZE as u32` uses truncated length; for len=2^32 and mem_size=0 this is 0 < 16 -> true"
+     },
+     {
+      "file": "src/xxh32.rs",
+      "line": 110,
+      "note": "Buffer { len: size_of_val(&self.mem) = 16, offset: mem_size }"
+     },
+     {
+      "file": "src/xxh32.rs",
+      "line": 111,
+      "note": "Buffer::copy_from_slice(input) called with full untruncated slice"
+     },
+     {
+      "file": "src/utils.rs",
+      "line": 40,
+      "note": "copy_from_slice forwards src.len() (64-bit, untruncated) as the copy length"
+     },
+     {
+      "file": "src/utils.rs",
+      "line": 44,
+      "note": "copy_from_slice_by_size: the only bounds check is debug_assert at line 45, compiled out in release"
+     },
+     {
+      "file": "src/utils.rs",
+      "line": 48,
+      "note": "ptr::copy_nonoverlapping(src, self.ptr.add(self.offset), len) writes len (>= 2^32) bytes into a 16-byte buffer -> out-of-bounds write"
+     },
+     {
+      "file": "src/xxh32.rs",
+      "line": 112,
+      "note": "mem_size += (input.len() as u32) afterwards; the corruption has already occurred"
+     }
+    ],
+    "guards_checked": "(1) utils.rs:45 debug_assert on copy length: debug builds only; release has no check. (2) xxh32.rs:106 fast-path condition: uses truncated u32 length, so it does not protect against large inputs. (3) No assert or early return on input.len() > u32::MAX or on the 16-byte capacity anywhere in Xxh32::update. (4) The sibling xxh64.rs:119-126 uses u64 mem_size and usize arithmetic, so the same wrap does not occur on 64-bit targets; on 32-bit targets the analogous usize add (xxh64.rs:119) could wrap only for slices within ~31 bytes of 4 GiB, which is effectively unreachable.",
+    "repro": "64-bit target, release build (cargo test --release or cargo run --release, feature 'xxh32'): `let mut h = xxhash_rust::xxh32::Xxh32::new(0); let big = vec![0u8; 1usize << 32]; h.update(&big);` - the write of 4 GiB into the 16-byte mem field is UB. Debug build panics at utils.rs:45 instead. Not executed here: the sandbox has no build step and a 4 GiB allocation was out of scope; verdict is from code reading.",
+    "verdict": "PLAUSIBLE"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}
