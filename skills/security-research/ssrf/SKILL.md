@@ -145,7 +145,7 @@ const url = `http://${req.body.server}/api`;
 **Applies when:** the initial URL is user-controlled (Check 1 or 2) AND the client
 follows redirects without re-validating the redirected URL.
 
-Most clients follow redirects by default: `requests`, `httpx`, `fetch`, `axios`,
+Most clients follow redirects by default: `requests`, `fetch`, `axios`,
 Java `HttpURLConnection` (same-protocol), `RestTemplate`, Go `http.Client`,
 C# `HttpClient`. Exceptions that do NOT follow by default: Ruby `Net::HTTP`,
 PHP cURL. Disable with `allow_redirects=False` / `follow_redirects=False` /
@@ -243,8 +243,8 @@ controls differ.
 instead of SSRF-N findings:
 ```
 [DEPLOY-REC] · Network Egress Controls Required
-Enforce egress rules blocking RFC-1918, loopback (127.0.0.0/8), link-local
-(169.254.0.0/16, ::1, fe80::/10), and cloud metadata endpoints at the
+Enforce egress rules blocking RFC-1918, loopback (127.0.0.0/8, ::1), link-local
+(169.254.0.0/16, fe80::/10), and cloud metadata endpoints at the
 firewall/security-group level.
 ```
 

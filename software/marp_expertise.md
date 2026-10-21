@@ -9,19 +9,15 @@ covers non-obvious behavior discovered through debugging production slide decks.
 
 ### What doesn't work
 
-**`<!-- _style: "..." -->`** — the local directive form of `style:`. Silently dropped in
+**`<!-- _style: "..." -->`** — silently dropped in
 practice; the CSS does not appear in the rendered `data-style` attribute on the slide's
 `<section>` element. Do not rely on it.
-
-**`<style scoped>` inline in the slide** — stripped by Marp even when `--html` is passed
-to the CLI. Marp processes `<style>` blocks in the YAML frontmatter only.
 
 ### What works
 
 **Raw HTML with inline styles.** When the build uses `--html` (which disables Marp's HTML
 sanitizer), any HTML written directly in the markdown slide is passed through verbatim,
-including `style=` attributes. This is the only reliable mechanism for per-slide CSS that
-must override global rules.
+including `style=` attributes.
 
 Example — centering table headers on one slide only:
 
@@ -43,8 +39,7 @@ reliably overrides e.g. `th { text-align: left; }` in the frontmatter theme.
 ### How to diagnose
 
 Open the rendered HTML and find the `<section>` for the target slide (identified by
-`data-marpit-pagination="N"`). The slide's full CSS lives in the `data-style` attribute on
-that element. If your `_style` content is absent from `data-style`, it was dropped. Check
+`data-marpit-pagination="N"`). If your `_style` content is absent from `data-style`, it was dropped. Check
 whether the inline style attribute on your target element is present in the rendered markup.
 
 ---
@@ -54,14 +49,13 @@ whether the inline style attribute on your target element is present in the rend
 Each slide is rendered inside its own `<svg><foreignObject><section>` tree. The `<section>`
 element has:
 
-- `data-marpit-scope-XXXX=""` — a per-build hash used to scope CSS selectors to that slide
-- `data-style="[CSS]"` — the full CSS for that slide (global frontmatter CSS repeated for
-  every slide, plus any per-slide additions)
+- `data-marpit-scope-XXXX=""` — used to scope CSS selectors to that slide
+- `data-style="[CSS]"` — global frontmatter CSS repeated for every slide
 - `style="--class:...;--paginate:...;--style:@import url(...);"` — CSS custom properties
   for the theme engine
 
 The global CSS from the `style:` frontmatter block is duplicated into every slide's
-`data-style`. There is no shared stylesheet across slides in the HTML output.
+`data-style`.
 
 ---
 
@@ -70,9 +64,7 @@ The global CSS from the `style:` frontmatter block is duplicated into every slid
 | Flag | Effect |
 |------|--------|
 | `--html` | Disables HTML sanitizer; raw HTML and inline styles pass through |
-| `--allow-local-files` | Required for `<img>` and asset references to local paths |
-
-Both flags are needed for a typical slide deck with local assets and per-element overrides.
+| `--allow-local-files` | Required for local `<img>` and asset paths when converting to PDF, PPTX, or images (browser-based conversions); not needed for HTML output |
 
 ---
 
