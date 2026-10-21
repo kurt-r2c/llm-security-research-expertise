@@ -12,21 +12,20 @@
 >   Industry" program. Practitioner archive for missing-state, redirect-uri-wildcard, and
 >   session-binding bugs. https://samcurry.net/
 > - **Frans Rosén** (Detectify Labs). Long-running OAuth and SSO bug-bounty corpus from
->   ~2014 forward, including the 2016 Slack OAuth account-takeover. The redirect-uri
->   validation-bypass taxonomy in §11 is downstream of Rosén's "One Token to rule them all."
+>   ~2014 forward, including the 2017 Slack postMessage token-theft bug.
 >   https://labs.detectify.com/
-> - **Aaron Parecki** (Senior Security Architect, Okta). Co-author of the OAuth 2.1 draft
+> - **Aaron Parecki** (Director of Identity Standards, Okta). Co-author of the OAuth 2.1 draft
 >   with Dick Hardt and Torsten Lodderstedt; author of "OAuth 2.0 Simplified"; maintainer
 >   of oauth.net. https://aaronparecki.com/oauth/
-> - **Justin Richer** (Bespoke Engineering). OAuth WG long-time contributor; co-author of
->   RFC 6749 and RFC 7662; author of "OAuth 2 in Action"; GNAP chair (RFC 9635).
+> - **Justin Richer** (Bespoke Engineering). OAuth WG long-time contributor; editor of
+>   RFC 7662; author of "OAuth 2 in Action"; GNAP editor (RFC 9635).
 >   https://justin.richer.org/
-> - **Dick Hardt** (Hellō; formerly Salesforce/Microsoft). Editor of RFC 6749 (October 2012).
+> - **Dick Hardt** (Hellō; formerly Amazon/Microsoft). Editor of RFC 6749 (October 2012).
 >   The deliberate "framework, not protocol" framing in §1 is Hardt's discipline call —
 >   OAuth leaves session-binding semantics to the deployment, and most of §11's bugs are
 >   downstream of that.
-> - **Brian Campbell** (Ping Identity). Co-author of RFC 9449 (DPoP, September 2023
->   [unverified date]) and RFC 8705 (mTLS-bound tokens, February 2020). Most-cited author
+> - **Brian Campbell** (Ping Identity). Co-author of RFC 9449 (DPoP, September 2023)
+>   and RFC 8705 (mTLS-bound tokens, February 2020). Most-cited author
 >   on sender-constrained tokens.
 > - **Mike Jones** (Self-Issued Consulting, formerly Microsoft). Co-author of RFC 7519
 >   (JWT), editor of JOSE WG output (JWS/JWE/JWK), W3C WebAuthn co-editor.
@@ -35,7 +34,7 @@
 >   modern cookie spec — and the 2008 "Robust Defenses for Cross-Site Request Forgery"
 >   paper with Collin Jackson and John Mitchell. RFC 6265bis is the working-group descendant.
 >   https://datatracker.ietf.org/doc/html/rfc6265
-> - **Eric Rescorla** (Mozilla CTO; RTFM Inc.). Author of RFC 8446 (TLS 1.3); continuous
+> - **Eric Rescorla** (former Firefox CTO, Mozilla; RTFM Inc.). Author of RFC 8446 (TLS 1.3); continuous
 >   commentary on cookie/transport/session-binding interaction. https://educatedguesswork.org/
 > - **Daniel Stenberg** (curl maintainer). Authoritative voice on real-world cookie-handling
 >   quirks across HTTP clients. https://daniel.haxx.se/blog/
@@ -45,17 +44,14 @@
 > - **Emil Lundberg** (Yubico). WebAuthn implementation lead; session-adjacent commentary
 >   on step-up authentication. Cross-ref `webauthn_fido2_passkeys_expertise.md`.
 > - **Daniel Fett** (Authlete; formerly University of Stuttgart). Co-author of RFC 9700
->   (OAuth Security BCP, January 2025 [unverified date]); Fett-Küsters-Schmitz 2016 CCS
+>   (OAuth Security BCP, January 2025); Fett-Küsters-Schmitz 2016 CCS
 >   formal analysis drove the BCP into existence.
-> - **Kelly Lum** (1981-2021; formerly Tumblr / Spotify AppSec). Conference-talk archive
->   from 2014-2019 (BSides NYC, AppSec USA); cited for the cookie-tossing / subdomain-set
->   anti-pattern catalog.
 >
 > Sources: RFC 6265 (Barth, April 2011); RFC 6265bis (active draft); RFC 6749 (Hardt et al.,
 > October 2012); RFC 7519 (Jones-Bradley-Sakimura, May 2015); RFC 8252 (OAuth for Native Apps,
 > Denniss-Bradley, October 2017); RFC 8705 (Campbell et al., mTLS-Bound Tokens, February
-> 2020); RFC 9449 (Campbell et al., DPoP, September 2023 [unverified date]); RFC 9700 (Fett-
-> Lodderstedt-Bradley-Labunets, OAuth Security BCP, January 2025 [unverified date]); OWASP
+> 2020); RFC 9449 (Fett et al., DPoP, September 2023); RFC 9700 (Lodderstedt-
+> Bradley-Labunets-Fett, OAuth Security BCP, January 2025); OWASP
 > Application Security Verification Standard (ASVS) V3 Session Management; OWASP Session
 > Management Cheat Sheet; OWASP Top 10 2021 A07 (Identification and Authentication Failures);
 > Kolšek 2002 (Session Fixation); Barth-Jackson-Mitchell 2008 (Robust CSRF Defenses); Sam
@@ -84,13 +80,12 @@ store, a self-contained signed token (JWT-as-session), an OAuth access token, or
 Possession of the credential proves the bearer is the authenticated principal, subject to
 the constraints encoded in the session metadata.
 
-OWASP Top 10 2021 ranks "Identification and Authentication Failures" (A07) at the top of
+OWASP Top 10 2021 ranks "Identification and Authentication Failures" seventh (A07) in
 the catalog, and the bulk of that category is session-management bugs: session fixation,
 missing logout-revocation, weak session-ID entropy, missing `HttpOnly`, missing `SameSite`,
 JWT-without-revocation, refresh-token theft, cookie-tossing across subdomains, OAuth
-missing-state, redirect-uri wildcards. This is the most-frequent web-app bug class in
-2025-2026 and is the discipline most-frequently delegated to a framework default the
-engineer never reads.
+missing-state, redirect-uri wildcards. This is the discipline most-frequently delegated to a framework
+default the engineer never reads.
 
 ---
 
@@ -100,14 +95,14 @@ OWASP Application Security Verification Standard V3 ("Session Management") is th
 structural scaffolding for this domain. Chapter V3 is divided into seven subsections, each
 of which corresponds to a real bug class the field has paid for in incidents:
 
-- **V3.1 Fundamental Session Management Requirements.** Sessions must be unique across
+- **V3.1 Fundamental Session Management Security.** Sessions must be unique across
   users and not be guessable. The system must not disclose session tokens through URL
-  parameters, log files, or error messages. Sessions must always be generated server-side.
+  parameters, log files, or error messages.
 - **V3.2 Session Binding Requirements.** Sessions must be issued only after authentication
   completes. Session tokens must be cryptographically strong (≥64 bits effective entropy,
   CSPRNG-sourced; 128 bits is the modern recommendation). Sessions must be invalidated when
   the user authenticates with a different identity or steps up.
-- **V3.3 Session Logout and Timeout Requirements.** Idle timeout and absolute timeout are
+- **V3.3 Session Termination.** Idle timeout and absolute timeout are
   both required. Logout must invalidate sessions both client-side (clear the cookie) and
   server-side (remove the index entry or add to denylist).
 - **V3.4 Cookie-based Session Management.** `Secure`, `HttpOnly`, `SameSite` (Lax or
@@ -116,7 +111,7 @@ of which corresponds to a real bug class the field has paid for in incidents:
   signature, expiry, audience, issuer; revocation strategy must exist.
 - **V3.6 Federated Re-authentication.** SAML / OIDC sessions must respect issuer-side
   termination signals; step-up authentication must reset the session-binding state.
-- **V3.7 Defense in Depth.** Re-authenticate for sensitive actions; bind sessions to TLS
+- **V3.7 Defenses Against Session Management Exploits.** Re-authenticate for sensitive actions; bind sessions to TLS
   channels where possible; rotate session IDs on privilege boundary crossings.
 
 Use V3.x chapter numbers as the structural scaffolding when writing requirements or audit
@@ -142,7 +137,7 @@ the active refresh adding `SameSite`, prefixes, and `__Host-` semantics.
   their own infrastructure for weeks.
 - **`SameSite`**: `Strict` / `Lax` / `None`. Controls cross-site cookie attachment.
   `Strict` excludes the cookie from any cross-site context; `Lax` includes it on top-level
-  GET navigation (the modern default); `None` requires `Secure`. Chrome's 2020 default-to-
+  GET navigation (Chrome and Edge's default); `None` requires `Secure`. Chrome's 2020 default-to-
   Lax rollout shifted the CSRF threat model: in 2025-2026, CSRF is largely a story of
   same-site-context attacks (subdomain XSS, sibling-app session sharing) rather than the
   classic third-party-forges-POST pattern from the 2000s.
@@ -176,8 +171,8 @@ size limits (~4KB per cookie, ~50 cookies per domain per browser-imposed quota).
 
 ### 3.3 Partitioned cookies / CHIPS
 
-Chrome's CHIPS (Cookies Having Independent Partitioned State) rollout in 2024 [unverified
-exact date] adds the `Partitioned` cookie attribute, keying the cookie by top-level site
+Chrome's CHIPS (Cookies Having Independent Partitioned State) rollout in 2023 (Chrome 114)
+adds the `Partitioned` cookie attribute, keying the cookie by top-level site
 in addition to its own domain. Primarily a third-party-iframe privacy story; interacts
 with session management when your app is iframed by a third party. Cross-link
 `privacy_preserving_advertising_expertise.md`.
@@ -228,15 +223,15 @@ defense and is the default behavior of every modern framework. Audit for it anyw
 custom session-management code written before ~2010 routinely fails to regenerate, and
 "helpful" middleware that exposes a `req.session` object before authentication completes is
 a common foot-gun. In Django: `request.session.cycle_key()`. In Rails: `reset_session`. In
-Express + `express-session`: `req.session.regenerate(...)`. In ASP.NET: the framework
-abandons and creates new identifiers on `AuthenticationManager.SignIn`. Confirm your
+Express + `express-session`: `req.session.regenerate(...)`. Confirm your
 framework does this and ship a regression test that the post-auth session ID differs from
 the pre-auth one.
 
 ### 4.4 Idle timeout and absolute timeout
 
-Both are required. OWASP recommends 15-30 minutes idle / 4-8 hours absolute for sensitive
-applications; banking applications use 5-10 minutes idle. The idle timeout limits the
+Both are required. OWASP cites common idle timeouts of 2-5 minutes for high-value
+applications and 15-30 minutes for low-risk applications, and 4-8 hours absolute for an
+office worker using the application all day. The idle timeout limits the
 exposure window if a session credential is stolen and the legitimate user has stepped away
 from the device; the absolute timeout limits the lifetime of any session credential
 regardless of activity, bounding the damage from a long-running compromised session.
@@ -286,10 +281,10 @@ implicated in the key-confusion attacks below.
 The full bestiary lives in `saml_federation_expertise.md` §JWT-anti-patterns; the
 session-management-relevant subset:
 
-- **`alg: none`** (CVE-2015-9235 and later). A JWT with `{"alg":"none"}` claims to be
+- **`alg: none`**. A JWT with `{"alg":"none"}` claims to be
   unsigned; a vulnerable library accepts it as valid. Mitigation: never accept `alg: none`;
   pin allowed algorithms in your validation configuration.
-- **Algorithm confusion (HS256 / RS256)**. A vulnerable library uses the same key-loading
+- **Algorithm confusion (HS256 / RS256)** (CVE-2015-9235, `jsonwebtoken` before 4.2.2). A vulnerable library uses the same key-loading
   code path for both symmetric and asymmetric verification. Attacker switches the `alg`
   header from `RS256` to `HS256` and signs the token with the *public* key (which is
   publicly known) interpreted as the HMAC symmetric secret. Mitigation: pin allowed
@@ -325,15 +320,15 @@ both cases the grant is revoked and the principal re-authenticates.
 
 Implement reuse detection by storing a refresh-token family identifier server-side and
 tracking the sequence number; reject any refresh that is not for the most-recent token in
-the family. RFC 6749 §10.4, RFC 6819 (Threat Model), and RFC 9700 (BCP, January 2025
-[unverified date]) all reference this pattern.
+the family. RFC 6749 §10.4, RFC 6819 (Threat Model), and RFC 9700 (BCP, January 2025)
+all reference this pattern.
 
 ### 5.4 Token binding — DPoP and mTLS
 
 The structural defense against bearer-token theft is to bind the token to a key the legitimate
 client holds. Two specs:
 
-- **DPoP (Demonstrating Proof of Possession), RFC 9449** (September 2023 [unverified date]).
+- **DPoP (Demonstrating Proof of Possession), RFC 9449** (September 2023).
   The client generates an asymmetric key pair, sends the public key in the access-token request
   binding it to the token, and demonstrates possession on every API call by signing a
   request-specific JWT with the private key. A stolen access token is useless to the
@@ -358,11 +353,9 @@ API) communities; mTLS-bound tokens are deployed in banking-grade FAPI deploymen
   `SameSite` and / or a CSRF token.
 
 **Operational truth: XSS is more common than CSRF in modern apps.** `SameSite=Lax` +
-`HttpOnly` + a CSRF token for state-changing operations is the recommended default. XSS
-that reads `document.cookie` is the dominant session-theft mechanism in 2024-2026 incident
-reports; tokens in localStorage give that XSS a credential that survives reload and
-device-wipe-via-exfiltrate-and-replay. OWASP Cheat Sheets ("Session Management," "HTML5
-Security," "JSON Web Token for Java") all settled on httpOnly-cookie-plus-CSRF-token by ~2022.
+`HttpOnly` + a CSRF token for state-changing operations is the recommended default.
+Tokens in localStorage give XSS a credential that survives reload and
+device-wipe-via-exfiltrate-and-replay.
 
 ### 6.2 Mobile clients
 
@@ -382,7 +375,7 @@ Emerged ~2020 as the modern SPA + OAuth recommendation: browser holds an opaque 
 cookie issued by your BFF; the BFF holds the actual OAuth refresh tokens server-side. The
 SPA never sees an access or refresh token. XSS in the SPA can no longer exfiltrate OAuth
 credentials — only a session cookie bound to the BFF's origin and `HttpOnly`. Available
-out of the box in Duende IdentityServer's BFF library, Curity Token Handler, ory-oathkeeper.
+out of the box in Duende IdentityServer's BFF library and Curity Token Handler.
 If your SPA talks to multiple downstream OAuth APIs, adopt BFF; the alternative is
 XSS = OAuth-token-theft.
 
@@ -401,7 +394,7 @@ libsecret/kwallet on Linux). No plaintext config files.
 
 The OAuth WG consolidated a decade of OAuth 2.0 deployment experience into the OAuth 2.1
 draft (`draft-ietf-oauth-v2-1`, Parecki / Hardt / Lodderstedt) and RFC 9700 (BCP 240, "Best
-Current Practice for OAuth 2.0 Security," January 2025 [unverified date]). The
+Current Practice for OAuth 2.0 Security," January 2025). The
 session-management-relevant requirements:
 
 - **PKCE mandatory for all OAuth flows**, not just public clients. PKCE (RFC 7636) binds
@@ -477,7 +470,7 @@ authenticated user initiated it.
 
 ### 9.1 The modern defenses
 
-- **`SameSite=Lax` / `SameSite=Strict`** as the structural defense. Modern browsers default
+- **`SameSite=Lax` / `SameSite=Strict`** as the structural defense. Chrome and Edge default
   to `Lax` (as of the Chrome rollout in 2020). On a Lax-defaulted cookie, the cookie is
   not attached to cross-site POST / DELETE / fetch requests; only top-level GET navigation
   triggers attachment. The classic "form auto-submitted from attacker.com" attack is closed
@@ -549,7 +542,7 @@ escalate to XSS in JavaScript frameworks.
   identifiers. Modern frameworks (Spring Session, Django, Rails, ASP.NET Core,
   express-session) use CSPRNG-derived ≥128-bit identifiers by default. Legacy PHP
   `session_id()` configurations using `mt_rand()` or weak entropy sources could produce
-  predictable IDs prior to PHP 7; audit `session.entropy_*` on PHP deployments.
+  predictable IDs prior to PHP 7.1; audit `session.entropy_*` on PHP deployments.
 - **Cookie-tossing and cookie-bombing.** Adversary on a subdomain sets a cookie scoped to
   the parent domain; depending on parsing, the adversary's cookie may take precedence.
   The `__Host-` prefix is the structural defense.
@@ -559,19 +552,16 @@ escalate to XSS in JavaScript frameworks.
   bug accepting the consumer key for enterprise tokens. The canonical "token-signing key
   is the keys to the kingdom" story. Key-management discipline (HSM-backed signing,
   rotation, scope-restricted keys) is part of session management.
-- **Pass-the-cookie attacks.** Lapsus$ (2022-2023) and the Snowflake-customer-tenant
-  compromises (mid-2024) demonstrated this at scale. Credential-stealer malware extracts
+- **Pass-the-cookie attacks.** Lapsus$ (2022-2023) demonstrated this at scale. Credential-stealer malware extracts
   session cookies from the browser profile (Chromium's `Cookies` SQLite store, decrypted
   with the OS-bound DPAPI / Keychain key) and exfiltrates them. The attacker imports the
   cookies and proceeds as the authenticated user. **MFA was bypassed not by attacking MFA
   but by stealing the post-MFA session cookie.** Defenses: short session lifetimes,
   sender-constrained tokens, continuous risk evaluation, device-bound credentials.
-  CrowdStrike's 2024 infostealer-driven SaaS reporting is the public primary source.
-- **OAuth redirect-uri wildcard / pattern-matching** (Sam Curry et al.). Auth servers
+- **OAuth redirect-uri wildcard / pattern-matching.** Auth servers
   that pattern-match `redirect_uri` (regex, prefix, suffix, "starts with") allow
   attackers to register a redirect URI that satisfies the pattern, capture the
-  authorization code, and link the victim's account. Still shipped in production at auto
-  OEM auth servers as recently as 2023. Exact-match `redirect_uri` is the OAuth 2.1
+  authorization code, and link the victim's account. Exact-match `redirect_uri` is the OAuth 2.1
   structural defense.
 - **OAuth missing-state** (Egor Homakov, 2012). `state` binds the OAuth callback to the
   user agent that initiated the flow. Missing `state` = account-takeover via CSRF on the
@@ -585,11 +575,11 @@ escalate to XSS in JavaScript frameworks.
 
 DPoP and mTLS-bound tokens are the structural defense against bearer-token theft. Token
 theft alone is insufficient because the attacker also needs the private key. Adoption is
-rare; in FAPI and GNAP deployments DPoP is standard.
+rare; FAPI 2.0 requires sender-constrained tokens (mTLS or DPoP).
 
 ### 12.2 Continuous session re-validation and risk-based monitoring
 
-Okta ThreatInsight, Microsoft Entra ID Identity Protection ("risky sign-in"), Google's
+Microsoft Entra ID Identity Protection ("risky sign-in"), Google's
 account-protection risk engine, and Cloudflare Access all implement continuous session
 risk evaluation: a session that started benign may become risky if the device fingerprint
 changes, the source IP geolocates to a new country, the user-agent class changes, or the
@@ -599,7 +589,7 @@ broader continuous-authn framing.
 
 ### 12.3 Device-bound credentials
 
-Apple Managed Device Attestation (ManagedAppAttestation, iOS 16+), Android Play Integrity
+Apple Managed Device Attestation (iOS 16+), Android Play Integrity
 API, Google Pixel StrongBox, Microsoft Device Health Attestation, Apple Touch ID/Face ID.
 The session credential is bound to a hardware-backed key that the device cannot exfiltrate.
 The attacker steals the cookie but cannot use it from their own machine because the
@@ -624,21 +614,20 @@ revocation.
 
 ## 13. 2024-2026 currency
 
-- **RFC 9700** (OAuth Security BCP, BCP 240, January 2025 [unverified exact date]).
+- **RFC 9700** (OAuth Security BCP, BCP 240, January 2025).
   Authoritative checklist for OAuth security operators.
-- **RFC 9449** (DPoP, September 2023 [unverified exact date]). The sender-constrained-token
+- **RFC 9449** (DPoP, September 2023). The sender-constrained-token
   spec the modern OAuth ecosystem converged on.
 - **OAuth 2.1 draft** (`draft-ietf-oauth-v2-1`). Not yet finalized RFC as of early 2026.
-- **Chrome CHIPS partitioned cookies** rollout in 2024. Cross-link
+- **Chrome CHIPS partitioned cookies** shipped by default in Chrome 114 (May 2023). Cross-link
   `privacy_preserving_advertising_expertise.md`.
 - **OAuth library CVEs.** Spring Authorization Server, Keycloak (incl. CVE-2022-1245),
-  Node OAuth-server libraries shipped session-management-relevant CVEs across 2023-2025.
+  Node OAuth-server libraries shipped session-management-relevant CVEs across 2022-2025.
 - **Storm-0558** (Microsoft, May-July 2023). Token-signing-key compromise; canonical
   "the signing key is the keys to the kingdom" case study.
-- **Snowflake mid-2024.** Credential-stuffing initial access + session-cookie extraction
-  as secondary lateral movement; multiple downstream-tenant compromises (AT&T,
-  Ticketmaster, Santander, per press). Mandiant's reporting is the primary source. Lesson:
-  MFA at the IdP doesn't protect downstreams that accept long-lived session credentials.
+- **Snowflake mid-2024.** Infostealer-harvested customer credentials used against
+  Snowflake tenants that lacked MFA; multiple downstream-tenant compromises (AT&T,
+  Ticketmaster, Santander, per press). Mandiant's reporting is the primary source.
 - **AI-agent session story (emerging).** Claude Code, Cursor, ChatGPT Operator, Anthropic
   Computer Use, MCP-tool-using agents increasingly hold OAuth refresh tokens or session
   cookies on behalf of users. Token theft from the agent = session theft. The discipline
@@ -663,7 +652,7 @@ present in your deployment.
 - **`SameSite=None` without `Secure`** is rejected by modern browsers, but legacy code
   paths still attempt the combination and the cookie silently doesn't get set. Audit.
 - **Missing exact-match `redirect_uri`.** Wildcard / regex / prefix matching on
-  `redirect_uri` is the single most-paid-out OAuth bug class from 2022 onward.
+  `redirect_uri` is a known OAuth bug class (see §11).
 - **Federated logout is mostly broken.** SLO, OIDC RP-Initiated Logout, front-channel
   logout, back-channel logout are all partial coverage. After password change at the IdP,
   sessions at all RPs should be revoked; verify your implementation actually does this.
@@ -671,8 +660,8 @@ present in your deployment.
   keys. Adopt rotation; OAuth 2.1 default is rotation-on-use with reuse detection.
 - **Session-fixation bugs persist in legacy frameworks.** Audit
   session-ID-regenerate-on-auth in every framework you touch.
-- **MFA-bypass via session cookie theft** is the dominant post-2023 attack pattern.
-  Lapsus$, Storm-0558, Snowflake all demonstrated MFA bypass not by attacking the MFA
+- **MFA-bypass via session cookie theft** is a common attack pattern.
+  Lapsus$ demonstrated MFA bypass not by attacking the MFA
   step but by stealing the post-MFA session credential.
 - **"Idle timeout disabled because users complain"** is operational pressure eroding
   session security. Quantify the risk explicitly; align with business risk tolerance.
