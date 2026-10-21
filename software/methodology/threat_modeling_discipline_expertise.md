@@ -26,9 +26,9 @@ Threat modeling is the practice with the highest leverage and the lowest cultura
 
 ## 2. The Threat Modeling Manifesto (2020)
 
-Anchor the discipline on the Manifesto. Published December 2020, revised 2024 [unverified — exact 2024 revision details]. Authored by a group convened by Adam Shostack and Izar Tarandach.
+Anchor the discipline on the Manifesto. Published November 17, 2020.
 
-Original signatories: Zoe Braiterman, Adam Shostack, Jonathan Marcil, Stephen de Vries, Irene Michlin, Kim Wuyts, Robert Hurlbut, Brook S.E. Schoenfield, Fraser Scott, Matthew Coles, Chris Romeo, Alyssa Miller, Izar Tarandach, Avi Douglen [unverified — full 14-signatory list and ordering].
+Original signatories: Zoe Braiterman, Adam Shostack, Jonathan Marcil, Stephen de Vries, Irene Michlin, Kim Wuyts, Robert Hurlbut, Brook S.E. Schoenfield, Fraser Scott, Matthew Coles, Chris Romeo, Alyssa Miller, Izar Tarandach, Avi Douglen, Marc French.
 
 The Manifesto answers four questions, in order:
 
@@ -173,7 +173,7 @@ PASTA's strength is the artifact-trail. The artifacts outlive the workshop. A su
 
 ## 6. LINDDUN — privacy threat modeling
 
-KU Leuven, DistriNet research group. Mina Deng, Kim Wuyts, Riccardo Scandariato, Bart Preneel, Wouter Joosen. Original publication: "A privacy threat analysis framework: supporting the elicitation and fulfillment of privacy requirements," `Requirements Engineering Journal` 2011 [unverified — exact venue and year]. ESORICS 2010 workshop precursor.
+KU Leuven, DistriNet research group. Mina Deng, Kim Wuyts, Riccardo Scandariato, Bart Preneel, Wouter Joosen. Original publication: "A privacy threat analysis framework: supporting the elicitation and fulfillment of privacy requirements," `Requirements Engineering Journal` 2011 [unverified — exact venue and year].
 
 Seven categories, each a privacy property negation:
 
@@ -187,11 +187,11 @@ Seven categories, each a privacy property negation:
 | **U** | Unawareness (subject is unaware of data collection, processing, or sharing) |
 | **N** | Non-compliance (system violates regulatory or stated privacy policy) |
 
-LINDDUN has three depth tiers, formalized in the 2019-onward refresh:
+LINDDUN has three methods:
 
 - **LINDDUN GO.** Card-deck-driven lightweight workshop format. Suitable for sprint-cadence threat modeling. Each card prompts a threat-elicitation conversation.
-- **LINDDUN.** Standard methodology, DFD-driven, per-element analysis against the seven categories.
-- **LINDDUN PRO.** Deep tier with hotspot identification, threat-pattern catalogs, and explicit mitigation linkage.
+- **LINDDUN PRO.** Systematic methodology, DFD-driven, iterating over each interaction in the diagram.
+- **LINDDUN MAESTRO.** Deep tier that adds viewpoints to the data flow model and requires high modelling and analysis expertise.
 
 **When LINDDUN displaces STRIDE.** Any system processing personal data under GDPR Article 25 (privacy by design and by default). Healthcare under HIPAA. Education under FERPA. Telecom user data. Anywhere a privacy regulator can fine you, run LINDDUN on the privacy threats and STRIDE on the security threats in parallel — they cover different harm classes.
 
@@ -217,9 +217,9 @@ The methodology ecosystem extends beyond STRIDE / PASTA / LINDDUN. Four others w
 
 **VAST (Visual, Agile, and Simple Threat).** Anurag Agarwal, founder of ThreatModeler Software Inc. Pitched as enterprise-scale automation: every architecture diagram becomes a threat model, every threat model is CI/CD-integrated, threats become Jira tickets automatically. VAST distinguishes **application threat models** (developer-facing, code/architecture-rooted) from **operational threat models** (infrastructure-facing, deployment environment). The split is the methodology's main contribution. STRIDE/PASTA/LINDDUN are agnostic about the app-vs-ops divide; VAST forces you to model them separately and reconcile. The commercial tool (ThreatModeler) is closed-source and license-gated. Cost-of-adoption is real; the methodology is reproducible without the tool.
 
-**OCTAVE / OCTAVE Allegro.** Christopher Alberts and Audrey Dorofee, Carnegie Mellon Software Engineering Institute. OCTAVE = Operationally Critical Threat, Asset, and Vulnerability Evaluation. Original OCTAVE published [unverified — circa 2001-2003]; OCTAVE-S (small org variant) [unverified — circa 2005]; OCTAVE Allegro (streamlined asset-centric variant) published 2007 [unverified — exact year]. OCTAVE is organizational, not application — three phases: build asset-based threat profiles, identify infrastructure vulnerabilities, develop strategy. OCTAVE Allegro narrows to information assets specifically and produces a "risk profile" per asset. Use OCTAVE when the engagement is org-level (board reporting, regulatory attestation, enterprise risk management). Do not use it for per-feature or per-service threat modeling — wrong altitude.
+**OCTAVE / OCTAVE Allegro.** Christopher Alberts and Audrey Dorofee, Carnegie Mellon Software Engineering Institute. OCTAVE = Operationally Critical Threat, Asset, and Vulnerability Evaluation. Original OCTAVE framework (v1.0) published 1999; OCTAVE-S (small org variant); OCTAVE Allegro (streamlined asset-centric variant) published 2007 [unverified — exact year]. OCTAVE is organizational, not application — three phases: build asset-based threat profiles, identify infrastructure vulnerabilities, develop strategy. OCTAVE Allegro narrows to information assets specifically and produces a "risk profile" per asset. Use OCTAVE when the engagement is org-level (board reporting, regulatory attestation, enterprise risk management). Do not use it for per-feature or per-service threat modeling — wrong altitude.
 
-**Trike.** Open-source academic methodology. Eldon Sprickerhoff and others [unverified — exact authorship history]. Trike's distinguishing contribution is the auto-generation of attack graphs from a structured requirements model: enumerate actors, assets, intended actions, and rules; the methodology derives the threat enumeration. Shostack cites it as a complement to STRIDE rather than a replacement. Trike is rare in industry deployment. Cite it for completeness and for the auto-generation lineage; do not stake a program on it.
+**Trike.** Open-source academic methodology. Michael Eddington, Brenda Larcom, and Eleanor Saitta (2005). Trike's distinguishing contribution is the auto-generation of attack graphs from a structured requirements model: enumerate actors, assets, intended actions, and rules; the methodology derives the threat enumeration. Shostack cites it as a complement to STRIDE rather than a replacement. Trike is rare in industry deployment. Cite it for completeness and for the auto-generation lineage; do not stake a program on it.
 
 **DREAD — historical, deprecated, instructive.** Microsoft, contemporaneous with STRIDE. DREAD = Damage / Reproducibility / Exploitability / Affected users / Discoverability. Each category scored 1-10, sum or average produces a risk score. Microsoft moved away from DREAD because the scoring is subjective and non-reproducible: two practitioners scoring the same threat reliably produce different totals, and the totals don't ladder up to financial-loss estimates. The cautionary lesson: any qualitative scoring system that pretends to be quantitative will be gamed by the practitioner with the strongest opinion in the room. DREAD's residual value is the category breakdown. Damage and Affected-users approximate impact; Exploitability and Reproducibility approximate likelihood. Modern risk-rating (CVSS, FAIR) inherited the breakdown without DREAD's pseudo-quantification. Reference DREAD historically; do not adopt it.
 
@@ -284,8 +284,8 @@ Cross-walk discipline: when STRIDE produces a threat ("attacker tampers with the
 |---|---|---|
 | Spoofing | CAPEC-94 (Adversary in the Middle), CAPEC-148 (Content Spoofing) | CWE-290, CWE-287, CWE-345 |
 | Tampering | CAPEC-153 (Input Data Manipulation), CAPEC-184 (Software Integrity Attack) | CWE-353, CWE-345 |
-| Repudiation | CAPEC-93 (Log Injection), CAPEC-268 (Audit-Log Tampering) | CWE-117, CWE-778 |
-| Information Disclosure | CAPEC-118 (Information Gathering), CAPEC-150 (Collect Data from Common Resources) | CWE-200, CWE-209 |
+| Repudiation | CAPEC-93 (Log Injection), CAPEC-268 (Audit Log Manipulation) | CWE-117, CWE-778 |
+| Information Disclosure | CAPEC-118 (Collect and Analyze Information), CAPEC-150 (Collect Data from Common Resource Locations) | CWE-200, CWE-209 |
 | Denial of Service | CAPEC-125 (Flooding), CAPEC-227 (Sustained Client Engagement) | CWE-400, CWE-770 |
 | Elevation of Privilege | CAPEC-122 (Privilege Abuse), CAPEC-233 (Privilege Escalation) | CWE-269, CWE-862, CWE-863 |
 
@@ -303,17 +303,17 @@ The tool market splits into three tiers: visual-diagram tools, threat-modeling-a
 
 - **Microsoft Threat Modeling Tool (TMT).** Windows-only, free. DFD-driven. STRIDE-per-interaction default. Generates threats automatically from the DFD topology. The canonical "draw the DFD, get the threat list" tool. Limitations: Windows-only kills it for many shops; the template system is rigid; the generated threats are template-mechanical rather than insight-driven.
 - **OWASP Threat Dragon.** Mike Goodwin, open-source. Browser-based and Electron desktop. JSON model files (Git-checkable). GitHub integration. STRIDE-default. The pragmatic open-source choice when you want diagrams in a repo. Active project.
-- **OWASP Threat Composer.** AWS open-source [unverified — released 2023]. Browser-based, lighter than Threat Dragon, focused on statement-based threats rather than DFD-driven enumeration.
+- **AWS Threat Composer.** AWS Labs open-source. Browser-based, lighter than Threat Dragon, focused on statement-based threats rather than DFD-driven enumeration.
 
 **Threat-modeling-as-code.**
 
 - **pytm.** Izar Tarandach. Python DSL. You write a Python script describing actors, assets, data flows, and trust boundaries; pytm generates threat reports and sequence diagrams. The output is a textual report you check into the repo alongside the code. The model is reviewable in pull requests.
-- **Threagile.** Christian Schneider. YAML DSL. You describe the architecture in YAML; Threagile generates risk reports, data-flow diagrams, and attack-tree graphs as output artifacts. Strong on automation; the YAML schema enforces architectural completeness.
-- **threagile-ai / STRIDE-GPT (Matthew Adams).** LLM-augmented variants. See §14.
+- **Threagile.** Christian Schneider. YAML DSL. You describe the architecture in YAML; Threagile generates risk reports and data-flow diagrams as output artifacts. Strong on automation; the YAML schema enforces architectural completeness.
+- **STRIDE-GPT (Matthew Adams).** LLM-augmented variant. See §14.
 
 **Enterprise platforms.**
 
-- **IriusRisk.** Commercial. Automated PCI/HIPAA/SOC2 template library. Integrates with Jira, GitHub, Azure DevOps. The "we have a compliance audit next quarter" tool.
+- **IriusRisk.** Commercial. Automated PCI/HIPAA template library. Integrates with Jira and Azure DevOps. The "we have a compliance audit next quarter" tool.
 - **ThreatModeler.** Anurag Agarwal's commercial product. VAST methodology, automated diagram-to-threat-model generation.
 - **SD Elements** (Security Compass). Requirements-based: you describe what you're building, SD Elements outputs security requirements, test cases, and a threat model.
 - **Tutamantic, SecuriCAD** [unverified — specific tool inventory completeness]. Niche commercial tools.
@@ -349,7 +349,7 @@ store.protocol = "TLS"; store.data = "Order ID, masked PAN"
 tm.process()
 ```
 
-Running `python threatmodel.py --report report.md` produces a Markdown report with auto-derived threats per data flow based on STRIDE templates. The threats are mechanical (template-driven); the value is the auto-derivation and the version-controlled artifact, not the originality of the threat list.
+Running `python threatmodel.py --report template.md > report.md` renders a Markdown template into a report with auto-derived threats per data flow based on STRIDE templates. The threats are mechanical (template-driven); the value is the auto-derivation and the version-controlled artifact, not the originality of the threat list.
 
 **Threagile minimal example.** Threagile is YAML:
 
@@ -359,18 +359,18 @@ technical_assets:
   web_frontend:
     type: process
     technology: web-server
-    encryption: transit
+    encryption: none
     confidentiality: confidential
   order_db:
-    type: data-store
-    technology: relational-db
-    encryption: transit-and-rest
+    type: datastore
+    technology: database
+    encryption: data-with-symmetric-shared-key
     confidentiality: strictly-confidential
 communication_links:
   customer_to_web:
     target: web_frontend
     protocol: https
-    authentication: session-token
+    authentication: session-id
     authorization: enduser-identity-propagation
 trust_boundaries:
   public:
@@ -378,7 +378,7 @@ trust_boundaries:
     technical_assets_inside: [web_frontend, order_db]
 ```
 
-Running `threagile -model threatmodel.yaml -output report/` produces HTML, PDF, JSON, and graphviz outputs including derived risks, attack-tree visualizations, and a risk-tracking workbook.
+Running `threagile -model threatmodel.yaml -output report/` produces a PDF report, data-flow and data-asset diagrams, and derived risks in Excel and JSON.
 
 The tools differ in DSL ergonomics (Python expressiveness vs YAML declarative simplicity), output formats, and rule-engine sophistication. They agree on the load-bearing claim: threat models belong in version control, alongside the code they model.
 
@@ -407,8 +407,7 @@ Active frontier. Honest framing: LLMs are useful for ideation and enumeration, u
 
 **Tools and projects.**
 
-- **STRIDE-GPT** (Matthew Adams [unverified — confirm exact authorship]). Open-source. You paste an architecture description; STRIDE-GPT walks the six categories and produces a threat list. Useful for first-pass enumeration; the threats trend toward textbook rather than novel.
-- **Microsoft Copilot for Security** — threat modeling skill [unverified — exact product feature naming and GA date]. Enterprise-licensed; integrates with TMT and Azure architecture surfaces.
+- **STRIDE-GPT** (Matthew Adams). Open-source. You paste an architecture description; STRIDE-GPT walks the six categories and produces a threat list. Useful for first-pass enumeration; the threats trend toward textbook rather than novel.
 - **Threagile + LLM**, **pytm + LLM** patterns. Practitioners pipe DFD output to a model, ask for STRIDE elaborations, then human-curate the result.
 
 **Where LLMs help.**
@@ -478,7 +477,7 @@ Threat enumeration produces a list of threats. Risk rating produces a prioritize
 
 **CVSS is a vulnerability rating, not a risk rating.** CVSS scores the technical severity of a specific vulnerability under a specific exploitation model. It does not score the business impact of a threat in your specific context. A CVSS 9.8 RCE on an asset that processes no customer data and has no integration with anything else is a lower business risk than a CVSS 6.5 IDOR on the customer-PII service. Do not use CVSS as your risk rating; use it as one input.
 
-**FAIR — Factor Analysis of Information Risk.** Jack Jones, mid-2000s. Open Group OpenFAIR standard [unverified — exact Open Group standard document IDs]. The dominant quantitative risk-rating framework.
+**FAIR — Factor Analysis of Information Risk.** Jack Jones, mid-2000s. Open Group Open FAIR standards: Risk Taxonomy (O-RT) and Risk Analysis (O-RA). The dominant quantitative risk-rating framework.
 
 FAIR decomposes risk into:
 

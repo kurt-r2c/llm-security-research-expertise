@@ -24,9 +24,7 @@ Audience: threat modelers, security architects, AppSec leads, and Claude on futu
 
 ## 2. Origin and canonical references
 
-The technique as published in security literature begins at the Carnegie Mellon Software Engineering Institute.
-
-**Nancy Mead** (CMU SEI Fellow, longtime SQUARE/security-requirements lead) and **Forrest Shull** (then CMU SEI, later Build Security In Initiative) formalized persona non grata for security in CMU SEI work circa 2012-2014, culminating in the Hybrid Threat Modeling Method (hTMM) technical note `[unverified specific TN number — frequently cited as CMU/SEI-2018-TN-002]`. The hTMM combines three techniques the SEI group considered complementary: Security Cards (a workshop deck developed at the University of Washington by **Tamara Denning** and colleagues, later refined with CMU), persona non grata, and STRIDE. Mead and Shull's framing: each component covers a blind spot of the others. Security Cards drive brainstorming over "who, why, what, how"; PNG turns brainstormed attackers into developed personas; STRIDE applies a per-element coverage sweep with each persona in mind.
+**Nancy Mead** (CMU SEI Fellow, longtime SQUARE/security-requirements lead) and **Forrest Shull** (then CMU SEI, later DoD Principal Director for Advanced Computing and Software) evaluated persona non grata for security in CMU SEI work beginning in FY 2016, culminating in the Hybrid Threat Modeling Method (hTMM) technical note CMU/SEI-2018-TN-002 (March 2018, with Krishnamurthy Vemuru and Ole Villadsen). The hTMM combines three techniques the SEI group considered complementary: Security Cards (a workshop deck developed at the University of Washington by **Tamara Denning** and colleagues), persona non grata, and STRIDE. Mead and Shull's framing: each component covers a blind spot of the others. Security Cards drive brainstorming over "who, why, what, how"; PNG turns brainstormed attackers into developed personas; STRIDE applies a per-element coverage sweep with each persona in mind.
 
 Personas as a positive-design technique predate this by roughly a decade. **Alan Cooper** introduced personas to interaction design in *The Inmates Are Running the Asylum* (Sams 1999) and refined the technique in *About Face* (Wiley 2007). UX personas are constructed as composite representations of *desired* users — concrete enough to design for, statistical enough to cover the segment. PNG inverts the technique: develop a persona for users you explicitly do not want, then design *against* them.
 
@@ -34,7 +32,7 @@ Adjacent lineage: **Mike Howard** and the Microsoft SDL community used informal 
 
 Marketing and customer-experience disciplines have used negative personas ("the customer we don't want to acquire") since at least the early 2000s. PNG borrows the inversion technique but anchors the resulting persona in adversary economics and threat intelligence rather than CAC and churn.
 
-Threat-actor frameworks provide the empirical scaffolding for PNG construction. **MITRE ATT&CK Groups** profiles `[unverified specific count, ~140+ as of 2026]` — APT28, APT29, FIN7, Lazarus, Sandworm, Volt Typhoon, and the rest of the corpus — give PNG authors pre-built adversary characterizations with tradecraft (techniques), tooling, and target preferences. Crimeware reporting from **Mandiant**, **CrowdStrike**, **Recorded Future**, **Kaspersky GReAT**, and **Microsoft Threat Intelligence** keeps the persona library current. Cross-link to [[reference-threat-intel-methodology]] for the discipline of consuming and producing this material.
+Threat-actor frameworks provide the empirical scaffolding for PNG construction. **MITRE ATT&CK Groups** profiles (178 as of the April 2026 v19 release) — APT28, APT29, FIN7, Lazarus, Sandworm, Volt Typhoon, and the rest of the corpus — give PNG authors pre-built adversary characterizations with tradecraft (techniques), tooling, and target preferences. Crimeware reporting from **Mandiant**, **CrowdStrike**, **Recorded Future**, **Kaspersky GReAT**, and **Microsoft Threat Intelligence** keeps the persona library current. Cross-link to [[reference-threat-intel-methodology]] for the discipline of consuming and producing this material.
 
 ---
 
@@ -56,7 +54,7 @@ A usable PNG has eight elements. Each is operationally load-bearing; trim any of
 
 **Detection-avoidance behaviors.** What this actor will or won't do to avoid being seen. Nation-state actors typically avoid noisy techniques. Crimeware operators often accept detection in exchange for speed. Insider attackers worry about audit logs visible to their colleagues.
 
-**Constraints and non-goals.** What this actor *cannot* or *will not* do. A ransomware crew may refuse to target hospitals because it generates law-enforcement heat (the [unverified] post-Colonial-Pipeline "ethical ransomware" framing). A nation-state may avoid public attribution. A disgruntled employee will not commit federal crimes that put them in prison. Constraints are as informative as capabilities — they bound the defender's response.
+**Constraints and non-goals.** What this actor *cannot* or *will not* do. A ransomware crew may refuse to target hospitals because it generates law-enforcement heat. A nation-state may avoid public attribution. A disgruntled employee will not commit federal crimes that put them in prison. Constraints are as informative as capabilities — they bound the defender's response.
 
 The persona document is typically one to two pages. Longer drifts toward fiction; shorter drifts toward checkbox.
 
@@ -96,9 +94,9 @@ Most engagements draw from a stock library. Specialize each persona to the syste
 
 **Vendor / supply-chain personas.**
 
-*Insider-at-vendor.* Vendor's employee with access to your system via vendor's privileged tooling. Storm-0558-class. Cross-link to [[reference-cicd-supply-chain]] for the broader supply-chain threat model and to [[reference-ciam-consumer-identity]] §11 for the Okta-sub-processor incident shape.
+*Insider-at-vendor.* Vendor's employee with access to your system via vendor's privileged tooling. Cross-link to [[reference-cicd-supply-chain]] for the broader supply-chain threat model and to [[reference-ciam-consumer-identity]] §11 for the Okta-sub-processor incident shape.
 
-*Compromised vendor.* Vendor's infrastructure is compromised; the attacker uses the vendor as a stepping stone. SolarWinds-class. CrowdStrike-channel-file-class. The vendor itself is the victim — the attacker is upstream.
+*Compromised vendor.* Vendor's infrastructure is compromised; the attacker uses the vendor as a stepping stone. SolarWinds-class. Storm-0558-class. The vendor itself is the victim — the attacker is upstream.
 
 **AI-system-specific personas (emerging).**
 
@@ -112,9 +110,9 @@ Most engagements draw from a stock library. Specialize each persona to the syste
 
 ## 5. Hybrid Threat Modeling Method (hTMM) workflow
 
-The CMU SEI hTMM is the canonical workflow integrating PNG with other threat-modeling techniques. It is one of several legitimate integrations — the workflow is illustrative rather than mandatory.
+The CMU SEI hTMM is the canonical workflow integrating PNG with other threat-modeling techniques. It is one of several legitimate integrations — the workflow below is an illustrative adaptation rather than the TN's own five steps (identify the system, Security Cards, prune and expand, summarize with tool support, risk assessment).
 
-**Step 1: Security Cards workshop.** Use the UW/CMU Security Cards deck `[unverified current edition]` as a brainstorming aid. Cards prompt discussion across four dimensions: Human Impact, Adversary's Motivations, Adversary's Resources, and Adversary's Methods. The output is a brainstormed list of attacker concepts. Facilitator + 4-6 stakeholders. 1-2 hours.
+**Step 1: Security Cards workshop.** Use the UW Security Cards deck `[unverified current edition]` as a brainstorming aid. Cards prompt discussion across four dimensions: Human Impact, Adversary's Motivations, Adversary's Resources, and Adversary's Methods. The output is a brainstormed list of attacker concepts. Facilitator + 4-6 stakeholders. 1-2 hours.
 
 **Step 2: Persona non grata development.** From the brainstormed list, select 3-5 personas. For each, fill in the eight elements from §3. Anchor in real-world threat intel (MITRE ATT&CK Groups, current threat reports). Develop constraints and non-goals as carefully as capabilities. 2-4 hours per persona; not all need to be developed in one sitting.
 
@@ -138,7 +136,7 @@ Most PNG failures trace to construction shortcuts. The following disciplines dis
 
 **Bound resources realistically.** A nation-state actor is not omnipotent. They have priorities, target queues, deconfliction processes, and analysts who cost money. A small-business attacker is not a Hollywood mastermind — they use off-the-shelf tooling because writing custom tooling is uneconomical. Specific bounds beat vague capabilities every time.
 
-**Develop constraints and non-goals.** What the persona will not do is as load-bearing as what they will. A nation-state actor may avoid public attribution; this informs which detection signals are useful (the actor will hide noisy techniques, so subtle techniques matter more). A ransomware crew may avoid hospitals (post-Colonial-Pipeline `[unverified informal norm]`); this informs sector-specific risk modeling. Constraints are *load-bearing* — without them every persona collapses to "infinite capability."
+**Develop constraints and non-goals.** What the persona will not do is as load-bearing as what they will. A nation-state actor may avoid public attribution; this informs which detection signals are useful (the actor will hide noisy techniques, so subtle techniques matter more). A ransomware crew may avoid hospitals; this informs sector-specific risk modeling. Constraints are *load-bearing* — without them every persona collapses to "infinite capability."
 
 **Date your personas.** Tradecraft evolves. A PNG built in 2020 reflects 2020 tradecraft. By 2026 the same persona class uses LLM-augmented reconnaissance, infostealer-distributed pass-the-cookie, supply-chain pivots from SaaS sub-processors, and AI-agent-assisted spear-phishing. Refresh annually at minimum; refresh on major threat-landscape shifts (Snowflake-customer ATO wave, infostealer market consolidation, OAuth-grant-theft normalization).
 
@@ -206,7 +204,7 @@ Attack-tree × Sam produces: branches at "modify a build script," "exfiltrate si
 
 *PNG 1 — Prompt-Injection Vandal "AnonInj."* Low skill, public. Plants malicious instructions in web pages, emails, or shared docs the agent retrieves. Goal: defacement and demonstration. Constraint: not interested in persistence.
 
-*PNG 2 — Data-Exfil Operator "Clinejection-class."* Moderate skill, persistent. Targets specific orgs by injecting instructions into resources the agent accesses. Goal: long-running data exfiltration. Anchors: the 7-incident 2025 corpus referenced in [[reference-ai-agent-session-management]] §9.
+*PNG 2 — Data-Exfil Operator "Clinejection-class."* Moderate skill, persistent. Targets specific orgs by injecting instructions into resources the agent accesses. Goal: long-running data exfiltration. Anchors: the 7-incident 2025-2026 corpus referenced in [[reference-ai-agent-session-management]] §9.
 
 *PNG 3 — Competitor Prompt Reverse-Engineer "Recon-Co."* Low skill, automated. Goal: reconstruct your system prompts and RAG sources. Tradecraft: bulk probing, prompt-leak techniques. Constraint: will not attempt destructive actions (legal exposure).
 
@@ -254,7 +252,7 @@ The technique itself has not changed substantially since the hTMM publications, 
 
 **LLM-augmented persona generation.** As of 2024-2026, LLMs are useful for brainstorming initial PNG candidates and drafting first-pass persona documents. The novelty-regression limit applies — see [[reference-threat-modeling-discipline]] §12 and [[reference-attack-trees]] §10. Use LLMs for breadth (cover the persona space), use humans for depth (add system-specific constraints, current-tradecraft anchors, and the constraints section that LLMs reliably under-develop). The three-pass workflow from threat-modeling-discipline §12 generalizes: LLM-breadth → human-novelty → human-risk-rating.
 
-**AI agents as a new external-attacker persona class.** LLM-driven attackers can compose novel chains across the long tail at machine speed. Prompt-injection vandals, data-exfil operators, and prompt reverse-engineers are now first-class personas for any system with an LLM-mediated interface. The 7-incident 2025 corpus catalogued in [[reference-ai-agent-session-management]] §9 — Clinejection (Adnan Khan), CurXecute (Aim Labs), EchoLeak (Aim Labs), MCPoison (Check Point), Comment-and-Control (Johns Hopkins + Anthropic), PwnedRabbit (Kudelski → CodeRabbit), ShadowLeak (Radware) — provides concrete templates.
+**AI agents as a new external-attacker persona class.** LLM-driven attackers can compose novel chains across the long tail at machine speed. Prompt-injection vandals, data-exfil operators, and prompt reverse-engineers are now first-class personas for any system with an LLM-mediated interface. The 7-incident 2025-2026 corpus catalogued in [[reference-ai-agent-session-management]] §9 — Clinejection (Adnan Khan), CurXecute (Aim Labs), EchoLeak (Aim Labs), MCPoison (Check Point), Comment-and-Control (Aonan Guan + Johns Hopkins), CodeRabbit RCE (Kudelski), ShadowLeak (Radware) — provides concrete templates.
 
 **AI agents as victims rather than attackers.** PNG inverts: the agent itself is the targeted "user" whose credentials and capabilities the attacker wants to abuse. The agent is not a persona; the *attacker driving the agent* is. Threat-model around the four agent-session shapes from [[reference-ai-agent-session-management]] §2.
 
@@ -264,7 +262,7 @@ The technique itself has not changed substantially since the hTMM publications, 
 
 **Behavioral biometrics for PNG-vs-real-user discrimination.** Emerging detection-side technique: distinguish a PNG-driven session from a legitimate user via behavioral signals. Cross-link to [[reference-anti-fraud-abuse-engineering]]. Useful for ATO-focused personas; not a replacement for upstream identity-binding.
 
-**Threat-actor framework maturity.** ATT&CK Groups corpus has grown sufficiently that PNG construction for nation-state and crimeware personas can start from the Group profile and add system-specific context rather than starting from a blank page. This compresses Step 2 of hTMM substantially.
+**Threat-actor framework maturity.** ATT&CK Groups corpus has grown sufficiently that PNG construction for nation-state and crimeware personas can start from the Group profile and add system-specific context rather than starting from a blank page. This compresses Step 2 of the §5 workflow substantially.
 
 ---
 
