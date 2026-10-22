@@ -19,22 +19,22 @@
 >   "Rediscovering argument injection when using VCS tools — git and
 >   mercurial" (Snyk, August 2022,
 >   https://snyk.io/blog/argument-injection-when-using-git-and-mercurial/).
->   Disclosed CVE-2022-25900 (git-clone), CVE-2022-24433 (simple-git),
+>   Disclosed CVE-2022-24433 (simple-git),
 >   CVE-2022-25766 (ungit), CVE-2022-25648 (Ruby git gem), CVE-2022-25866
->   (czproject/git-php), CVE-2022-25867 (libvcs), CVE-2022-23915 (Weblate),
+>   (czproject/git-php), CVE-2022-21187 (libvcs), CVE-2022-23915 (Weblate),
 >   among 12+ language-spanning argv-injection CVEs across npm/PyPI/RubyGems/
 >   Packagist/Go modules.
-> - **Etienne Stalmans** (@_staaldraad, https://staaldraad.github.io) — Sage
->   security researcher (ex-Heroku); "Argument injection and getting past
+> - **Etienne Stalmans** (@_staaldraad, https://staaldraad.github.io) — Heroku
+>   platform security engineer; "Argument injection and getting past
 >   shellwords.escape" (Nov 2019); CVE-2019-13139 Docker build code execution;
 >   Polycom HDX RCE. Articulated that `Shellwords.escape` leaves `-` unescaped
->   because the character is "not typically seen as an injection character"
+>   because it "isn't typically seen as an injection character"
 >   and is "pretty common in file names" — the canonical statement of why
 >   argument injection is structurally separate from metacharacter injection.
 > - **Eric Cornelissen** (https://ericcornelissen.dev, PhD CHAINS supply-chain
 >   security) — Maintainer of `shescape`
->   (https://github.com/ericcornelissen/shescape); shipped 10 advisories
->   documenting cross-shell escape bypasses (CVE-2021-21384, 2022-24725,
+>   (https://github.com/ericcornelissen/shescape); shipped 15 advisories
+>   (escape bypasses, ReDoS, path disclosure; CVEs include CVE-2021-21384, 2022-24725,
 >   2022-31179, 2022-31180, 2022-36064, 2022-25918, 2023-35931, 2023-40185,
 >   2025-30222, 2026-32094). Operates the most disciplined public corpus of
 >   shell-escape regressions; treats the library itself as a research artifact.
@@ -114,7 +114,7 @@ Quoting libraries (`shlex.quote`, `escapeshellarg`, `Shellwords.escape`,
 `shescape`) are second-best fixes — they correctly defend against
 metacharacter injection but require the developer to remember which class
 they address and what their failure modes are. The volume of CVEs in
-`shescape` alone (10 advisories in 5 years, all in a library *designed to
+`shescape` alone (15 advisories in 5 years, all in a library *designed to
 prevent shell injection*) is the working proof that this is true.
 
 ### The patch treadmill: blocklists are permanently broken
@@ -186,8 +186,9 @@ bypasses on filters that strip spaces exploit stage 8.
 POSIX `sh` is not a single language. Concrete divergences that matter for
 both exploitation and defense:
 
-- **Process substitution `<(cmd)`** — bash and zsh only. Not in POSIX dash
-  (Debian/Ubuntu `/bin/sh`) or busybox ash (Alpine).
+- **Process substitution `<(cmd)`** — bash, zsh, and ksh (where it
+  originated). Not in POSIX dash (Debian/Ubuntu `/bin/sh`) or busybox ash
+  (Alpine).
 - **`{a,b}` brace expansion** — bash, zsh, ksh. Not in dash. Bypass
   implication: a regex filter that disallows `;` and `|` may allow a
   bash payload of `{cat,/etc/passwd}` that splits into argv via brace
@@ -356,8 +357,9 @@ system("dig", host)               # argv-array; no shell
 Open3.capture3("dig", host)       # same
 ```
 
-Ruby's `system(cmd)` invokes `sh -c` when given a single string argument,
-but invokes `execve` directly when given an argv array. The "argv array
+Ruby's `system(cmd)` invokes `sh -c` when given a single string argument
+that contains shell metacharacters, keywords or builtins (otherwise it runs
+the command directly), but invokes `execve` directly when given an argv array. The "argv array
 when length > 1" rule is non-obvious; a developer rewriting `system("dig
 #{host}")` as `system("dig", host)` is making a security-significant
 change that does not look like one in code review.
@@ -413,21 +415,14 @@ that developers reach for the function whose name pattern-matches their
 mental model of "escaping a command" and end up with `escapeshellcmd`
 when they needed `escapeshellarg`.
 
-**CVE-2022-24828 (composer)** is the canonical demonstration of why this
-matters. The vulnerable code (paraphrased) was:
-
-```php
-$editor = $_ENV['EDITOR'];
-system(escapeshellcmd($editor) . ' ' . $filename);
-```
-
-The attacker controls `$EDITOR` (Composer reads it from environment for
-the `--edit` subcommand). Setting `EDITOR='vim --exec-handler=evil.sh'`
-passes through `escapeshellcmd` unchanged — there are no metacharacters
-to escape — and the resulting command is `vim --exec-handler=evil.sh
-filename`. Vim then executes `evil.sh`. **The shell did exactly what it
-was supposed to do.** The injection is in the argv parsing of `vim`, not
-in the shell's parsing of the command line.
+**CVE-2022-24828 (composer)** is a demonstration of why this matters. An
+attacker who controls a Git or Mercurial repository listed by URL in a
+project's `composer.json` can use crafted branch names to run commands
+when `composer update` runs; the `--` delimiter used against a similar
+issue the year before was not available on that path, and the fix rejects
+branch names that start with a dash. **The shell did exactly what it
+was supposed to do.** The injection is in the argv parsing of the VCS
+binary, not in the shell's parsing of the command line.
 
 This is a documented lesson from production static-analysis workflow tuning: do
 **not** treat the presence of `escapeshellcmd` on a dataflow path as
@@ -460,7 +455,7 @@ But not every utility honors `--` the same way:
 | git (subcommands) | yes (mostly) | Per-subcommand; `git ls-remote` accepts; `git push` did not always — verify per version |
 | ssh | partial | Honored for hostname in some versions; ProxyCommand is a separate vector that runs *before* argv parsing |
 | scp | partial | Filename-as-flag class — see below |
-| rsync | yes | But pre-3.2 rsync had `-e` (remote-shell) interpolation independently |
+| rsync | yes | `-e` (remote-shell) is a separate hazard |
 | curl | yes | `-K` config-file flag also a hazard |
 | wget | yes | `-i` input-from-file similarly hazardous |
 | find | yes | `-exec`, `-execdir`, `-fprintf` are pre-`--` execution primitives |
@@ -468,7 +463,7 @@ But not every utility honors `--` the same way:
 | tar | yes | `--checkpoint-action=exec=` is the canonical post-`--`-misuse case |
 | sed | partial | `-e`/`-f` interaction with `--` is version-dependent |
 | awk | yes | `-f program-file` is the hazard before `--` |
-| perl | NO | `-e` `-M` etc. parse aggressively; argument injection in scripts that pass user input to `perl` is endemic |
+| perl | yes | `-e` `-M` etc. parse aggressively; argument injection in scripts that pass user input to `perl` is endemic |
 
 The "filename-as-flag" class deserves separate treatment: when the
 attacker controls a file's *name* (not its content), and that name
@@ -505,9 +500,9 @@ candidate:
   including `core.sshCommand`, `core.gitProxy`, `protocol.allow`,
   `uploadpack.allowFilter`. Setting `core.sshCommand=evil` and then
   attempting a clone over ssh is RCE.
-- `--exec=<cmd>` (`upload-pack`/`receive-pack`/`http-fetch`) — direct
+- `--exec=<cmd>` (`fetch-pack`) — same as `--upload-pack`; direct
   execution primitive.
-- `--ext::<cmd>` URL — git supports `ext::` URLs that execute external
+- `ext::<cmd>` URL — git supports `ext::` URLs that execute external
   commands as protocol handlers.
 - `--system`/`--global` config edits — write to global config.
 
@@ -550,8 +545,9 @@ candidate:
 
 - `--rsync-path=<cmd>` — server-side command. With `-e <ssh-cmd>` this
   composes into RCE.
-- `-e <ssh-spec>` — pre-3.2.0 versions interpolated `-e` content into
-  a shell command server-side (CVE-2017-16548 / CVE-2018-5764 class).
+- `-e <ssh-spec>` — remote-shell command. Separately, rsyncd before 3.1.3
+  did not prevent multiple `--protect-args` uses, bypassing its
+  argument-sanitization (CVE-2018-5764).
 
 **`tar`**:
 
@@ -592,23 +588,23 @@ character classes.**
 **CVE-2022-31180 (shescape, credit kurt-r2c)** and the broader shescape
 CVE sequence:
 
-Shescape has shipped 10 advisories across 5 years (2021-2026,
+Shescape has shipped 15 advisories across 5 years (2021-2026,
 https://github.com/ericcornelissen/shescape/blob/main/SECURITY.md). The
 recurring themes:
 
 - **CVE-2022-31180**: insufficient escaping of whitespace in
   bash/dash/zsh/PowerShell when `interpolation: true`; attackers
   introduce commands after specific whitespace characters.
-- **CVE-2022-31179**: full RCE via the same threaded-context shell
-  misidentification.
-- **CVE-2022-36064 / CVE-2022-25918**: cmd.exe escaping bypasses.
-- **CVE-2023-35931 / CVE-2023-40185**: continued cmd.exe gaps.
-- **CVE-2025-30222**: insufficient escaping for windows in particular
-  shell contexts.
+- **CVE-2022-31179**: insufficient escaping of line feeds for CMD.
+- **CVE-2022-36064 / CVE-2022-25918**: inefficient regular expression
+  complexity (ReDoS).
+- **CVE-2023-35931 / CVE-2023-40185**: environment-variable exposure on
+  Windows with CMD; Windows escaping bypassable in threaded context.
+- **CVE-2025-30222**: potential environment variable exposure on Windows
+  with CMD.
 - **CVE-2026-32094**: glob bracket-expansion bypass on Bash/BusyBox/Dash.
-- **CVE-2026-30916**: shell misidentification via symlink chains —
-  shescape resolves `/bin/sh` to detect which shell it actually is, but
-  failed to recursively resolve link chains.
+- **CVE-2026-30916** (advisory later withdrawn): possible misidentification
+  of shell due to link chains.
 
 The lesson: even a competently-maintained shell-escape library
 (Cornelissen is a PhD researcher in supply-chain security and operates
@@ -619,15 +615,12 @@ argv".
 
 ### William Bowling's GitHub Enterprise argv injection
 
-Bowling's GitHub Enterprise disclosure (~2020) chained argv injection
-through git option parsing in an internal GitHub Enterprise feature
-that constructed git commands from user-influenced repository names.
-The chain: repository creation accepted names with `-`-prefixed
-characters → those names became positional arguments to git commands
-run by GitHub Enterprise's internal services → certain options
-(`--upload-pack`, `core.sshCommand`) reached command execution. Paid
-$20,000 by GitHub. The fix was the same `--` insertion pattern Della
-Libera identified across the npm ecosystem.
+Bowling's GitHub Enterprise Server disclosure (2020) injected malicious
+arguments via git command options, which could let an attacker overwrite
+arbitrary files and potentially execute arbitrary commands. Exploitation
+required repository access, and GitHub said a CSRF protection mechanism
+blocked a practical attack path. Paid $20,000 by GitHub; patched in
+GitHub Enterprise 2.21.4 (August 2020).
 
 ### Kurt's CVE-2021-42740 in detail
 
@@ -636,18 +629,16 @@ is worth dissecting because it demonstrates how research-grade
 shell-injection findings look in 2021:
 
 1. **Audit target**: shell-quote was the canonical npm package for the
-   problem space (>10M weekly downloads at the time). Audit attention
+   problem space. Audit attention
    was high.
-2. **Bug location**: a regex for Windows drive-letter detection in the
-   tokenization path. Not the primary `quote()` function; an
-   auxiliary path most callers were not even aware of.
+2. **Bug location**: a regex for Windows drive-letter detection inside
+   the exported `quote()` function.
 3. **Primitive**: `[A-z]` instead of `[A-Za-z]` in the character class.
    The mistake is so common in lazy regexes that linters like ESLint
    do not flag it.
-4. **Reachability**: any code that called `parse()` on a string
-   containing a backtick at a specific position bypassed the intended
-   tokenization.
-5. **Impact**: when the parsed-and-requoted output was reconcatenated
+4. **Reachability**: any code that passed `quote()` output to a real
+   shell (e.g. `exec()`) as a quoted argument.
+5. **Impact**: when the quoted output was reconcatenated
    into a shell command (which is the *whole point* of a shell-quote
    library), the backtick reached the shell as a metacharacter.
 6. **Fix**: one character change.
@@ -655,7 +646,7 @@ shell-injection findings look in 2021:
 The story line is the same as composer/CVE-2022-24828: the sanitizer is
 the bug. Audit checklists for "we use shell-quote" should not stop at
 "is shell-quote used"; they should continue to "which shell-quote
-version" and "is parse() also called or only quote()."
+version" (1.7.3 fixed it).
 
 ---
 
@@ -696,9 +687,9 @@ HD Moore's "Terminal Emulator Security Issues" paper
 (https://hdm.io/writing/termulation.txt) is the canonical reference.
 Key attack classes he identified:
 
-1. **Escape-sequence injection via syslog**. Apache error logs and the
-   syslog daemons of multiple OS distributions passed remote data
-   directly to terminal output without sanitization. `tail -f
+1. **Escape-sequence injection via syslog**. Apache error logs and some
+   syslog daemons (msyslog, syslog-ng, some commercial UNIX loggers)
+   passed remote data directly to terminal output without sanitization. `tail -f
    /var/log/apache/error_log` viewed in xterm became an exploitable
    path. CAN-2003-0020.
 
@@ -735,7 +726,7 @@ iTerm2, Windows Terminal, mintty, xterm, ConEmu, rxvt-unicode, SwiftTerm,
 and `less`. The findings cluster:
 
 - **DECRQSS echoback (CVE-2022-45872 iTerm2, CVE-2022-47583 mintty,
-  CVE-2022-23465 SwiftTerm, CVE-2023-39726 mintty)** — the DECRQSS
+  CVE-2022-23465 SwiftTerm)** — the DECRQSS
   query (`ESC P $ q ... ESC \`) asks the terminal for its current
   attribute state. The terminal *echoes back* a response on stdin —
   which is what makes this an injection primitive. If the attacker
@@ -756,7 +747,8 @@ and `less`. The findings cluster:
 - **OSC 7 working-directory updates** — Apple Terminal performed DNS
   lookups on attacker-controlled OSC 7 strings, leaking information.
 
-- **OSC 50 font query (CVE-2022-45063 xterm + Zsh vi-mode)** — xterm's
+- **OSC 50 font query (CVE-2022-45063 xterm + Zsh vi-mode; CVE-2023-39726
+  mintty)** — xterm's
   font-query response interacted with Zsh's vi-mode keybindings to
   execute commands.
 
@@ -835,7 +827,7 @@ logger.info(event: "request", user_agent: request.user_agent)
 ```
 
 The same pattern applies in every language. Python: stdlib `logging`
-with `JsonFormatter`. Node: `pino` or `bunyan`. Go: `slog` with
+with python-json-logger's `JsonFormatter`. Node: `pino` or `bunyan`. Go: `slog` with
 `JSONHandler`. Java: `logback` with `JsonEncoder`. The cost of moving
 from string-format logging to structured logging is non-trivial in
 codebases that print, but the security argument is structurally sound:
@@ -869,7 +861,7 @@ sequence handling across terminals is significant:
   change DoS class. Conservative on OSC clipboard.
 
 - **mintty** (Cygwin / Git for Windows default) — DECRQSS echoback
-  CVE-2022-47583 and CVE-2023-39726.
+  CVE-2022-47583 and OSC 50 echoback CVE-2023-39726.
 
 - **ConEmu** — title reporting enabled by default into 2022;
   CVE-2022-46387 and CVE-2023-39150.
@@ -929,12 +921,12 @@ The volume of CVEs is the evidence:
 
 | Library | CVE count | Notes |
 |---|---:|---|
-| shescape | 10 advisories 2021-2026 | Cornelissen, the most disciplined of the lot |
+| shescape | 15 advisories 2021-2026 | Cornelissen, the most disciplined of the lot |
 | shell-quote (npm) | 1 major (2021-42740), several pre-disclosure | one-character regex bug |
 | Shellwords.escape (Ruby) | informal "class 2 doesn't work" — Stalmans 2019 | structural limitation, no patch needed |
 | Python shlex.quote | structural class-2 limitation; no critical bypasses | safer than most because it has narrow scope |
 | PHP escapeshellarg | OK for class 1, NOT class 2 | naming-confusion with escapeshellcmd is the bug |
-| PHP escapeshellcmd | dangerous; class-1 only; widely misused | CVE-2022-24828 composer |
+| PHP escapeshellcmd | dangerous; class-1 only; widely misused | |
 
 The architectural recommendation is twofold:
 
@@ -960,19 +952,12 @@ subprocess.run(
 
 ### Differential testing across libraries
 
-Trail of Bits has historically advocated differential testing for
+Differential testing for
 parsing-and-quoting libraries: generate identical inputs, feed them
 through every quoting library (shescape, shell-quote, Shellwords.escape,
 escapeshellarg, shlex.quote), and execute the resulting commands.
 Inconsistencies between libraries are the most efficient bypass-
 hunting heuristic.
-
-Cornelissen has shipped a public test corpus
-(`shescape/testing/injection-strings`) that other escape libraries can
-consume. The corpus includes whitespace-class bypasses (`$IFS$9`),
-brace-expansion bypasses, glob-bracket bypasses (CVE-2026-32094), and
-encoding-confusion bypasses. Running a library against the shescape
-corpus is the cheapest possible differential audit.
 
 ### The "use exec-with-array, not shell-with-string" principle
 
@@ -1227,15 +1212,7 @@ approach end-to-end:
 2. **Per-language reasoning prompts** (`prompts/user_reasoning/<lang>.j2`):
    the prompt sees the sanitizer evidence and decides FP/TP.
 3. **Exploitability rescorer**: a separate prompt that adjusts severity
-   based on additional context. **The composer CVE-2022-24828 result**
-   demonstrated the failure mode: the rescorer trusted `escapeshellcmd`
-   as a strong sanitizer, downgrading a real TP. The fix (carried as
-   a follow-up): label `escapeshellcmd` weak in the sanitizer catalog.
-
-Cost on a 10-OSS-repo corpus: ~22 minutes, ~137 reasoning calls, 6
-sink-level TPs across NodeGoat, composer, nltk, jenkins. Zero noisy
-FPs at sink level. The benchmark is the working evidence for the
-static-first + per-sink-reasoning architecture.
+   based on additional context.
 
 ---
 
@@ -1300,8 +1277,8 @@ code:
 - **Use modern terminals with the dangerous features disabled.** Many
   terminals offer "secure mode" or specific feature opt-outs. iTerm2's
   "Potentially Insecure" toggle.
-- **Disable title reporting.** Universal: `xterm*allowSendEvents:
-  false`, `iterm2.app: Window > Title > Reporting Disabled`.
+- **Disable title reporting.** xterm: `xterm*allowWindowOps: false`
+  (keeps `GetWinTitle` in `disallowedWindowOps`).
 
 ### Code review checklist (terse, for actual use)
 
@@ -1391,8 +1368,8 @@ set env explicitly with a known-good PATH.
 Some tools execute resolver output as command arguments:
 
 - **NetworkManager dispatcher scripts** historically interpolated DHCP-
-  provided hostname strings into shell commands. CVE-2017-6361
-  demonstrated DHCP-name → command execution.
+  provided option strings into shell commands. CVE-2018-1111
+  demonstrated DHCP-option → command execution.
 - **Mail Transfer Agents** that read MX records and pipe to commands
   may interpret special characters in MX targets.
 
@@ -1499,11 +1476,11 @@ commands.
 - HD Moore, "Terminal Emulator Security Issues" (2003) —
   https://hdm.io/writing/termulation.txt
 - David Leadbeater, "ANSI Terminal security in 2023 and finding 10
-  CVEs" (Sep 2023) — https://dgl.cx/2023/09/ansi-terminal-security
+  CVEs" (Oct 2023) — https://dgl.cx/2023/09/ansi-terminal-security
 - David Leadbeater, "Déjà vu: Ghostly CVEs in my terminal title"
   (Dec 2024) — https://dgl.cx/2024/12/ghostty-terminal-title
 - David Leadbeater, "Terminally Owned — 60 years of escaping"
-  (DEF CON 32) — https://forum.defcon.org/node/245741
+  (DEF CON 31) — https://forum.defcon.org/node/245741
 - Alessio Della Libera (Snyk), "Rediscovering argument injection when
   using VCS tools — git and mercurial" (Aug 2022) —
   https://snyk.io/blog/argument-injection-when-using-git-and-mercurial/
@@ -1558,7 +1535,7 @@ commands.
 - CVE-2022-31180 — insufficient escaping of whitespace.
   https://nvd.nist.gov/vuln/detail/CVE-2022-31180.
   Snyk: https://security.snyk.io/vuln/SNYK-JS-SHESCAPE-2952704.
-- CVE-2022-31179 — RCE via threaded-context shell misidentification.
+- CVE-2022-31179 — code injection on Windows (cmd.exe) via line feed.
   https://security.snyk.io/vuln/SNYK-JS-SHESCAPE-2952703.
 - CVE-2026-30916 — symlink chain misidentification.
   https://github.com/ericcornelissen/shescape/security/advisories/GHSA-6f6w-6j58-rq76.
@@ -1575,15 +1552,14 @@ commands.
 - CVE-2022-25648 — Ruby `git` gem. https://security.snyk.io/vuln/SNYK-RUBY-GIT-2421270.
 - CVE-2022-25866 — czproject/git-php. https://security.snyk.io/vuln/SNYK-PHP-CZPROJECTGITPHP-2421349.
 - CVE-2022-23915 — Weblate Python. https://security.snyk.io/vuln/SNYK-PYTHON-WEBLATE-2414088.
-- CVE-2022-24828 — composer (escapeshellcmd argv injection).
+- CVE-2022-24828 — composer (git/hg argv injection via branch names).
   Listed across multiple sources; PHP Composer GHSA series.
-- CVE-2022-25900 backstory: https://gist.github.com/lirantal/327e9dd32686991b5a1fa6341aac2e7b.
 
 ### CVE / GHSA — terminal escape (Leadbeater 2023)
 
 - CVE-2022-45872 (iTerm2 DECRQSS).
 - CVE-2022-44702 (Windows Terminal/WSL working directory).
-- CVE-2022-47583 + CVE-2023-39726 (mintty DECRQSS).
+- CVE-2022-47583 (mintty DECRQSS) + CVE-2023-39726 (mintty OSC 50).
 - CVE-2022-45063 (xterm OSC 50 + Zsh vi-mode).
 - CVE-2022-46387 + CVE-2023-39150 (ConEmu title reporting).
 - CVE-2022-4170 (rxvt-unicode Perl eval).
@@ -1607,12 +1583,12 @@ commands.
 
 - Aikido, "Command injection in 2024 report: How vulnerable we are" —
   https://www.aikido.dev/blog/command-injection-in-2024-unpacked.
-- Fastly, "Back to Basics: OS Command Injection" —
+- Fastly, "OS Command Injection Explained" —
   https://www.fastly.com/blog/back-to-basics-os-command-injection.
 - BAE Systems Threat Research Blog, "Security issues with Using PHP's
   Escapeshellarg" (2013) —
   https://baesystemsai.blogspot.com/2013/11/security-issues-with-using-phps.html.
-- Ivan Novikov, "What else should you know about argument injection at
+- "What else should you know about argument injection at
   OS commanding vulnerabilities" —
   https://d0znpp.medium.com/what-else-should-you-know-about-argument-injection-at-os-commanding-vulnerabilities-827a0b63c003.
 - Cloudflare, "Inside Shellshock: How hackers are using it to exploit

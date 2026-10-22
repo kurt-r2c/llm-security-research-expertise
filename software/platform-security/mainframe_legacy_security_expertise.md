@@ -7,7 +7,7 @@
 
 The word "mainframe" gets used to mean roughly "computer your bank still runs that you don't understand." That definition is fine for headlines and useless for threat modeling. This document covers four substrate threads that share an attribute — they predate Linux as the operational lingua franca and they still run an enormous share of consequential transaction load — but otherwise have different architectures, different auth models, different attack surfaces, and different research communities.
 
-**IBM Z (z/OS)** is IBM's flagship architecture descended from the 1964 System/360. Current hardware is the z16 (2022) and z17 (announced 2024, GA 2025); current OS is z/OS 3.1 (2023) with z/OS 3.2 announced for late 2025. By IBM's own marketing, z mainframes process the majority of credit-card transactions worldwide and run the back-office of the largest banks, insurance carriers, brokerages, government tax systems, and social-insurance agencies. IBM's specific numbers ("70% of Fortune 500 mainframe-resident workload," "two-thirds of global credit-card transactions") are vendor-supplied and not independently verified — but the directional claim that z/OS sits behind a structurally important fraction of global finance is uncontested.
+**IBM Z (z/OS)** is IBM's flagship architecture descended from the 1964 System/360. Current hardware is the z16 (2022) and z17 (announced April 2025, GA June 2025); current OS is z/OS 3.1 (2023) with z/OS 3.2 announced for late 2025. By IBM's own marketing, z mainframes process the majority of credit-card transactions worldwide and run the back-office of the largest banks, insurance carriers, brokerages, government tax systems, and social-insurance agencies. IBM's specific numbers ("70% of global transactions, on a value basis," "two thirds of the Fortune 100") are vendor-supplied and not independently verified — but the directional claim that z/OS sits behind a structurally important fraction of global finance is uncontested.
 
 **IBM i** (formerly OS/400, AS/400, iSeries, System i) is IBM's midrange business platform. Launched 1988 as the AS/400, runs on POWER hardware (Power9, Power10, Power11), current OS is IBM i 7.5 (2022) and 7.6 (announced 2025). The integrated DB2 for i + RPG + COBOL stack is the spine of countless small-to-mid manufacturing, distribution, insurance, and ERP installations worldwide. The footprint is smaller than the public conversation realizes but far stickier than people assume — a 1990s AS/400 installation often outlives three rounds of "we are migrating off the AS/400" project plans.
 
@@ -25,9 +25,9 @@ Three structural reasons.
 
 **Workload scale, not workload count.** Mainframe and IBM i installations are not the most numerous computers in any enterprise — they are the most consequential. The ATM transaction, the wire transfer, the insurance claim adjudication, the airline reservation, the Medicaid eligibility check, the unemployment-insurance disbursement, the corporate-tax filing — these workloads do not run on Kubernetes. A breach that compromises the CICS region or the RACF database is categorically different from a breach that compromises a marketing intranet, and the dollar-volume difference can be five orders of magnitude.
 
-**Skills gap as a single-point-of-failure for the broader industry.** The named mainframe-security research community is roughly a dozen people who are public. Phil Young (Soldier of Fortran), Stu Henderson (author of the long-running RACF newsletter), Mark Wilson (RSM Partners / RSM-affiliated researcher and integrity-bug discoverer), Chad Rikansrud (Soldier of Fortran alumnus, more recent talks), Ayoub Elaassal (NJE / TN3270 work), Cheryl Watson (z/OS performance and a recurring voice in the security-tangent community), Henrik Loeser (IBM cryptography), Bigendian Smalls (handle of an active z/OS researcher in the BSidesLV community). The IBM i community is smaller still — Carsten Buchholz / HelpSystems (now Fortra), some of the work that comes out of the COMMON user group, and the always-thin set of independent researchers who present at IBM Power Systems conferences. OpenVMS has even fewer named public researchers post-VSI acquisition. Most security teams have zero in-house competence on any of these substrates. That is itself a security problem at industry scale: the defenders' knowledge is concentrated in a handful of consultants, the offensive research community is concentrated in roughly the same handful of names, and any of them retiring or going dark would meaningfully reduce the world's ability to reason about these systems.
+**Skills gap as a single-point-of-failure for the broader industry.** The named mainframe-security research community is roughly a dozen people who are public. Phil Young (Soldier of Fortran), Stu Henderson, Mark Wilson (RSM Partners / RSM-affiliated researcher and integrity-bug discoverer), Chad Rikansrud (Bigendian Smalls; DEF CON 23 co-presenter with Phil Young), Ayoub Elaassal (CICS and z/OS privilege-escalation work), Cheryl Watson (z/OS performance and a recurring voice in the security-tangent community). The IBM i community is smaller still — HelpSystems (now Fortra), some of the work that comes out of the COMMON user group, and the always-thin set of independent researchers who present at IBM Power Systems conferences. OpenVMS has even fewer named public researchers post-VSI acquisition. Most security teams have zero in-house competence on any of these substrates. That is itself a security problem at industry scale: the defenders' knowledge is concentrated in a handful of consultants, the offensive research community is concentrated in roughly the same handful of names, and any of them retiring or going dark would meaningfully reduce the world's ability to reason about these systems.
 
-**The 2024-2026 attack surface is real and not entirely public.** Société Générale's 2017 RACF exposure incident (a misconfiguration that left an Eastern European subsidiary's RACF database queryable from outside the bank) was reported in trade press but not deeply documented. Maersk's 2017 NotPetya pivot through Active Directory eventually reached AS/400 systems supporting their shipping operations — the public account focuses on the Windows side, but operations teams have written publicly about the IBM i recovery. More recently, MOVEit-class supply-chain compromises in 2023-2024 hit mainframe-adjacent file-transfer systems. SHARE and GSE conferences (Europe's mainframe user group) document a small but ongoing CVE corpus, and IBM-proprietary APAR numbering captures integrity bugs that never get CVE-assigned. This document accepts that thinness as a working condition and is honest about it.
+**The 2024-2026 attack surface is real and not entirely public.** More recently, MOVEit-class supply-chain compromises in 2023-2024 hit mainframe-adjacent file-transfer systems. SHARE and GSE conferences (Europe's mainframe user group) document a small but ongoing CVE corpus, and IBM-proprietary APAR numbering captures integrity bugs that never get CVE-assigned. This document accepts that thinness as a working condition and is honest about it.
 
 ---
 
@@ -35,7 +35,7 @@ Three structural reasons.
 
 z/OS is not Linux with mainframe paint. The execution model, the storage model, the process model, the security model are all different in ways that matter for attack reasoning. The atomic concepts:
 
-**Address spaces.** The closest analog to a Linux process is an *address space*, identified by an ASID. Each address space has its own 16-EB virtual memory map. The system has standard address spaces (MASTER, JES2/JES3, IRRDPTAB for RACF, OMVS for USS, dozens of subsystems) and user address spaces (one per logged-on TSO user, one per started task, one per batch job). Many subsystems run as system address spaces with attributes (e.g., the RACF address space) that grant them latitude unavailable to ordinary code.
+**Address spaces.** The closest analog to a Linux process is an *address space*, identified by an ASID. Each address space has its own 16-EB virtual memory map. The system has standard address spaces (MASTER, JES2/JES3, RACF, OMVS for USS, dozens of subsystems) and user address spaces (one per logged-on TSO user, one per started task, one per batch job). Many subsystems run as system address spaces with attributes (e.g., the RACF address space) that grant them latitude unavailable to ordinary code.
 
 **Tasks (TCBs).** Within an address space, the unit of dispatching is a *task*, represented by a Task Control Block. The most-dispatched task is the *primary*, and tasks have parent/child relationships within an address space. The TCB structure is well-documented and a recurring object of low-level integrity research.
 
@@ -67,7 +67,7 @@ Hierarchical database + transaction monitor; IBM's pre-relational data layer tha
 
 ### DB2 for z/OS
 
-The relational database. Distinct from DB2 LUW (Linux, UNIX, Windows) — same brand, different implementation. SQL injection still applies, with z/OS-specific surfaces around RACF integration (DSN class controls plan/package execution authority), DSNX@XAC authorization exits, BSDS (Bootstrap Data Set) protection, stored procedures (often written in COBOL, PL/I, REXX, or Java), and DRDA (Distributed Relational Database Architecture) for distributed access.
+The relational database. Distinct from DB2 LUW (Linux, UNIX, Windows) — same brand, different implementation. SQL injection still applies, with z/OS-specific surfaces around RACF integration (DSNR class controls subsystem access by environment), DSNX@XAC authorization exits, BSDS (Bootstrap Data Set) protection, stored procedures (often written in COBOL, PL/I, REXX, or Java), and DRDA (Distributed Relational Database Architecture) for distributed access.
 
 ### WebSphere Application Server for z/OS
 
@@ -75,7 +75,7 @@ Java EE app server on the mainframe. The Java threat model applies (see `java_fo
 
 ### z/OSMF (z/OS Management Facility)
 
-REST API + browser UI for z/OS management, introduced around z/OS 1.11 (2010) and steadily expanded. z/OSMF is implemented as a Liberty-profile WebSphere instance. Has had its own CVE corpus over the last decade (authentication and authorization issues that read as standard web-app CVEs but with z/OS-specific privilege impact). The 2024-2026 IBM advisory feed continues to produce z/OSMF CVEs roughly quarterly — `[unverified specific advisory]`: do not cite a CVE number without checking IBM's current Security Bulletins.
+REST API + browser UI for z/OS management, introduced around z/OS 1.11 (2009) and steadily expanded. z/OSMF is implemented as a Liberty-profile WebSphere instance. Has had its own CVE corpus over the last decade (authentication and authorization issues that read as standard web-app CVEs but with z/OS-specific privilege impact). The 2024-2026 IBM advisory feed continues to produce z/OSMF CVEs roughly quarterly — `[unverified specific advisory]`: do not cite a CVE number without checking IBM's current Security Bulletins.
 
 ### Communications Server
 
@@ -89,7 +89,7 @@ POSIX layer on z/OS. The bridge between mainframe-native and Unix-native attack 
 
 ## 4. z/OS auth — RACF, ACF2, Top Secret
 
-z/OS does not have a single auth product the way Linux has PAM-and-/etc/passwd. It has three external security manager (ESM) products in the field. Most installations run one of them. The market is **RACF (IBM, around 60-70% share)**, **ACF2 (Broadcom, formerly CA, formerly SKK)**, and **Top Secret (Broadcom, formerly CA)**.
+z/OS does not have a single auth product the way Linux has PAM-and-/etc/passwd. It has three external security manager (ESM) products in the field. Most installations run one of them. The market is **RACF (IBM)**, **ACF2 (Broadcom, formerly CA, formerly SKK)**, and **Top Secret (Broadcom, formerly CA)**.
 
 ### RACF — Resource Access Control Facility
 
@@ -98,7 +98,7 @@ IBM's ESM. The model is profile-based:
 - **USER profile** — one per identity. Contains password, default group, attributes (SPECIAL, OPERATIONS, AUDITOR), segments (TSO, OMVS for USS UID/GID, CICS, NETVIEW, DCE, KERB, LANGUAGE, etc.). Created with `ADDUSER`, modified with `ALTUSER`, listed with `LISTUSER`.
 - **GROUP profile** — collection of users; users are CONNECTed to GROUPs. Group has its own attributes, owner, superior group. Created with `ADDGROUP`, joined with `CONNECT`.
 - **DATASET profile** — covers a dataset name pattern (e.g., `PROD.PAYROLL.**`). Has UACC (Universal Access — what everyone gets by default), access list (specific users/groups with PERMIT'd levels), and audit settings.
-- **GENERAL RESOURCE profile** — covers anything that isn't a dataset: CICS transactions (TCICSTRN class), DB2 plans (DSNR class), program-class resources (PROGRAM class), surrogate-identity (SURROGAT class), USS resources (UNIXPRIV class, BPX.* facility classes), JES resources (JESINPUT, JESSPOOL, JESJOBS), and dozens of others — each ESM-managed subsystem registers one or more classes.
+- **GENERAL RESOURCE profile** — covers anything that isn't a dataset: CICS transactions (TCICSTRN class), DB2 subsystem access (DSNR class), program-class resources (PROGRAM class), surrogate-identity (SURROGAT class), USS resources (UNIXPRIV class, BPX.* facility classes), JES resources (JESINPUT, JESSPOOL, JESJOBS), and dozens of others — each ESM-managed subsystem registers one or more classes.
 
 Sample RACF commands a researcher should read fluently:
 
@@ -126,8 +126,8 @@ LISTDSD  DA('PROD.PAYROLL.**') ALL
 - **PROGRAM class.** Controls which programs may execute (program-pathing). Semantics are subtle — combined with PADS (Program Access to Data Sets) and conditional access, it's one of the more complex parts of RACF and the part most often bypassed. PADS lets a program access data only while executing — a clean idea that frequently breaks down to "PADS is disabled because someone needed to debug it once."
 - **UACC=READ/UPDATE/ALTER on dataset profiles.** Direct ACL misconfiguration; the mainframe equivalent of an S3 bucket open to the world. Common on legacy "everyone needs to read this" datasets that nobody reviewed.
 - **OPERAUDIT not enabled.** SETROPTS OPERAUDIT records SPECIAL and OPERATIONS user activity in SMF. Off by default-ish (depending on RACF version and OPTIONS-data setup); off in many shops. Without OPERAUDIT, a compromised SPECIAL user leaves a much thinner audit trail.
-- **IRR.* class profiles.** RACF protects its own administrative interfaces via IRR class profiles (IRR.PASSWORD.RESET, IRR.LISTUSER, IRR.RACFRW, etc.). Most installations protect a few of these and forget the rest, leaving inquiry interfaces wide open.
-- **Database integrity.** The RACF database is a flat-file VSAM dataset. Backup copies on tape or unprotected DASD are functionally credential dumps — every password hash, every group membership, every ACL.
+- **IRR.* class profiles.** RACF protects its own administrative interfaces via IRR.* profiles in the FACILITY class (IRR.PASSWORD.RESET, IRR.LISTUSER, etc.). Most installations protect a few of these and forget the rest, leaving inquiry interfaces wide open.
+- **Database integrity.** The RACF database is a single-extent dataset (classically non-VSAM, physical sequential). Backup copies on tape or unprotected DASD are functionally credential dumps — every password hash, every group membership, every ACL.
 
 ### ACF2 (Broadcom)
 
@@ -179,10 +179,9 @@ NJE is the protocol by which mainframes exchange jobs and SYSOUT with each other
 
 The trust model: NJE links are defined in JES2/JES3 configuration with a peer node name and a node-pair password. Once the link is up, JES treats jobs arriving from the trusted peer as if they came from local users with the credentials embedded in the job card. There is no cryptographic attestation of peer identity beyond the static configuration password (modern z/OS does support TLS for NJE, but adoption is slow). The trust is therefore configuration-based and is exactly as strong as the discipline around the node-pair password.
 
-**Phil Young's NJE attacks** (BSidesLV 2013-2016, Black Hat USA 2014 "Code Red, Code Blue: Mainframe Hacking 101"-era talks): demonstrated that an attacker who can either (a) plant themselves on the network path of an NJE link, (b) compromise a node that is already trusted, or (c) discover or brute-force the node-pair password can submit jobs to the target mainframe that execute with the privilege of the attacker's choice of impersonated user. The impersonated user's identity is determined by the USER= parameter on the job card; if the target's RACF does not enforce strict node-of-origin propagation, USER=anything is honored. Ayoub Elaassal and others extended this line of work; the Empire framework and various follow-on tools include NJE primitives.
+**Phil Young's NJE attacks** (DEF CON 23, 2015, "Security Necromancy: Further Adventures in Mainframe Hacking", with Chad Rikansrud; PoC||GTFO 12:6): demonstrated that an attacker who can either (a) plant themselves on the network path of an NJE link, (b) compromise a node that is already trusted, or (c) discover or brute-force the node-pair password can submit jobs to the target mainframe that execute with the privilege of the attacker's choice of impersonated user. The impersonated user's identity is determined by the USER= parameter on the job card; if the target's RACF does not enforce strict node-of-origin propagation, USER=anything is honored.
 
 The defense is straightforward in principle:
-- Set `STRICT-NODES=YES` (or equivalent) so that JES enforces node-identity-binding on inbound jobs.
 - RACF NODES class — define profiles in the NODES class that constrain which userIDs can be impersonated from which nodes. Without NODES class enforcement, NJE trust is transitive and unbounded.
 - Disable plaintext NJE; require TLS.
 - Audit the node-pair password rotation cadence (it's almost certainly never been rotated).
@@ -233,7 +232,7 @@ IBM's *System Integrity Statement* (originally issued in 1973 for MVS, restated 
 
 - **Audit the APF list.** Pull `D PROG,APF` output. Cross-reference every entry against current ownership. Remove anything you cannot map to an active owner and an active product.
 - **Audit access to every APF library.** UACC should be NONE; explicit access list should be the minimum required for the product's operational team. Write access by anyone outside that team is a finding.
-- **Audit AC=1 modules.** Within each APF library, individual modules are link-edited with or without AC=1. The set of AC=1 modules is the actual attack surface; the rest of the library matters mostly because of write-access propagation. AMASPZAP and similar utilities will reveal AC=1 status.
+- **Audit AC=1 modules.** Within each APF library, individual modules are link-edited with or without AC=1. The set of AC=1 modules is the actual attack surface; the rest of the library matters mostly because of write-access propagation. AMBLIST (LISTLOAD) reports load-module attributes.
 - **Restrict SETPROG APF.** Dynamic addition to the APF list (via SETPROG console command) must be restricted via RACF (FACILITY class CSVAPF.* profiles in recent z/OS). Otherwise an attacker with console authority can transiently APF-authorize a library they control.
 - **Apply integrity PTFs aggressively.** Integrity exposures are not optional. The fact that they shipped under proprietary numbering does not change the threat model.
 
@@ -243,9 +242,9 @@ IBM's *System Integrity Statement* (originally issued in 1973 for MVS, restated 
 
 DB2 for z/OS is structurally distinct from DB2 LUW. SQL injection still applies. The DB2-specific surfaces:
 
-### RACF integration via the DSN class
+### RACF integration via the DSNR class and access control module
 
-DB2 plans and packages — the compiled representation of an application's SQL — are gatekept by RACF profiles in the DSNR class (and the DSN class for some operations). A user must hold the right plan-execution authority to run a transaction. Default protection is generally tight; the failure mode is over-permission rather than under-permission, with PERMIT lists growing over years as one team after another needs access for a project nobody documented.
+DB2 plans and packages — the compiled representation of an application's SQL — can be gatekept by RACF profiles through the RACF access control module at the DSNX@XAC exit; the DSNR class controls which users may connect to a DB2 subsystem from each environment (BATCH, CICS, IMS, DIST, RRSAF). A user must hold the right plan-execution authority to run a transaction. Default protection is generally tight; the failure mode is over-permission rather than under-permission, with PERMIT lists growing over years as one team after another needs access for a project nobody documented.
 
 ### DSNX@XAC authorization exits
 
@@ -261,7 +260,7 @@ DB2 for z/OS supports stored procedures in COBOL, PL/I, REXX, C, Java, and nativ
 
 ### DRDA (Distributed Relational Database Architecture)
 
-DB2 Connect speaks DRDA to z/OS DB2 from distributed clients. DRDA supports TLS (DB2 Connect's `SECURITY=SSL`), but legacy configurations ship plaintext credentials over port 446 / 5021 / variants. Network-layer interception is direct credential capture.
+DB2 Connect speaks DRDA to z/OS DB2 from distributed clients. DRDA supports TLS (DB2 Connect's `SECURITY=SSL`), but legacy configurations ship plaintext credentials over port 446 / variants. Network-layer interception is direct credential capture.
 
 SQL-dialect-specific footguns for DB2 for z/OS (procedural extensions, edge cases in numeric coercion, dynamic SQL via PREPARE / EXECUTE) deserve their own treatment; the cross-language SQL footgun document at `sql_dialect_footguns_expertise.md` does not currently include DB2 for z/OS as a first-class dialect. Worth a future deepening.
 
@@ -301,7 +300,7 @@ The hierarchical database and transaction monitor. Smaller install base than CIC
 
 **Attack surfaces.**
 - **IMS Connect** — TCP/IP front end for IMS DC. Listens on a port, accepts OTMA messages, dispatches to IMS transactions. Authentication is RACF-based but the integration is via the IMS Connect user exit, which (like DSNX@XAC for DB2) is a single point of trust for the entire stack.
-- **/SECURE TRANSACTION** — the IMS command for transaction-level security. Off by default in some shop configurations.
+- **/SECURE APPC / /SECURE OTMA** — the IMS command that sets the RACF security level (NONE, CHECK, FULL, PROFILE) for APPC and OTMA input.
 - **Master terminal commands** (the IMS analog of CEMT) — high-privilege configuration commands that an attacker on the master terminal can execute.
 
 IMS receives less public security research attention than CICS, in part because the install base is smaller and in part because IMS's documentation curve is steeper.
@@ -331,11 +330,11 @@ Files in the USS filesystem have Unix chmod permission bits (`rwx` for owner, gr
 
 Misconfiguration patterns:
 - World-writable directories on critical paths (`/etc`, `/var/tmp`, `/opt/vendor`) — the classic Unix pitfall with the classic Unix consequence.
-- UNIXPRIV BPX.SUPERUSER granted to many users — flatly equivalent to root for those users, often granted in shops where "we have a lot of Unix admins and they all need root."
+- FACILITY-class BPX.SUPERUSER granted to many users — flatly equivalent to root for those users, often granted in shops where "we have a lot of Unix admins and they all need root."
 
 ### APF authorization in the USS context
 
-USS executable files have an *extattr* attribute. Files with `extattr +a` (program-controlled) and `extattr +p` (APF-authorized) get special handling. An `extattr +a` program in USS is the equivalent of an APF-authorized program in MVS — it can transition to supervisor state. The same APF threat model applies in USS, with the additional surface area that USS file ownership and permission semantics interact with extattr in non-obvious ways.
+USS executable files have an *extattr* attribute. Files with `extattr +a` (APF-authorized) and `extattr +p` (program-controlled) get special handling. An `extattr +a` program in USS is the equivalent of an APF-authorized program in MVS — it can transition to supervisor state. The same APF threat model applies in USS, with the additional surface area that USS file ownership and permission semantics interact with extattr in non-obvious ways.
 
 ### OpenSSH on z/OS
 
@@ -375,7 +374,7 @@ Everything is an *object* — files, programs, libraries, queues, profiles, devi
 The object authorities in IBM i are:
 - **Object operational authorities**: `*OBJOPR`, `*OBJMGT`, `*OBJEXIST`, `*OBJALTER`, `*OBJREF`.
 - **Data authorities**: `*READ`, `*ADD`, `*UPD`, `*DLT`, `*EXECUTE`.
-- Aggregates: `*USE` (objopr + read + execute), `*CHANGE` (use + add/upd/dlt + objalter), `*ALL` (everything).
+- Aggregates: `*USE` (objopr + read + execute), `*CHANGE` (use + add/upd/dlt), `*ALL` (everything).
 - `*EXCLUDE` denies.
 - `*AUTL` indicates "see the authorization list."
 
@@ -400,7 +399,7 @@ The blast-radius authorities:
 System-wide configuration. The security-relevant ones:
 - **QSECURITY** — system security level. Values: 20 (password security; objects unprotected), 30 (resource security), 40 (operating system integrity), 50 (extended OS integrity, the modern recommended baseline). **QSECURITY=20 is still in production** at some sites — a finding equivalent to "the firewall is off."
 - **QAUDLVL / QAUDLVL2** — what gets audited. If these are minimal, the audit trail is minimal.
-- **QRMTSIGN** — controls remote sign-on behavior. `*VERIFY` requires re-authentication; `*SAMEPRF` allows bypass when source and target have the same profile; `*FRCSIGNON` always requires sign-on.
+- **QRMTSIGN** — controls remote sign-on behavior. `*VERIFY` allows sign-on bypass even when source and target profiles differ; `*SAMEPRF` allows bypass when source and target have the same profile; `*FRCSIGNON` always requires sign-on.
 - **QMAXSIGN** — maximum incorrect sign-on attempts before profile is disabled.
 - **QPWDLVL** — password level. Values 0/1 allow short DES-hashed passwords; 2/3 enable long passwords with SHA-1 hashing; 4 (more recent) enables PBKDF2. Many shops still run at level 2.
 
@@ -419,7 +418,7 @@ Dedicated Service Tools and System Service Tools — the IBM i maintenance inter
 
 ### Known research community
 
-The IBM i security research community is the smallest of the three substrates covered here. **Carsten Buchholz / Fortra** (formerly HelpSystems) is one of the few continuously-publishing names. The **COMMON user group** in North America and the **COMMON Europe** organization host conferences with security tracks; the SHARE-equivalent visibility is lower. Recent CVEs in IBM i HTTP Server, IBM Navigator for i, and the IBM i Access Client Solutions clients are documented on IBM's Security Bulletin feed — `[unverified specific advisory]` again; check current bulletins for specifics. IBM i exit programs (registered at QSYREGFN exit points) are a per-installation customization surface; misconfigured or backdoored exit programs are a recurring finding.
+The IBM i security research community is the smallest of the three substrates covered here. The **COMMON user group** in North America and the **COMMON Europe** organization host conferences with security tracks; the SHARE-equivalent visibility is lower. Recent CVEs in IBM i HTTP Server, IBM Navigator for i, and the IBM i Access Client Solutions clients are documented on IBM's Security Bulletin feed — `[unverified specific advisory]` again; check current bulletins for specifics. IBM i exit programs (registered in the Registration Facility, `WRKREGINF`) are a per-installation customization surface; misconfigured or backdoored exit programs are a recurring finding.
 
 ---
 
@@ -433,7 +432,7 @@ VMS is a clustered operating system from inception. Multiple nodes (originally V
 
 ### Identity model
 
-Users are *UAF (User Authorization File)* records. The UAF stores username, password hash, default privileges, allowed login times, and other policy. Authentication is against the UAF or, in modern configurations, against an LDAP/AD via ACME (Authentication and Credentials Management Extension) modules.
+Users are *UAF (User Authorization File)* records. The UAF stores username, password hash, default privileges, allowed login times, and other policy. Authentication is against the UAF or, in modern configurations, against an LDAP/AD via ACME (Authentication and Credential Management Extension) modules.
 
 ### Privileges
 
@@ -474,7 +473,7 @@ The `'symbol-name'` (apostrophe-symbol-apostrophe) construct substitutes the sym
 ### Known CVE corpus
 
 OpenVMS has produced CVEs intermittently:
-- **CVE-2017-17482** — OpenVMS LOGINOUT authentication bypass (publicly documented, predates VSI's full x86 push). Allowed unauthenticated access under specific cluster configurations.
+- **CVE-2017-17482** — OpenVMS DCL buffer overflow: a malformed DCL command table lets a non-privileged local user with a crafted command line gain higher privileges (VAX/VMS 4.0 and later; exploitable on VAX and Alpha).
 - Various TCP/IP Services for OpenVMS CVEs across the 2010-2020 window — SMTP, FTP, finger, lpd services have all produced bugs.
 - TCP/IP stack issues from the underlying Multinet / DEC TCP/IP / VSI TCP/IP implementations.
 
@@ -482,7 +481,7 @@ OpenVMS has produced CVEs intermittently:
 
 ### Research community
 
-**Hunter Goatley** (early OpenVMS security research, BSD-style "what privileges do programs leak" line of work) and **Brian Schenkenberger** are recurring names from the pre-VSI era. VSI itself publishes security guidance but is not a research vendor. The OpenVMS security research community is the thinnest of the three substrates; presentations at DECUS-successor events (HP Enterprise Technology Conferences in the HP era; VMS Boot Camp under VSI) carry the line, but the public-facing offensive research output is sparse.
+VSI itself publishes security guidance but is not a research vendor. The OpenVMS security research community is the thinnest of the three substrates; presentations at DECUS-successor events (HP Enterprise Technology Conferences in the HP era; VMS Boot Camp under VSI) carry the line, but the public-facing offensive research output is sparse.
 
 ### Operational note
 
@@ -587,15 +586,14 @@ Documented earlier in §11. The OpenVMS CVE corpus is sparser; VSI publishes sec
 
 ### Notable incidents (verified-to-the-extent-public-reporting-allows)
 
-- **Société Générale 2017 RACF exposure** — trade-press reported. A misconfiguration allowed remote query of RACF data from an Eastern European subsidiary. Primary-source detail is limited; treat trade-press accounts as the upper bound of verified detail.
-- **Maersk NotPetya 2017** — the public account focuses on Active Directory compromise; operations-team accounts published afterward note that IBM i systems supporting shipping operations were also down and were recovered separately. Cross-reference `[[reference-active-directory-windows-security]]` for the AD-pivot mechanism (file path `~/ai/expertise/software/active_directory_windows_security.md`).
-- **MOVEit / Cl0p 2023-2024** — affected enterprise file-transfer infrastructure that often serves as the gateway between mainframe and distributed systems. The mainframe was not the breach origin in most cases, but the breach often included data extracted from mainframe-fed file flows.
+- **Maersk NotPetya 2017** — the public account focuses on Active Directory compromise. Cross-reference `[[reference-active-directory-windows-security]]` for the AD-pivot mechanism (file path `~/ai/expertise/software/active_directory_windows_security.md`).
+- **MOVEit / Cl0p 2023-2024** — affected enterprise file-transfer infrastructure that often serves as the gateway between mainframe and distributed systems.
 - **HCA Healthcare 2023 data breach** — large-scale data exposure. The relationship to mainframe infrastructure is not clearly documented in public reporting; HCA's environment includes substantial mainframe presence but the breach disclosure does not anchor specifics. `[unverified involvement of mainframe substrate]`.
 - **SHARE / GSE conference disclosures (2023-2026)** — small but consistent stream of integrity bugs presented at the user-group level, often months ahead of or alongside CVE assignment. Track the SHARE security project agendas for current research; the named researchers in §2 anchor the community.
 
 ### APAR vs. CVE
 
-IBM ships fixes for z/OS integrity bugs under APAR numbering. APARs do not always receive CVE assignment. The implication for risk modeling: counting public CVEs underestimates the actual fixed-bug rate. Mark Wilson's GSE talks document this gap explicitly — the integrity-bug rate is several per quarter, the CVE-assigned rate is lower. Operations teams that patch by CVE tracking systematically lag the integrity exposure being remediated.
+IBM ships fixes for z/OS integrity bugs under APAR numbering. APARs do not always receive CVE assignment. The implication for risk modeling: counting public CVEs underestimates the actual fixed-bug rate. Operations teams that patch by CVE tracking systematically lag the integrity exposure being remediated.
 
 ---
 
@@ -608,7 +606,7 @@ SMF is the z/OS audit trail. Every interesting system event is recorded as an SM
 | SMF Type | Subject |
 |----------|---------|
 | 14 / 15  | Dataset access (read / write) |
-| 17 / 18  | Dataset scratch (delete) |
+| 17 / 18  | Dataset scratch (delete) / rename |
 | 30       | Job start / step end / job end |
 | 42       | DASD service / SMS events |
 | 60-69    | VSAM dataset open/close, alter |
@@ -617,7 +615,7 @@ SMF is the z/OS audit trail. Every interesting system event is recorded as an SM
 | 83       | RACF audit records (extended) |
 | 90       | System status changes |
 | 92       | USS file activity |
-| 100/101/102 | DB2 — authentication, accounting, statistics |
+| 100/101/102 | DB2 — statistics, accounting, performance/audit trace |
 | 110      | CICS — transaction execution |
 | 119      | TCP/IP / FTP / Telnet |
 
@@ -628,7 +626,6 @@ SMF is the z/OS audit trail. Every interesting system event is recorded as an SM
 Modern operations ship SMF to Splunk / QRadar / Sentinel / Elastic / Datadog via one of:
 - **Syncsort / Precisely Ironstream** — commercial SMF-to-SIEM bridge.
 - **IBM Common Data Provider for z Systems** — IBM's first-party bridge.
-- **Vanguard SMF Analytics** — Vanguard's tool, often paired with their RACF audit tooling.
 - **Homegrown SMF dumps via IFASMFDP** — works, has been in use forever, requires post-processing.
 
 The bridge component is itself an attack surface — it has access to every audit record. Cross-link `[[reference-detection-engineering]]` for the broader detection-engineering framework that applies to SMF-driven detection rules. Sigma has a small but growing set of z/OS rules; the community is led by people who do both z/OS and modern-SIEM work, of which there are a few.
@@ -636,13 +633,13 @@ The bridge component is itself an attack surface — it has access to every audi
 ### Native auditing tools
 
 - **DSMON** — RACF Data Security Monitor. Generates standard reports on RACF configuration.
-- **IRRRID00** — RACF database utility for inquiry.
+- **IRRRID00** — RACF remove ID utility. Generates commands to clean up references to residual user IDs and group names.
 - **IRRDBU00** — RACF database unload utility. Produces a flat file representation of the entire RACF database for offline analysis.
 - **IRRADU00** — SMF type 80 unload utility. Equivalent for the audit trail.
 - **ACFRPT** family — ACF2 reporting.
 - **TSS LIST / TSS WHOHAS** — Top Secret reporting.
 
-For IBM i: `DSPAUTUSR`, `DSPAUDJRNE` (display audit journal entries), `WRKAUTLST` (work with auth lists). The QAUDJRN journal is the audit-trail equivalent of SMF.
+For IBM i: `DSPAUTUSR`, `DSPAUDJRNE` (display audit journal entries), `WRKAUTL` (work with auth lists). The QAUDJRN journal is the audit-trail equivalent of SMF.
 
 For OpenVMS: `ACCOUNTING` and the audit server (set up via SET AUDIT) feed the security audit trail.
 
@@ -650,8 +647,7 @@ For OpenVMS: `ACCOUNTING` and the audit server (set up via SET AUDIT) feed the s
 
 z/OS hardware crypto and tamper resistance:
 - **CPACF (CP Assist for Cryptographic Functions)** — instructions on the central processor that implement symmetric crypto (AES, DES variants, SHA), bulk hashing, random number generation. Not a tamper-resistant boundary by itself; just hardware acceleration.
-- **Crypto Express (CEX)** — a tamper-evident HSM card. Modern variants (CEX7S, CEX8S) are FIPS 140-2 / 140-3 Level 4 certified. Key material can be encrypted under a master key that never leaves the card; clear-key operations are also supported.
-- **zHSM** — IBM marketing term for the integrated CryptoExpress-as-HSM packaging.
+- **Crypto Express (CEX)** — a tamper-evident HSM card. Modern variants (CEX7S) are FIPS 140-2 Level 4 certified. Key material can be encrypted under a master key that never leaves the card; clear-key operations are also supported.
 
 Cross-link `~/ai/expertise/software/cryptography_expertise.md` for the broader crypto primitive treatment. CPACF and CEX are first-class hardware crypto in industry; the cryptography document covers them at the level of "what is the right algorithm" and this section covers them at the level of "how is the key material protected on the mainframe."
 
@@ -670,7 +666,7 @@ The honest summary: most modernization projects add the cloud's attack surface t
 - **IBM zSecure Suite** (originally Consul Risk Management, acquired by IBM 2007; the suite includes Admin, Audit, Alert, Visual, Command Verifier). Commercial RACF / ACF2 / Top Secret scanning.
 - **Vanguard Integrity Professionals** — commercial RACF audit and reporting.
 - **BMC AMI Security** (BMC acquired Compuware 2020; this folded into the AMI portfolio). Commercial z/OS security analytics.
-- **Fortra / Powertech for IBM i** — IBM i security audit suite. Carsten Buchholz's home base for much of his work.
+- **Fortra / Powertech for IBM i** — IBM i security audit suite.
 - **Broadcom's own ACF2 / Top Secret administrative tools** — the second-party suite for the Broadcom ESMs.
 
 `[unverified specific deployment claim]`: I won't quote market share or "customer count" numbers for any of these; their own marketing pages overstate, and there is no independent census.
@@ -701,7 +697,7 @@ The COBOL programming language has decades of accreted footguns. §12 covers the
 
 ### IBM i and OpenVMS research-community thinness
 
-The named-researcher density for IBM i is roughly one-tenth of z/OS. For OpenVMS it's lower still. This is itself a finding the document surfaces but cannot remediate. Recruiting more public research attention to these substrates is a community problem; the security-of-the-thing depends on the size of the community auditing it, and these are both small communities.
+The named-researcher density for IBM i is lower than z/OS. For OpenVMS it's lower still. This is itself a finding the document surfaces but cannot remediate. Recruiting more public research attention to these substrates is a community problem; the security-of-the-thing depends on the size of the community auditing it, and these are both small communities.
 
 ### The four threads are not equally treated
 
@@ -718,10 +714,10 @@ CPACF and Crypto Express get a paragraph in §14. The actual depth of key-manage
 - `[[reference-distributed-authz]]` — the broader AuthN / AuthZ framework. RACF / ACF2 / Top Secret are single-organization closed-world counterparts to the federated and distributed AuthZ systems treated there.
 - `[[reference-cloud-iam]]` — modern cloud IAM. Mainframe-modernization-to-cloud composes the cloud IAM threat model on top of the mainframe IAM threat model; both have to be reasoned about, not one or the other.
 - `[[reference-dfir-methodology]]` — IR generally. Mainframe-specific IR — SMF preservation, RACF database forensic imaging, CICS region snapshotting, USS filesystem capture — is a specialized sub-discipline that the broader DFIR document does not currently cover.
-- `[[reference-detection-engineering]]` — SMF → SIEM ingest is the runtime detection substrate. Sigma's z/OS rule corpus and the Splunk / QRadar IBM Z content packs build on this.
+- `[[reference-detection-engineering]]` — SMF → SIEM ingest is the runtime detection substrate. The Splunk / QRadar IBM Z content packs build on this.
 - `[[reference-language-footguns-class]]` — language-level unsafe primitives. COBOL belongs in this class and is added here.
 - `[[reference-shell-injection]]` — applies to z/OS USS shell, IBM i PASE, and OpenVMS DCL. The three-class taxonomy (CWE-78 / CWE-88 / CWE-150) carries unmodified.
-- `~/ai/expertise/software/cryptography_expertise.md` — CPACF, Crypto Express, zHSM crypto primitives. The mainframe-specific hardware crypto layer is a key-management substrate worth a deeper treatment than this document affords.
+- `~/ai/expertise/software/cryptography_expertise.md` — CPACF, Crypto Express crypto primitives. The mainframe-specific hardware crypto layer is a key-management substrate worth a deeper treatment than this document affords.
 - `~/ai/expertise/software/active_directory_windows_security.md` — the Windows / AD parallel auth universe. Modernization-bridge architectures (mainframe + AD-integrated authentication, mainframe via SAML through an AD-fronted IdP) compose the two threat models.
 - `[[reference-bug-hunting-first-principles]]` — first-principles auditing lens. Applies to mainframe substrates with the caveat that the substrate-specific primitives (APF, object authorities, DCL symbol substitution) have to be in working memory for the first-principles lens to land.
 - `[[reference-vr-methodology]]` — VR methodology. Mainframe VR is an open community-research frontier where the four canonical methods (code review, variant analysis, fuzzing, patch diffing) apply unmodified but with substrate-specific tooling and corpora.

@@ -11,7 +11,7 @@ Drone security as a public research discipline traces three overlapping arcs. Th
 
 **Career arc**: Independent security researcher and serial public-disclosure author. The Myspace XSS worm (2005), evercookie, and a long arc of consumer-electronics reverse-engineering and side-channel work. The most-cited single piece of consumer-drone security research is his.
 
-**Core contribution**: **SkyJack** (released 2 December 2013) — a Parrot AR.Drone 2.0 carrying a Raspberry Pi running Linux, an Alfa AWUS036H Wi-Fi card in monitor mode, and a Perl script driving `aircrack-ng` for `deauth` attacks. The script targets the well-known SSID prefix `ardrone_` and the well-known unauthenticated open Wi-Fi network on which the Parrot accepted control packets. SkyJack would deauthenticate the legitimate operator, associate to the now-vacant access point, and use `node-ar-drone` to take over flight control. Kamkar deliberately framed SkyJack as a hostile-aerial demo of an unfixable design issue: the Parrot AR.Drone's RF link had no authentication, encryption, or pairing, by design. Open-sourced on GitHub (`samyk/skyjack`) with full code, BOM, and operator instructions.
+**Core contribution**: **SkyJack** (released 2 December 2013) — a Parrot AR.Drone 2.0 carrying a Raspberry Pi running Linux, an Alfa AWUS036H Wi-Fi card in monitor mode, and a Perl script driving `aircrack-ng` for `deauth` attacks. The script targets drones by MAC addresses carrying Parrot's vendor identifier and the well-known unauthenticated open Wi-Fi network on which the Parrot accepted control packets. SkyJack would deauthenticate the legitimate operator, associate to the now-vacant access point, and use `node-ar-drone` to take over flight control. Kamkar deliberately framed SkyJack as a hostile-aerial demo of an unfixable design issue: the Parrot AR.Drone's RF link had no authentication, encryption, or pairing, by design. Open-sourced on GitHub (`samyk/skyjack`) with full code, BOM, and operator instructions.
 
 **Frame Kamkar introduced**: Consumer drones that broadcast unauthenticated open Wi-Fi as their command interface are a trivially compromisable network endpoint. The defense is not patching a bug — it is replacing the trust model. The Parrot architecture had no path to "fix" without a fleet-wide protocol break, which is why subsequent consumer drones (DJI OcuSync / Lightbridge, Skydio's encrypted link, Autel SkyLink) shipped with proprietary RF + AES from day one.
 
@@ -19,15 +19,15 @@ Drone security as a public research discipline traces three overlapping arcs. Th
 
 **Career arc**: Long-running independent security researcher (Department of Trust era, DigitalMunition); pilot; embedded-systems specialist. Best known publicly for the November 2017 DJI disclosure that produced an 18-page PDF titled "Why I Walked Away From $30,000 Of DJI Bounty Money" and reshaped how the drone industry talks about bug bounties.
 
-**Core contribution**: In September-November 2017, Finisterre discovered DJI's private SSL certificate for `dji.com` exposed on a public GitHub repository (it had been there for up to four years), AES firmware encryption keys checked into the same repos, and AWS credentials for DJI's SkyPixel asset bucket. Pivoting on those credentials, he accessed customer-uploaded flight logs, aerial photos, and personally-identifiable documents — passports, drivers licenses, and government IDs — including data tied to government and military accounts. DJI initially offered the top-tier $30,000 bounty, then attempted to retroactively narrow the scope of the bug-bounty program and circulated a settlement letter Finisterre's counsel assessed as written in bad faith. Finisterre declined the bounty and published the full chain.
+**Core contribution**: In September-November 2017, Finisterre discovered DJI's private SSL certificate for `dji.com` exposed on a public GitHub repository (it had been there for up to four years), AES firmware encryption keys checked into the same repos, and AWS credentials for DJI's SkyPixel asset bucket. Pivoting on those credentials, he accessed customer-uploaded flight logs, aerial photos, and personally-identifiable documents — passports, drivers licenses, and government IDs. DJI initially offered the top-tier $30,000 bounty, then the two sides disagreed over the terms of a non-disclosure agreement DJI wanted bounty recipients to sign, and DJI warned him he may have broken US computer-hacking laws. Finisterre declined the bounty and published the full chain.
 
-**Frame Finisterre established**: Drone vendors handle a customer-data footprint (locations, imaging, identity documents) that is more sensitive than the average consumer-electronics vendor, and their bug-bounty programs need legal-safe-harbor terms that match. The 2017 disclosure was the proximate trigger for the August 2017 US Army Memo restricting DJI use, the 2020 DoD ban, and the multi-year "Countering CCP Drones Act" legislative track that continues through 2026. It also became the canonical reference case for security-researcher legal protection in vendor bounty contracts. The 18-page writeup mirror lives at `regmedia.co.uk/2017/11/16/whyiwalkedfrom3k.pdf`.
+**Frame Finisterre established**: Drone vendors handle a customer-data footprint (locations, imaging, identity documents) that is more sensitive than the average consumer-electronics vendor, and their bug-bounty programs need legal-safe-harbor terms that match. The 2017 disclosure also became the canonical reference case for security-researcher legal protection in vendor bounty contracts. The 18-page writeup mirror lives at `regmedia.co.uk/2017/11/16/whyiwalkedfrom3k.pdf`.
 
 ### Nils Rodday — University of Twente; IBM
 
 **Career arc**: Graduate research at University of Twente, Netherlands, on professional-grade UAV security. Subsequently IBM. Single canonical paper rather than a long arc — but the paper became the reference work on professional-class drone link insecurity.
 
-**Core contribution**: "Hacking a Professional Drone" (Black Hat Asia 2016, March 2016). Rodday demonstrated a live hijack of a professional UAV — Yuneec or comparable price class, retail approximately US$28,000 — using less than US$40 of off-the-shelf hardware. Two vulnerabilities chained: (1) the telemetry link between tablet controller and ground station used WEP (Wired Equivalent Privacy) Wi-Fi, breakable in seconds with `aircrack-ng`; (2) the XBee 868 MHz link between ground station and drone, though built on hardware that supports AES, shipped with encryption disabled to reduce command-latency. A man-in-the-middle attacker could inject control packets from up to 2 km away. The thesis behind the talk: "Exploring Security Vulnerabilities of Unmanned Aerial Vehicles."
+**Core contribution**: "Hacking a Professional Drone" (Black Hat Asia 2016, March 2016). Rodday demonstrated a live hijack of a professional UAV — retail approximately US$28,000 — using less than US$40 of off-the-shelf hardware. Two vulnerabilities chained: (1) the telemetry link between tablet controller and ground station used WEP (Wired Equivalent Privacy) Wi-Fi, breakable in seconds with `aircrack-ng`; (2) the XBee 868 MHz link between ground station and drone, though built on hardware that supports AES, shipped with encryption disabled to reduce command-latency. A man-in-the-middle attacker could inject control packets from up to 2 km away. The thesis behind the talk: "Exploring Security Vulnerabilities of Unmanned Aerial Vehicles."
 
 **Frame Rodday introduced**: Price-tier and certification-tier do not predict security posture in drone hardware. A professional / surveying / police-class platform priced 100x consumer drones can ship with WEP and unauthenticated XBee links because the integrator optimized for latency and battery life, not for adversarial threat models. The defensive case must rest on link-layer integrity (signed MAVLink 2.0 or proprietary AES) and physical-layer monitoring, not on the assumed competence of the price tier.
 
@@ -41,7 +41,7 @@ Drone security as a public research discipline traces three overlapping arcs. Th
 
 ### Ken Munro and the Pen Test Partners drone team
 
-**Career arc**: Founder of Pen Test Partners (Sheffield/London, UK). Pilot license-holder. Drone work sits inside a broader aviation / EFB / IFE consultancy practice. Cross-referenced in `aviation_aerospace_security_expertise.md` §I for the EFB and TCAS work. Multiple staff at the firm hold pilot certifications, which gives them operational credibility for aviation-adjacent drone analysis (drone-bird-strike modeling for crewed aviation, drone-near-runway risk assessment).
+**Career arc**: Founder of Pen Test Partners (Buckingham, UK). Drone work sits inside a broader aviation / EFB / IFE consultancy practice. Cross-referenced in `aviation_aerospace_security_expertise.md` §I for the EFB and TCAS work. Multiple staff at the firm hold pilot certifications, which gives them operational credibility for aviation-adjacent drone analysis (drone-bird-strike modeling for crewed aviation, drone-near-runway risk assessment).
 
 **Core contribution**: A decade-long disclosure cadence on consumer-drone, app-store, and counter-UAS topics. DEF CON 30 Aerospace Village (2022) drone work; consistent blog disclosures of drone-app security flaws; integration of drone topics into the firm's broader Aerospace Village contributions. The Pen Test Partners practice does not have one canonical paper; instead, it is the dominant English-language consultancy-cadence voice on drone security disclosures, with the public-facing material at `pentestpartners.com/security-blog`.
 
@@ -53,7 +53,7 @@ The **DEF CON Aerospace Village** first appeared in 2019 (cross-referenced in `a
 
 ### Commercial counter-UAS research teams
 
-**Anduril Industries** (founded 2017 by Palmer Luckey, Trae Stephens, Brian Schimpf, and others) — Lattice software platform for sensor fusion + autonomous tracking; Anvil interceptor (a non-kinetic drone-on-drone takedown); Roadrunner reusable interceptor; Pulsar electronic-warfare counter-UAS family; Sentry tower system; Wisp / Spyglass / Spark complementary platforms. The 2026 US Army `SHIELD` $20B IDIQ contract vehicle puts Anduril in the dominant US-military-counter-UAS-systems-integrator position.
+**Anduril Industries** (founded 2017 by Palmer Luckey, Trae Stephens, Brian Schimpf, and others) — Lattice software platform for sensor fusion + autonomous tracking; Anvil interceptor (a kinetic drone-on-drone takedown); Roadrunner reusable interceptor; Pulsar electronic-warfare counter-UAS family; Sentry tower system; Wisp / Spyglass / Spark complementary platforms. The March 2026 US Army enterprise contract vehicle worth up to $20B puts Anduril in the dominant US-military-counter-UAS-systems-integrator position.
 
 **DroneShield** (Australian/US) — RF-detection focus (DroneGun and DroneSentinel families); AI-based passive RF classification; SaaS analytics back-end; commercial-and-military dual market. The 2024-2025 expansion saw the firm scale to roughly AU$500M annual manufacturing capacity.
 
@@ -89,11 +89,11 @@ The asymmetric-warfare implication of consumer drones is the dominant security p
 
 ### Counter-UAS market sizing
 
-Estimates vary, but the global counter-UAS market is reported in the US$1-4B range as of 2024-2025 with consensus growth projections to US$10-15B by 2030. Anduril's March 2026 award of the US Army `SHIELD` $20B IDIQ vehicle (the first counter-drone task order against it was awarded to Anduril) is the largest single procurement vehicle in the space. DroneShield reported AU$500M annual manufacturing capacity in 2025. Dedrone was acquired by Axon in 2024 with a counter-UAS product line absorbed into a public-safety portfolio.
+Estimates vary, but the global counter-UAS market is reported in the US$1-4B range as of 2024-2025 with consensus growth projections to US$10-15B by 2030. Anduril's March 2026 award of a US Army enterprise contract vehicle worth up to $20B (with a first $87M task order for Lattice counter-drone command and control) is the largest single procurement vehicle in the space. DroneShield reported AU$500M annual manufacturing capacity in 2025. Dedrone was acquired by Axon in 2024 with a counter-UAS product line absorbed into a public-safety portfolio.
 
 ### Remote ID (FAA Part 89, 2023+)
 
-The FAA's Remote ID rule under 14 CFR Part 89, effective 16 September 2023 (enforcement transitioned to active in 2024-2025), requires drones registered under 14 CFR Part 47 or 48 to broadcast identification and location data. Three compliance paths: Standard Remote ID (built into the drone), Remote ID Broadcast Module (retrofit dongle), or operation in a FAA-Recognized Identification Area (FRIA — restricted to specific approved sites, primarily AMA model-aircraft fields). The broadcast medium is Bluetooth or Wi-Fi (FCC Part 15), receivable by any compliant ground receiver. Spoofability is structurally identical to ADS-B: no cryptographic authentication, no encryption, all fields publicly readable. The TM-RID (Trusted Multifaceted Remote ID) and other extensions adding authentication remain proposals as of 2026.
+The FAA's Remote ID rule under 14 CFR Part 89, effective 16 September 2023 (enforcement transitioned to active in 2024-2025), requires drones registered under 14 CFR Part 47 or 48 to broadcast identification and location data. Three compliance paths: Standard Remote ID (built into the drone), Remote ID Broadcast Module (retrofit dongle), or operation in a FAA-Recognized Identification Area (FRIA — restricted to specific approved sites, primarily AMA model-aircraft fields). The broadcast medium is Bluetooth or Wi-Fi (FCC Part 15), receivable by any compliant ground receiver. Spoofability is structurally identical to ADS-B: no cryptographic authentication, no encryption, all fields publicly readable. The TM-RID (Trustworthy Multipurpose Remote ID) and other extensions adding authentication remain proposals as of 2026.
 
 ---
 
@@ -105,17 +105,17 @@ The FAA's Remote ID rule under 14 CFR Part 89, effective 16 September 2023 (enfo
 
 ### US restrictions and national-security concerns
 
-- **August 2017**: US Army Memorandum 2017-052 ordered the immediate cessation of all DJI use across the service citing operational security concerns.
+- **August 2017**: A US Army memorandum (DAMO-AV, dated 2 August 2017) ordered the immediate cessation of all DJI use across the service citing operational security concerns.
 - **January 2020**: US Department of Interior grounded its drone fleet (predominantly DJI).
 - **2020-2024**: Pentagon banned DJI for defense customers; Commerce Department added DJI to the Entity List (December 2020).
-- **2024**: "Countering CCP Drones Act" (HR 2864) passed the House attached to the FY2025 NDAA; would prohibit FCC authorization of DJI and Autel products for use on US communications infrastructure, effectively banning new product imports. Final disposition unsettled as of 2026.
-- **June 2021**: Department of Commerce expanded restrictions; Treasury OFAC actions against DJI on alleged Xinjiang surveillance ties (December 2021).
+- **2024**: "Countering CCP Drones Act" (HR 2864) passed the House attached to the FY2025 NDAA; would prohibit FCC authorization of DJI and Autel products for use on US communications infrastructure, effectively banning new product imports. Under Section 1709 of the enacted FY2025 NDAA, the FCC added foreign-produced UAS, including DJI and Autel, to its Covered List on 22 December 2025.
+- **December 2021**: Treasury OFAC actions against DJI on alleged Xinjiang surveillance ties.
 
-The defensive-investment market for DJI alternatives — Skydio, Parrot ANAFI USA, Teal Drones, Red Cat — accelerated after the bans. The **Blue UAS** list maintained by DIU (Defense Innovation Unit) catalogs the cleared platforms.
+The defensive-investment market for DJI alternatives — Skydio, Parrot ANAFI USA, Teal Drones, Red Cat — accelerated after the bans. The **Blue UAS** list, created by DIU (Defense Innovation Unit) and transferred to DCMA in December 2025, catalogs the cleared platforms.
 
 ### Skydio, Parrot, Autel, Holy Stone
 
-**Skydio** (Redwood City, CA; founded 2014) — visual-SLAM-first autonomy stack with onboard NVIDIA Jetson processing. The X10 / X10D and X2D are the current enterprise / defense platforms. Skydio drones operate in GPS-denied environments via visual-inertial odometry; six navigation cameras provide 360-degree obstacle avoidance. AES-256 link encryption; Blue UAS approved.
+**Skydio** (San Mateo, CA; founded 2014) — visual-SLAM-first autonomy stack with onboard NVIDIA Jetson processing. The X10 / X10D and X2D are the current enterprise / defense platforms. Skydio drones operate in GPS-denied environments via visual-inertial odometry; six navigation cameras provide 360-degree obstacle avoidance. AES-256 link encryption; Blue UAS approved.
 
 **Parrot** (Paris, France) — ANAFI Ai (4G-cellular link, Parrot Cloud, designed for enterprise BVLOS), ANAFI USA (Blue UAS approved). Pivoted toward enterprise / defense after the consumer AR.Drone era. Open SDK and developer-friendly approach contrasts DJI's closed firmware.
 
@@ -145,7 +145,7 @@ The historical Parrot AR.Drone trust model — drone advertises an open access p
 
 ### SkyJack 2013 (Kamkar)
 
-The Kamkar reference platform demonstrates the full chain: passive sniffing → deauth attack via aircrack-ng → SSID match against `ardrone_*` → automatic join → command-stream injection via node-ar-drone. Hardware: Parrot AR.Drone 2.0 + Raspberry Pi + two USB Wi-Fi adapters (one for monitor mode, one for join). Cost was approximately US$400 in 2013 components. The open-source release on GitHub means the methodology is permanently in the public domain; the affected platform class (open-Wi-Fi-control consumer drones) remains in production and on the market in 2026.
+The Kamkar reference platform demonstrates the full chain: passive sniffing → deauth attack via aircrack-ng → MAC-address match against Parrot's vendor identifier → automatic join → command-stream injection via node-ar-drone. Hardware: Parrot AR.Drone 2.0 + Raspberry Pi + two USB Wi-Fi adapters (one for monitor mode, one for join). Cost was approximately US$400 in 2013 components. The open-source release on GitHub means the methodology is permanently in the public domain; the affected platform class (open-Wi-Fi-control consumer drones) remains in production and on the market in 2026.
 
 Cross-link `wireless_rf_satellite_security_expertise.md` for the broader RF-link attack-surface treatment, including SDR-based generic protocol reverse-engineering workflow.
 
@@ -155,7 +155,7 @@ Cross-link `wireless_rf_satellite_security_expertise.md` for the broader RF-link
 
 ### Civilian GPS is unauthenticated
 
-The fundamental security property of civilian GPS (L1 C/A signal) is that there is no cryptographic authentication of the navigation message. Any attacker with an HackRF, USRP, or LimeSDR plus a GPS-simulation toolchain (`gps-sdr-sim`, `bladeRF-gps`, `LabSat`, the GitHub gps-spoofing-frameworks lineage) can synthesize plausible GPS signals that a commodity receiver will lock onto. Counter-spoofing literature is extensive but the deployed civilian-receiver fleet — including in nearly every consumer drone, smartphone, and vehicle — is unprotected. Galileo's **OSNMA** (Open Service Navigation Message Authentication) is operational since 2023 for the Galileo constellation; uptake in receiver firmware remains uneven and most consumer drones do not validate OSNMA. Cross-link `wireless_rf_satellite_security_expertise.md` §6 (GNSS).
+The fundamental security property of civilian GPS (L1 C/A signal) is that there is no cryptographic authentication of the navigation message. Any attacker with an HackRF, USRP, or LimeSDR plus a GPS-simulation toolchain (`gps-sdr-sim`, `bladeRF-gps`, `LabSat`, the GitHub gps-spoofing-frameworks lineage) can synthesize plausible GPS signals that a commodity receiver will lock onto. Counter-spoofing literature is extensive but the deployed civilian-receiver fleet — including in nearly every consumer drone, smartphone, and vehicle — is unprotected. Galileo's **OSNMA** (Open Service Navigation Message Authentication) reached Initial Service on 24 July 2025 for the Galileo constellation; uptake in receiver firmware remains uneven and most consumer drones do not validate OSNMA. Cross-link `wireless_rf_satellite_security_expertise.md` §6 (GNSS).
 
 ### Russian EW in Ukraine
 
@@ -175,7 +175,7 @@ The defenses available to drone designers in 2026:
 - **Inertial navigation (IMU) dead-reckoning** — fall back to IMU when GNSS plausibility checks fail. The IMU drifts but covers minutes-to-hours of useful navigation depending on grade.
 - **Visual-inertial odometry / SLAM** — Skydio's flagship capability. Computer-vision-based localization against environmental features. Fully GPS-independent for known or scanned environments. Vulnerable to adversarial-image attacks against the underlying ML models (cross-link `adversarial_ml_model_security_expertise.md`).
 - **Multi-receiver cross-checks and CRPA antennas** — Controlled Reception Pattern Antennas (CRPA) on military platforms reject jamming-and-spoofing from known elevation / azimuth bands. Expensive; export-controlled.
-- **OSNMA on Galileo** — cryptographic authentication of the Galileo navigation message; operational 2023+; uptake patchy.
+- **OSNMA on Galileo** — cryptographic authentication of the Galileo navigation message; Initial Service declared July 2025; uptake patchy.
 - **Receiver integrity monitoring (RAIM)** — plausibility checks against multi-satellite-geometry consistency; standard in aviation receivers; not standard in cheap consumer drone GNSS modules.
 
 ### Skydio "GPS-denied" marketing
@@ -194,7 +194,7 @@ Hardware platforms inside DJI drones run heterogeneous SoCs (Ambarella image-pro
 
 ### Pixhawk + ArduPilot / PX4
 
-**Pixhawk** is the open hardware reference flight-controller (the Pixhawk Open Hardware Foundation maintains the standard; vendors include Holybro, mRo, CUAV). **ArduPilot** (DIY Drones lineage, Apache 2.0) and **PX4** (Dronecode Foundation, BSD-3-Clause) are the two dominant open autopilot stacks. Both run on NuttX RTOS (PX4) or a bare-metal scheduler (ArduPilot), expose MAVLink as the primary command / telemetry protocol, and integrate with QGroundControl / Mission Planner ground-station software.
+**Pixhawk** is the open hardware reference flight-controller (the Pixhawk Open Hardware Foundation maintains the standard; vendors include Holybro, mRo, CUAV). **ArduPilot** (DIY Drones lineage, GPLv3) and **PX4** (Dronecode Foundation, BSD-3-Clause) are the two dominant open autopilot stacks. Both run on NuttX RTOS (PX4) or ChibiOS (ArduPilot), expose MAVLink as the primary command / telemetry protocol, and integrate with QGroundControl / Mission Planner ground-station software.
 
 The **MAVLink** protocol has a well-documented security posture: MAVLink 1.0 ships with no authentication or encryption; MAVLink 2.0 supports HMAC-SHA-256 message signing but the feature is opt-in and frequently disabled to reduce latency. Documented vulnerabilities:
 
@@ -226,7 +226,7 @@ DJI discontinued AeroScope in 2023. Secondary-market units circulate. The episod
 
 Under **14 CFR Part 89** (effective 16 September 2023; FAA enforcement active 2024-2025), drones registered under 14 CFR Part 47 or 48 must broadcast Remote ID. The broadcast carries:
 
-- The drone's serial number (Standard Remote ID) or a session-specific ID (Remote ID Broadcast Module).
+- The drone's serial number or a session ID (Standard Remote ID), or the module's serial number (Remote ID Broadcast Module).
 - The drone's current latitude / longitude / altitude.
 - The drone's velocity.
 - The control station's latitude / longitude (Standard Remote ID only).
@@ -248,13 +248,13 @@ Operator-privacy concerns:
 - Live broadcast of the GCS position exposes operator location for the duration of flight — relevant for journalism, conflict-zone operations, surveillance-targets, and law-enforcement officers operating drones in adversarial environments.
 - The serial-number broadcast is a vendor-specific persistent identifier across all flights of a given drone, defeating any operational-anonymity goal.
 
-The **TM-RID** (Trusted Multifaceted Remote ID) extension proposed by Autonomy Global and others adds an authentication key per drone (verifying broadcast authenticity) and an encryption key (shielding broadcast contents from all receivers except FAA-authorized parties). TM-RID and similar schemes are proposed but not yet a regulatory accepted means of compliance as of 2026.
+The **TM-RID** (Trustworthy Multipurpose Remote ID) IETF effort adds trust to broadcast Remote ID by authenticating messages. TM-RID and similar schemes are proposed but not yet a regulatory accepted means of compliance as of 2026.
 
 ### Evasion for malicious operators
 
 A malicious operator has multiple low-effort options to evade Remote ID:
 
-- Use a non-compliant drone (the rule applies only to registered drones above 0.55 lb; non-registered drones or sub-threshold platforms are exempt).
+- Use a non-compliant drone (the rule applies only to drones required to register: all Part 107 drones regardless of weight, and recreational drones above 0.55 lb; sub-threshold recreational platforms are exempt).
 - Modify firmware to spoof a different drone's serial / position (community modding tooling exists; DJI Standard Remote ID has been firmware-patched out in some unofficial builds).
 - Use a Remote ID Broadcast Module attached to a different drone than the one actually flying.
 - Spoof multiple Remote ID signals from a SDR to flood the receiving fence with ghost drones.
@@ -267,19 +267,19 @@ The defensive realism: Remote ID is a compliance instrument for benign operators
 
 ### Loitering munitions: Shahed-136, Switchblade, Lancet, HAROP, Bayraktar TB2
 
-**Shahed-136 / Geran-2** (Iran HESA, designation reused by Russia) — delta-wing, ~50-200 kg gross weight, ~40 kg warhead, ~2,500 km nominal range, prop-driven by piston engine. Iran-designed circa 2019; first observed combat use by Houthis in Yemen 2021; mass deployment by Russia against Ukraine from September 2022 onward. Cost-per-airframe estimates run US$20,000-US$50,000 in Iranian production, lower in Russian-localized production (the `Geran-2` Yelabuga factory). Operationally used as a one-way attack vehicle, not as a "loitering" platform — RUSI (January 2023) noted that classification as a *loitering munition* is misleading; the Shahed-136 has been used in point-to-point cruise-missile-style profiles, not orbit-and-strike. The Institute for Science and International Security tracks monthly Russian Shahed deployment counts (`isis-online.org/isis-reports`); March 2026 single-day attacks have exceeded 900 UAVs in a 24-hour window.
+**Shahed-136 / Geran-2** (Iran HESA, designation reused by Russia) — delta-wing, ~200 kg gross weight, ~40 kg warhead, ~2,500 km nominal range, prop-driven by piston engine. Iran-designed circa 2019; mass deployment by Russia against Ukraine from September 2022 onward. Cost-per-airframe estimates run US$20,000-US$50,000 in Iranian production, lower in Russian-localized production (the `Geran-2` Yelabuga factory). Operationally used as a one-way attack vehicle, not as a "loitering" platform — RUSI noted that classification as a *loitering munition* is misleading; the Shahed-136 has been used in point-to-point cruise-missile-style profiles, not orbit-and-strike. The Institute for Science and International Security tracks monthly Russian Shahed deployment counts (`isis-online.org/isis-reports`); March 2026 single-day attacks have exceeded 900 UAVs in a 24-hour window.
 
-**Switchblade 300 / 600** (US, AeroVironment) — Switchblade 300 is a 5.5 lb tube-launched anti-personnel loitering munition; range ~10 km, 15-minute endurance. Switchblade 600 is the anti-armor variant, ~50 lb, ~40 km range, ~40-minute endurance, equipped with anti-armor warhead. Both deployed to Ukraine from 2022 onward.
+**Switchblade 300 / 600** (US, AeroVironment) — Switchblade 300 is a 5.5 lb tube-launched anti-personnel loitering munition; range ~10 km, 15-minute endurance. Switchblade 600 is the anti-armor variant, ~33 lb munition (65 lb all-up round), ~40 km range, ~40-minute endurance, equipped with anti-armor warhead. Both deployed to Ukraine from 2022 onward.
 
-**Lancet ZALA** (Russia, ZALA Aero Group / Kalashnikov Concern) — X-tail loitering munition, ~12 kg gross weight, ~3 kg warhead, ~50 km range. Optical-imagery-based terminal targeting. Heavy use against Ukrainian artillery and air-defense systems.
+**Lancet ZALA** (Russia, ZALA Aero Group / Kalashnikov Concern) — X-tail loitering munition, ~12 kg gross weight, ~3 kg warhead, ~40 km range. Optical-imagery-based terminal targeting. Heavy use against Ukrainian artillery and air-defense systems.
 
-**HAROP** (Israel, IAI) — earlier-generation loitering munition (early 2000s); 9-hour endurance, anti-radiation seeker variants, integrated into multiple national arsenals; the conceptual ancestor of the current loitering-munition class.
+**HAROP** (Israel, IAI) — earlier-generation loitering munition (publicly unveiled 2009); 9-hour endurance, anti-radiation seeker variants, integrated into multiple national arsenals; the conceptual ancestor of the current loitering-munition class.
 
-**Bayraktar TB2** (Turkey, Baykar) — medium-altitude long-endurance reconnaissance-strike UAV; carries MAM-L laser-guided munitions; first export in 2014; combat-proven by Azerbaijan in the 2020 Nagorno-Karabakh war, by Ukraine in early 2022, by Ethiopia, by Libya. The TB2 ushered in the prosumer / mid-budget national-arsenal armed-UAV era and is the geopolitical-cost benchmark against which competitors are measured.
+**Bayraktar TB2** (Turkey, Baykar) — medium-altitude long-endurance reconnaissance-strike UAV; carries MAM-L laser-guided munitions; first export (Qatar) in 2018; combat-proven by Azerbaijan in the 2020 Nagorno-Karabakh war, by Ukraine in early 2022, by Ethiopia, by Libya. The TB2 ushered in the prosumer / mid-budget national-arsenal armed-UAV era and is the geopolitical-cost benchmark against which competitors are measured.
 
 ### FPV racing drones repurposed
 
-The single most consequential 2023-2026 evolution: commercial off-the-shelf 5-7-inch FPV racing drones, modified with payload-release mechanisms, used as expendable kinetic strike platforms. Ukrainian and Russian forces deploy them at scale — Ukrainian production reportedly two million units in 2024 with a 2025 target above three million. Costs run US$400-US$1,500 per unit. Payloads are typically RKG-3 anti-tank grenades, modified 40mm grenades, or shaped charges. RUSI and Hudson Institute analyses through 2024-2026 estimate that drone casualties (including FPV) account for ~80% of battlefield casualties in Ukraine by 2025, up from <10% at war start.
+The single most consequential 2023-2026 evolution: commercial off-the-shelf 5-7-inch FPV racing drones, modified with payload-release mechanisms, used as expendable kinetic strike platforms. Ukrainian and Russian forces deploy them at scale — Ukrainian production reportedly two million units in 2024 with a 2025 target above three million. Costs run US$400-US$1,500 per unit. Payloads are typically RKG-3 anti-tank grenades, modified 40mm grenades, or shaped charges. Estimates through 2024-2026 hold that drone casualties (including FPV) account for ~80% of battlefield casualties in Ukraine by 2025, up from <10% at war start.
 
 The FPV-repurposing trend has crossed into terrorism and criminal use — the December 2018 Gatwick episode (whatever its actual ground truth — see §XI) preceded confirmed criminal FPV-attack episodes against prisons (contraband delivery), data-center perimeters (intrusion testing), and stadium events (disruption).
 
@@ -289,7 +289,7 @@ The 2024-2026 wave of "AI-enabled" drone systems is partly hype and partly real.
 
 - **Visual terminal-homing** on Russian Lancet and Ukrainian-modified FPV drones using lightweight on-board CV models for last-mile target lock. Resilient to GPS jamming; vulnerable to camouflage and decoys.
 - **Autonomous "fire-and-forget" engagement** in restricted-zone operations where command links are likely to be jammed; the drone takes off, navigates to a pre-loaded GPS / visual waypoint, and engages a class of target without a continuous human-in-the-loop.
-- **Swarm-coordination algorithms** for multi-airframe ingress patterns; Russia's mass Shahed launches (140+/day in February 2025, 900+ in single 24-hour windows by March 2026) are coordinated at the launch-window level rather than in-flight, but Anduril Bolt-M and similar systems demonstrate in-flight swarm coordination at smaller scale.
+- **Swarm-coordination algorithms** for multi-airframe ingress patterns; Russia's mass Shahed launches (140+/day in February 2025, 900+ in single 24-hour windows by March 2026) are coordinated at the launch-window level rather than in-flight.
 
 The **lethal autonomous weapons (LAWS) debate** runs through the UN Convention on Certain Conventional Weapons (CCW) Group of Governmental Experts process. As of 2026 no binding international constraint exists; voluntary frameworks (the 2023 US "Political Declaration on Responsible Military Use of AI and Autonomy" signed by 50+ states) are non-binding. Drone-as-weapon proliferation effectively predates any treaty regime.
 
@@ -301,19 +301,19 @@ Cross-link `adversarial_ml_model_security_expertise.md` for the model-attack sur
 
 ### Radar
 
-**Echodyne** — metamaterial electronic-scanned-array (MESA) radar; X-band; integrated into Anduril Lattice and standalone deployments. Low-altitude airspace coverage where conventional radar fails because of ground clutter and the small RCS of consumer drones. The MESA approach gives software-defined beam steering at hardware cost competitive with mechanical-scan systems.
+**Echodyne** — metamaterial electronic-scanned-array (MESA) radar; K-band (EchoGuard) and Ku-band (EchoShield); integrated into Anduril Lattice and standalone deployments. Low-altitude airspace coverage where conventional radar fails because of ground clutter and the small RCS of consumer drones. The MESA approach gives software-defined beam steering at hardware cost competitive with mechanical-scan systems.
 
 **Robin Radar** (Netherlands) — Iris X-band radar specifically tuned for the bird-and-drone speed and RCS profile. Canonical at airport-counter-UAS deployments. Discriminates between birds (which are common, daily, and not actionable) and drones (which are not).
 
-**Other radar**: Thales SquireView, IAI ELI-4030 Drone Guard, Aaronia AARTOS, Hensoldt Spexer.
+**Other radar**: Thales Squire, IAI ELI-4030 Drone Guard, Hensoldt Spexer.
 
 Radar covers the **detect** half of the kill chain across all weather and lighting. RF-only systems fail when the drone is autonomous (no link), uses unknown protocols, or operates in heavy-RF-clutter environments. Radar fills those gaps.
 
 ### RF detection
 
-**Dedrone** (Axon, 2024+) — library-based DJI / Autel / Parrot / FPV-protocol fingerprint classification. Maintains a fingerprint database that maps RF signature to drone model and (where possible) operator location. Deployed at airports (Vancouver YVR, Heathrow), prisons, stadiums, large corporate campuses.
+**Dedrone** (Axon, 2024+) — library-based DJI / Autel / Parrot / FPV-protocol fingerprint classification. Maintains a fingerprint database that maps RF signature to drone model and (where possible) operator location. Deployed at airports, prisons, stadiums, large corporate campuses.
 
-**DroneShield** — DroneSentinel passive RF detection; DroneSentry-X mobile body-worn detector; DroneSentry-C2 fusion platform. AI-based RF classification with quarterly fingerprint updates.
+**DroneShield** — DroneSentinel passive RF detection; DroneSentry-X vehicle-mounted on-the-move detector; DroneSentry-C2 fusion platform. AI-based RF classification with quarterly fingerprint updates.
 
 **Anduril Lattice / Pulsar** — RF detection integrated as one sensor lane within Lattice's broader fusion architecture; Pulsar adds counter-RF (defeat) capability.
 
@@ -323,7 +323,7 @@ Radar covers the **detect** half of the kill chain across all weather and lighti
 
 ### Acoustic detection
 
-Microphone arrays trained on drone-rotor acoustic signatures. Effective in quiet environments (prisons, rural critical-infrastructure perimeters); ineffective in urban / airport / industrial environments. Companies: Squarehead Discovair, SARA AcoustaShield. Acoustic is a complementary sensor in fusion architectures rather than a standalone solution.
+Microphone arrays trained on drone-rotor acoustic signatures. Effective in quiet environments (prisons, rural critical-infrastructure perimeters); ineffective in urban / airport / industrial environments. Companies: Squarehead Discovair. Acoustic is a complementary sensor in fusion architectures rather than a standalone solution.
 
 ### Computer vision (EO/IR)
 
@@ -331,7 +331,7 @@ EO/IR cameras with object-detection models tuned for small-aerial-target classif
 
 ### Sensor fusion
 
-The dominant 2024-2026 architectural pattern is sensor-fusion: combine radar + RF + EO/IR + acoustic in a single C2 platform that performs target identification, classification, and tracking with explicit confidence scoring per lane. Anduril Lattice, DroneShield C2, Dedrone DroneTracker, Robin Radar Hatchet, IAI Drone Guard fusion platforms — all converge on the same shape. The defensive correctness argument: no single sensor lane is reliable across all drone classes and conditions; the fusion overlap is where false-positive rate falls to deployable levels.
+The dominant 2024-2026 architectural pattern is sensor-fusion: combine radar + RF + EO/IR + acoustic in a single C2 platform that performs target identification, classification, and tracking with explicit confidence scoring per lane. Anduril Lattice, DroneShield C2, Dedrone DroneTracker, IAI Drone Guard fusion platforms — all converge on the same shape. The defensive correctness argument: no single sensor lane is reliable across all drone classes and conditions; the fusion overlap is where false-positive rate falls to deployable levels.
 
 ---
 
@@ -341,13 +341,13 @@ The dominant 2024-2026 architectural pattern is sensor-fusion: combine radar + R
 
 **DroneGun** family (DroneShield) — directional RF jammers covering ISM bands (2.4 / 5.8 GHz) and GNSS (L1 / L2 / L5). DroneGun Mk4 is the current flagship. Force the target drone into return-to-home or fail-safe descent.
 
-**Black Sage**, **OpenWorks SkyWall**, **Battelle DroneDefender** — various RF-jam products with different form factors and band coverage.
+**Black Sage**, **Battelle DroneDefender** — various RF-jam products with different form factors and band coverage.
 
 RF jamming has two structural issues: (1) legal — under 47 USC 333, intentional jamming of authorized radio services is a federal offense in the US for non-federal operators; only federal agencies with statutory authority (DOJ, DOD, DOE, DHS components) can lawfully jam in US territory. (2) operational — RF jamming affects all RF in the band, not just the target drone; in urban environments and near critical infrastructure, the collateral RF impact on legitimate services (police radios, building security, cellular) is significant.
 
 ### GNSS spoofing
 
-**Drone Dome** (Israel, Rafael); **D-Fend EnforceAir**; **various Anduril and DroneShield products** include GNSS-spoofing capability as one defeat lane. Force the target drone's GPS receiver to lock to a manufactured signal that drives it to a predetermined safe-landing location.
+**Various Anduril and DroneShield products** include GNSS-spoofing capability as one defeat lane. Force the target drone's GPS receiver to lock to a manufactured signal that drives it to a predetermined safe-landing location.
 
 GNSS-spoofing defeat is preferable to RF jamming when (a) the drone uses GPS for navigation and is not in a GPS-denied autonomy mode, and (b) the operator can establish a "safe landing zone" within range. Effectiveness against modern Skydio / military GPS-denied platforms is zero.
 
@@ -357,7 +357,7 @@ GNSS-spoofing defeat is preferable to RF jamming when (a) the drone uses GPS for
 
 ### Kinetic interception
 
-**Nets** — handheld (SkyWall Patrol) or drone-mounted (OpenWorks SkyWall Auto, Anduril Anvil) net-deployment systems that physically capture the target. Anvil specifically is an autonomous drone-on-drone kinetic intercept: a Lattice-cued Anvil interceptor launches, navigates to the target, and physically rams or nets it. Recoverable target; minimal collateral damage.
+**Nets** — handheld (SkyWall Patrol), vehicle-mounted (OpenWorks SkyWall Auto) or drone-mounted (Anduril Anvil) net-deployment systems that physically capture the target. Anvil specifically is an autonomous drone-on-drone kinetic intercept: a Lattice-cued Anvil interceptor launches, navigates to the target, and physically rams or nets it. Recoverable target; minimal collateral damage.
 
 **Projectiles** — small-arms fire (the most common low-tech option globally); shotgun shells; specialized counter-UAS munitions like the Coyote Block 2 interceptor (Raytheon / RTX) used in US military counter-UAS deployments at scale through 2023-2026.
 
@@ -369,11 +369,11 @@ GNSS-spoofing defeat is preferable to RF jamming when (a) the drone uses GPS for
 
 ### Microwave / HPM
 
-**Epirus Leonidas** — High-Power Microwave (HPM) system that disables drone electronics across a wide cone with a single emission. Effective against swarms (multiple drones in the beam path are all neutralized). US Army awarded production contracts through 2024-2026.
+**Epirus Leonidas** — High-Power Microwave (HPM) system that disables drone electronics across a wide cone with a single emission. Effective against swarms (multiple drones in the beam path are all neutralized). US Army awarded IFPC-HPM prototype contracts from 2023 and a Generation II contract in 2025.
 
-**Anduril Pulsar** — electronic-warfare suite with HPM and EW capabilities integrated into the Lattice architecture.
+**Anduril Pulsar** — electronic-warfare suite integrated into the Lattice architecture.
 
-**Wisp** (Anduril) — soft-kill family complementing Pulsar.
+**Wisp** (Anduril) — sensing layer used alongside Pulsar.
 
 ### Coyote and tube-launched interceptors
 
@@ -385,15 +385,15 @@ GNSS-spoofing defeat is preferable to RF jamming when (a) the drone uses GPS for
 
 ### December 2018 — Gatwick Airport (UK)
 
-The most-cited counter-UAS reference case despite significant evidential uncertainty. Beginning approximately 21:03 on 19 December 2018, a security officer reported drone sightings at Gatwick. The airport closed for 33-36 hours over a three-day window. Approximately 1,000 flights were cancelled or diverted; approximately 140,000 passengers were affected. Airlines lost an estimated GBP 50M; Gatwick lost an estimated GBP 1.4M directly plus reputational. The UK Army deployed counter-UAS equipment.
+The most-cited counter-UAS reference case despite significant evidential uncertainty. Beginning approximately 21:03 on 19 December 2018, a security officer reported drone sightings at Gatwick. The airport closed for 33-36 hours over a three-day window. Approximately 1,000 flights were cancelled or diverted; approximately 140,000 passengers were affected. Airlines lost an estimated GBP 50M. The UK military (RAF Regiment) deployed counter-UAS equipment.
 
-Subsequent investigation: A Freedom of Information request in 2024 revealed that the NPAS (National Police Air Service) recorded no drone sightings at Gatwick across the disruption window. In September 2021, Brendan Schulman (then VP, Policy and Legal Affairs at DJI; subsequently at Boston Dynamics) publicly stated that "it is now clear the Gatwick incident did not involve a drone." The investigation lasted 18 months, cost approximately GBP 800,000, and involved five police forces; no arrests were sustained.
+Subsequent investigation: A Freedom of Information request in 2024 revealed that the NPAS (National Police Air Service) recorded no drone sightings at Gatwick across the disruption window. In September 2021, Brendan Schulman (former VP, Policy and Legal Affairs at DJI; then moving to Boston Dynamics) publicly stated that "it is now clear the Gatwick incident did not involve a drone." The investigation lasted 18 months, cost approximately GBP 800,000, and involved five police forces; no arrests were sustained.
 
-The Gatwick episode remains the canonical airport-counter-UAS justification regardless of ground truth. The defensive procurement that followed — multi-sensor detection deployments at major UK and European airports, including Dedrone deployments at Heathrow, Schiphol, Frankfurt — is real and ongoing.
+The Gatwick episode remains the canonical airport-counter-UAS justification regardless of ground truth. The defensive procurement that followed — multi-sensor detection deployments at major UK and European airports — is real and ongoing.
 
 ### September 2019 — Saudi Aramco Abqaiq and Khurais (Saudi Arabia)
 
-On 14 September 2019, a coordinated drone-and-cruise-missile strike hit Saudi Aramco's Abqaiq oil-processing facility and Khurais oilfield. Saudi authorities reported 25 drones / missiles used; satellite-imagery analysis identified 19 individual strikes (14 puncturing storage tanks, three disabling oil-processing trains, two missing equipment). Production was reduced by approximately 5.7 million barrels per day, equal to ~5% of global supply, for several days. The Houthi movement in Yemen claimed responsibility; US and Saudi attribution placed the attack as originating from Iran or Iran-aligned forces in Iraq, traveling from north / east directions. The cruise-missile components resembled Iranian Ya-Ali / Quds-1 designs.
+On 14 September 2019, a coordinated drone-and-cruise-missile strike hit Saudi Aramco's Abqaiq oil-processing facility and Khurais oilfield. Saudi authorities reported 25 drones / missiles used; satellite-imagery analysis identified 19 individual strikes. Production was reduced by approximately 5.7 million barrels per day, equal to ~5% of global supply, for several days. The Houthi movement in Yemen claimed responsibility; US and Saudi attribution placed the attack as originating from Iran or Iran-aligned forces in Iraq, traveling from north / east directions. The cruise-missile components resembled Iranian Ya-Ali / Quds-1 designs.
 
 The structural lesson: low-altitude approach, multi-direction ingress, swarm-confused-radar tactics defeated a multi-billion-dollar Saudi air-defense procurement. The Patriot batteries deployed against high-flying targets did not detect or engage. The Aramco strike is the canonical reference for "critical infrastructure is realistically vulnerable to small-drone-and-cruise-missile saturation attack."
 
@@ -402,7 +402,7 @@ The structural lesson: low-altitude approach, multi-direction ingress, swarm-con
 The most expansive empirical data set on drone warfare in history. Selected reference points:
 
 - **September 2022 onward** — Russia begins mass Shahed-136 deployment against Ukrainian energy infrastructure. Iran-supplied initially; Russian-localized production at Yelabuga subsequently.
-- **2022-2024** — Ukrainian USV (Unmanned Surface Vessel) strikes against Russian Black Sea Fleet at Sevastopol (October 2022 onward); RFS Ivan Golubets damaged November 2022; submarine Rostov-on-Don damaged September 2023 in a combined missile / USV attack and later claimed destroyed; RFS Ivanovets sunk 1 February 2024; RFS Caesar Kunikov sunk in a night attack; RFS Sergey Kotov sunk 5 March 2024. The cumulative impact forced Russia to relocate elements of the Black Sea Fleet to Novorossiysk. RUSI commentary identifies this as the largest-scale operational use of unmanned surface platforms in naval-warfare history.
+- **2022-2024** — Ukrainian USV (Unmanned Surface Vessel) strikes against Russian Black Sea Fleet at Sevastopol (October 2022 onward); RFS Ivan Golubets damaged October 2022; submarine Rostov-on-Don damaged September 2023 by Storm Shadow / SCALP cruise missiles and later claimed destroyed; RFS Ivanovets sunk 1 February 2024; RFS Caesar Kunikov sunk in a night attack; RFS Sergey Kotov sunk 5 March 2024. The cumulative impact forced Russia to relocate elements of the Black Sea Fleet to Novorossiysk.
 - **2023-2025** — Ukrainian FPV-drone production scales toward 2-3 million units per year. Casualty share attributed to drones rises from <10% at war start to ~80% by 2025.
 - **February 2025** — Russian Shahed daily-launch average rises to ~140 per day; February 23, 2025 single-day record of 267 drones.
 - **March 2026** — Russia launches 948 Shahed-type UAVs in a single 24-hour window (23-24 March 2026) — the highest-ever recorded single-day UAV deployment.
@@ -415,13 +415,13 @@ On 3 May 2023, two small drones approached the Moscow Kremlin Senate Building an
 
 ### November 2024 — Northeast US drone sightings
 
-In November-December 2024, repeated drone sightings were reported across New Jersey, New York, and adjacent states. Cumulative reports ran into the thousands. Federal response (FBI, FAA, DOD) characterized the sightings as a mix of lawful drone operations, manned-aircraft misidentifications, and unknown actors. No malicious actor was conclusively identified through early 2025. The episode produced legislative pressure to expand the counter-UAS authority under 49 USC 44810 (DHS / DOJ) to state and local law enforcement — debate ongoing as of 2026.
+In November-December 2024, repeated drone sightings were reported across New Jersey, New York, and adjacent states. Cumulative reports ran into the thousands. Federal response (FBI, FAA, DOD) characterized the sightings as a mix of lawful drone operations, manned-aircraft misidentifications, and unknown actors. No malicious actor was conclusively identified through early 2025. The episode produced legislative pressure to expand the counter-UAS authority under 6 USC 124n (DHS / DOJ) to state and local law enforcement; the SAFER SKIES Act in the FY2026 NDAA (signed December 2025) did so.
 
 The structural lesson: counter-UAS detection and attribution at the public-safety level is hard, and the political pressure when sightings cluster is significant regardless of underlying threat.
 
 ### 2024-2026 — Red Sea and broader Middle East drone operations
 
-Houthi anti-shipping drone operations against commercial vessels in the Red Sea (2023-2025), US Navy counter-UAS engagement with the Coyote Block 2 interceptor at sustained operational tempo, Iran-Israel direct drone-and-missile exchange in April 2024 and October 2024. The cumulative operational data set has informed US Navy procurement and Israeli counter-UAS doctrine substantially.
+Houthi anti-shipping drone operations against commercial vessels in the Red Sea (2023-2025), Iran-Israel direct exchanges in April 2024 (drones and missiles) and October 2024 (ballistic missiles). The cumulative operational data set has informed US Navy procurement and Israeli counter-UAS doctrine substantially.
 
 ---
 
@@ -439,13 +439,13 @@ The dominant non-military counter-UAS buyer segments:
 
 ### Law-enforcement coordination and US legal constraint
 
-The defining US legal constraint: **47 USC 333** prohibits non-federal entities from jamming radio communications, and **49 USC 44810** as amended through 2024 limits counter-UAS *defeat* authority to specific federal entities — DOJ (Federal Bureau of Prisons), DOD (military installations), DHS (specified components including Coast Guard, Secret Service, USSS at NSSEs), DOE (nuclear facilities), and FAA (limited). State and local law enforcement do **not** currently have statutory defeat authority.
+The defining US legal constraint: **47 USC 333** prohibits non-federal entities from jamming radio communications, and **6 USC 124n** (DOJ / DHS) with related statutes limits counter-UAS *defeat* authority to specific federal entities — DOJ (Federal Bureau of Prisons), DOD (military installations), DHS (specified components including Coast Guard, Secret Service, USSS at NSSEs), DOE (nuclear facilities), and FAA (limited). Since the SAFER SKIES Act (FY2026 NDAA, December 2025), trained and certified state, local, tribal, and territorial law enforcement can be authorized under 6 USC 124n to mitigate credible drone threats.
 
 Practical implication for a corporate or critical-infrastructure security team: legal options for response are limited to *detection*, *attribution*, and *coordination with federal partners*. Defeat actions against an actively-flying drone — even one demonstrably hostile — are unlawful for the operator unless an exception applies. Detection investment can proceed independently; defeat investment requires federal partnership or a specific statutory exemption.
 
 ### DOJ counter-UAS authority
 
-The DOJ Federal Bureau of Prisons received counter-UAS authority under the 2018 Preventing Emerging Threats Act for the protection of federal prisons. Subsequent DOJ guidance has expanded counter-UAS operational authority to specific national-security and witness-protection contexts. The 2024 Reauthorization Act conversation included proposals to extend defeat authority to state and local law enforcement under a federally-coordinated framework; the legislative posture remains unsettled in 2026.
+The DOJ Federal Bureau of Prisons received counter-UAS authority under the 2018 Preventing Emerging Threats Act for the protection of federal prisons. Subsequent DOJ guidance has expanded counter-UAS operational authority to specific national-security and witness-protection contexts. The 2024 Reauthorization Act conversation included proposals to extend defeat authority to state and local law enforcement under a federally-coordinated framework; the SAFER SKIES Act in the FY2026 NDAA (December 2025) enacted such an extension.
 
 ### Practical organization-side workflow
 
@@ -476,7 +476,7 @@ Five rules carry most of the defensive load:
 
 When reviewing code or systems in this domain, the following 12 checks cover the dominant attack patterns:
 
-1. **MAVLink signing enforced** — MAVLink 2.0 message signing (HMAC-SHA-256) enabled and required; reject unsigned messages. The "opt-in by default" trap kills systems.
+1. **MAVLink signing enforced** — MAVLink 2.0 message signing (48-bit SHA-256-based signature with a shared 32-byte key) enabled and required; reject unsigned messages. The "opt-in by default" trap kills systems.
 2. **GCS authentication** — Ground Control Station authenticates to the vehicle with vehicle-specific credentials, not a fleet-wide shared key. Rotate per-vehicle.
 3. **GNSS plausibility checks** — multi-constellation cross-check; reject inconsistent fixes; degrade to IMU on plausibility failure rather than trusting the spoofed fix.
 4. **OSNMA validation** — when Galileo is in the GNSS mix, validate OSNMA. Receiver firmware support is still patchy; verify the deployed chain.
@@ -528,7 +528,7 @@ The highest-leverage organizational investment is repeatable tabletop drills wit
 - Black Hat Asia 2016 speaker page: https://www.blackhat.com/asia-16/speakers/Nils-Rodday.html
 - The Register on Rodday: https://www.theregister.com/2016/04/01/hacker_reveals_40_attack_to_steal_28000_drones_from_2km_away/
 - The Hacker News on Rodday: https://thehackernews.com/2016/04/hacking-drone.html
-- "Behind The Wings: Reverse Engineering and Drone Hijacking in DJI Enhanced Wi-Fi Protocol" (arXiv 2023): https://arxiv.org/abs/2309.05913
+- "Behind The Wings: The Case of Reverse Engineering and Drone Hijacking in DJI Enhanced Wi-Fi Protocol" (arXiv 2023): https://arxiv.org/abs/2309.05913
 - MAVSec paper (Allouch et al., 2019, arXiv): https://arxiv.org/pdf/1905.00265
 - MAVSec IEEE: https://ieeexplore.ieee.org/document/8766667/
 - Alias Robotics, "Cybersecurity status of PX4" (PDF): https://aliasrobotics.com/files/cybersecurity_status_PX4.pdf
@@ -542,15 +542,15 @@ The highest-leverage organizational investment is repeatable tabletop drills wit
 - FAA Safety Team Remote ID guide (PDF, 2024): https://www.faasafety.gov/files/gslac/library/documents/2024/Dec/415588/3-RID-Remote_ID_Main_2024.pdf
 - Rupprecht Law Remote ID summary: https://jrupprechtlaw.com/remote-identification/
 - 47 USC 333 (radio communications interference): https://www.law.cornell.edu/uscode/text/47/333
-- 49 USC 44810 (counter-UAS authority for DOJ / DHS): https://www.law.cornell.edu/uscode/text/49/44810
+- 49 USC 44810 (FAA airport safety and airspace hazard mitigation and enforcement): https://www.law.cornell.edu/uscode/text/49/44810
 
 ### Counter-UAS commercial products
 
 - Anduril Counter-UAS overview: https://www.anduril.com/counter-uas
 - Anduril Anvil: https://www.anduril.com/anvil
 - Anduril Industries Wikipedia: https://en.wikipedia.org/wiki/Anduril_Industries
-- US Army SHIELD $20B contract award to Anduril (DefenseScoop, 2026): https://defensescoop.com/2026/03/14/anduril-20-billion-dollar-army-contract/
-- US Army SHIELD counter-drone task order (Breaking Defense, 2026): https://breakingdefense.com/2026/03/army-awards-anduril-counter-drone-task-order-as-first-in-new-20b-contract-vehicle/
+- US Army $20B contract award to Anduril (DefenseScoop, 2026): https://defensescoop.com/2026/03/14/anduril-20-billion-dollar-army-contract/
+- US Army counter-drone task order (Breaking Defense, 2026): https://breakingdefense.com/2026/03/army-awards-anduril-counter-drone-task-order-as-first-in-new-20b-contract-vehicle/
 - Marines / Anduril for base defense (DefenseScoop, 2025): https://defensescoop.com/2025/03/13/marine-corps-anduril-contract-defend-installations-small-uas-drones/
 - StreetWise Reports on counter-drone market (2025): https://www.streetwisereports.com/article/2025/03/20/us-642m-defense-deal-signals-surging-demand-for-ai-counter-drone-tech.html
 - DroneShield product line: https://www.droneshield.com/
@@ -582,7 +582,6 @@ The highest-leverage organizational investment is repeatable tabletop drills wit
 - Abqaiq-Khurais attack (Wikipedia): https://en.wikipedia.org/wiki/Abqaiq%E2%80%93Khurais_attack
 - NPR on Abqaiq: https://www.npr.org/2019/09/19/762065119/what-we-know-about-the-attack-on-saudi-oil-facilities
 - Defense Update on Abqaiq missile analysis: https://defense-update.com/20190914_aramco_attack.html
-- United Against Nuclear Iran on Abqaiq: https://www.unitedagainstnucleariran.com/september-2019-attacks-on-abqaiq-and-khurais
 - HESA Shahed 136 (Wikipedia): https://en.wikipedia.org/wiki/HESA_Shahed_136
 - Institute for Science and International Security monthly Shahed deployment reports: https://isis-online.org/isis-reports/monthly-analysis-of-russian-shahed-136-deployment-against-ukraine
 - ISIS 2025 comprehensive review: https://isis-online.org/isis-reports/a-comprehensive-analytical-review-of-russian-shahed-type-uavs-deployment-against-ukraine-in-2025

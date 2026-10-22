@@ -5,26 +5,26 @@
 > - **Renée DiResta** (Associate Research Professor, McCourt School of Public
 >   Policy, Georgetown, since October 2024; Technical Research Manager, Stanford
 >   Internet Observatory, 2019 to June 2024; previously Director of Research,
->   Yonder; advisor to New Knowledge during the 2018 Senate Select Committee on
+>   Yonder; Director of Research at New Knowledge during the 2018 Senate Select Committee on
 >   Intelligence reporting on Russian IRA activity). Author of *Invisible Rulers:
 >   The People Who Turn Lies Into Reality* (PublicAffairs, 2024), the
 >   contemporary canonical text on networked propaganda and "bespoke realities."
 >   The SIO 2024 wind-down — driven by lawfare, subpoena costs, and harassment
 >   campaigns — is itself one of the field's most consequential incidents.
-> - **Camille François** (Professor of Practice, Columbia SIPA; Founding
+> - **Camille François** (Associate Professor of Practice, Columbia SIPA; Founding
 >   President, ROOST; previously Senior Director, Trust & Safety at Niantic; CIO
 >   at Graphika; Principal Researcher at Google Jigsaw). Author of the
 >   *Actors–Behavior–Content (ABC) Disinformation Framework* (Transatlantic
 >   Working Group, September 2019) — the dominant structural taxonomy for
->   influence operations across the platform-T&S industry. Coined "patriotic
->   trolling" for government-backed networked harassment of journalists and
+>   influence operations across the platform-T&S industry. Wrote on "patriotic
+>   trolling," government-backed networked harassment of journalists and
 >   dissidents.
 > - **Ben Nimmo** (Principal Investigator, Intelligence and Investigations
->   team, OpenAI, 2023–present; previously Global Lead, Threat Intelligence at
+>   team, OpenAI, 2024–present; previously Global Lead, Threat Intelligence at
 >   Meta; Head of Investigations at Graphika; co-founder, Atlantic Council
 >   DFRLab). Originator of the quarterly threat-intelligence reporting pattern
 >   at three successive organizations; lead author on OpenAI's *Disrupting
->   Malicious Uses of AI* report series (semi-annual since 2024) — the first
+>   Malicious Uses of AI* report series — the first
 >   systematic public record of state-aligned use of frontier LLMs in influence
 >   operations.
 > - **Joan Donovan** (Assistant Professor, Boston University College of
@@ -49,7 +49,7 @@
 >   Institutional home for the open-source approach to state-aligned info-ops
 >   attribution; co-author of the 2024 *Doppelganger* US-election report.
 > - **The Graphika team** (Camille François pre-2021, John Kelly, Jack Stubbs,
->   Vanessa Molter, Cindy Otis). Originator of the *map-the-network* analytic
+>   Vanessa Molter). Originator of the *map-the-network* analytic
 >   approach; Graphika's ATLAS product is the dominant commercial
 >   CIB-monitoring substrate.
 > - **The Citizen Lab influence-ops thread** (Ronald Deibert, John
@@ -110,9 +110,7 @@ the public discourse around an institution and how it propagates through
 algorithmic platforms.
 
 Treating influence operations as outside cybersecurity is a costume choice.
-The threat actor is often the same — GRU Unit 26165 runs both hack-and-leak
-operations and the Doppelganger amplification clusters; Iran's IRGC-aligned
-actors run both Pegasus-style espionage and Endless Mayfly. The forensic
+The threat actor is often the same. The forensic
 substrate (timestamps, language artifacts, infrastructure reuse) is similar.
 What differs is the payload: instead of a beacon calling C2, a tweet calling
 for engagement; instead of credentials harvested, opinions moved. The defense
@@ -267,8 +265,8 @@ EU-institution adoption from 2022 onward.
 DISARM comprises two paired frameworks:
 
 - **DISARM Red** — offensive TTPs. The full lifecycle from *Plan Strategy* and
-  *Plan Objectives* through *Develop Narratives*, *Develop Content*,
-  *Establish Social Assets*, *Establish Legitimacy*, *Microtarget*, *Select
+  *Plan Objectives* through *Target Audience Analysis*, *Develop Narratives*,
+  *Develop Content*, *Establish Assets*, *Establish Legitimacy*, *Microtarget*, *Select
   Channels and Affordances*, *Conduct Pump Priming*, *Deliver Content*,
   *Maximize Exposure*, *Drive Online Harms*, *Drive Offline Activity*,
   *Persist in the Information Environment*, *Assess Effectiveness*. Modeled
@@ -292,8 +290,7 @@ DISARM-to-ATT&CK lift is small: same shape, different substrate.
   link `adversarial_ml_model_security_expertise.md` §7.
 - **OASIS STIX 2.1** — the same data model used in technical CTI supports
   influence-ops via existing object types with DISARM attack-pattern objects
-  substituted for ATT&CK. The OASIS CTI TC *Disrupting Disinformation*
-  subgroup has been working since 2022 on extensions; some MISP galaxies are
+  substituted for ATT&CK. Some MISP galaxies are
   in production.
 - **EU DSA Code of Practice on Disinformation** — platform-side framework
   rather than analytic. Voluntary 2018; integrated into DSA framework as of
@@ -414,7 +411,7 @@ The text content of an operation carries signatures beyond the message:
   often have stable per-operator signatures, so multi-operator clusters fall
   apart under stylometric clustering. *Mendenhall*, *Burrows Delta*, and
   modern transformer-embedding-based methods all work; stylometry is mature
-  literature with a 30-year track record.
+  literature dating to the 19th century.
 - **Named-entity overlap.** Across-account use of the same named entities
   (people, organizations, locations) at rates above baseline. Particularly
   diagnostic when paired with consistent stance toward the entity.
@@ -433,9 +430,7 @@ How operators acquire accounts is itself a signature.
   followings since 2014.
 - **Compromised accounts.** Hijacked-via-credential-stuffing real-user
   accounts repurposed. Detectable by sudden change in posting behavior,
-  topic, language, or geography for an established account. The 2024
-  Doppelganger campaign relied on this heavily for its X (Twitter)
-  amplification layer.
+  topic, language, or geography for an established account.
 - **AI-generated personas.** Accounts created from scratch with GAN-generated
   profile photos, scraped or LLM-generated bio text, and synthetic personal-
   history. Tank-Man-synthesized class. Detection: reverse-image searches that
@@ -468,7 +463,8 @@ trajectory analysis on the public timeline.
 ### Hamilton 2.0 and the open-source toolkit
 
 Hamilton 2.0 (German Marshall Fund Alliance for Securing Democracy) tracks
-~500 Russia-, China-, and Iran-state-aligned Twitter accounts and surfaces
+Russian, Chinese, and Iranian government officials and state-backed media
+across Twitter, Telegram, YouTube, Facebook, Instagram, and TikTok, and surfaces
 their narrative topics, hashtag use, and amplification patterns daily. The
 dashboard's selection methodology is publicly documented; the data is
 public-API-derived. The tool is the reference for "what are state-aligned
@@ -492,8 +488,8 @@ event-by-event case studies.
 The longest-running and most-documented influence-operation actor space.
 
 - **Internet Research Agency (IRA)** — Saint Petersburg troll farm founded by
-  Yevgeny Prigozhin (killed 2023). Operated 2013–2023; rebranded after the
-  2023 Wagner mutiny. Conducted the canonical 2016 US election operation
+  Yevgeny Prigozhin (killed 2023). Operated 2013–2023; its Patriot media group
+  shut down after the 2023 Wagner mutiny. Conducted the canonical 2016 US election operation
   (Mueller indictment, SSCI reports). Successor orgs (see Storm-1516) inherited
   staff and infrastructure.
 - **GRU Unit 26165 (APT28 / Fancy Bear)** — Russian military intelligence.
@@ -504,7 +500,7 @@ The longest-running and most-documented influence-operation actor space.
 - **Doppelganger** — commercial influence-op network active since 2022.
   Operates fake versions of real news outlets (Der Spiegel, Le Parisien, Fox
   News, Washington Post, Bild) plus hundreds of thousands of automated X
-  accounts. Attributed by Meta (December 2022) to Russian companies *Structura*
+  accounts. Attributed (DOJ, September 2024) to Russian companies *Structura*
   and *Social Design Agency*; confirmed by VIGINUM (June 2023); DOJ seized 32
   domains in 2024. Tied to Sergei Kiriyenko (First Deputy Chief of Staff,
   Russian Presidential Executive Office). Primary EU-targeting operation;
@@ -535,9 +531,9 @@ political subtlety. Quality improved with AI-generated content adoption 2023–2
   Taiwan presidential election. AI-generated candidate audio, news anchors,
   the *Secret History of Tsai Ing-wen* AI ebook. First major state deployment
   of generative-AI in an election cycle. Cross-link §5.
-- **MULAN / Canada Spamouflage transnational repression** — June 2024
-  Government of Canada RRM report linked a Spamouflage-affiliated repression
-  campaign in Canada to PRC actors.
+- **Canada Spamouflage transnational repression** — January and March 2025
+  Government of Canada RRM disclosures linked Spamouflage-affiliated
+  campaigns targeting Chinese-language commentators in Canada to the PRC.
 
 ### Iran
 
@@ -548,7 +544,7 @@ Smaller, deniable, with deletion-and-misdirect tradecraft.
   *delete the article and redirect the URL to the legitimate outlet's domain*
   after traction — leaving the impression that the legitimate outlet had
   published and retracted. Hence "Mayfly."
-- **Liminal Panda** (CrowdStrike-named) and **Charming Kitten / APT35** —
+- **Charming Kitten / APT35** —
   IRGC-aligned, primary espionage with influence-op adjacency.
 - **Storm-2035** — Microsoft-tracked Iranian operation targeting the 2024 US
   cycle with cross-platform fake-American-persona accounts. Lower volume than
@@ -571,14 +567,14 @@ Smaller, deniable, with deletion-and-misdirect tradecraft.
 - **US-aligned and Western-democracies' operations** — pre-2013 documented
   covert USIA / VOA activity; Snowden-era JTRIG (GCHQ); May 2024 STOIC
   takedown documented an Israeli commercial contractor; Reuters reported a
-  US-DoD-contracted operation in the Middle East and Central Asia. Smaller
+  covert US-military anti-vaccine operation in the Philippines (June 2024). Smaller
   public corpus, not zero.
 
 ### Ben Nimmo quarterly reports as ongoing source
 
-Since joining OpenAI in 2023, Ben Nimmo has continued the quarterly-report
+Since joining OpenAI in 2024, Ben Nimmo has continued the quarterly-report
 discipline established at DFRLab / Graphika / Meta. The OpenAI *Disrupting
-Malicious Uses of AI* reports (semi-annual since 2024) are now the most-
+Malicious Uses of AI* reports are now the most-
 authoritative single source for state-aligned LLM use in influence operations.
 Treat as canonical primary-source for AI-content adoption curve in
 influence-ops over 2024–2026.
@@ -602,8 +598,7 @@ late 2022 onward.
 Operational implications:
 
 - **Volume scaling.** Operations that previously needed human writers can
-  now generate thousands of variant posts daily. The 2024 Doppelganger X
-  amplification layer is almost entirely LLM-generated text.
+  now generate thousands of variant posts daily.
 - **Per-language localization.** A single Russian-operator team can run
   English, German, French, Spanish, Italian, and Polish operations
   simultaneously by routing through LLM translation+localization. Detection-
@@ -616,8 +611,8 @@ Operational implications:
   as operators move to fine-tuned or instruction-tuned variants.
 - **Conversational amplification.** Real-time LLM-driven replies to
   organic users — the conversational version of bot amplification — appeared
-  in Doppelganger's 2023–2024 X campaigns. The Microsoft and Meta CIB
-  takedown reports document the pattern.
+  in Doppelganger's 2023–2024 X campaigns. OpenAI's May 2024 threat
+  report documents the pattern.
 
 Detection (cross-link `adversarial_ml_model_security_expertise.md` §10):
 DetectGPT, GLTR, Hugging Face detectors. All declining in reliability as
@@ -632,7 +627,7 @@ dynamic favors the generator.
 Midjourney v5+, Flux.1 family, Stable Diffusion XL/3, DALL-E 3, Gemini
 Imagen 3, FLUX Pro. The 2023 "Pentagon explosion" fake image (May 22, 2023)
 that briefly moved the S&P 500 is the canonical financial-market influence
-incident. Tank-Man-synthesized AI-generated portrait photos populate the
+incident. AI-generated portrait photos populate the
 profile-photo layer of thousands of inauthentic accounts across operations.
 
 Detection: forensic artifacts (anatomical inconsistencies, asymmetric
@@ -649,7 +644,7 @@ is not quite there in 2026, but pre-generated synthetic video is
 production-capable for 5-to-60-second clips. The Taiwan 2024 election cycle
 saw the first major state deployment of AI-generated video in an election
 context — the *Storm-1376* operation produced synthetic news anchors,
-synthetic candidate audio matched to lip-synced video, and the AI-generated
+synthetic candidate audio matched to lip-synced video, and the
 *Secret History of Tsai Ing-wen* ebook with accompanying video promotional
 materials.
 
@@ -684,18 +679,16 @@ the most-deployed-against-individuals AI capability in the corpus.
 ### Synthetic identities for inauthentic accounts
 
 GAN-generated profile photos remain the workhorse. ThisPersonDoesNotExist.com
-(NVIDIA StyleGAN2, then StyleGAN3) democratized the technique. Detection:
+(NVIDIA StyleGAN2) democratized the technique. Detection:
 forensic artifacts (StyleGAN2 fixes eye position to specific coordinates,
-which is detectable; StyleGAN3 addresses this), reverse-image search returns
+which is detectable), reverse-image search returns
 no hits (real photos return hits; GAN-generated photos do not), and modern
 diffusion-model-based portraits have their own characteristic artifacts.
 
 ### C2PA — the defensive provenance primitive
 
 The Coalition for Content Provenance and Authenticity (C2PA), founded 2021,
-with Adobe, Microsoft, Truepic, Sony, Canon, Nikon, Leica, BBC, Intel,
-NVIDIA, Google as founding members. Specification 2.2 (May 2025); 2.3 draft
-as of May 2026; supports JPEG, PNG, WebP, AVIF, HEIC, MP4, MOV, PDF, MP3, WAV.
+with Adobe, Arm, BBC, Intel, Microsoft, and Truepic as founding members. Specification 2.2 (May 2025); supports JPEG, PNG, WebP, AVIF, HEIC, MP4, MOV, PDF, MP3, WAV.
 
 A **C2PA Manifest** is a digitally signed bundle of *assertions* (camera
 model, capture time, geolocation if disclosed, edit history, generative-AI
@@ -703,11 +696,10 @@ tool if any, signer identity) embedded in the asset and verifiable against a
 public-key trust list. Producers (cameras, editing software, generative-AI
 vendors) sign on output; consumers (browsers, platforms) verify on display.
 
-Adoption (May 2026): Adobe Creative Cloud signs by default. Microsoft Windows
-and Edge verify and surface manifest UI. Leica, Sony, Nikon ship signing in
-pro-tier camera models; Google Pixel 9+ signs. OpenAI DALL-E 3, Sora; Adobe
-Firefly; Microsoft Designer; Bing Image Creator sign. Meta, LinkedIn, TikTok,
-X support partial verify-and-label. EU AI Act Article 50 effectively mandates
+Adoption (May 2026): Leica, Sony, Nikon ship signing in
+pro-tier camera models; Google Pixel 10 signs. OpenAI DALL-E 3, Sora; Adobe
+Firefly; Microsoft Designer; Bing Image Creator sign. Meta, LinkedIn, TikTok
+support partial verify-and-label. EU AI Act Article 50 effectively mandates
 this trajectory for EU-distributed AI-generated content from August 2026.
 Cross-link §11.
 
@@ -728,9 +720,7 @@ Defender and Truepic. *AI Forensics Open Research Challenge Evaluation* (AI
 FORCE) is the follow-on community challenge.
 
 Commercial detection vendors: Reality Defender, Truepic, Sensity AI, Hive
-Moderation, Optic, DeepMedia.ai. As of May 2026, no detector achieves better
-than 80% on contemporary SOTA generations across modalities. Defender lag
-(6–18 months) is structural; treat detectors as *signaling*, not *verifying*.
+Moderation, Optic, DeepMedia.ai. Defender lag is structural; treat detectors as *signaling*, not *verifying*.
 
 ---
 
@@ -744,9 +734,9 @@ technique, attribution, lesson.
 **Actor:** Internet Research Agency (Russia, Prigozhin-funded); GRU Unit
 26165 (APT28).
 **Technique:** Multi-platform IRA operation — ~3,000 Facebook ads, ~80,000
-organic posts, ~3,400 Twitter accounts (including @TEN_GOP impersonating
+organic posts, ~3,800 Twitter accounts (including @TEN_GOP impersonating
 the Tennessee Republican Party with 130K+ followers), Instagram (est. 187M
-impressions), YouTube, Tumblr. Real-world organizing via Facebook (August
+engagements), YouTube, Tumblr. Real-world organizing via Facebook (May
 2016 Houston "Heart of Texas" / "United Muslims of America" dueling
 protest). GRU parallel hack-and-leak — DNC and Podesta emails via DCLeaks,
 Guccifer 2.0, WikiLeaks.
@@ -762,7 +752,8 @@ against this reference corpus.
 
 **Actor:** Russia-aligned IRA + *Cambridge Analytica* / SCL Group
 (illegal-Facebook-data psychographic targeting on 87M users, Mercer-funded,
-used by both Trump 2016 and Brexit Leave.EU).
+used by Trump 2016; the ICO found its Leave.EU work limited to UKIP
+membership data).
 **Attribution:** UK ICO investigation confirmed CA's data misuse; Russian
 piece less crisp. UK Parliament DCMS Committee report (2019).
 **Lesson:** First documented combination of state-aligned CIB and
@@ -799,7 +790,7 @@ counter-narratives), Iran, domestic anti-vaccine movements. Mixed state /
 organic; hard to disentangle.
 **Attribution:** EU EEAS East StratCom Task Force; SIO *Virality Project*;
 CISA reporting.
-**Lesson:** First true *infodemic* (WHO's coinage). Health-information
+**Lesson:** First true *infodemic* (David Rothkopf's 2003 coinage). Health-information
 manipulation became a permanent platform-T&S category. The Virality
 Project became a flashpoint for political attacks on SIO that contributed
 to the 2024 wind-down.
@@ -854,7 +845,7 @@ quarters.
 **Actor:** PRC state-aligned (Storm-1376 per Microsoft).
 **Technique:** First major election-cycle deployment of AI-generated video
 and audio by a state actor. Synthetic news anchors; deepfake audio of
-candidates; AI-generated *Secret History of Tsai Ing-wen* ebook; AI-
+candidates; *Secret History of Tsai Ing-wen* ebook; AI-
 manipulated videos targeting Lai Ching-te.
 **Lesson:** Taiwan's resilience response is the canonical *whole-of-
 society* defense — media-literacy programs (Taiwan FactCheck Center,
@@ -884,7 +875,7 @@ AI-content deployment in 2028.
 **Technique:** Continuous fake-news-site network + social amplification;
 Insikt Group identified 94+ inauthentic German-language sites for the
 February 2025 cycle alone.
-**Lesson:** Worked example of *DSA-era* response. January 2025
+**Lesson:** Worked example of *DSA-era* response. February 2025
 Code-of-Practice integration created concrete enforcement levers; Meta,
 X, TikTok face EU proceedings tied partly to disinformation response.
 
@@ -910,7 +901,7 @@ Modern platform T&S teams typically include:
 - **Threat Intelligence / Adversarial Threat / Integrity** — the
   investigative arm. Conducts attribution, writes the takedown reports,
   liaises with researchers and law enforcement. The Meta Adversarial
-  Threat team (built by Nathaniel Gleicher 2017–2024) is the canonical
+  Threat team (built by Nathaniel Gleicher from 2018) is the canonical
   reference. The OpenAI Intelligence and Investigations team (Ben Nimmo's
   current org) is the contemporary AI-vendor analog.
 - **Engineering** — content classifiers, account-network analyzers, CIB
@@ -986,7 +977,7 @@ disclosed-only public knowledge.
 ### The Stanford Internet Observatory wind-down
 
 A specific institutional cautionary tale worth naming. SIO operated
-2019–June 2024 under Alex Stamos and (from late 2022) Renée DiResta.
+2019–June 2024 under Alex Stamos and research manager Renée DiResta.
 Its 2020-cycle work (*Long Fuse*) and 2021–2022 work (*Virality Project*)
 were the largest US-academic election-and-vaccine disinformation research
 programs. In 2023, congressional subpoenas (House Judiciary Select
@@ -994,8 +985,8 @@ Subcommittee on the Weaponization of the Federal Government),
 defamation lawsuits, FOIA-style document demands, and sustained
 harassment of researchers (DiResta and others received explicit threats,
 some involving private-investigator surveillance) imposed millions of
-dollars of legal costs and personal burden. The Supreme Court vindicated
-SIO's underlying activity in *Murthy v. Missouri* (June 2024) — but by
+dollars of legal costs and personal burden. The Supreme Court dismissed
+*Murthy v. Missouri* for lack of standing (June 2024) — but by
 that point Stanford's institutional decision had been made. The lab
 wound down to skeleton staff in June 2024; senior researchers dispersed
 (DiResta to Georgetown McCourt, Stamos to SentinelOne CISO, others to
@@ -1086,7 +1077,7 @@ Per-asset verification of content authenticity.
 
 ### Linguistic analysis
 
-- **Stylometry.** Burrows Delta, Mendenhall function-word distribution,
+- **Stylometry.** Burrows Delta, Mendenhall word-length curves,
   modern transformer-embedding-based clustering. Free tools: JGAAP,
   Stylo (R package), per-domain custom analysis.
 - **Translation-artifact detection.** Manual inspection by native
@@ -1214,8 +1205,7 @@ Operational substrate:
 The arms race. State-of-the-art (May 2026):
 
 - **Text-detector** accuracy on contemporary state-of-the-art LLM
-  output: 60–75% on uncontaminated text; drops to 30–50% on
-  paraphrased or otherwise post-processed text. DetectGPT (Mitchell
+  output drops on paraphrased or otherwise post-processed text. DetectGPT (Mitchell
   et al., 2023; perturbation-based likelihood-curvature test), GLTR
   (MIT-IBM Watson AI Lab; visualization-based human-augmented
   detection), OpenAI's withdrawn classifier (deprecated as
@@ -1223,20 +1213,17 @@ The arms race. State-of-the-art (May 2026):
   *fakespot-ai*, *Hello-SimpleAI*), GPTZero (commercial), Originality.ai
   (commercial).
 - **Image-detector** accuracy on contemporary state-of-the-art image
-  generators: ~70% on raw output; drops sharply on post-processed
-  images. Reality Defender, Hive Moderation, Sensity AI, Optic
+  generators drops sharply on post-processed images. Reality Defender, Hive Moderation, Sensity AI, Optic
   (commercial); Intel FakeCatcher (heart-rate-from-pixel-color
   detection on faces). DARPA SemaFor outputs through DSRI.
-- **Voice-detector** accuracy: similar 70–80% range on contemporary
-  voice-clone output; drops on low-bitrate phone-call audio. Pindrop,
+- **Voice-detector** accuracy drops on low-bitrate phone-call audio. Pindrop,
   Resemble AI, ElevenLabs' own detector (limited; trained on its own
   output).
-- **Video-detector** accuracy: hardest modality. ~60% on contemporary
-  Sora / Veo 3 / Runway outputs.
+- **Video-detector** accuracy: hardest modality.
 
 The structural problem: detectors are trained on past generator
 output; generators improve faster than detector retraining cycles;
-the defender lag is 6–18 months structurally. Watermarking
+the defender lag is structural. Watermarking
 (Kirchenbauer et al., ICML 2023 for text; image-side counterparts
 from Google SynthID and Adobe Content Credentials) is the more
 durable defense — embedded at generation time, harder to remove,
@@ -1428,9 +1415,10 @@ policy substrate in the field. State of play, May 2026.
 
 ### EU Digital Services Act (DSA)
 
-Adopted October 2022; in force February 2024 for Very Large Online
-Platforms (VLOPs) and Very Large Online Search Engines (VLOSEs); fully
-applicable to all in-scope intermediaries since February 2024. Imposes:
+Adopted October 2022; in force 16 November 2022; applicable to Very Large
+Online Platforms (VLOPs) and Very Large Online Search Engines (VLOSEs)
+from 25 August 2023; fully applicable to all in-scope intermediaries
+since 17 February 2024. Imposes:
 
 - **Article 14** transparency and content-moderation obligations.
 - **Article 26** advertising transparency.
@@ -1448,7 +1436,7 @@ commitments from July 2025 onward.
 
 Enforcement: VLOP/VLOSE non-compliance carries fines up to 6% of global
 turnover. The Commission has opened proceedings against multiple VLOPs
-since 2024.
+since December 2023.
 
 ### EU AI Act
 
@@ -1460,8 +1448,9 @@ Adopted May 2024; phased in 2024–2027. Influence-ops-relevant provisions:
   disclose unless the use is authorized by law or constitutes artistic
   / satirical / fictional work (in which case more limited disclosure
   applies).
-- **Article 50(2)** explicitly mentions watermarks, metadata-based
-  identifiers, and provenance tools as appropriate technical solutions.
+- **Recital 133** lists watermarks, metadata identifications, and
+  cryptographic methods for proving provenance as possible techniques for
+  the Article 50(2) machine-readable marking duty.
 - **Code of Practice on Marking and Labelling AI-Generated Content** —
   drafting underway as of May 2026; expected adoption May–June 2026 in
   advance of the August 2026 transparency-obligations enforcement
@@ -1481,8 +1470,7 @@ of turnover.
   government voluntary framework for AI risk management; 600-1 covers
   generative-AI risks including synthetic-media production. Cross-link
   `llm_agent_security_expertise.md`.
-- **California AB 730** (2019, deepfake-near-election prohibition, narrowed
-  by First Amendment injunction); **AB 2655, 2839, 2355** (2023–2024,
+- **California AB 730** (2019, deepfake-near-election prohibition); **AB 2655, 2839, 2355** (2023–2024,
   political-AI disclosure). Multiple US states enacted post-2023 deepfake-
   disclosure laws targeting election content; constitutional contours
   contested.
@@ -1491,8 +1479,9 @@ of turnover.
   2024) addressed adjacent issues. *Murthy v. Missouri* (June 2024) ruled
   against plaintiffs on government-platform coordination — vindicated SIO's
   underlying activity, came too late to save the lab.
-- **DARPA SemaFor / RED** — *RED (Refute and Expose Discord)* (2024–)
-  extends SemaFor to narrative-attack modeling.
+- **DARPA SemaFor / RED** — *RED (Reverse Engineering of Deceptions)*
+  aims to automatically reverse-engineer the toolchains behind information
+  deception attacks.
 - **Election-cycle special regimes** — France's 48-hour pre-vote
   information blackout (contained Macron Leaks 2017); EU *Political
   Advertising Regulation* (2024); fragmented US per-state regimes.
@@ -1505,10 +1494,8 @@ and legal pressure their institutions assessed as not worth bearing despite
 ultimate legal vindication. Lesson: research institutions in politically-
 contested spaces require pre-positioned defenses (legal counsel,
 communications, donor relationships, peer coalitions) anticipating the
-*cost of defending* the activity, not just substantive merit. Donor
-consortia (Knight, MacArthur, Hewlett, Omidyar) have shifted post-2024
-toward distributed research networks vs. centralized programs. The
-Information Integrity Lab at Georgetown (DiResta's institutional home) is
+*cost of defending* the activity, not just substantive merit. Georgetown's
+McCourt School of Public Policy (DiResta's institutional home) is
 the deliberate alternative model — public-policy school with stronger
 institutional infrastructure for politically-contested research.
 
@@ -1544,7 +1531,7 @@ with FINRA, SEC, and exchange T&S teams.
 
 A category bridging insider-threat and influence-ops: employee posting
 harmful narrative through official channels (hijacked corporate account,
-unauthorized press release, malicious customer-support response). The 2023
+unauthorized press release, malicious customer-support response). The 2022–2023
 *Twitter Files* releases are a partial example — internal documents leaked
 with specific framing intended to create policy effects. Whether the
 framing-and-amplification side is "influence operation" or "transparency
@@ -1600,8 +1587,7 @@ broader-scope. Downstream influence-ops implications unresolved.
 
 Platforms piloting LLM-driven fact-checking-at-scale (X's *Grok*
 community-notes integration is most-visible as of 2026). Empirical question
-— do LLM fact-checkers improve or degrade information quality? — open;
-Cambridge SDM Lab and others suggest mixed results. Emerging consensus:
+— do LLM fact-checkers improve or degrade information quality? — open. Emerging consensus:
 LLMs are useful *triage* for fact-checking workflows (flagging for human
 review) but unreliable as *adjudicators*.
 
@@ -1625,9 +1611,9 @@ review) but unreliable as *adjudicators*.
 - Donovan, Joan, Emily Dreyfuss, and Brian Friedberg. *Meme Wars: The
   Untold Story of the Online Battles Upending Democracy in America.*
   Bloomsbury, 2022.
-- Roozenbeek, Jon, and Sander van der Linden. *Foolproof: Why
+- van der Linden, Sander. *Foolproof: Why
   Misinformation Infects Our Minds and How to Build Immunity.* W. W.
-  Norton, 2024.
+  Norton, 2023.
 
 ### Framework documentation
 
@@ -1664,7 +1650,7 @@ review) but unreliable as *adjudicators*.
 ### Platform threat-intelligence sources
 
 - [Meta Adversarial Threat Reports](https://about.fb.com/news/tag/coordinated-inauthentic-behavior/)
-  (quarterly since 2018).
+  (quarterly since 2022).
 - [OpenAI Disrupting Malicious Uses of AI](https://openai.com/global-affairs/disrupting-malicious-uses-of-our-models/)
   reports (semi-annual since 2024).
 - [Google Threat Analysis Group Dragonbridge quarterly posts](https://blog.google/threat-analysis-group/).
@@ -1757,17 +1743,17 @@ review) but unreliable as *adjudicators*.
   2 (October 2019). [Senate](https://www.intelligence.senate.gov/sites/default/files/documents/Report_Volume2.pdf).
 - [Mueller IRA Indictment](https://www.justice.gov/file/1035477/download)
   (February 2018).
-- DiResta, Renée et al. *The IRA, Social Media, and Political
-  Polarization in the United States, 2012-2018.* New Knowledge SSCI
-  report, 2018.
+- Howard, Philip N. et al. *The IRA, Social Media, and Political
+  Polarization in the United States, 2012-2018.* Oxford Internet
+  Institute / Graphika SSCI report, 2018.
 - [2017 Macron e-mail leaks Wikipedia summary](https://en.wikipedia.org/wiki/2017_Macron_e-mail_leaks).
 - Vilmer, Jean-Baptiste Jeangène. *The "Macron Leaks" Operation: A Post-
   Mortem.* Atlantic Council, 2019.
   [PDF](https://www.atlanticcouncil.org/wp-content/uploads/2019/06/The_Macron_Leaks_Operation-A_Post-Mortem.pdf).
 - [Storm-1516 Wikipedia summary](https://en.wikipedia.org/wiki/Storm-1516).
-- Microsoft Threat Analysis Center. *MTAC Election Report 5: Russian
+- Microsoft Threat Analysis Center. *MTAC Election Report 4: Russian
   Influence Operations.* September 2024.
-  [PDF](https://cdn-dynmedia-1.microsoft.com/is/content/microsoftcorp/microsoft/msc/documents/presentations/CSR/MTAC-Election-Report-5-on-Russian-Influence.pdf).
+  [PDF](https://cdn-dynmedia-1.microsoft.com/is/content/microsoftcorp/microsoft/msc/documents/presentations/CSR/MTAC-Election-Report-4.pdf).
 - DFRLab. *Doppelganger: How Russia Mimicked Real News Sites and
   Created Fake Ones to Target US Audiences.* September 2024.
   [Page](https://dfrlab.org/2024/09/18/doppelganger-us-election/).
@@ -1776,9 +1762,6 @@ review) but unreliable as *adjudicators*.
   [Page](https://www.recordedfuture.com/research/stimmen-aus-moskau-russian-influence-operations-target-german-elections).
 - Recorded Future Insikt Group. *2024 Annual Report.* January 2025.
   [PDF](https://go.recordedfuture.com/hubfs/reports/cta-2025-0128.pdf).
-- Mobilio, Stephanie. *GenAI in the 2024 Taiwan Presidential Election.*
-  *The Cyber Defense Review,* Fall 2024.
-  [PDF](https://cyberdefensereview.army.mil/Portals/6/Documents/2024-Fall/Mobilio_CDRV9N3-Fall-2024.pdf).
 - [Arup Deepfake Case (CNN, May 2024)](https://www.cnn.com/2024/05/16/tech/arup-deepfake-scam-loss-hong-kong-intl-hnk).
 - US Department of Justice. *Tenet Media Indictment.* September 2024.
 
@@ -1786,8 +1769,6 @@ review) but unreliable as *adjudicators*.
 
 - [Murthy v. Missouri SCOTUS opinion](https://www.supremecourt.gov/opinions/23pdf/23-411_3dq3.pdf),
   June 2024.
-- *Why Stanford Shuttered its Election-Misinformation Group.* Stanford
-  Daily, June 2024.
 - *I Had to Leave: Misinformation Expert Joan Donovan Exits Harvard.*
   Harvard Crimson, August 2023.
   [Page](https://www.thecrimson.com/article/2023/8/18/joan-donovan-leaves-kennedy-school/).
@@ -1795,7 +1776,7 @@ review) but unreliable as *adjudicators*.
 ### Conference proceedings
 
 - [CYBERWARCON](https://www.cyberwarcon.com/) annual proceedings
-  (founded by John Hultquist, Sandra Joyce, and Ben Nimmo; the
+  (founded by John Hultquist; the
   influence-ops-adjacent conference).
 - [SLEUTHCON](https://www.sleuthcon.com/) annual proceedings.
 - USENIX Security, NDSS, IEEE S&P (selected influence-ops papers in the

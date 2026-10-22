@@ -2,18 +2,18 @@
 ## Synthesized from Justin Cappos, Santiago Torres-Arias, Trishank Karthik Kuppusamy, Luke Hinds, Dan Lorenc, Bob Callaway, Priya Wadhwa, Adolfo García Veytia, Brandon Lum, Kate Stewart, Steve Springett, Russ Cox, Holger Levsen, Vagrant Cascadian, and Kurt Boberg
 
 > **Primary researchers / teams:**
-> - **Justin Cappos** (Professor, NYU Tandon Secure Systems Lab) — Creator of five Linux Foundation projects: TUF (2010), in-toto (2016), Uptane, SBOMit, and gittuf. TUF was the first specification project to graduate from CNCF (Dec 2019). Production use at Google, Red Hat/IBM, VMware, Docker, Amazon, Palantir, Lockheed Martin, Datadog, Bloomberg.
+> - **Justin Cappos** (Professor, NYU Tandon Secure Systems Lab) — Creator of five Linux Foundation projects: TUF (2010), in-toto (2016), Uptane, SBOMit, and gittuf. TUF was the first specification project to graduate from CNCF (Dec 2019). Production use at Docker, VMware, Cloudflare, Microsoft, Amazon, Google, IBM, DigitalOcean, Datadog.
 > - **Santiago Torres-Arias** (Assistant Professor of ECE, Purdue; formerly NYU Tandon PhD) — Team lead of in-toto. First author of the USENIX Security 2019 paper *in-toto: Providing farm-to-table guarantees for bits and bytes* with Afzali, Kuppusamy, Curtmola, and Cappos. TUF maintainer.
-> - **Trishank Karthik Kuppusamy** (Staff Security Engineer, Datadog) — Led R&D of TUF and Uptane at NYU Tandon; co-author of in-toto USENIX 2019. At Datadog, led the team that combined TUF + in-toto for what the industry described as the first end-to-end verified integration pipeline.
+> - **Trishank Karthik Kuppusamy** (Staff Security Engineer, Datadog) — Led R&D of TUF and Uptane at NYU Tandon; co-author of in-toto USENIX 2019. At Datadog, led the team that combined TUF + in-toto for a compromise-resilient integration pipeline that Datadog described as the first of its kind discussed in the industry.
 > - **Luke Hinds** (CTO, Stacklok; formerly Distinguished Engineer at Red Hat) — Creator of sigstore; current chair of the sigstore TSC. Launched Stacklok in May 2023.
-> - **Dan Lorenc** (Co-founder + CEO, Chainguard; formerly lead of Google's Open Source Security Team) — Co-creator of sigstore (first release March 2021). Created Tekton; developed Minikube, Skaffold, Kaniko. Established SLSA as common language for supply-chain integrity. Founded Chainguard in September 2021.
-> - **Bob Callaway** (Staff Software Engineer, Google; sigstore TSC) — Rekor architect; longtime maintainer of the sigstore transparency log.
-> - **Priya Wadhwa** (Senior Engineering Manager, Chainguard; sigstore TSC) — Maintainer of Rekor, Cosign, and Tekton Chains.
+> - **Dan Lorenc** (Co-founder + CEO, Chainguard; formerly lead of Google's Open Source Security Team) — Co-creator of sigstore (first release March 2021). Created Tekton; developed Minikube, Skaffold, Kaniko. Founded Chainguard in September 2021.
+> - **Bob Callaway** (Google; sigstore TSC) — Sigstore co-founder; leads Google's Open Source Security Team.
+> - **Priya Wadhwa** (Director of Engineering, Chainguard; sigstore TSC) — Maintainer of Rekor, Cosign, and Tekton Chains.
 > - **Adolfo García Veytia ("puerco")** (Staff Software Engineer, Stacklok) — Original author of the OpenSSF Protobom project (universal IO layer between SBOM formats, partnered with CISA + OpenSSF + DHS). Original author of OpenVEX. Contributor to SPDX. Technical Lead with Kubernetes SIG Release.
 > - **Brandon Lum** (Software Engineer, Google; formerly IBM) — Contributor to SLSA 1.0 / SPDX 3.0 build profile alignment; co-author of Kubernetes-release supply-chain hardening proposals.
-> - **Kate Stewart** (Senior Director of Strategic Programs, The Linux Foundation) — Co-founder of SPDX and current SPDX specification lead. Linux Foundation Open Compliance portfolio (SPDX, FOSSology, OpenChain) + Real-Time Linux + Zephyr.
-> - **Steve Springett** (Director of Product Security at ServiceNow; Chair of OWASP CycloneDX; founder of Ecma International TC54) — Founder of CycloneDX; creator of OWASP Dependency-Track; leads OWASP SCVS.
-> - **Russ Cox** (formerly Tech Lead, Go team, Google) — Architect of the Go module-mirror checksum database; driver of Go 1.21's bit-for-bit reproducible toolchain. His "Surviving Software Dependencies" essay and the sumdb proposal are the canonical "trust on first sight" + transparency-log-as-discipline framing.
+> - **Kate Stewart** (VP of Dependable Embedded Systems, The Linux Foundation) — Co-founder of SPDX and current SPDX specification lead. Linux Foundation Open Compliance portfolio (SPDX, FOSSology, OpenChain) + Real-Time Linux + Zephyr.
+> - **Steve Springett** (Director of Product Security at ServiceNow; Chair of OWASP CycloneDX; Chair of Ecma International TC54) — Founder of CycloneDX; creator of OWASP Dependency-Track; leads OWASP SCVS.
+> - **Russ Cox** (formerly Tech Lead, Go team, Google) — Architect of the Go module-mirror checksum database; driver of Go 1.21's bit-for-bit reproducible toolchain. His "Surviving Software Dependencies" essay and the sumdb proposal are the canonical framing for moving beyond SSH-style "trust on first use" with a transparency log.
 > - **Holger Levsen** (Debian; Reproducible Builds project) — Debian contributor since 2001, DD since 2007. Began systematic Debian-package reproducibility builds in Sept 2014; Reproducible Builds has been his primary focus since. Automated reproducibility testing across Debian, Fedora, Arch, FreeBSD, NetBSD, OpenWrt, coreboot.
 > - **Vagrant Cascadian** (Debian; GNU Guix; Reproducible Builds project) — Long-running Debian package-reproducibility specialist. Empirical measurement: 88 of 154 (57%) packages in a minimal sid system reproduce independently.
 > - **Kurt Boberg** (@lapt0r) — Staff Security Researcher at Semgrep. Co-author of *Popular GitHub Action tj-actions/changed-files is compromised* (semgrep.dev/blog, Mar 2025).
@@ -47,11 +47,11 @@ Each `→` is a transition with a verifiable attestation: issuer, subject, predi
 The incident corpus that reframes the discussion:
 
 - **SUNBURST / SolarWinds (Dec 2020)** — Build-environment compromise (SUNSPOT) injected a backdoor into signed `SolarWinds.Orion.Core.BusinessLayer.dll`. Signature real; source-to-build link broken. SLSA L3 would have invalidated the resulting provenance.
-- **Codecov bash uploader (Apr 2021)** — Credential exfiltrated from Codecov's Docker build env; thousands of CI environments leaked secrets.
-- **ua-parser-js (Oct 2021)** — Maintainer-PAT compromise; provenance from build to publish would have flagged the divergence.
+- **Codecov bash uploader (Apr 2021)** — Credential exfiltrated from Codecov's Docker build env.
+- **ua-parser-js (Oct 2021)** — Maintainer npm-account hijack; provenance from build to publish would have flagged the divergence.
 - **xz-utils CVE-2024-3094 (Mar 2024)** — Multi-year social engineering; backdoor hidden in the release tarball's m4 build script (not the git tree). Reproducible builds against the git tree would have caught the discrepancy.
 - **tj-actions/changed-files CVE-2025-30066 (Mar 2025)** — PAT compromise + mutable-tag rewrite hit ~23,000 repos; Coinbase was the targeted endpoint. Sigstore-signed Action releases + consumer SHA pinning would have localized damage.
-- **Dependency confusion (ongoing since 2021)** — Alex Birsan's namespace-shadowing across npm/PyPI/RubyGems/NuGet remains the cheapest initial-access tool.
+- **Dependency confusion (ongoing since 2021)** — Alex Birsan's namespace-shadowing across npm/PyPI/RubyGems remains the cheapest initial-access tool.
 
 Full incident corpus: [`cicd_supply_chain_expertise.md`](cicd_supply_chain_expertise.md) §6. This doc is the "what defenses exist and how do they work" companion.
 
@@ -67,7 +67,7 @@ Kurt's Semgrep tj-actions blog (https://semgrep.dev/blog/2025/popular-github-act
 
 ### The four-level ladder
 
-SLSA v1.0 (published by the OpenSSF SLSA working group, with Dan Lorenc as a primary driver from the Google → Chainguard transition) defines a build-track ladder. The build track is the most-developed track; the source track and dependencies track are spec-stable in v1.1 but with less industry traction.
+SLSA v1.0 (published by the OpenSSF SLSA working group) defines a build-track ladder. The build track is the most-developed track; a source track was added later, in SLSA v1.2.
 
 The build-track levels (from `slsa.dev/spec/v1.0/levels`):
 
@@ -105,7 +105,7 @@ Three load-bearing fields: `subject` (what artifact this is provenance for), `pr
 
 ### SLSA v1.0 vs v1.1; Borg origin; what counts as L3
 
-SLSA v1.1 tightened requirement language without re-defining the levels. Producing-artifacts and verifying-artifacts spec sections were split. Build-platform L3 requirements sharpened: the platform must isolate the signing key from build runtime *by construction*. Source-track and dependencies-track stabilized as parallel tracks.
+SLSA v1.1 tightened requirement language without re-defining the levels. Its changes: a verification procedure for VSAs, verifier metadata in the VSA format, and a further-refined threat model. The source track arrived later, in v1.2.
 
 The intellectual ancestor of SLSA is Google's internal Borg + binary-authorization: every production binary must have a build-system attestation signed with a key no human ever holds. SLSA externalized that practice; Chainguard Images at L3 are the existence-proof for non-Google projects.
 
@@ -154,7 +154,7 @@ The structural difference: traditional code-signing's threat model is "protect t
 
 ### Public Good Instance, failure modes
 
-The Public Good Instance at `fulcio.sigstore.dev` / `rekor.sigstore.dev` is operated by the OpenSSF and backs the majority of npm, PyPI, GitHub Artifact Attestations, and Chainguard Image signatures. Private deployments exist (Red Hat, Datadog, Google internal); the TUF metadata for a private deployment defines its own trust roots.
+The Public Good Instance at `fulcio.sigstore.dev` / `rekor.sigstore.dev` is operated by the OpenSSF and backs the majority of npm, PyPI, GitHub Artifact Attestations, and Chainguard Image signatures. Private deployments exist (e.g., GitHub's own instance for private-repository attestations); the TUF metadata for a private deployment defines its own trust roots.
 
 Failure modes: **Rekor downtime** prevents new signing and fresh-tree-head verification (mitigation: cache tree head). **Fulcio root rotation** requires overlapping deployment + TUF metadata update. **OIDC issuer compromise** is the meta-threat — defense is HSM-backed OIDC signing keys at the IdP. **Bring-your-own-key sigstore** brings back the long-lived-key threat model; only use when keyless is unavailable.
 
@@ -164,19 +164,19 @@ For cryptographic primitives (Ed25519, X.509, Merkle-tree transparency), see [`c
 
 ```bash
 # Sign (in a CI workflow with OIDC enabled):
-cosign sign \
+cosign sign ghcr.io/my-org/my-image:v1.0.0
+
+# Verify (consumer side):
+cosign verify \
   --certificate-identity-regexp '^https://github.com/my-org/my-repo' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   ghcr.io/my-org/my-image:v1.0.0
-
-# Verify (consumer side; same flags):
-cosign verify --certificate-identity-regexp ... ghcr.io/my-org/my-image:v1.0.0
 
 # Attach an SBOM as a separate attestation:
 cosign attest --predicate sbom.spdx.json --type spdxjson ghcr.io/my-org/my-image:v1.0.0
 ```
 
-The `--certificate-identity-regexp` is load-bearing. Without it, *any* OIDC subject would be accepted, including an attacker signing as a different `my-org/*` repo. The attestation is uploaded to Rekor; `cosign verify-attestation` reads back the predicate.
+The `--certificate-identity-regexp` is load-bearing; cosign 2.x requires it (or `--certificate-identity`) for keyless verification. A loose pattern accepts any matching OIDC subject, including an attacker signing as a different `my-org/*` repo. The attestation is uploaded to Rekor; `cosign verify-attestation` reads back the predicate.
 
 ---
 
@@ -209,7 +209,7 @@ The modern composition: SLSA build provenance (predicate) → in-toto statement 
 
 ### Production deployments
 
-Tekton Chains generates in-toto SLSA-Provenance-v1 attestations for every TaskRun/PipelineRun. GitHub Artifact Attestations (Aug 2024+) produces in-toto-formatted SLSA Provenance signed via sigstore. Datadog Agent's integration build pipeline uses TUF + in-toto end-to-end (Kuppusamy's work). Sigstore's own release pipeline uses in-toto + cosign keyless.
+Tekton Chains generates in-toto SLSA-Provenance-v1 attestations for every TaskRun/PipelineRun. GitHub Artifact Attestations (GA June 2024) produces in-toto-formatted SLSA Provenance signed via sigstore. Datadog Agent's integration build pipeline uses TUF + in-toto end-to-end (Kuppusamy's work). Sigstore's own release pipeline uses in-toto + cosign keyless.
 
 ### The supply-chain DAG mental model
 
@@ -228,7 +228,7 @@ TUF (Cappos, 2010, with Samuel et al.) is older than sigstore by a decade. Threa
 Five top-level roles, each signed by a distinct keyset:
 
 1. **Root** — signs public keys for all other roles. Offline-only. M-of-N threshold (typically 3-of-5 or 5-of-9). Rotation requires explicit "key transition" metadata.
-2. **Targets** — signs the authoritative target list. Can delegate to sub-roles (PyPI delegates per-project signing per-project, so one compromised project key can't affect others).
+2. **Targets** — signs the authoritative target list. Can delegate to sub-roles (PEP 458 has PyPI delegate to hashed `bin-n` roles signed with online keys; per-project developer signing is deferred to PEP 480).
 3. **Snapshot** — signs the current targets-metadata state. Online; protects against mix-and-match attacks.
 4. **Timestamp** — signs a short-lived snapshot timestamp. Online; protects against freeze attacks.
 5. **Mirrors** (optional) — signs acceptable mirror locations.
@@ -239,10 +239,10 @@ Five top-level roles, each signed by a distinct keyset:
 
 ### Production deployments
 
-- **PyPI** — implementing PEP 458 (TUF metadata distribution). Long-running; partial deployment. PyPI's metadata via TUF, per-distribution attestations via sigstore PEP 740. Layered.
-- **Docker Notary** — Docker's TUF implementation. Deprecated 2023; replaced by sigstore-based signing.
+- **PyPI** — implementing PEP 458 (TUF metadata distribution). Long-running; not yet in production as of mid-2024. PyPI's metadata via TUF, per-distribution attestations via sigstore PEP 740. Layered.
+- **Docker Notary** — Docker's TUF implementation (Docker Content Trust). Retirement announced July 2025; Docker recommends Sigstore/Cosign or Notation instead.
 - **Datadog Agent** — TUF + in-toto for integration delivery (Kuppusamy's work).
-- **Uptane** — TUF for automotive over-the-air updates; IEEE/ISO 21434 reference; widely deployed in major OEMs.
+- **Uptane** — TUF for automotive over-the-air updates; IEEE-ISTO 6100 standard; widely deployed in major OEMs.
 - **CNCF** — TUF was the first specification project to graduate (Dec 2019).
 - **npm / Maven Central / RubyGems** — varying integration; PyPI is furthest along.
 
@@ -276,13 +276,13 @@ License data is SPDX's superpower. The SPDX License List (https://spdx.org/licen
 
 ### CycloneDX in depth
 
-CycloneDX is the security-first SBOM (Steve Springett; OWASP flagship since 2021; standardized as **ECMA-424** in 2024). Flat component-centric model with a separate `dependencies` array mapping component refs to dependents. Vulnerability scanners iterate the component list directly without traversing relationships.
+CycloneDX is the security-first SBOM (Steve Springett; OWASP flagship; standardized as **ECMA-424** in 2024). Flat component-centric model with a separate `dependencies` array mapping component refs to dependents. Vulnerability scanners iterate the component list directly without traversing relationships.
 
-Security-oriented native fields: `components[].vulnerabilities` (direct CVE inclusion), `components[].evidence` (provenance for component identification), `components[].externalReferences` (VEX, advisories, source), top-level `vulnerabilities[]` with VEX-style statuses. CycloneDX has native VEX support; SPDX does not.
+Security-oriented native fields: `components[].evidence` (provenance for component identification), `components[].externalReferences` (VEX, advisories, source), top-level `vulnerabilities[]` with VEX-style statuses. CycloneDX has native VEX support; SPDX added VEX in the SPDX 3.0 Security profile.
 
 ### Recommendation and SWID
 
-The empirical reality: enterprises commonly emit **both** formats from the same build — SPDX for license-compliance, CycloneDX for vulnerability management. Tools (syft, cdxgen, Trivy) emit either. If forced to pick one: CycloneDX for security-driven programs, SPDX for compliance-driven. ECMA-424 (CycloneDX as a formal standard) is regulatory-acceptable for jurisdictions requiring ISO/IEC-recognized standards.
+The empirical reality: enterprises commonly emit **both** formats from the same build — SPDX for license-compliance, CycloneDX for vulnerability management. Tools (syft, cdxgen, Trivy) emit either. If forced to pick one: CycloneDX for security-driven programs, SPDX for compliance-driven.
 
 **SWID** (Software Identification Tags, NIST / ISO/IEC 19770-2) encodes software identity + patch evidence in XML. Minimal traction in the OSS SBOM ecosystem; shows up in DoD compliance contexts.
 
@@ -333,23 +333,23 @@ The corollary: if my reproduction differs, *something is wrong* — either my en
 
 Reproducible builds is the structural defense against the SUNBURST class of attack. SolarWinds shipped a backdoored DLL signed by their legitimate Authenticode key; the source code in their git repository was clean. The signed binary was the discrepancy: it could not be reproduced from the source. *Anyone* with reproducible-build tooling could have noticed.
 
-Russ Cox's framing (`design/25530-sumdb.md` and his 2019 "Surviving Software Dependencies" essay): reproducibility enables "**trust on first sight**." When the Go module mirror records `sha256:abc...` for `golang.org/x/crypto@v1.0.0`, anyone can later rebuild that package and confirm the hash matches. Tampering — whether at the mirror, the build server, or in transit — becomes detectable in a single integrity check.
+Russ Cox's framing (`design/25530-sumdb.md` and his 2019 "Surviving Software Dependencies" essay): the checksum database improves on SSH-style "**trust on first use**." When the Go module mirror records `sha256:abc...` for `golang.org/x/crypto@v1.0.0`, anyone can later rebuild that package and confirm the hash matches. Tampering — whether at the mirror, the build server, or in transit — becomes detectable in a single integrity check.
 
 ### The Debian Reproducible Builds project
 
-Holger Levsen et al., 2014+ — systematic effort to make every Debian package reproducible. As of 2024-2026 status reports, ~95%+ of Debian packages in unstable are independently reproducible. Vagrant Cascadian's 2026 measurement: 88 of 154 (57%) packages in a minimal Debian sid system reproduce end-to-end. Remaining gaps cluster in: embedded timestamps (man pages, archive comments); embedded build paths (`__FILE__` in compiled binaries); non-deterministic compilers/build tools (older GCC, Java JIT, `/dev/urandom`-sourced IDs); archive-format non-determinism (tar/zip file ordering, timestamps).
+Holger Levsen et al., 2014+ — systematic effort to make every Debian package reproducible. As of May 2025, over 95% of packages in Debian testing (trixie, amd64) were reported reproducible. Vagrant Cascadian's 2018 measurement: 88 of 154 (57%) packages in a minimal Debian sid system reproduce end-to-end. Remaining gaps cluster in: embedded timestamps (man pages, archive comments); embedded build paths (`__FILE__` in compiled binaries); non-deterministic compilers/build tools (older GCC, Java JIT, `/dev/urandom`-sourced IDs); archive-format non-determinism (tar/zip file ordering, timestamps).
 
 Project toolkit: `diffoscope` (recursive diff that decompiles JARs, extracts ELFs, diffs PDFs); `strip-nondeterminism` (post-build cleanup); `reprotest` (deliberately-varied environments to surface non-determinism). https://reproducible-builds.org/
 
 ### Go's reproducible toolchain
 
-Go 1.21+ is the first Go release with perfectly reproducible builds of the toolchain itself. Russ Cox's team eliminated ten distinct sources of nondeterminism (map iteration order, embedded source paths, file metadata in archives, ARM floating-point mode defaults, others). Combined with the Go module checksum database (`sum.golang.org`, backed by Trillian's transparency-log infrastructure), every published module's hash is logged in a Merkle tree and the producing toolchain is itself reproducible. Trust root reduces to "trust the Trillian log + the public toolchain source." See https://go.dev/blog/rebuild and https://go.dev/blog/module-mirror-launch.
+Go 1.21+ is the first Go release with perfectly reproducible builds of the toolchain itself. Russ Cox's team eliminated sources of nondeterminism (map iteration order, embedded source paths, file metadata in archives, ARM floating-point mode defaults, others). Combined with the Go module checksum database (`sum.golang.org`, backed by Trillian's transparency-log infrastructure), every published module's hash is logged in a Merkle tree and the producing toolchain is itself reproducible. Trust root reduces to "trust the Trillian log + the public toolchain source." See https://go.dev/blog/rebuild and https://go.dev/blog/module-mirror-launch.
 
 ### NixOS, Bazel, and language-specific reproducibility
 
 Two production approaches to **reproducibility-by-construction**: **NixOS / Nix** hashes the entire build environment (compiler version, flags, dependency hashes) into the install path; reproducibility rate consistently >90%. **Bazel** enforces hermetic builds via sandbox isolation and explicit dependency declaration. Both require upfront restructuring; build systems with implicit dependencies (a `Makefile` shelling out to whatever's on `PATH`) cannot be retrofitted easily.
 
-Language-specific challenges: **C/C++** embeds `__FILE__` paths, `__DATE__`/`__TIME__`, debug-info paths (mitigation: `-ffile-prefix-map`, `SOURCE_DATE_EPOCH`, `-fdebug-prefix-map`). **Java** JAR/ZIP file ordering + embedded timestamps (mitigation: `strip-nondeterminism`, reproducible-jar plugins). **Python** `.pyc` source-path + wheel-creation timestamps (mitigation: `PYTHONHASHSEED=0`, `SOURCE_DATE_EPOCH` via setuptools ≥60). **JavaScript** is mostly OK because npm publishes source, not bytecode; transpilers can vary.
+Language-specific challenges: **C/C++** embeds `__FILE__` paths, `__DATE__`/`__TIME__`, debug-info paths (mitigation: `-ffile-prefix-map`, `SOURCE_DATE_EPOCH`, `-fdebug-prefix-map`). **Java** JAR/ZIP file ordering + embedded timestamps (mitigation: `strip-nondeterminism`, reproducible-jar plugins). **Python** `.pyc` source-path + wheel-creation timestamps (mitigation: `PYTHONHASHSEED=0`, `SOURCE_DATE_EPOCH` via setuptools). **JavaScript** is mostly OK because npm publishes source, not bytecode; transpilers can vary.
 
 The `SOURCE_DATE_EPOCH` env var is the cross-language convention; set from the source commit's date (`git log -1 --format=%ct`) and reproducibility becomes tractable for most non-Bazel projects.
 
@@ -378,7 +378,7 @@ Resulting attestation: in-toto-formatted SLSA Provenance v1.0, signed via Fulcio
 
 **Vendor lock-in.** Attestations live in GitHub storage; verification requires the `gh` CLI or HTTPS GET against GitHub's API. Constraint for air-gapped or federated-CI consumers.
 
-**Simplicity.** For GitHub-resident projects, a 3-line addition. Compare standalone sigstore: provision OIDC trust, deploy cosign in CI, manage Rekor storage. GitHub's hosted version eliminates ~80% of operational burden.
+**Simplicity.** For GitHub-resident projects, a 3-line addition. Compare standalone sigstore: provision OIDC trust, deploy cosign in CI, manage Rekor storage.
 
 ### Comparison
 
@@ -392,7 +392,7 @@ Resulting attestation: in-toto-formatted SLSA Provenance v1.0, signed via Fulcio
 
 The trend across npm provenance, PEP 740, GitHub Artifact Attestations, and Maven Central work: **ecosystem-native attestations backed by sigstore**, with the registry as trust intermediary. Consumers know "the ecosystem's trust root" — they don't manage individual maintainer keys.
 
-Adoption snapshot (early 2026): Kubernetes, Wolfi, curl, Microsoft .NET runtime, Homebrew core, and increasingly any security-conscious project. GitHub's data: attestation generation grew from thousands at GA to millions within months, concentrated in npm and spreading to container images and binary releases.
+Adoption snapshot (early 2026): Kubernetes, Wolfi, Homebrew core, and increasingly any security-conscious project.
 
 ---
 
@@ -452,21 +452,21 @@ This rejects any `ghcr.io/my-org/*` image not signed via GitHub Actions OIDC by 
 
 ## 11. Real-World Deployments
 
-**Kubernetes core.** Signs all releases via sigstore since v1.24. The release process produces SHA-256 hashes, SLSA Provenance v1.0 attestations, SPDX SBOMs, and cosign signatures. Consumers verify against the `keyless@kubernetes.io` workflow identity.
+**Kubernetes core.** Signs release container images via sigstore since v1.24 (binaries, SBOMs and provenance since v1.26). The release process produces SHA-256 hashes, SLSA Provenance attestations, SPDX SBOMs, and cosign signatures. Consumers verify container images against the `krel-trust@k8s-releng-prod.iam.gserviceaccount.com` identity (issuer `https://accounts.google.com`).
 
-**Distroless images (Google).** `gcr.io/distroless` is the minimal container base-image family with only the runtime — no shell, no package manager. All distroless images are cosign-keyless-signed via Google's internal Bazel-based build system. The "binary authorization" enforcement Google uses for its own production binaries extends to this public release stream.
+**Distroless images (Google).** `gcr.io/distroless` is the minimal container base-image family with only the runtime — no shell, no package manager. All distroless images are cosign-keyless-signed.
 
 **Wolfi / Chainguard Images.** Wolfi (https://github.com/wolfi-dev) is Chainguard's Linux undistro purpose-built for cloud-native supply-chain security. Every apk and image is sigstore-signed; SBOM is a cosign attestation; SLSA Build Level 3 compliant. Wolfi has no kernel — relies on the container runtime kernel. Chainguard Images ship distroless-built-from-Wolfi-apks with full provenance, CycloneDX + SPDX SBOMs, and continuous CVE remediation.
 
-**Tekton Chains.** Generates SLSA Provenance v1 attestations for every TaskRun/PipelineRun. In production at IBM, Red Hat OpenShift Pipelines, Datadog, and GCB's internal Tekton infrastructure. **Cloud Native Buildpacks (Paketo)** generates SLSA Provenance during the buildpack-execution phase.
+**Tekton Chains.** Generates SLSA Provenance v1 attestations for every TaskRun/PipelineRun. In production at IBM and Red Hat OpenShift Pipelines.
 
 **PyPI's TUF + sigstore.** The PEP roadmap: **PEP 458** (TUF for PyPI metadata; long-running, partial); **PEP 480** (developer-side end-to-end signing; less-deployed); **PEP 691** (JSON simple API; substrate for richer metadata); **PEP 740** (index support for digital attestations; sigstore-backed, Trusted Publishers automatically generate attestations on upload). Layered composition: TUF protects metadata at the registry boundary; sigstore protects per-package provenance at the upload boundary.
 
-**npm provenance.** Public beta Apr 2023, GA Sept 2023. `npm publish --provenance` in a GitHub Actions workflow fetches an OIDC token, signs via Fulcio + cosign, uploads bundle to Rekor. Consumers: `npm view <pkg>@<v> dist.attestations`. By Q1 2026: 8,000+ packages, 1B+ provenance-enabled downloads. TypeScript, React, Vue, ESLint, Prettier, Vercel ship with provenance.
+**npm provenance.** Public beta Apr 2023, GA Sept 2023. `npm publish --provenance` in a GitHub Actions workflow fetches an OIDC token, signs via Fulcio (sigstore-js), uploads bundle to Rekor. Consumers: `npm view <pkg>@<v> dist.attestations`.
 
 **Maven Central.** Longest-running supply-chain-modernization effort in Java. As of 2026: Sonatype has integrated sigstore-signing tooling; registry-side enforcement and Gradle/Maven consumer verification not yet end-to-end.
 
-**Debian.** Signed Release files are the canonical distribution-layer-integrity example. Apt verifies Release signature against trusted-keys.gpg; Release pins SHA-256 of each Packages/Sources index; each Packages file pins per-package SHA-256 of the .deb. The Reproducible Builds project (Levsen, Cascadian et al.) is the in-progress modernization adding independent verifiability; 88-95% of Debian packages reproduce independently as of 2026.
+**Debian.** Signed Release files are the canonical distribution-layer-integrity example. Apt verifies Release signature against trusted-keys.gpg; Release pins SHA-256 of each Packages/Sources index; each Packages file pins per-package SHA-256 of the .deb. The Reproducible Builds project (Lunar, Levsen et al.) is the in-progress modernization adding independent verifiability; ~96% of Debian packages reproduce independently as of 2026.
 
 ---
 
@@ -500,7 +500,7 @@ A pragmatic adoption ramp for a project moving from "nothing" to "SLSA L2":
 - **Days 31-60**: Add `actions/attest-build-provenance` to the release workflow. Validate locally with `gh attestation verify`. Document build identity in README + RELEASING.
 - **Days 61-90**: Publish consumer-side verification instructions. Add SBOM + provenance to release page. Optionally deploy sigstore-policy-controller for your own upstreams.
 
-Day 90 goal: SLSA L2 compliant. The L2→L3 jump is largely the build platform's responsibility; for GitHub Actions hosted runners with Artifact Attestations, L3 falls out of L2 once set up correctly.
+Day 90 goal: SLSA L2 compliant. The L2→L3 jump is largely the build platform's responsibility; for GitHub Actions, Artifact Attestations alone provide Build L2; L3 requires reusable workflows that isolate the build from the calling workflow.
 
 ### Maturity ramp
 
@@ -532,13 +532,13 @@ Cross-links: [`appsec_program_building_expertise.md`](appsec_program_building_ex
 
 ### Provenance for AI models
 
-A trained model is the artifact; training data + hyperparameters + training code + checkpoints are the inputs. The "build" is the training run. SLSA-style provenance would attest to training data identity (hash, dataset-card), training code (commit + deps), hyperparameters, compute environment (hardware + drivers + framework), and output checkpoint hash. The **model card** format (Mitchell et al., 2019) is the documentation-side counterpart. Hugging Face, OpenSSF Protobom (García Veytia), and MLflow are exploring model-card + in-toto composition. Status: early; not yet at SLSA-for-code production levels.
+A trained model is the artifact; training data + hyperparameters + training code + checkpoints are the inputs. The "build" is the training run. SLSA-style provenance would attest to training data identity (hash, dataset-card), training code (commit + deps), hyperparameters, compute environment (hardware + drivers + framework), and output checkpoint hash. The **model card** format (Mitchell et al., 2019) is the documentation-side counterpart. Status: early; not yet at SLSA-for-code production levels.
 
 Cross-link: [`adversarial_ml_model_security_expertise.md`](adversarial_ml_model_security_expertise.md) §8.
 
 ### Provenance for AI training data
 
-Training datasets are software-like artifacts: versioned, built from sources (web crawls, curated corpora, synthetic), license-bound, silently modifiable. SBOM for training data is the natural framing. SPDX 3.0's Dataset profile is the canonical spec; CycloneDX has emerging support; the OpenSSF "AI/ML SBOM" working group is active. Tooling adoption: infancy.
+Training datasets are software-like artifacts: versioned, built from sources (web crawls, curated corpora, synthetic), license-bound, silently modifiable. SBOM for training data is the natural framing. SPDX 3.0's Dataset profile is the canonical spec; CycloneDX has emerging support. Tooling adoption: infancy.
 
 ### Provenance for LLM-generated code
 
@@ -641,7 +641,7 @@ Decentralized provenance (blockchain-anchored attestations) is research-stage; R
 - Go sumdb proposal: https://go.googlesource.com/proposal/+/master/design/25530-sumdb.md
 - Russ Cox, "Surviving Software Dependencies": https://research.swtch.com/deps
 - SOURCE_DATE_EPOCH spec: https://reproducible-builds.org/specs/source-date-epoch/
-- LWN "Reproducible builds, the first ten years": https://lwn.net/Articles/985739/
+- LWN "The history, status, and plans for reproducible builds": https://lwn.net/Articles/985739/
 
 ### GitHub Artifact Attestations
 
@@ -655,7 +655,7 @@ Decentralized provenance (blockchain-anchored attestations) is research-stage; R
 
 ### npm provenance
 
-- npm package provenance announcement (May 2023): https://github.blog/security/supply-chain-security/introducing-npm-package-provenance/
+- npm package provenance announcement (Apr 2023): https://github.blog/security/supply-chain-security/introducing-npm-package-provenance/
 - npm provenance GA (Sept 2023, sigstore blog): https://blog.sigstore.dev/npm-provenance-ga/
 - npm provenance docs: https://docs.npmjs.com/generating-provenance-statements/
 - npm provenance details: https://github.com/npm/provenance

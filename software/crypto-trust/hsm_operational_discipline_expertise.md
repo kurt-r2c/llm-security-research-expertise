@@ -47,19 +47,19 @@ Out of scope:
 
 The market is dominated by a handful of vendors with deep PKI / payment / government history. Every production HSM speaks PKCS#11 (RSA Labs → OASIS); many also speak JCE, KSP/CNG (Windows), KMIP, and vendor-proprietary APIs.
 
-**Thales (formerly Gemalto + SafeNet).** Luna Network HSM 7 / Luna PCIe / Luna USB / Luna Cloud HSM. payShield 10K is the banking-specific module (PIN translation, card data encryption, PCI HSM L3). Thales acquired Gemalto in 2019; the Luna and payShield product lines descend from SafeNet (acquired by Gemalto in 2014). Long history in WebPKI, DNSSEC root-zone signing, and EMV payment processing.
+**Thales (formerly Gemalto + SafeNet).** Luna Network HSM 7 / Luna PCIe / Luna USB / Luna Cloud HSM. payShield 10K is the banking-specific module (PIN translation, card data encryption, PCI HSM L3). Thales acquired Gemalto in 2019; the Luna product line descends from SafeNet (acquired by Gemalto in 2015); payShield predates the Gemalto deal (Thales announced payShield 9000 in 2009). Long history in WebPKI and EMV payment processing; selected in 2024–2025 to replace the Keyper HSMs used for DNSSEC root-zone KSK (IANA) and ZSK (Verisign) signing.
 
 **Entrust (formerly nCipher).** nShield Connect (network appliance), nShield Solo XC (PCIe), nShield as a Service. Entrust acquired nCipher from Thales in 2019 as a divestiture forced by the Gemalto deal. nShield has a strong presence in code-signing, document-signing, and PKI.
 
 **Atos / Bull.** Trustway Proteccio. French sovereign-cloud and government deployments; common in EU-government and defense contexts.
 
-**Utimaco.** SecurityServer / CryptoServer / u.trust Anchor / u.trust LAN. Acquired Atalla from Micro Focus in 2018; the Atalla NSP (Network Security Processor) is the legacy payment-HSM line that AWS Payment Cryptography now offers as a managed service.
+**Utimaco.** SecurityServer / CryptoServer / u.trust Anchor / u.trust LAN. Acquired Atalla from Micro Focus in 2018; the Atalla NSP (Network Security Processor) is the legacy payment-HSM line.
 
-**AWS.** CloudHSM (Thales Luna-based hardware in AWS data centers, accessible via PKCS#11 / JCE / KSP from within your VPC). KMS Custom Key Stores (KMS API on top of CloudHSM cluster — managed KMS but with HSM-backed root). AWS Payment Cryptography GA in 2023 `[unverified specific GA month]` — PCI HSM L3 managed service for payment workflows.
+**AWS.** CloudHSM (Marvell hardware in AWS data centers — `hsm1.medium` is the NITROX III module, CMVP cert #4218 — accessible via PKCS#11 / JCE / KSP from within your VPC). KMS Custom Key Stores (KMS API on top of CloudHSM cluster — managed KMS but with HSM-backed root). AWS Payment Cryptography launched June 2023 — managed payment-HSM service on PCI PTS HSM v3 / FIPS 140-2 L3 hardware for payment workflows.
 
-**GCP.** Cloud HSM (part of Cloud KMS; Thales / Marvell hardware `[unverified specific vendor split]`; FIPS 140-2 L3); Cloud KMS Sovereign for residency-constrained workloads.
+**GCP.** Cloud HSM (part of Cloud KMS; Marvell LiquidSecurity hardware; FIPS 140-2 L3).
 
-**Azure.** Managed HSM (dedicated single-tenant cluster, FIPS 140-3 L3 `[unverified specific level — public claim has been L3 but exact 140-3 cert ID warrants checking against CMVP]`). Dedicated HSM (Thales Luna 7 in Azure data center). Key Vault Premium (HSM-backed certificates and keys; not a dedicated HSM partition).
+**Azure.** Managed HSM (dedicated single-tenant cluster, FIPS 140-3 L3). Dedicated HSM (Thales Luna 7 in Azure data center). Key Vault Premium (HSM-backed certificates and keys; not a dedicated HSM partition).
 
 **IBM.** Cloud Hyper Protect Crypto Services (FIPS 140-2 L4 `[unverified — IBM is the rare claimant of L4]`). Z-series mainframes ship with on-board Crypto Express adapters supporting CCA, EP11, and PKCS#11. The mainframe HSM lineage is older than the appliance market and is anchored in z/OS environments (cross-link `[[reference-mainframe-legacy-security]]`).
 
@@ -71,7 +71,7 @@ The market is dominated by a handful of vendors with deep PKI / payment / govern
 - **YubiHSM 2** (Yubico) — small USB device, FIPS 140-2 Level 3 validated. PKCS#11 + native libs. Suitable for code-signing, SSH CA, and other low-throughput single-operator use cases; not for high-TPS payment workloads.
 - **NitroKey HSM 2** — open-hardware HSM based on the SmartCard-HSM from CardContact. Common Criteria certification on the underlying smartcard; not FIPS 140-2/3 validated as a module.
 
-**PKCS#11 as the lingua franca.** PKCS#11 v2.40 is the most widely deployed version. v3.0 (2020) added EdDSA, SHA3, AES-XTS, and post-quantum mechanism placeholders. v3.1 (2022) `[unverified release year]` adds further PQ work. Every vendor's library implements PKCS#11 at minimum, often as the recommended primary interface. KMIP (Key Management Interoperability Protocol, OASIS) is a higher-level protocol used between key managers and HSMs but does not replace PKCS#11 for direct cryptographic operations.
+**PKCS#11 as the lingua franca.** PKCS#11 v2.40 is the most widely deployed version. v3.0 (2020) added EdDSA, SHA3, and AES-XTS. v3.1 followed (Committee Specification 2022, OASIS Standard July 2023). Post-quantum mechanisms (ML-KEM, ML-DSA) arrive in v3.2. Every vendor's library implements PKCS#11 at minimum, often as the recommended primary interface. KMIP (Key Management Interoperability Protocol, OASIS) is a higher-level protocol used between key managers and HSMs but does not replace PKCS#11 for direct cryptographic operations.
 
 ---
 
@@ -88,7 +88,7 @@ Four levels, ascending in physical and logical assurance:
 - **Level 3.** Tamper-resistant — zeroization triggered on intrusion. Identity-based authentication (not just role-based). Physical and logical separation between officer roles. **The de facto bar for production HSMs.** If a vendor is selling you a Level 1 or Level 2 device for production key custody, look elsewhere.
 - **Level 4.** Envelope-level tamper detection including environmental attack resistance (voltage, temperature, EMI). Rare; specialty markets (defense, intelligence, IBM's Crypto Express claim). The price-performance step from L3 to L4 is steep.
 
-**FIPS 140-3 supersedes FIPS 140-2.** NIST CMVP stopped accepting new FIPS 140-2 submissions in 2026 `[unverified — the cited date is "April 1, 2022" for last accepted; submissions transition is well underway by 2026]`. Existing FIPS 140-2 validations remain on the CMVP active list through approximately 2026-09 `[unverified specific sunset date]`, after which they move to the historical list. Historical-list modules can still be purchased and operated, but federal procurement that requires "current FIPS validation" will not accept them.
+**FIPS 140-3 supersedes FIPS 140-2.** NIST CMVP stopped accepting FIPS 140-2 submissions for new validation certificates on April 1, 2022. Existing FIPS 140-2 validations remain on the CMVP active list through September 21, 2026, after which they move to the historical list. Historical-list modules can still be purchased and operated, but federal procurement that requires "current FIPS validation" will not accept them.
 
 **FIPS 140-3 references ISO/IEC 19790:2012 and ISO/IEC 24759:2017.** Major changes from 140-2: consolidated security requirements (11 areas in 140-3 vs 11 differently-organized in 140-2); non-invasive attack mitigation (side-channel) as a formal requirement area at higher levels; firmware integrity testing required.
 
@@ -98,7 +98,7 @@ Four levels, ascending in physical and logical assurance:
 
 Seven Evaluation Assurance Levels (EAL 1-7). EAL 4 is typical for commercial HSMs. EAL 4+ AVA_VAN.5 + ALC_DVS.2 add vulnerability assessment (AVA_VAN.5 = "advanced methodical vulnerability analysis") and developer-environment security (ALC_DVS.2). The +AVA_VAN.5 augmentation is the hard one — it requires the evaluator to perform penetration testing against documented attack potentials.
 
-**Protection Profiles.** PP for HSMs published by BSI (Germany), ANSSI (France), and NIAP (US). PP-Configuration documents define the security target template that vendors evaluate against. EU-CC harmonization (under the EU Cybersecurity Act) is ongoing.
+**Protection Profiles.** PP for HSMs published by BSI (Germany) and ANSSI (France). PP-Configuration documents define the security target template that vendors evaluate against. EU-CC harmonization (under the EU Cybersecurity Act) is ongoing.
 
 ### PCI HSM
 
@@ -152,9 +152,9 @@ Ceremonies follow a written script, prepared in advance, reviewed by all partici
 
 ### Web Trust audit anchor
 
-WebPKI root CAs publish ceremony scripts and recordings as part of their Web Trust audit obligations. Let's Encrypt published their 2015 ISRG Root X1 ceremony record and their 2020 ISRG Root X2 ceremony record; DigiCert and Sectigo publish similar records. The discipline survives outside WebPKI in banking, government, and high-assurance code-signing.
+Under WebTrust, an auditor witnesses a root CA's key generation ceremony and issues a Root Key Generation Ceremony report. Let's Encrypt announced its 2015 ISRG Root X1 key ceremony publicly and created ISRG Root X2 in September 2020. The discipline survives outside WebPKI in banking, government, and high-assurance code-signing.
 
-Reading a published ceremony script is the best way to internalize what a key ceremony actually looks like. The Let's Encrypt 2020 ceremony script is publicly available `[unverified specific URL but the artifact exists on letsencrypt.org]`.
+Reading a published ceremony script is the best way to internalize what a key ceremony actually looks like. Let's Encrypt's `ceremony-demos` repository (github.com/letsencrypt/ceremony-demos) publishes config files nearly identical to those used in its root and intermediate ceremonies.
 
 ### Anti-patterns
 
@@ -183,7 +183,7 @@ The threshold should be high enough that no single individual — including the 
 
 ### Role separation in PKCS#11 and vendor extensions
 
-PKCS#11 defines two login states: **User** and **SO (Security Officer)**. The User state covers operational cryptographic use. The SO state covers administrative changes to the token. FIPS 140-3 requires identity-based authentication (not just role-based), so vendors layer their own identity model on top.
+PKCS#11 defines two login states: **User** and **SO (Security Officer)**. The User state covers operational cryptographic use. The SO state covers administrative changes to the token. FIPS 140-3 Level 3 requires identity-based authentication (not just role-based), so vendors layer their own identity model on top.
 
 Vendor implementations extend this:
 
@@ -220,7 +220,7 @@ PKCS#11 is the de facto standard API for cryptographic tokens, including HSMs. E
 
 ### Login states
 
-Operations are gated on login state. `C_GenerateKeyPair` requires User login. `C_InitToken` requires SO login (and a fresh, uninitialized token). `C_Login` transitions the session into the requested state if the PIN (or smart-card challenge) succeeds.
+Operations are gated on login state. `C_GenerateKeyPair` requires User login. `C_InitToken` takes the SO PIN as an argument and fails with `CKR_SESSION_EXISTS` if any session is open on the token; re-initializing an already-initialized token checks the supplied PIN against the current SO PIN and wipes the token. `C_Login` transitions the session into the requested state if the PIN (or smart-card challenge) succeeds.
 
 ### Object templates
 
@@ -256,7 +256,7 @@ Wrapping with bare AES-CBC or AES-ECB without authentication is broken; the wrap
 
 ### PKCS#11 v3.0 additions (2020)
 
-EdDSA (Ed25519, Ed448), SHA3, AES-XTS, post-quantum mechanism placeholders (CKM_KYBER, CKM_DILITHIUM as labels even before NIST finalization; vendors have since aligned with FIPS 203/204/205 names `[unverified vendor-by-vendor]`). PKCS#11 v3.1 (2022) `[unverified release year]` extends further.
+EdDSA (Ed25519, Ed448), SHA3, AES-XTS. Post-quantum mechanisms (ML-KEM, ML-DSA) arrive in PKCS#11 v3.2.
 
 ### Tooling
 
@@ -266,7 +266,7 @@ EdDSA (Ed25519, Ed448), SHA3, AES-XTS, post-quantum mechanism placeholders (CKM_
 - **p11tool** — GnuTLS CLI for PKCS#11 administration.
 - **pkcs11-tool** — OpenSC CLI; the operator's swiss-army knife for poking at HSMs.
 - **AWS CloudHSM CLI / Client SDK** — vendor-specific tools for AWS CloudHSM.
-- **Azure Key Vault / Managed HSM REST API** — Azure does not expose PKCS#11; it exposes a REST API. The operational model is different.
+- **Azure Key Vault / Managed HSM REST API** — Key Vault and Managed HSM expose a REST API; Managed HSM's only PKCS#11 surface is a limited TLS Offload library (PKCS#11 v2.40 subset, F5 and Nginx only). Azure Cloud HSM, a separate service, does expose PKCS#11. The operational model is different.
 
 ---
 
@@ -278,7 +278,7 @@ The cloud HSM is hardware in someone else's data center. The cloud provider oper
 
 Runs inside your VPC. Accessible via PKCS#11, JCE, KSP/CNG. Officer roles: Crypto Officer (CO), Crypto User (CU), Pre-Crypto Officer (PCO, used during cluster initialization), Appliance User (AU). You manage the partition contents and cluster membership; AWS manages the hardware and firmware. The cluster is multi-AZ for availability; key material syncs across cluster members.
 
-Backups: AWS CloudHSM backups are stored in an AWS-managed location and are encrypted under AWS-controlled keys. The threat model: AWS could in principle access backups, though the backup is itself wrapped under a key that's tied to the original cluster's secret material. Verify the threat model before relying on cloud-HSM backups for high-assurance keys.
+Backups: AWS CloudHSM backups are stored in a service-controlled Amazon S3 bucket in the cluster's region. The HSM encrypts all data before it leaves the HSM, and AWS states it cannot decrypt backups because it lacks access to the decryption key. Verify the threat model before relying on cloud-HSM backups for high-assurance keys.
 
 ### AWS KMS Custom Key Stores
 
@@ -286,11 +286,11 @@ A KMS API surface on top of a CloudHSM cluster. The application calls `KMS.Encry
 
 ### GCP Cloud HSM
 
-Part of Google Cloud KMS. FIPS 140-2 L3 (and FIPS 140-3 L3 in progress / available depending on region `[unverified specifics]`). Key generation happens in the HSM; the cleartext key never exists outside. There is no PKCS#11 surface exposed to the customer — the customer uses the Cloud KMS API (gRPC / REST). The operational model is "you trust Google's HSM operations" — there's less direct visibility than with AWS CloudHSM.
+Part of Google Cloud KMS. FIPS 140-2 L3 (and FIPS 140-3 L3 in progress / available depending on region `[unverified specifics]`). Key generation happens in the HSM; the cleartext key never exists outside. The customer uses the Cloud KMS API (gRPC / REST); Google also ships an open-source PKCS#11 library (`libkmsp11`) that maps PKCS#11 calls onto Cloud KMS. The operational model is "you trust Google's HSM operations" — there's less direct visibility than with AWS CloudHSM.
 
 ### Azure Managed HSM
 
-Dedicated single-tenant HSM cluster. FIPS 140-3 L3 `[unverified specific 140-3 validation ID — public Azure docs make the claim, double-check CMVP for current state]`. Multiple HSM partitions per customer. RBAC for management plane (Azure AD identities); local RBAC ("data plane RBAC") for key operations. The "RBAC vs access policies" duality is a recurring source of operational confusion — verify which model is enabled before assuming a permission grant has taken effect.
+Dedicated single-tenant HSM cluster. FIPS 140-3 L3. Multiple HSM partitions per customer. RBAC for management plane (Azure AD identities); local RBAC ("data plane RBAC") for key operations. Granting control-plane access does not grant data-plane access — verify a Managed HSM local RBAC assignment exists before assuming a permission grant has taken effect.
 
 ### Azure Dedicated HSM
 
@@ -298,7 +298,7 @@ Thales Luna 7 deployed into Azure. You SSH to the HSM and run Thales tooling dir
 
 ### AWS Payment Cryptography
 
-Managed PCI HSM L3 service descended from the Atalla NSP lineage (Utimaco-acquired Atalla via Micro Focus 2018; AWS Payment Cryptography GA October 2023 `[unverified specific month]`). PIN translation, card-validation-value generation, card-data encryption. Eliminates the operational burden of running a banking HSM fleet for AWS payment customers.
+Managed payment-HSM service on PCI PTS HSM v3 / FIPS 140-2 L3 hardware (launched June 2023). PIN translation, card-validation-value generation, card-data encryption. Eliminates the operational burden of running a banking HSM fleet for AWS payment customers.
 
 ### The audit-log gap
 
@@ -369,7 +369,7 @@ Some key types do not migrate — keys generated `CKA_EXTRACTABLE = FALSE` canno
 
 ## §9 The FIPS 140-3 transition (2024-2026)
 
-NIST CMVP transitioned new module submissions from FIPS 140-2 to FIPS 140-3 in 2022; the active-validation transition window for existing 140-2 modules runs through approximately 2026-09 `[unverified specific sunset date — CMVP has published transition timelines that have shifted]`.
+NIST CMVP transitioned new module submissions from FIPS 140-2 to FIPS 140-3 in 2022; the active-validation transition window for existing 140-2 modules runs through September 21, 2026.
 
 ### What changed in 140-3
 
@@ -420,7 +420,7 @@ State management is the operational risk. HSMs handling LMS/XMSS must:
 - Not allow backup-restore that resets the state.
 - Detect cluster replication that would cause two HSMs to sign with the same state.
 
-Most HSM operators have never handled LMS/XMSS. The class is gaining adoption for firmware signing (Cisco published LMS-signed firmware; some HSM vendors support LMS/XMSS for code-signing). Treat it as a specialty operation requiring vendor support and rigorous procedure.
+Most HSM operators have never handled LMS/XMSS. The class is gaining adoption for firmware signing (some HSM vendors support LMS/XMSS for code-signing). Treat it as a specialty operation requiring vendor support and rigorous procedure.
 
 ---
 
@@ -450,12 +450,12 @@ Most HSM operators have never handled LMS/XMSS. The class is gaining adoption fo
 
 ## §12 2024-2026 currency
 
-- **FIPS 140-3 transition timeline** as documented in §9. CMVP last-accept date for 140-2 has passed; 140-2 historical-list sunset approaching `[unverified specific 2026 date]`.
+- **FIPS 140-3 transition timeline** as documented in §9. CMVP last-accept date for 140-2 has passed; 140-2 certificates moved to the Historical list on 21 September 2026.
 - **PQC algorithm integration** as documented in §10. FIPS 203 / 204 / 205 finalized August 2024. Vendor firmware updates rolling out 2024-2026.
-- **AWS Payment Cryptography GA October 2023** `[unverified specific month]`. PCI HSM L3 managed service for payment workflows.
+- **AWS Payment Cryptography GA June 2023**. Managed service on PCI PTS HSM V3 / FIPS 140-2 Level 3 certified hardware for payment workflows.
 - **Azure Managed HSM FIPS 140-3 L3 validation** `[unverified specific validation ID and date]`.
 - **Thales product portfolio.** Thales acquired Imperva in late 2023 (data-security product line, distinct from HSM but adjacent). Luna 7 and payShield 10K remain the flagship HSM lines. `[unverified specific Thales-Imperva integration details]`.
-- **Entrust acquisitions.** Entrust acquired Onfido in 2024 (identity verification / KYC), expanding from PKI / HSM into identity verification `[unverified specific 2024 month]`.
+- **Entrust acquisitions.** Entrust acquired Onfido in 2024 (identity verification / KYC), expanding from PKI / HSM into identity verification (completed April 2024).
 - **EU Cybersecurity Act + Cyber Resilience Act (Reg 2024/2847).** Products handling secrets / signatures now have certified-component requirements under EU regulation. Cross-link `[[reference-supply-chain-provenance]]` for SBOM requirements; HSM vendors are themselves in scope.
 - **Cloud-native HSM consumption growing.** Azure Managed HSM + AWS CloudHSM + GCP Cloud HSM as the cloud-native pattern for enterprises that don't want to operate physical HSMs. Maturity is uneven; verify per-region availability and per-feature parity before committing.
 - **PCI DSS 4.0 (mandatory March 2025).** Increased requirements around cryptographic key management; HSM-backed key custody for stored cardholder data is increasingly expected even outside the strict PCI HSM domain.
@@ -486,7 +486,7 @@ These are the failure modes that no certification rules out. Load-bearing becaus
 
 - **The signing-API surface is the attack surface.** Once authenticated to the HSM, the API is bounded only by the policy attached to the key and the API's verification of the request. The HSM does not know whether the requester is a legitimate application or a compromised one. Verify signing requests at the application layer: validate the request content, enforce per-application rate limits, require human approval for high-value signatures, alert on anomalies.
 
-- **Cross-tenancy assumptions in cloud HSM.** AWS CloudHSM and Azure Managed HSM are single-tenant (your cluster, your HSM). Azure Key Vault Premium is HSM-backed but the HSM is shared across tenants with logical separation. GCP Cloud HSM is likewise multi-tenant. The threat model differs: in single-tenant, you trust the cloud provider; in multi-tenant, you trust the cloud provider plus the logical-separation implementation. Verify the tenancy model of the specific service before assuming.
+- **Cross-tenancy assumptions in cloud HSM.** AWS CloudHSM and Azure Managed HSM are single-tenant (your cluster, your HSM). Azure Key Vault Premium is HSM-backed but the HSM is shared across tenants with logical separation. GCP Cloud HSM is multi-tenant by default; Google also offers a Single-tenant Cloud HSM option. The threat model differs: in single-tenant, you trust the cloud provider; in multi-tenant, you trust the cloud provider plus the logical-separation implementation. Verify the tenancy model of the specific service before assuming.
 
 - **HSM clock drift and key validity.** Some HSMs maintain internal clocks used for key validity periods. Clock drift, NTP failure, or replay of an old clock-reference can extend validity beyond intended. Audit clock-sync procedures and reject HSM-asserted timestamps in favor of an external trusted time source for high-value operations.
 
@@ -525,14 +525,13 @@ The HSM operational corpus is anchored on practitioner / standards primary sourc
 - **Filippo Valsorda** — cryptographic engineering commentary including HSM-adjacent posts (age tool author, former Cloudflare crypto engineer).
 - **Thomas Pornin** — cryptographer; long-running technical commentary on key-custody and HSM threat models.
 - **Dan Boneh + Matt Green** — academic cryptography with practical key-management implications.
-- **Apostol Vassilev** — NIST FIPS 140-3 program lead `[unverified specific role title]`.
-- **Tim Hall** — NIST CMVP / FIPS guidance contributor `[unverified specific role]`.
-- **Stephen Farrell** — long-running IETF crypto / PKIX contributor; PKCS#11 lineage commentary.
-- **Phillip Hallam-Baker** — PKI veteran (BBN, VeriSign); historical context on the certificate authority + HSM operational model.
-- **Mads Ravn** — Let's Encrypt 2015 root ceremony master `[unverified specific role attribution]`.
-- **Josh Aas** — Let's Encrypt / ISRG executive director; published ceremony recordings and posts.
+- **Apostol Vassilev** — NIST; former CMVP Technical Director.
+- **Tim Hall** — NIST CAVP; former manager of the Security Testing, Validation and Measurement group that housed CAVP and CMVP.
+- **Stephen Farrell** — long-running IETF crypto / PKIX contributor.
+- **Phillip Hallam-Baker** — PKI veteran (VeriSign); historical context on the certificate authority + HSM operational model.
+- **Josh Aas** — Let's Encrypt / ISRG executive director; published ceremony posts.
 - **NIST CMVP / CAVP** — validation lists, IG documents, transition guidance.
-- **PCI Security Standards Council** — PCI HSM v3 spec, key block standards (TR-31).
+- **PCI Security Standards Council** — PCI HSM v3 spec, key block mandates (ASC X9 TR-31).
 - **OASIS PKCS#11 TC** — PKCS#11 spec v2.40, v3.0, v3.1.
 - **Vendor primary sources** — Thales Luna documentation, Entrust nShield documentation, AWS CloudHSM Developer Guide, Azure Managed HSM documentation, GCP Cloud HSM documentation.
 

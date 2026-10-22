@@ -15,7 +15,7 @@
 > **Foundational researchers and institutional actors in scope:**
 > - **Michael Kleber** (Google Chrome Privacy Sandbox team, principal engineer) —
 >   lead architect for the Topics API and the Protected Audience API (formerly
->   FLEDGE / TURTLEDOVE); WICG chair on the API family that became Privacy Sandbox.
+>   FLEDGE / TURTLEDOVE).
 > - **John Wilander** (Apple WebKit Security and Privacy team lead) — Intelligent
 >   Tracking Prevention (Safari 11, September 2017); Storage Access API; Private
 >   Click Measurement (PCM); USENIX Security 2019 "Privacy by Default on the Web."
@@ -31,7 +31,7 @@
 > - **Bruce Schneier** — *Data and Goliath* (2015); long-running critique of the
 >   surveillance-advertising business model as a security and democracy externality.
 > - **Cory Doctorow** (EFF special advisor) — *enshittification* theory of platform
->   decay; argues surveillance advertising does not work (P&G 100M → 0 with flat sales);
+>   decay; argues surveillance advertising does not work (P&G cut $100M+ in digital ads with flat sales);
 >   ad-tech-as-surveillance framing in *Pluralistic* and Medium essays 2023-2026.
 > - **Electronic Frontier Foundation (EFF)** — Privacy Badger (heuristic third-party
 >   tracker blocking since 2014); Cover Your Tracks (formerly Panopticlick) fingerprint
@@ -43,7 +43,7 @@
 >   industry venue for IPA-class attribution proposals.
 > - **IAB Tech Lab (Interactive Advertising Bureau Technology Laboratory)** —
 >   industry consortium that authored the *Privacy Sandbox Fit Gap Analysis* (February
->   and October 2024) flagging that only a small fraction of 44 critical ad-tech use
+>   and June 2024) flagging that only a small fraction of 44 critical ad-tech use
 >   cases survived the Sandbox transition; TCF (Transparency and Consent Framework)
 >   v2.2 for IAB-Europe consent signaling.
 > - **Internet Security Research Group (ISRG) / Divvi Up** — operator of the
@@ -85,9 +85,9 @@ fragmentation being a load-bearing fact of the discipline.
 
 **Safari (Apple).** Intelligent Tracking Prevention (ITP) was introduced in
 September 2017 with Safari 11 on macOS High Sierra and iOS 11. Initial ITP
-1.0 partitioned cross-site cookie access using a heuristic classifier that
-treated as a "tracker" any third party seen in a cross-site context within a
-24-hour window. Subsequent revisions (ITP 1.1, 2.0, 2.1, 2.2, 2.3) tightened
+1.0 used an on-device machine-learning classifier to identify cross-site
+trackers and partitioned their cookies unless the user had interacted with
+the site as a first party within the last 24 hours. Subsequent revisions (ITP 1.1, 2.0, 2.1, 2.2, 2.3) tightened
 the heuristics, downgraded `document.referrer`, capped `localStorage` lifetime
 for classified trackers, and ultimately moved Safari to **full third-party
 cookie blocking by default in March 2020** (Safari 13.1). Wilander's WebKit
@@ -127,7 +127,7 @@ ad-tech protocol stack (BAT, Brave Rewards) as a structural alternative.
 
 ### 1.2 The mobile lineage — Apple's ATT
 
-The September 2020 iOS 14 announcement and the April 26, 2021 ATT rollout
+The June 2020 iOS 14 announcement and the April 26, 2021 ATT rollout
 (via iOS 14.5) introduced the most consequential mobile privacy change of the
 decade. Apple's [App Tracking Transparency framework](https://developer.apple.com/documentation/apptrackingtransparency)
 requires explicit user consent — via the system-rendered ATT prompt — before
@@ -236,8 +236,8 @@ Private State Tokens) continue under W3C standardization.
 
 The [Topics API](https://privacysandbox.google.com/private-advertising/topics)
 returned a small number of interest topics drawn from a browser-curated
-taxonomy (initial taxonomy: 469 categories; evolved across iterations to
-several hundred refined topics). Topics are derived on-device from the user's
+taxonomy (initial taxonomy: 349 categories; the updated taxonomy has 469
+topics). Topics are derived on-device from the user's
 browsing history over a one-week epoch; up to three topics — one per epoch
 for the prior three weeks — are returned to callers via the `document.browsingTopics()`
 JavaScript API or via the `Sec-Browsing-Topics` HTTP header on outbound
@@ -259,10 +259,7 @@ Privacy parameters:
   then expire.
 
 The API was designed to be drop-in for interest-based targeting use cases
-that had historically used cookie-based segments; the IAB Tech Lab Fit Gap
-Analysis (February 2024) concluded the API did not provide a viable
-replacement for cookie-based interest-based audience targeting at the
-granularity required by the ad-tech industry, and the API was retired.
+that had historically used cookie-based segments, and the API was retired.
 
 ### 2.2 Protected Audience API (retired October 2025; formerly FLEDGE, TURTLEDOVE)
 
@@ -282,7 +279,7 @@ The lineage:
   On Victory) — original 2020 proposal.
 - **FLEDGE** (First Locally-Executed Decision over Groups Experiment) —
   Chrome's prototype 2022-2023 Q2.
-- **Protected Audience API** — renamed Q3 2023 (Chrome 115 GA) to signal
+- **Protected Audience API** — renamed April 2023 to signal
   the privacy intent.
 
 Adjacent proposals merged into the design: SPARROW (Criteo's trusted
@@ -314,8 +311,8 @@ provided two report types for measuring conversions:
 
 - **Event-level reports.** Associate an ad-side event (impression or click)
   with a small coarse conversion-side payload (typically 3 bits for clicks,
-  1 bit for views); reports are noised and delayed (24-48 hour randomized
-  delivery) to disassociate ad and conversion in time.
+  1 bit for views); reports are noised and delayed (sent at the end of report
+  windows, by default 2 days, 7 days, and source expiry for clicks) to disassociate ad and conversion in time.
 - **Aggregatable reports.** Submit rich conversion metadata as encrypted
   contributions to an aggregation service; the service computes histograms
   over the contributions under a configurable DP budget (epsilon) and
@@ -351,7 +348,7 @@ identifier. Use cases: third-party chat widgets, embedded payment frames,
 embedded maps with per-user state.
 
 Specification: IETF draft `draft-cutler-httpbis-partitioned-cookies`;
-Chromium support since Chrome 114 (default since Chrome 118). The
+Chromium support by default since Chrome 114. The
 [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)
 specifies the requirements: `Partitioned` must be combined with `Secure`,
 and `__Host-` prefix is recommended.
@@ -371,7 +368,7 @@ federated login flows that need to read the identity provider's cookies in
 the embedding context. The API ships in Safari, Firefox, and Chrome with
 slightly different gating behavior.
 
-### 2.7 Fenced Frames (retired October 2025 in some implementations)
+### 2.7 Fenced Frames
 
 [Fenced Frames](https://wicg.github.io/fenced-frame/) are an embedded-content
 primitive that renders a URL whose contents are completely isolated from
@@ -440,14 +437,15 @@ named revisions through 2024. The mechanism is a machine-learned classifier
 applied to cross-site tracking heuristics:
 
 - Identify domains that appear as third-party trackers across multiple
-  first-party contexts (originally a 24-hour observation window).
+  first-party contexts.
 - Partition or delete third-party storage for classified trackers.
 - Cap the lifetime of `Storage` and `IndexedDB` data for classified
   origins (down to seven days, then twenty-four hours in some revisions).
 - Downgrade `document.referrer` for cross-site navigation.
 
-ITP 2.0 (Safari 12, 2018) eliminated the "Storage Access API"-prefix
-escape hatch for full cross-site cookie access. ITP 2.1-2.3 progressively
+ITP 2.0 (Safari 12, 2018) removed the 24-hour cookie access window after
+user interaction, leaving the Storage Access API as the path to cross-site
+cookie access. ITP 2.1-2.3 progressively
 tightened. The March 2020 announcement (`Full Third-Party Cookie Blocking
 and More`) committed Safari to blocking all third-party cookies by default,
 making Safari the first mainstream browser to do so. Wilander's WebKit blog
@@ -457,7 +455,7 @@ is the canonical primary-source record. See [webkit.org/blog/10218/full-third-pa
 
 Covered in §1.2. The framework lives at `AppTrackingTransparency` in
 `AppTrackingTransparency.framework`; the canonical API is
-`ATTrackingManager.requestTrackingAuthorization(completionHandler:)`. Three
+`ATTrackingManager.requestTrackingAuthorization(completionHandler:)`. Four
 status values: `authorized`, `denied`, `restricted`, `notDetermined`. The
 `authorized` state grants access to the IDFA (Identifier for Advertisers,
 `ASIdentifierManager.advertisingIdentifier`); any other state returns
@@ -472,7 +470,7 @@ data brokers, and using third-party SDKs that perform tracking.
 ### 3.3 SKAdNetwork
 
 [SKAdNetwork](https://developer.apple.com/documentation/storekit/skadnetwork/)
-(introduced in iOS 11.3, materially upgraded in iOS 14 to v2.0, in iOS 14.6
+(introduced in iOS 11.3, materially upgraded in iOS 14 to v2.0, in iOS 14.5
 to v2.2, and in iOS 16.1 to v4.0) is Apple's privacy-preserving install
 attribution framework. The mechanism: the ad network presents a signed ad,
 the user clicks or views the ad, the user later installs the app from the
@@ -527,8 +525,8 @@ for web-to-web and app-to-web click attribution. Mechanism:
 
 - Click events on a publisher site annotate the navigation target with
   attribution metadata (`attributionsourceid`, `attributiondestination`).
-- The destination (advertiser) site triggers a conversion via a
-  `attribution-reports/` endpoint.
+- The destination (advertiser) site triggers a conversion via a redirect to a
+  `/.well-known/private-click-measurement/trigger-attribution/` endpoint.
 - Safari sends an attribution report to a publisher-side endpoint after
   a randomized 24-48 hour delay, with limited data (8-bit click source
   ID + 4-bit conversion data) and no cookies attached.
@@ -557,7 +555,7 @@ queries from both Apple and from the destination site. Architecture:
 - The user's Safari traffic is encrypted to an ingress relay operated by
   Apple; the ingress relay sees the user's real IP but not the destination.
 - The traffic is re-encrypted and forwarded to an egress relay operated by
-  a third party (originally Cloudflare and Akamai); the egress relay sees
+  a third party (Akamai, Cloudflare, and Fastly); the egress relay sees
   the destination but not the user's real IP.
 - The destination site sees an egress IP from a Private Relay pool, with
   the region preserved but the city-level location coarsened.
@@ -582,26 +580,20 @@ competitors (Meta, Google, third-party ad networks, mobile measurement
 platforms) more than it harms Apple itself. Apple's own ad business
 (Apple Search Ads, Apple News Ads) is exempt from ATT under Apple's
 classification of first-party data; Apple's Search Ads grew its
-share-of-wallet by approximately 5 percentage points from Q1 2021 through
+share-of-wallet by approximately 5 percentage points from Q2 2021 through
 Q2 2022 (Appsumer), while Facebook's share-of-wallet dropped 4 percentage
 points. The regulatory consequence: the German Federal Cartel Office and
 the French Autorité de la concurrence both opened ATT-related
 investigations, and the EU DMA explicitly addresses asymmetric obligations
 on gatekeepers.
 
-Schneier and Doctorow have written critically about the framing, observing
-that "user privacy" and "Apple's competitive interest" coincide here without
-that coincidence being explored in Apple's public communications. The
-position-taking is structurally identical to "platforms should not be
-allowed to harvest data" being voiced loudest by the platform that does
-not depend on that harvest for its primary business model.
-
 ---
 
 ## 4. Mozilla Privacy-Preserving Attribution
 
 Mozilla's [Privacy-Preserving Attribution (PPA)](https://support.mozilla.org/en-US/kb/privacy-preserving-attribution),
-introduced as a Firefox prototype in July 2024 and refined through 2025-2026,
+introduced as an experimental Firefox 128 feature in July 2024 that was
+never activated and was later removed,
 takes a fundamentally different technical approach than Chrome's Attribution
 Reporting API: rather than relying on a single trusted aggregator (or a TEE
 attestation thereof), PPA uses **multi-party computation** via the IETF's
@@ -612,8 +604,8 @@ is the design venue.
 
 ### 4.1 The DAP protocol
 
-DAP is an IETF standards-track protocol (current draft `draft-ietf-ppm-dap-17`,
-January 2026) for privacy-preserving aggregate measurement. Architecture:
+DAP is an IETF standards-track protocol (current draft `draft-ietf-ppm-dap-20`,
+October 2026) for privacy-preserving aggregate measurement. Architecture:
 
 - **Two aggregation servers** operated by mutually distrustful parties
   (typically the measurement publisher and an independent third party such
@@ -649,13 +641,12 @@ that ATT and Privacy Sandbox were designed to constrain; the joint design
 work signals that the ad-tech industry has accepted MPC-based attribution
 as a viable replacement for cookie-based attribution if it can be
 operationalized at scale. As of 2026, IPA has not shipped in any production
-browser; it remains under PATCG discussion.
+browser.
 
 ### 4.3 Mozilla Privacy-Preserving Telemetry
 
 Mozilla also operates an internal privacy-preserving telemetry system using
-DAP for Firefox-internal metrics — origin trial submissions, performance
-counters, feature-adoption statistics — that aggregates across the Firefox
+DAP for Firefox-internal metrics that aggregates across the Firefox
 user population without retaining per-user signals. This was the practical
 testbed for DAP that preceded the PPA prototype's exposure to advertisers.
 
@@ -673,10 +664,7 @@ Beyond PPA, Firefox ships:
 
 Firefox's market share (single-digit percentages) limits the structural
 influence of its design choices, but the influence on the W3C standards
-process is substantial: Mozilla is the only mainstream browser vendor that
-ships a privacy-preserving measurement protocol that does not depend on
-its own attestation, which is a structural difference from Chrome's
-Sandbox-era designs.
+process is substantial.
 
 ---
 
@@ -686,9 +674,7 @@ Sandbox-era designs.
 
 Edge inherits Chromium's design surface but operates its own Tracking
 Prevention with three levels: Basic, Balanced (default), and Strict. Strict
-blocks third-party trackers from a curated list, blocks first-party
-trackers from accessing third-party storage, and blocks fingerprinting
-scripts. Edge participated in Privacy Sandbox testing through the Chromium
+blocks harmful trackers and most trackers from all sites. Edge participated in Privacy Sandbox testing through the Chromium
 collaboration; following the Sandbox retirement, Edge's post-Sandbox
 roadmap remains in flux. Microsoft Advertising operates its own
 privacy-preserving measurement APIs (`Universal Event Tracking` evolution
@@ -699,9 +685,8 @@ properties.
 
 Brave Software ships an aggressive default privacy posture: Brave Shields
 block third-party trackers, third-party cookies (always, regardless of
-Sandbox), and fingerprinting scripts; HTTPS Everywhere is integrated by
-default; the browser's user-agent and screen-resolution surface are
-randomized. Brave's structural alternative is **Brave Rewards** + **BAT
+Sandbox), and fingerprinting scripts; HTTPS by Default upgrades HTTP sites
+to HTTPS; canvas and Web Audio outputs are randomized ("farbling"). Brave's structural alternative is **Brave Rewards** + **BAT
 (Basic Attention Token)**: the browser observes ad attention on behalf of
 the user, the user receives BAT for opt-in attention, and advertisers
 purchase ad placements via the BAT marketplace. The on-device computation
@@ -716,7 +701,7 @@ search, tracker blocking via the Tracker Radar dataset, and "Smarter
 Encryption" HTTPS upgrading. App Tracking Protection (Android only) extends
 tracker blocking from web to native app traffic by acting as a local VPN
 that filters known tracker endpoints. DuckDuckGo Tracker Radar is published
-under a permissive license and used as a reference dataset for academic
+under a CC BY-NC-SA 4.0 license and used as a reference dataset for academic
 tracker measurement.
 
 ### 5.4 Tor Browser
@@ -758,8 +743,8 @@ that LiveRamp, Acxiom, and Oracle have monetized as the substrate of
 ad-tech identity resolution. The graph is also accessible to malicious
 actors who participate in any node of the ad-tech ecosystem; the same
 graph is used by data brokers, surveillance vendors, and law-enforcement
-data brokers (a documented practice in cases like *Carpenter v. United
-States* and the Mobilewalla / X-Mode controversies).
+data brokers (a documented practice in the Mobilewalla / X-Mode
+controversies).
 
 Defense (browser side): third-party cookie blocking + CHIPS + partitioned
 storage break direct cookie syncing. The defense is incomplete because
@@ -810,11 +795,9 @@ stable cross-site identifier (modulo mobile carrier-grade NAT and changing
 home networks). iCloud Private Relay, residential VPNs, and Tor are the
 primary user-side defenses. Server-side, the IP is increasingly less
 useful: VPN adoption, CGN, and IPv6 privacy extensions degrade its
-identifying power, and the IAB Tech Lab's analysis of Privacy Sandbox
-acknowledged IP-based identity as the de facto fallback that Sandbox
-designs were partly trying to displace.
+identifying power.
 
-The DoubleClick / Google Chrome IP Protection proposal — itself retired in
+The Google Chrome IP Protection proposal — itself retired in
 October 2025 as part of the Sandbox shutdown — would have hidden the IP
 from third-party origins by routing through Google-operated proxies.
 
@@ -857,21 +840,20 @@ Multiple academic papers in 2023-2024 have analyzed the Topics API for
 re-identification risk. Notable findings:
 
 - *A Public and Reproducible Assessment of the Topics API on Real Data*
-  (Beugin & Chassang, arXiv:2403.19577, 2024) — demonstrates that
-  interest profiles accumulated across observations contain sufficient
-  unique-signal to fingerprint substantial fractions of users on real
-  browsing traces.
-- *Re-Identification Attacks against the Topics API* (Carey et al., ACM
-  Transactions on the Web, 2024) — analyzes the worst-case re-identification
-  risk; concludes that an attacker observing topics across multiple
-  callers can identify approximately 25% of the noisy topics added by
-  the API and that less than 10-anonymity is guaranteed for more than
-  60% of simulated stable users after 10 observations.
+  (Beugin & McDaniel, arXiv:2403.19577, 2024) — finds on real browsing
+  data that the API does not provide the same privacy guarantees to all
+  users, with cross-site re-identification probabilities of 2%, 3%, and
+  4% after 1, 2, and 3 observations.
+- *Re-Identification Attacks against the Topics API* (Jha et al., ACM
+  Transactions on the Web, 2024) — finds that a user's topic profile can
+  remain unique within a website's audience, letting an attacker match
+  the same user across sites; correct re-identification can reach 50%
+  for a pool of 1,000 users.
 - *The Privacy-Utility Trade-off in the Topics API* (Alvim, Fernandes,
-  et al., ACM CCS 2024) — quantifies the trade-off between the utility
-  of returned topics and the re-identification risk; finds the parameter
-  choices in the production Topics API to be on the high-utility, lower-
-  privacy end of the Pareto frontier.
+  et al., ACM CCS 2024) — uses Quantitative Information Flow to analyze
+  the re-identification risk the API introduces; shows that Topics has
+  better privacy than third-party cookies and leaves utility analysis to
+  future work.
 
 The take-away is that **5% global noise is not a strong privacy bound** in
 the presence of repeated observations and a top-five sampling scheme that
@@ -905,7 +887,7 @@ on-device computation.
 ### 7.3 Attribution Reporting privacy budget management
 
 The Attribution Reporting API's aggregatable reports operate under a
-per-(source-site, reporting-origin) **L1 privacy budget** that bounds the
+per-source (ad click or view) **L1 contribution budget** that bounds the
 total contribution across reports. Sites and reporting origins must
 allocate the budget across measurement use cases; over-allocating any
 single use case starves the others, and the budget is finite over a
@@ -949,13 +931,8 @@ practice and the underlying theory is wide.
 DP budgets must be accounted across queries; naïvely treating each query
 as independent leaks epsilon proportional to the query count. RDP (Rényi
 DP, Mironov 2017) and zCDP (zero-concentrated DP, Bun-Steinke 2016) are
-the canonical accounting frameworks. Production DP budgets in advertising
-measurement are typically epsilon between 1 and 10 per query, with
-composition typically not exposed to the data consumer; this is sufficient
-for marketing-level aggregate measurement but not sufficient for
-publication-grade DP guarantees in the academic sense. The Apple emoji
-tracker / health-data DP deployment (RAPPOR-style local DP) operates at
-much smaller epsilons but produces much noisier estimates.
+the canonical accounting frameworks. Apple's local-DP deployments use epsilon 4 per day for emoji
+and 2 per day for Health Type Usage.
 
 ---
 
@@ -968,7 +945,7 @@ general availability in Chrome 115 (Q3 2023). The IAB Tech Lab Fit Gap
 Analysis (February 2024) reported that of 44 critical ad-tech use cases,
 the Sandbox supported only a small handful at the granularity required;
 adoption was correspondingly low. Per the October 17, 2025 Privacy
-Sandbox retirement announcement, "low and dropping adoption" was a
+Sandbox retirement announcement, "low levels of adoption" was a
 primary cited reason for retirement.
 
 ### 8.2 SKAdNetwork / AdAttributionKit adoption
@@ -986,11 +963,10 @@ walled-garden first-party data.
 ### 8.3 Mozilla PPA adoption
 
 PPA was enabled in Firefox by default in July 2024 (a controversial
-opt-out rather than opt-in choice that EFF and others criticized); the
-prototype's aggregator was Divvi Up / ISRG. Industry adoption is limited
-to a small number of opt-in measurement partners; the protocol is not
-positioned as a near-term mass-market measurement primitive but as a
-demonstration of viability. The PATCG / IPA collaboration with Meta is
+opt-out rather than opt-in choice that noyb and others criticized); the
+prototype's aggregator was Divvi Up / ISRG. The experiment was intended
+to run only on two Mozilla-operated websites, was never activated, and
+was later removed. The PATCG / IPA collaboration with Meta is
 the longer-term industry on-ramp.
 
 ### 8.4 Walled-garden measurement transitions
@@ -1010,7 +986,7 @@ Reported industry-wide impact of cookie-deprecation and ATT (2021-2024):
 
 - Meta: approximately $10B annual revenue impact attributed to ATT
   signal loss (2022 CFO commentary).
-- Snap: approximately $25B market-cap drop in October 2021 following
+- Snap: approximately $29B market-cap drop in October 2021 following
   Q3 earnings call attributing slowdown to ATT.
 - Google Search ads: comparatively insulated due to the lack of
   cross-app tracking dependency; Google Ad Network products had more
@@ -1066,9 +1042,10 @@ restrict cross-service data sign-in and cross-service ad targeting.
 
 The DMA's interaction with ATT is structurally interesting: Apple's ATT
 imposes consent on third parties using IDFA; the DMA imposes consent on
-gatekeepers (including Apple) combining data across services. The German
-and French ATT investigations and the EU's separate ATT inquiry under
-the DMA are still resolving as of 2026.
+gatekeepers (including Apple) combining data across services. The French
+competition authority fined Apple €150 million over ATT in March 2025,
+and the German Bundeskartellamt closed its ATT proceeding with binding
+commitments in August 2026.
 
 ### 9.3 California — CCPA / CPRA / CalOPPA
 
@@ -1105,9 +1082,9 @@ California Attorney General guidance has confirmed GPC as a valid CCPA
 opt-out mechanism; Colorado, Connecticut, Texas, and other state laws
 similarly recognize universal opt-out signals.
 
-GPC's adoption status (2026): supported by Firefox (default in EU regions,
-toggleable elsewhere), Brave (default), DuckDuckGo (default), Mozilla
-Focus (default); Safari and Chrome require user toggle or extension.
+GPC's adoption status (2026): supported by Firefox (default in Private Browsing,
+toggleable elsewhere), Brave (default), DuckDuckGo (default); Safari and
+Chrome require an extension.
 Server-side enforcement is uneven; the CCPA's actionability of GPC has
 been validated in several California AG enforcement actions.
 
@@ -1127,10 +1104,9 @@ enactment as of 2026.
 
 Judge Brinkema (E.D. Va.) ruled April 17, 2025 that Google had
 monopolized the publisher ad-server and ad-exchange markets in violation
-of Sherman Act sections 1 and 2. The remedies phase is ongoing as of
-2026; potential structural remedies (divestiture of Google Ad Manager,
-behavioral conduct constraints) would have substantial knock-on effects
-on the ad-tech privacy landscape. The 2024 ruling in *United States v.
+of Sherman Act sections 1 and 2. In September 2026 Brinkema
+rejected the DOJ's structural remedies, including AdX divestiture, and
+imposed six years of behavioral remedies overseen by a monitor. The 2024 ruling in *United States v.
 Google* (search monopolization, Judge Mehta D.D.C.) and the 2025 remedy
 order in that case (search-distribution-deals constraints) are the
 broader antitrust context.
@@ -1148,8 +1124,7 @@ The deprecation of cookie-based tracking does not reduce the malvertising
 attack surface. Ad networks remain a high-fidelity distribution channel
 for drive-by exploitation, scam ads, fake-update ads (FakeBat, SocGholish,
 ClearFake), and tech-support-fraud landings. Detection occurs at the
-ad-network level (Google Ads ad-policy enforcement, the Coalition Against
-Stalkerware, Confiant) and at the browser level (Safe Browsing, SmartScreen,
+ad-network level (Google Ads ad-policy enforcement, Confiant) and at the browser level (Safe Browsing, SmartScreen,
 content security policy). The Privacy Sandbox's fenced-frame rendering
 slightly reduces some classes of advertiser-side JavaScript abuse by
 isolating creatives but does not address malicious ads in general.
@@ -1190,8 +1165,7 @@ later redeems a token to verify the user has been positively-checked,
 without learning which user or which check was performed. The
 cryptographic construction is the Privacy Pass protocol family
 (`draft-ietf-privacypass`), which is also the basis of Cloudflare's
-Privacy Pass extension and Apple's iCloud Private Relay token
-authentication.
+Privacy Pass extension.
 
 ### 10.5 Fraud in privacy-preserving environments
 
@@ -1230,8 +1204,8 @@ The structural questions:
   user, so that agent-driven browsing does not pollute the user's
   Topics, interest groups, or attribution budgets?
 - Should ads served to agents be priced or measured differently? IAB
-  Tech Lab's *Agentic.io* discussion (2025-2026) and the W3C Agent
-  Trust Web Identity Community Group's drafts are early-stage.
+  Tech Lab's Agentic Advertising Management Protocols (AAMP) work
+  (2025-2026) is early-stage.
 - Privacy: an agent that browses on behalf of the user has access to
   the user's identity and may be tricked (via prompt injection in ad
   creative) into exfiltrating it. See
@@ -1242,7 +1216,8 @@ The structural questions:
 Privacy-preserving advertising for spatial computing (Vision Pro, Quest,
 Pico) is largely greenfield. The platforms' eye-tracking, hand-tracking,
 and room-mapping data is a substantial new privacy surface; Apple's
-visionOS makes eye-tracking opt-in and ATT-gated. The advertising
+visionOS does not share eye input with Apple, third-party apps, or
+websites; only final selections are transmitted. The advertising
 primitives have not yet been defined: spatial ad placement, attention-based
 measurement, gaze-target measurement are research-stage; the privacy
 properties have not yet been worked out at the spec level.
@@ -1277,8 +1252,7 @@ effectiveness without cross-site tracking; the open web does not have
 first-party data on the same population and depends on the privacy-
 preserving primitives. The deprecation of cookies therefore systematically
 favors the walled gardens against the open web; the post-cookie measurement
-gap is the structural concern of publisher-advocacy organizations (DCN,
-News Media Alliance, IAB).
+gap is the structural concern of publisher-advocacy organizations (IAB).
 
 ### 11.5 Privacy-preserving advertising for children
 
@@ -1302,9 +1276,7 @@ tier) replaces audience-based targeting for the open web. Vendors
 (Seedtag, GumGum, Captify, Integral Ad Science, DoubleVerify) operate
 the contextual analysis layer. The privacy property is that no user
 data is required — the targeting is purely on the visible content.
-The trade-off is targeting precision: contextual is reportedly 50-70%
-as effective as behavioral targeting for measurable response, depending
-on category.
+The trade-off is targeting precision.
 
 ### 11.7 The unresolved question — is interest-based advertising recoverable?
 
@@ -1387,7 +1359,7 @@ No consensus has emerged across these positions as of 2026.
 ### 12.5 Industry analysis
 
 - IAB Tech Lab Privacy Sandbox Fit Gap Analysis (February 2024) — https://iabtechlab.com/wp-content/uploads/2024/02/Privacy-Sandbox-Fit-Gap-Analysis-PUBLIC-COMMENT-RELEASE.pdf
-- IAB Tech Lab Privacy Sandbox Final Fit Analysis (October 2024) — https://iabtechlab.com/iab-tech-lab-releases-final-privacy-sandbox-fit-analysis/
+- IAB Tech Lab Privacy Sandbox Final Fit Analysis (June 2024) — https://iabtechlab.com/iab-tech-lab-releases-final-privacy-sandbox-fit-analysis/
 - IAB Europe DSA Implementation Guidelines — https://iabeurope.eu/
 - IAB Tech Lab — https://iabtechlab.com/
 - Center for Democracy and Technology post-mortem — https://cdt.org/insights/googles-privacy-sandbox-is-dead-the-fight-for-real-online-privacy-continues/
@@ -1408,9 +1380,9 @@ No consensus has emerged across these positions as of 2026.
 
 ### 12.8 Academic — Topics API and re-identification
 
-- "A Public and Reproducible Assessment of the Topics API on Real Data" (Beugin & Chassang, arXiv:2403.19577, 2024) — https://arxiv.org/abs/2403.19577
+- "A Public and Reproducible Assessment of the Topics API on Real Data" (Beugin & McDaniel, arXiv:2403.19577, 2024) — https://arxiv.org/abs/2403.19577
 - "The Privacy-Utility Trade-off in the Topics API" (Alvim, Fernandes, et al., ACM CCS 2024) — https://dl.acm.org/doi/10.1145/3658644.3670368
-- "Re-Identification Attacks against the Topics API" (Carey et al., ACM TWEB 2024) — https://dl.acm.org/doi/full/10.1145/3675400
+- "Re-Identification Attacks against the Topics API" (Jha et al., ACM TWEB 2024) — https://dl.acm.org/doi/full/10.1145/3675400
 - "Differentially Private Synthetic Data Release for Topics API Outputs" (2025) — https://www.researchgate.net/publication/393184716
 
 ### 12.9 Fingerprinting and tracking research
@@ -1424,7 +1396,7 @@ No consensus has emerged across these positions as of 2026.
 - Dwork, McSherry, Nissim, Smith — "Calibrating Noise to Sensitivity in Private Data Analysis" (TCC 2006, Gödel Prize 2017) — https://www.iacr.org/archive/tcc2006/38760266/38760266.pdf
 - Dwork & Roth — *The Algorithmic Foundations of Differential Privacy* (2014) — https://www.cis.upenn.edu/~aaroth/privacybook.html
 - Mironov — "Rényi Differential Privacy" (CSF 2017) — https://arxiv.org/abs/1702.07476
-- Cheu, Smith, Ullman, Zeber, Zhilyaev — "Distributed Differential Privacy via Shuffling" (EUROCRYPT 2019) — https://eprint.iacr.org/2018/1059
+- Cheu, Smith, Ullman, Zeber, Zhilyaev — "Distributed Differential Privacy via Shuffling" (EUROCRYPT 2019) — https://eprint.iacr.org/2019/245
 - Corrigan-Gibbs & Boneh — "Prio: Private, Robust, and Scalable Computation of Aggregate Statistics" (NSDI 2017) — https://www.usenix.org/conference/nsdi17/technical-sessions/presentation/corrigan-gibbs
 
 ### 12.11 Critical / policy

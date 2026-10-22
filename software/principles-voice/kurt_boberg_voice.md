@@ -3,11 +3,10 @@
 
 > Kurt Boberg is a Staff Security Researcher at Semgrep working on applied static analysis.
 > His career arc runs through DevOps and automation roles into application security: AppSec at
-> DocuSign (XXE and document-pipeline territory) and Chegg (GraphQL authorization and
-> consumer-scale program building), then security research at r2c / Semgrep where he writes
+> Chegg, then security research at r2c / Semgrep where he writes
 > the rules, ships the workflows, and now extends the static-analysis posture into agentic
 > and MCP-shaped systems. He publishes under the handle "lapt0r" at malfunctioning.website
-> (404 Security Not Found, "A collection of application security thoughts") and at the
+> (Known Issues) and at the
 > Semgrep blog, and speaks at BSides Seattle and similar regional venues. Outside work he
 > restores a first-generation Chevrolet C10 in his garage; that hands-on, take-it-apart
 > register shows up in his writing.
@@ -23,12 +22,11 @@
 > public voice.
 >
 > Sources: malfunctioning.website blog (3 posts, 2020-2021); Semgrep blog (MCP guide 2025;
-> Supply Chain deep dive 2022; tj-actions compromise 2025 co-authored with Aaron Bray;
+> Supply Chain deep dive 2022; tj-actions compromise 2025 co-authored with Isaac Evans, Lewis Ardern, and Bence Nagy;
 > vm2 sandbox escape 2026 co-authored with Katie Paxton-Fear; "Security Like It's 1977 —
 > Capabilities for the Modern Agentic Web," Jan 2026, solo); Sessionize speaker profile
-> for BSides Seattle 2026; tl;dr sec staff-engineer interview (Clint Gibler); GitLab
-> `lapt0r/border-collie`; and the internal detection-automation work he has shipped
-> at Semgrep spanning authorization bugs, command injection, and prompt injection.
+> for BSides Seattle 2026; and GitLab
+> `lapt0r/border-collie`.
 
 ---
 
@@ -75,7 +73,7 @@ collectively paying for not measuring reachability." The number is the lever.
 The same posture shows up in the MCP guide's discussion of tool poisoning, tool
 shadowing, and rug-pulling. He doesn't enumerate every CVE class; he enumerates the
 specific structural primitives that the MCP specification fails to require — broadcast
-of tool changes, re-approval on change, audience validation on OAuth. The interesting
+of tool changes and re-approval on change. The interesting
 finding is which guarantees the spec fails to provide, not which servers happen to be
 vulnerable today.
 
@@ -87,8 +85,7 @@ Lawyer — are deliberately not engineering roles. The argument is that AppSec t
 on the engineering relationship (which is already healthy on the tactical level) and
 under-index on the relationships that scale a program horizontally.
 
-The Product Manager is named first and described as "a bridge to product strategy and
-planning"; understanding "what the company is building before they build it" is presented
+The Product Manager is named first; understanding "what the company is building before they build it" is presented
 as the meta-advantage. The QA Lead is described as "Mirror World You" — security and QA
 share the same adversarial-test-case discipline; the difference is which threat model
 they operationalize. The Lawyer is positioned as a strategic ally specifically when
@@ -107,11 +104,10 @@ it at runtime filesystem events. The reverse-shell ruleset doesn't change; the s
 does. The result is a lightweight host-based IDS that costs an afternoon to wire up.
 
 The same pattern repeats in the MCP guide. The vulnerability classes he enumerates —
-prompt injection in tool descriptions, name-collision through invisible Unicode
-characters, request smuggling on HTTP transport — are not new classes. They are old
+prompt injection in tool descriptions, request smuggling on HTTP transport — are not new classes. They are old
 classes that just landed on a new substrate. His framing throughout is that MCP is
 "a specification (like REST or SOAP) for a programmatic tool interface" and that
-security engineers "should treat MCP servers like any other API target." The substrate
+security engineers should "approach testing MCP servers like any other API target." The substrate
 is the novelty; the methodology is the same one we already have.
 
 The authorization-detection workflow and the command-injection workflow that he has
@@ -123,11 +119,11 @@ building for years. The model is a stage of the pipeline, not the pipeline.
 ### "Just write the rule"
 
 If there is one verb that captures his working register, it is "write the rule." The
-Supply Chain post emphasizes that Semgrep generates dependency rules "automatically from
-disclosed vulnerabilities using semantic analysis patterns" — meaning the unit of work
+Supply Chain post emphasizes that Semgrep relies on "Automated creation of new Supply Chain rules from
+publicly disclosed vulnerabilities" — meaning the unit of work
 is a rule, written once, that runs everywhere. The tj-actions post recommends locating
-affected repositories by "running a Semgrep detection rule." The Seattle Java User Group
-talk (per the abstract) walks through "practical and real-world Semgrep examples for
+affected repositories and running "the Semgrep detection rule locally." The Seattle Java User Group
+talk (per its subtitle) walks through "practical and real-world Semgrep examples for
 Java" covering SQL injection, reverse shells, and XXE — each one a rule.
 
 The implicit claim is that the rule is the durable artifact. The bug is ephemeral; the
@@ -167,7 +163,7 @@ the program. The exciting CVE is a moment; the pinning policy is the structure.
 By the 2026 "Security Like It's 1977" post, the recurring pattern crystallizes into an
 explicit doctrine: when the substrate changes (MCP servers, A2A agents, sub-agent
 chains), the right response is not a new threat model but the recovery of an old one.
-The argument runs through Norm Hardy at Tymshare in 1977, KeyKOS in the 1980s, EROS,
+The argument runs through Norm Hardy at Tymshare in 1977, KeyKOS in the 1980s,
 and the E language's object-capability semantics, and lands on a present-tense
 imperative: "Agents MUST request capabilities scoped to the task, not the session."
 
@@ -207,7 +203,7 @@ qualifier dropped in parentheses or set off with em-dashes. He does not use long
 clauses to qualify; he qualifies in parens and moves on.
 
 When he does run a longer sentence, it is usually because he is listing a small set of
-related items — three roles in a program, three kinds of MCP attack, three CLI flags on
+related items — three roles in a program, three kinds of MCP attack, two CLI flags on
 border-collie. The lists are short. He almost never lists more than four items in a
 sentence; if the list grows past four, it becomes a bulleted block.
 
@@ -234,7 +230,7 @@ have a code example, show the code that runs. Do not abstract it into pseudocode
 When he reaches for an analogy, he reaches into operations, sysadmin, or general
 software engineering. MCP is "a specification (like REST or SOAP)." The Supply Chain
 problem is reduced to "an avalanche" of alerts becoming a "short list." The QA Lead is
-"Mirror World You." Watchdog file-write events are "high-signal indicators."
+"Mirror World You." Watchdog file-write events are "a fairly high-signal event."
 
 He almost never reaches for physical-world security analogies — no locks, no fortresses,
 no perimeters. The closest he comes to a defense-in-depth metaphor is the BSides talk
@@ -247,7 +243,7 @@ not security-tribe-to-civilian.
 "Off-label usage" in Fun With Semgrep is a small self-aware joke that does load-bearing
 work: it tells the reader, accurately, that he is using the tool in a way the vendor
 did not intend, and that the technique inherits any limitations of that mismatch. The
-post's Future Enhancements section then names the limits directly — containerized
+post's Future Work section then names the limits directly — containerized
 deployment is a TODO, expanded rule coverage is a TODO, performance is a TODO.
 
 The Sessionize bio uses the same posture at a register: he calls himself a security
@@ -259,8 +255,8 @@ signals that the role is provisional, the work is what matters.
 
 When he attributes a primitive to someone, he names them. The In Memoriam post quotes
 his father by name and attributes the disassemble-everything posture to him directly.
-The Border Collie README credits "Python Corner for their watchdog implementation
-guide." When he co-authors a Semgrep blog post (tj-actions with Aaron Bray; vm2 with
+The Border Collie README credits "Python corner for the implementation
+guide of `watchdog`." When he co-authors a Semgrep blog post (tj-actions with Isaac Evans, Lewis Ardern, and Bence Nagy; vm2 with
 Katie Paxton-Fear), the co-author is named in the byline.
 
 When he invokes common AppSec knowledge — SQL injection, XXE, reverse shells, request
@@ -273,7 +269,7 @@ he is invoking the standard catalog.
 His preferred structure is short prose paragraphs with bulleted lists for enumerable
 items and code blocks for actual artifacts. He uses headings to chunk a long post, but
 the headings tend to be short noun phrases ("Tool Poisoning," "Rug-Pulling,"
-"Future Enhancements") rather than complete-sentence headings. He does not lean on
+"Future Work") rather than complete-sentence headings. He does not lean on
 tables; the format is bullets first, tables only when the comparison is genuinely
 two-dimensional (e.g., a vulnerability matrix).
 
@@ -287,11 +283,7 @@ A few representative cadences from his published voice:
 - "I am a hacker because of my dad." (In Memoriam)
 - "Mark was all of these things and more." (In Memoriam)
 - "Most open-source vulnerabilities aren't reachable." (Supply Chain)
-- "Semgrep Supply Chain analyzes Python, Ruby, JavaScript/TypeScript, Go, and Java
-  (beta) without additional infrastructure." (Supply Chain)
 - "All versions of tj-actions/changed-files are compromised." (tj-actions)
-- "Security professionals should approach MCP servers using familiar API testing
-  methodologies." (MCP guide)
 - "Visibility, compassion, and ruthless prioritization are the key pillars of a
   successful product security program — tools and technology are secondary."
   (Sessionize)
@@ -332,7 +324,7 @@ yet, the methodology mirrors the static-analysis methodology — enumerate the i
 inspect the structure, then reach for source.
 
 This is not because Semgrep is his employer. It is because his career predates Semgrep
-(DocuSign, Chegg) and the static-analysis posture is older than the job. The tool is
+(Chegg) and the static-analysis posture is older than the job. The tool is
 the expression of the posture.
 
 ### Cross-functional empathy
@@ -340,7 +332,7 @@ the expression of the posture.
 The People To Know post is the canonical statement, but the empathy shows up everywhere.
 The MCP guide is written from the perspective of an engineer who has to ship MCP
 servers, not a researcher trying to humiliate one. The Supply Chain post explicitly
-calls out that triage costs are "politically costly for engineering teams" — naming
+asks of triage "How much political capital did it cost you?" — naming
 the social cost, not just the technical one. The tj-actions response is structured as a
 runbook for the on-call AppSec engineer, not as a postmortem of the maintainer.
 
@@ -367,7 +359,7 @@ coverage, performance). The Supply Chain post is precise about the language cove
 (Python, Ruby, JS/TS, Go, Java-beta) — the "beta" is not buried. The MCP guide is
 explicit that some classes of attack only apply to HTTP transport and that STDIO
 servers have a different threat model. The vm2 post recommends "isolated-vm or
-containerized solutions" — naming the alternatives rather than pretending the
+containerized applications" — naming the alternatives rather than pretending the
 vulnerable library has a fix.
 
 The scope statement is part of the trust contract with the reader. If you write in his
@@ -449,9 +441,7 @@ or rhetorical questions.
 
 ### Citing yourself for credibility
 
-He does not name-drop his prior employers as authority markers. The fact that he
-worked at DocuSign and Chegg shows up in interview answers (because the interviewer
-asked), not in his blog posts. The blog posts stand on what they say, not on who said
+He does not name-drop his prior employers as authority markers. The blog posts stand on what they say, not on who said
 it.
 
 ### README anti-patterns: marketing-page / SaaS-landing-page vocabulary
@@ -470,8 +460,8 @@ section with checkmarks, no benefit-language ("seamlessly integrates,"
 - **Marketing adjectives in the opener.** "Powerful," "robust," "scalable,"
   "production-ready," "battle-tested," "enterprise-grade," "developer-friendly,"
   "lightweight," "blazingly fast" — none of these appear in Kurt's actual
-  README. The Border Collie README uses "security tool" + "leverages Semgrep
-  and Python's watchdog package" — descriptive, no evaluation.
+  README. The Border Collie README opens with "uses Semgrep
+  and the Python `watchdog` package" — descriptive, no evaluation.
 - **Hedge-prose-as-liability-shield in the limits section.** "Should not be
   relied upon as your sole defense," "results may vary," "your mileage may
   vary," "for educational purposes only" — Kurt states limits operationally
@@ -535,8 +525,7 @@ If a future Claude session needs to write something "in Kurt's voice," these are
 imitable rules.
 
 1. **Open with the technical primitive named directly, not its consequences.** Fun With
-   Semgrep opens by naming Semgrep. The MCP guide opens by naming MCP. The Supply Chain
-   post opens by naming the reachability gap. Do not open with "imagine if" or "in
+   Semgrep opens by naming Semgrep. The MCP guide opens by naming MCP. Do not open with "imagine if" or "in
    today's landscape." Name the thing.
 
 2. **State the load-bearing number early.** If the argument rests on a measurement
@@ -598,19 +587,17 @@ imitable rules.
     - **malfunctioning.website** (personal blog): byline at TOP under the title,
       Kurt's name first (his own blog).
     - **Semgrep blog vendor-guide / VR-writeup / doctrine post**: byline at
-      FOOT of the piece, alphabetical order (so Katie Paxton-Fear comes before
-      Kurt Boberg in the actual MCP and vm2 posts).
+      TOP under the title (the vm2 post lists Katie Paxton-Fear, then Kurt
+      Boberg; the MCP guide and the 1977 post list Kurt Boberg alone).
     - **Semgrep blog INCIDENT-RESPONSE post**: byline at TOP under the title,
       multi-author. The tj-actions post lists "Isaac Evans, Lewis Ardern,
-      Kurt Boberg, Bence Nagy" at the top. Incident-response posts break the
-      Semgrep-blog "byline at foot" default — the urgency of the disclosure
-      drives the byline up where it acts as a credibility marker.
+      Kurt Boberg, Bence Nagy" at the top.
     - **Conference talk slides / abstracts**: presenter ordering on slides;
       both names on first slide.
 
     Shift-4 regression: informed agent placed "By Kurt Boberg and Katie
-    Paxton-Fear" at the TOP, Kurt first. The actual vm2 post has "By: Katie
-    Paxton-Fear and Kurt Boberg" at the FOOT.
+    Paxton-Fear" at the TOP, Kurt first. The actual vm2 post lists Katie
+    Paxton-Fear and Kurt Boberg at the TOP, under the title.
     Shift-7 regression: informed agent fabricated a "By Aaron Bray and Kurt
     Boberg" byline at FOOT. The actual tj-actions post has "Isaac Evans, Lewis
     Ardern, Kurt Boberg, Bence Nagy" at the TOP. Both the names AND the
@@ -619,16 +606,15 @@ imitable rules.
 
 15. **Match length to artifact type. Do not over-write.** Empirical anchors:
     - **malfunctioning.website (personal blog):** ~500-900w (Fun With Semgrep
-      ~500w of prose + 4 code blocks; People To Know ~700w).
-    - **Semgrep blog vendor-guide:** ~1,200-2,500w (MCP guide ~4,500w with
+      ~500w of prose + 4 code blocks).
+    - **Semgrep blog vendor-guide:** ~1,200-2,500w (MCP guide has
       named-checklist sections that pad the count; otherwise 1,200-2,500w
       essay).
     - **Semgrep blog VR-writeup:** ~600-1,100w (vm2 sandbox-escape ~830w).
       Terse register; see rule 27.
-    - **Semgrep blog doctrine post:** ~1,000-1,800w (Security Like It's 1977
-      ~1,300w). Doctrine essays are SHORTER than vendor-guides — they argue
+    - **Semgrep blog doctrine post:** ~1,000-1,800w. Doctrine essays are SHORTER than vendor-guides — they argue
       from a position rather than walking a checklist. Shift-5 informed agent
-      wrote 3,063w on a doctrine topic; the actual public artifact is ~1,300w.
+      wrote 3,063w on a doctrine topic.
       The rule's prior "2,500-3,500w doctrine band" was empirically wrong.
     - **Supply-Chain / Conference longreads:** can run 2,000-4,000w because
       numeric tables carry the wordcount.
@@ -902,7 +888,7 @@ imitable rules.
 
 22. **Behavior-frame before title. Name the role by what they DO that matters,
     then attach the org-chart label.** Kurt does not write "The QA Lead does X."
-    He writes "The QA Lead is Mirror World You." Behavior-frame, then title.
+    He writes "This person is just Mirror World You." Behavior-frame, then title.
     This forces the prose to do the leverage argument before reaching for an
     org-chart label. Same move shows up in other Kurt pieces: the engineer-as-
     user, the PM-as-pipeline-input, the Lawyer-as-amplifier. Applied to any role
@@ -975,8 +961,9 @@ imitable rules.
     - **Customer-action links interleaved with prose, not segregated** in a
       "what to do" section at the end. "If you are a semgrep customer you can
       search for the package in your dependencies using the [package search
-      tool]…" — this appears in the third paragraph of the actual vm2 post,
-      not in a Defensive Recommendations block.
+      tool]…" — this appears in the introduction of the actual vm2 post
+      (before the "How to tell if you are affected" heading), not in a
+      Defensive Recommendations block.
     - **Tool-recommendation gestures stay terse:** one named recommended tool,
       one gestural alternative, done. Not a 150-word comparison of
       isolated-vm vs quickjs-emscripten vs Wasm.
@@ -985,7 +972,8 @@ imitable rules.
       security researcher Max Vonblankenburg](https://…) wrote (after a year
       of critical vulnerabilities affecting vm2) about the discontinuation
       of vm2."
-    - Byline at FOOT, alphabetical order (see Rule 14).
+    - Byline at TOP under the title: Katie Paxton-Fear, then Kurt Boberg
+      (see Rule 14).
 
 28. **Fact discipline: do not invent facts the actual artifact does not
     assert. CO-AUTHOR BYLINES ARE A HARD CASE OF THIS RULE.** When writing in
@@ -997,7 +985,7 @@ imitable rules.
     - **Shift-4 (vm2):** "un-archived in late 2025 with new co-maintainership"
       — invented. "Fifteen prior CVSS-9.8 sandbox escapes in vm2 across
       2021-2026" — actual says "Eight security advisories in a single year,
-      seven within just a four-month window." "We reported this primitive to
+      seven of these within just a four-month window." "We reported this primitive to
       the maintainers" — implies Semgrep was the reporter; the actual piece
       makes no such claim. "QuickJS-emscripten under wasmtime/wasmer ~10-50x
       slower" — invented benchmarks.
@@ -1046,21 +1034,22 @@ imitable rules.
       explanations dilute it.
     - **Byline at TOP, multi-author** (see rule 14): Isaac Evans, Lewis
       Ardern, Kurt Boberg, Bence Nagy on the tj-actions post.
-    - **Section headings are second-person directives** ("What to do this
-      week", "If you used this action", "How to detect") — incident-response
+    - **Section headings are second-person directives** ("What you should
+      do") — incident-response
       tells the reader what to do, not what to think.
     - **In-prose SHAs and dates**: the malicious commit SHA appears in the
       prose body (not just in a code block), because the SHA IS the
       detection indicator. Specific date (March 14 2025) AND specific SHA
       together. This is rule 26 incident-response-precision applied
       maximally.
-    - **Updates section at top or as a sticky note**: incident posts evolve
-      as the disclosure timeline unfolds. An "Updated 2025-03-15 17:00 UTC"
-      block at the top acknowledges the artifact will be revised. Vendor-
+    - **Updates section**: incident posts evolve as the disclosure timeline
+      unfolds. The tj-actions post appends dated update sections ("Update
+      March 17th 2025 12:24pm PT", "Update March 18th 2025 08:00AM PT") below
+      the body, acknowledging the artifact will be revised. Vendor-
       guide / doctrine posts do not have Updates blocks.
     - **Customer-action links interleaved** (similar to VR-writeup rule 27):
-      "If you're a Semgrep customer, the rule below will flag your affected
-      workflows" appears in the body, not in a separate "What to do" appendix.
+      "Semgrep customers should see if you used any of these actions:"
+      appears in the body, not in a separate "What to do" appendix.
     - **"We" band exemption / lower:** incident-response posts may use "we"
       less than vendor-guides because the focus is on the reader's
       response, not the research team's perspective. 3-8 "we" instances
@@ -1074,8 +1063,8 @@ imitable rules.
       your secrets. Pin to SHA going forward." — three imperatives, no
       compressed thesis line.
 
-    Shift-7 anchor: actual tj-actions post is ~500-700w with TOP byline,
-    second-person directive headings, in-prose SHAs, Updates section.
+    Shift-7 anchor: actual tj-actions post has a TOP byline,
+    a "What you should do" heading, in-prose SHAs, dated update sections.
     Shift-7 informed agent wrote 1,336w with FOOT byline, noun-phrase
     headings, fabricated byline, no Updates section — overshot on length
     AND register.
@@ -1102,10 +1091,9 @@ imitable rules.
     - **Aphorism placement is OPENING, not closing.** This INVERTS the
       blog/doctrine position-rule. README readers scan-not-read; the first
       sentence is the install-decision signal. Border Collie's actual opener
-      ("Border Collie is a security tool that leverages Semgrep and Python's
-      watchdog package to identify potential reverse shells in your
-      environment.") is the canonical example — 26 words, copular, declares
-      tool + two dependencies + job. The aphorism budget for a 300-500w README
+      ("Border Collie uses Semgrep and the Python `watchdog` package to detect
+      potential reverse shells being dropped in your environment.") is the
+      canonical example — 19 words, declares tool + two dependencies + job. The aphorism budget for a 300-500w README
       is 1 aphorism, and it MUST land at the opener.
     - **Code blocks are install commands + canonical CLI invocation, NOT
       Semgrep rule YAML.** The rules live in `./rules/`; the README does NOT
@@ -1132,11 +1120,11 @@ imitable rules.
       due to embedding." — license-bound, no exhortation, no "Happy
       securing!" sign-off.
     - **Credit-by-name for borrowed primitives applies** (Rule 6 holds). The
-      Border Collie README credits "Python Corner for their watchdog
-      implementation guide." When a README's tool depends on someone else's
+      Border Collie README credits Python Corner ("Big thanks to Python
+      corner for the implementation guide of `watchdog`"). When a README's tool depends on someone else's
       integration recipe, name them.
 
-    Shift-8 anchor: Border Collie README is ~300-450w, no byline, GPL 2.1
+    Shift-8 anchor: Border Collie README is ~125w (1,100 bytes), no byline, GPL 2.1
     derivative-works clause, Python Corner credit, two CLI flags
     (`--monitor_path` / `--webhook`), Docker-sidecar + Go-rewrite roadmap.
     Both shift-8 agents hit the structural envelope; informed agent hit the
@@ -1340,7 +1328,7 @@ sentence or recover the register.
 
 2. "I am a hacker because of my dad." — In Memoriam,
    [malfunctioning.website](https://malfunctioning.website/personal/2020/10/31/In-Memoriam).
-   Six words. Declares lineage, register, and identity in one sentence.
+   Eight words. Declares lineage, register, and identity in one sentence.
 
 3. "Visibility, compassion, and ruthless prioritization are the key pillars of a
    successful product security program — tools and technology are secondary." —
@@ -1357,7 +1345,8 @@ sentence or recover the register.
    [semgrep.dev](https://semgrep.dev/blog/2022/a-deep-dive-into-semgrep-supply-chain/).
    The industry-research framing of the reachability gap.
 
-6. "Only 1.9% of 1,614 Dependabot alerts were actually reachable in user code." — A
+6. "At the time of forking, we found 1,614 Dependabot alerts for rules that Semgrep
+   Supply Chain covers. [...] For those counting along, that's 1.9%." — A
    Deep Dive into Semgrep Supply Chain,
    [semgrep.dev](https://semgrep.dev/blog/2022/a-deep-dive-into-semgrep-supply-chain/).
    The field measurement that operationalizes the framing.
@@ -1374,42 +1363,41 @@ sentence or recover the register.
    The closing of the In Memoriam post. The verb "prototype" is the load-bearing word;
    it transforms a generic call to remember into a specific engineering imperative.
 
-9. "MCP is a specification (like REST or SOAP) for a programmatic tool interface." — A
+9. "The Model Context Protocol is a specification (like REST or SOAP) for a
+   programmatic tool interface." — A
    Security Engineer's Guide to MCP,
    [semgrep.dev](https://semgrep.dev/blog/2025/a-security-engineers-guide-to-mcp/).
    The classic Kurt opening move: define the new primitive in terms of the known
    primitive, then ride the methodology over.
 
-10. "Security professionals should approach MCP servers using familiar API testing
-    methodologies." — A Security Engineer's Guide to MCP,
+10. "You should approach testing MCP servers like any other API target." — A Security Engineer's Guide to MCP,
     [semgrep.dev](https://semgrep.dev/blog/2025/a-security-engineers-guide-to-mcp/).
     The deflationary move: the new substrate does not require a new methodology.
 
-11. "All versions of tj-actions/changed-files are compromised." — tj-actions/changed-
-    files Is Compromised,
-    [semgrep.dev](https://semgrep.dev/blog/2025/popular-github-action-tj-actionschanged-files-is-compromised/).
-    Seven-word incident report. Notice the absence of qualifiers.
-
-12. "Pin all GitHub Actions to specific commit SHAs rather than version tags." —
+11. "At time of writing, it looks like all versions are compromised." —
     tj-actions/changed-files Is Compromised,
     [semgrep.dev](https://semgrep.dev/blog/2025/popular-github-action-tj-actionschanged-files-is-compromised/).
-    Specific, operational, no preamble. The recommendation is a verb plus an object.
 
-13. "The QA Lead is described as Mirror World You." — Building An AppSec Program —
+12. "Generally, pin all GitHub Actions to specific commit SHAs (rather than version
+    tags) you know are safe." —
+    tj-actions/changed-files Is Compromised,
+    [semgrep.dev](https://semgrep.dev/blog/2025/popular-github-action-tj-actionschanged-files-is-compromised/).
+    Specific, operational. The recommendation is a verb plus an object.
+
+13. "This person is just Mirror World You." (The QA Lead) — Building An AppSec Program —
     People To Know,
     [malfunctioning.website](https://malfunctioning.website/appsec/2021/04/13/people-to-know).
     The most memorable line in the People To Know post. The image carries the
     argument: QA and AppSec are the same adversarial discipline pointed at different
     threat models.
 
-14. "Understanding what the company is building before they build it." — Building An
+14. "Knowing what the company is building before they build it." — Building An
     AppSec Program — People To Know,
     [malfunctioning.website](https://malfunctioning.website/appsec/2021/04/13/people-to-know).
     Compresses the security-program leverage argument into a single sentence: the
     earlier in the product process you arrive, the more leverage you have.
 
-15. "Semgrep functions like grep with AST awareness combined with utilities for
-    identifying code antipatterns." — Fun With Semgrep,
+15. "Semgrep is basically `grep` with AST awareness..." — Fun With Semgrep,
     [malfunctioning.website](https://malfunctioning.website/appsec/2021/11/25/fun-with-semgrep).
     The definitional line. "Grep with AST awareness" is the four-word framing he uses
     when he needs to introduce Semgrep to a new audience.
@@ -1418,7 +1406,7 @@ sentence or recover the register.
     [malfunctioning.website](https://malfunctioning.website/appsec/2021/11/25/fun-with-semgrep).
     Two words doing self-aware honesty about the technique.
 
-17. "Filesystem write events as high-signal indicators of potential exploitation." —
+17. "A fairly high-signal event (file writes) for detecting exploit attempts." —
     Fun With Semgrep,
     [malfunctioning.website](https://malfunctioning.website/appsec/2021/11/25/fun-with-semgrep).
     The precise framing of why the watchdog hook is the right trigger.
@@ -1430,7 +1418,7 @@ sentence or recover the register.
 
 19. "Sampling is an emergent feature of the Model Context Protocol with minimal
     safeguards preventing remote MCP servers from asking your LLM client to do just
-    about anything." — Stop, Collaborate, and LLM (BSides Seattle 2026 talk abstract),
+    about anything." — Stop, Collaborate, and LLM (talk abstract),
     [sessionize.com/kurt-boberg](https://sessionize.com/kurt-boberg).
     Captures the agentic-systems threat model in one sentence. The phrase "just about
     anything" is the load-bearing tail.
@@ -1447,57 +1435,59 @@ sentence or recover the register.
     The argument for reachability filtering, stated in the engineer-incentive register:
     fewer fake alerts means more time for real work.
 
-22. "Inbox zero becomes achievable when focusing only on exploitable vulnerabilities."
+22. "With Semgrep Supply Chain, 'inbox zero' becomes an achievable goal: your inbox is
+    up to 99% smaller!"
     — A Deep Dive into Semgrep Supply Chain,
     [semgrep.dev](https://semgrep.dev/blog/2022/a-deep-dive-into-semgrep-supply-chain/).
     Borrows the productivity-vocabulary "inbox zero" to make the alert-volume claim
     legible to engineers who do not normally think about triage queues.
 
-23. "Authenticated servers must implement OAuth 2.1 for HTTP transport." — A Security
+23. "If you support authentication, you must implement OAuth 2.1." — A Security
     Engineer's Guide to MCP,
     [semgrep.dev](https://semgrep.dev/blog/2025/a-security-engineers-guide-to-mcp/).
     A specification-style recommendation: imperative, specific, version-anchored.
 
-24. "Border Collie is a security tool that leverages Semgrep and Python's watchdog
-    package to identify potential reverse shells in your environment." — border-collie
+24. "Border Collie uses Semgrep and the Python `watchdog` package to detect potential
+    reverse shells being dropped in your environment." — border-collie
     README, [gitlab.com/lapt0r/border-collie](https://gitlab.com/lapt0r/border-collie).
     The one-sentence README opener. Names the tool, the two dependencies, and the
-    job. Twenty-six words.
+    job. Nineteen words.
 
-25. "The core architectural problem: Node itself intercepts calls from the sandbox,
-    preventing arguments from being properly wrapped in proxies." — Calling Back to
-    vm2 and Escaping Sandbox,
+25. "Node itself intercepts calls from the sandbox, preventing arguments from being
+    properly wrapped in proxies." — New Sandbox Escape Affecting Popular nodejs
+    Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     The diagnostic move: name the architectural cause, not just the CVE. The
     structural explanation lives at the same level as the patch advisory.
 
 26. "When your isolation mechanism depends on a foundation that actively undermines
-    it, no amount of fixing will make it secure." — Calling Back to vm2 and Escaping
-    Sandbox,
+    it, no amount of fixing will make it secure." — New Sandbox Escape Affecting
+    Popular nodejs Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     The structural-recommendation move: the sentence that takes a single CVE and turns
     it into a categorical claim about the library, justifying the migration
     recommendation that follows.
 
 27. "That's it. Simple global promise with arbitrary JS. This simplicity is what makes
-    this vulnerability so dangerous." — Calling Back to vm2 and Escaping Sandbox,
+    this vulnerability so dangerous." — New Sandbox Escape Affecting Popular nodejs
+    Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     The PoC-simplicity move. Two short declaratives plus a one-sentence framing of why
     the simplicity is the threat, not a mitigating factor.
 
 28. "Eight security advisories in a single year, seven of these within just a
-    four-month window, revealed a pattern that couldn't be patched away." — Calling
-    Back to vm2 and Escaping Sandbox,
+    four-month window, revealed a pattern that couldn't be patched away." — New
+    Sandbox Escape Affecting Popular nodejs Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     The recurrence-pattern move. The number does the work; the sentence does not
     moralize about the maintainer.
 
-29. "Instead of relying on the problematic vm model, isolated-vm relies on V8's native
-    Isolate interface, which offers a more solid foundation." — Calling Back to vm2
-    and Escaping Sandbox,
+29. "Instead of relying on the problematic vm model, the successor to vm2, isolated-vm
+    relies on V8's native Isolate interface, which offers a more solid foundation." —
+    New Sandbox Escape Affecting Popular nodejs Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     The recommend-the-non-vendor-tool move. Named alternative, named primitive
-    underneath, no hedging about whether the reader should adopt it.
+    underneath.
 
 30. "The agentic web has a security problem, and we first proposed the solution
     forty-nine years ago." — Security Like It's 1977,
@@ -1523,7 +1513,7 @@ sentence or recover the register.
     to do." — Security Like It's 1977,
     [semgrep.dev](https://semgrep.dev/blog/2026/security-like-its-1977-capabilities-for-the-modern-agentic-web/).
     The italicized contrast captures the identity-versus-capability distinction in
-    fourteen words. The shape — short declarative, parallel structure, italics on the
+    sixteen words. The shape — short declarative, parallel structure, italics on the
     two operative phrases — is reusable for any "the model misframes the question"
     argument.
 
@@ -1535,11 +1525,12 @@ sentence or recover the register.
     they are unexpected enough to land but mundane enough to be plausible.
 
 35. "MCP servers, A2A agents, and the emerging agentic stack have reintroduced the
-    confused deputy at scale, with superhuman speed." — Security Like It's 1977,
+    confused deputy at scale, with the bonus property of superhuman speed." — Security
+    Like It's 1977,
     [semgrep.dev](https://semgrep.dev/blog/2026/security-like-its-1977-capabilities-for-the-modern-agentic-web/).
     The substrate-shift move applied to a named historical bug class. "Confused
     deputy" gets named (because the reader needs to look it up); "at scale, with
-    superhuman speed" is the present-day amplifier.
+    the bonus property of superhuman speed" is the present-day amplifier.
 
 36. "Every tool from every connected server is available to the LLM. A prompt
     injection in any data source can trigger any tool." — Security Like It's 1977,
@@ -1677,7 +1668,7 @@ sentence or recover the register.
     register-wink.
 
 46. "Humans are still designing and building software (for now) which means
-    human-based intelligence is still valuable." — People To Know,
+    human-based intelligence is still valuable!" — People To Know,
     [malfunctioning.website](https://malfunctioning.website/appsec/2021/04/13/people-to-know).
     The parenthetical aside "(for now)" is the load-bearing voice marker —
     Kurt does not editorialize about AI/automation displacing human work but
@@ -1734,7 +1725,8 @@ sentence or recover the register.
 
 52. "[The GHSA] has PoC code, which we are posting here in its entirety so
     readers can appreciate the ease with which this can be exploited in
-    affected sandboxes." — Calling Back to vm2 and Escaping the Sandbox,
+    affected sandboxes." — New Sandbox Escape Affecting Popular nodejs Sandbox
+    library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     The canonical VR-writeup stance on PoC presentation: trust the reader, post
     the code verbatim, name the reason in one sentence, do not narrate
@@ -1744,7 +1736,8 @@ sentence or recover the register.
 
 53. "From this access an attacker could do anything the node process can do,
     such as reading memory values from the node process, to running arbitrary
-    code in exec or spawning child processes." — Calling Back to vm2,
+    code in exec or spawning child processes." — New Sandbox Escape Affecting
+    Popular nodejs Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     How to enumerate post-exploitation reach without using "blast radius" or
     other generic terms. Concrete-verb enumeration — read memory, run exec,
@@ -1752,8 +1745,8 @@ sentence or recover the register.
     do" sentence in a VR writeup.
 
 54. "When your isolation mechanism depends on a foundation that actively
-    undermines it, no amount of fixing will make it secure." — Calling Back to
-    vm2,
+    undermines it, no amount of fixing will make it secure." — New Sandbox
+    Escape Affecting Popular nodejs Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     The single load-bearing aphorism in the vm2 piece (paragraph-closing,
     doctrine-grade). Both shift-4 informed and uninformed agents borrowed this
@@ -1762,7 +1755,8 @@ sentence or recover the register.
     the conditional-frame moves the rhetorical weight from the patch to the
     foundation.
 
-55. "It is very much like playing whack-a-mole." — Calling Back to vm2,
+55. "It is very much like playing whack-a-mole." — New Sandbox Escape Affecting
+    Popular nodejs Sandbox library vm2,
     [semgrep.dev](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
     A Kurt-sanctioned analogy from the sysadmin / general-engineering register.
     Used in the operational-acceptance context: "While the maintainers do
@@ -1772,8 +1766,8 @@ sentence or recover the register.
     move: acknowledge the team's intent, name the structural limit. Reusable
     template for "this is hard and the patching will not catch up" recommendations.
 
-56. "The agentic web will rediscover this principle the hard way unless
-    thoughtful action is taken early." — Security Like It's 1977,
+56. "The agentic web will rediscover this the hard way, unless we take early,
+    thoughtful action." — Security Like It's 1977,
     [semgrep.dev](https://semgrep.dev/blog/2026/security-like-its-1977-capabilities-for-the-modern-agentic-web/).
     The canonical doctrine-essay closer. The "X will rediscover Y the hard way
     unless Z" construction is the doctrine-grade prognostic-imperative: name
@@ -1784,18 +1778,16 @@ sentence or recover the register.
     closing-line template for any doctrine post: prognosis + conditional
     escape + no exclamation.
 
-57. "Border Collie is a security tool that leverages Semgrep and Python's
-    watchdog package to identify potential reverse shells in your
-    environment." — Border Collie README,
+57. "Border Collie uses Semgrep and the Python `watchdog` package to detect
+    potential reverse shells being dropped in your environment." — Border
+    Collie README,
     [gitlab.com/lapt0r/border-collie](https://gitlab.com/lapt0r/border-collie).
-    The canonical README-register opener. Twenty-six words, copular,
+    The canonical README-register opener. Nineteen words,
     declares tool + two dependencies + job. The load-bearing aphorism of the
     document, positioned at the OPENING (not the close — README register
     inverts the blog/doctrine position-rule per Rule 30). Reusable template
-    for any single-purpose-tool README: project name + "is" + one-clause
-    technical primitive + "to" + the job. Note the absence of marketing
-    superlatives ("leverages" is the only borderline word and it is
-    technical-register-precise here, not vendor-hype).
+    for any single-purpose-tool README: project name + "uses" + one-clause
+    technical primitive + "to" + the job.
 
 58. "python3 bordercollie.py --monitor_path /foo/bar --webhook
     https://example.com/webhook" — Border Collie README, verbatim CLI
@@ -1819,14 +1811,12 @@ sentence or recover the register.
     README licensing section: state the project's own license, then in one
     sentence state any downstream constraint from embedded dependencies.
 
-60. "[Project] credits Python Corner for their watchdog implementation
-    guide." — Border Collie README (paraphrased from the credit appearing
-    in the WebFetch summary; verbatim form not retrievable but the
-    crediting-pattern is confirmed),
+60. "Big thanks to Python corner for the implementation guide of
+    `watchdog`" — Border Collie README,
     [gitlab.com/lapt0r/border-collie](https://gitlab.com/lapt0r/border-collie).
     The canonical Rule 6 application in README register: when the tool's
     integration recipe came from a specific external source, name the
-    source. Python Corner is a YouTube channel / blog that publishes Python
+    source. Python Corner (thepythoncorner.com) publishes Python
     tutorials including watchdog walkthroughs; Kurt names it because the
     integration glue is borrowed, not invented. Reusable shape: "[Project]
     credits [external source] for [the specific primitive borrowed]." —
@@ -1846,10 +1836,10 @@ sentence or recover the register.
     new-tool-purchase pitch). Three-clause structure that future Kurt-voiced
     talk abstracts can re-use.
 
-62. "AppSec engineers are often outnumbered by developers and product teams
-    and receive minimal notifications about critical changes, requiring
-    them to be creative to automate the review of Jira tickets, PRs, and
-    internal wikis." — Wallarm 2024 Seattle abstract for "From Blind Spots
+62. "Often outnumbered by developers and product teams, AppSec engineers
+    receive minimal notifications about critical changes and must be
+    creative to automate the review of Jira tickets, PRs, and internal
+    wikis." — Wallarm 2024 Seattle abstract for "From Blind Spots
     to Insights,"
     [wallarm.com](https://www.wallarm.com/2024-api-and-application-security-summit-in-seattle).
     The canonical AppSec-program-problem statement: numeric-implicit
@@ -1862,9 +1852,7 @@ sentence or recover the register.
 63. "The blueprint he developed to build AppSec visibility at companies
     like Docusign, Chegg, and Semgrep." — Wallarm 2024 Seattle abstract,
     [wallarm.com](https://www.wallarm.com/2024-api-and-application-security-summit-in-seattle).
-    The cross-company-experience anchor. When Kurt names his three
-    AppSec employers in sequence, the ordering is chronological
-    (DocuSign → Chegg → Semgrep), not alphabetical or hierarchical. The
+    The cross-company-experience anchor. The
     word "blueprint" is doing rhetorical work — it's a buildable artifact,
     not a "framework" or "playbook" or "methodology." Reusable when
     establishing operational-experience authority in talk register.
@@ -1897,7 +1885,7 @@ Consult this document when:
   the recommendation, state what the recommendation does not cover. Do not preamble.
 
 - Composing a talk abstract for a conference submission. The three Sessionize
-  abstracts are the templates. Each one is three sentences or fewer; each one names
+  abstracts are the templates. Two are two sentences long and one is eight; each one names
   the substrate, the technique, and the deliverable. No "in this talk we will explore"
   framing.
 
@@ -1932,7 +1920,7 @@ Do not use this document when:
 
 ## 8. References
 
-### Personal blog (malfunctioning.website / "404 Security Not Found")
+### Personal blog (malfunctioning.website / "Known Issues")
 
 - "Fun With Semgrep," Nov 25, 2021,
   [malfunctioning.website/appsec/2021/11/25/fun-with-semgrep](https://malfunctioning.website/appsec/2021/11/25/fun-with-semgrep).
@@ -1949,22 +1937,22 @@ Do not use this document when:
 - "A Deep Dive into Semgrep Supply Chain," Oct 13, 2022,
   [semgrep.dev/blog/2022/a-deep-dive-into-semgrep-supply-chain](https://semgrep.dev/blog/2022/a-deep-dive-into-semgrep-supply-chain/).
 - "Popular GitHub Action tj-actions/changed-files Is Compromised," Mar 2025,
-  co-authored with Aaron Bray,
+  co-authored with Isaac Evans, Lewis Ardern, and Bence Nagy,
   [semgrep.dev/blog/2025/popular-github-action-tj-actionschanged-files-is-compromised](https://semgrep.dev/blog/2025/popular-github-action-tj-actionschanged-files-is-compromised/).
-- "Calling Back to vm2 and Escaping Sandbox," 2026, co-authored with Katie
+- "New Sandbox Escape Affecting Popular nodejs Sandbox library vm2," Jan 27, 2026, co-authored with Katie
   Paxton-Fear,
   [semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox](https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox).
-- "Security Like It's 1977 — Capabilities for the Modern Agentic Web," Jan 27, 2026,
+- "Security Like It's 1977 — Capabilities for the Modern Agentic Web," Jan 28, 2026,
   solo authored,
   [semgrep.dev/blog/2026/security-like-its-1977-capabilities-for-the-modern-agentic-web](https://semgrep.dev/blog/2026/security-like-its-1977-capabilities-for-the-modern-agentic-web/).
 - "Seattle Java User Group: Detect complex code patterns using Semgrep," Oct 7, 2021,
-  speaker credit alongside Pablo Estrada and Daghan Altas,
+  speaker credit alongside Daghan Altas (post by Pablo Estrada),
   [semgrep.dev/blog/2021/semgrep-seattle-java-user-group](https://semgrep.dev/blog/2021/semgrep-seattle-java-user-group/).
 
 ### Talks
 
-- "Stop, Collaborate, and LLM — Sampling is coming," BSides Seattle 2026.
-- "Bots Behaving Badly — Hijacking Agentic Systems with A2A," BSides Seattle 2026.
+- "Stop, Collaborate, and LLM — Sampling is coming."
+- "Bots Behaving Badly — Hijacking Agentic Systems with A2A."
 - "MCP LFI in 60 minutes (or your money back)," BSides Seattle 2026.
 - Sessionize profile (canonical talk inventory + bio):
   [sessionize.com/kurt-boberg](https://sessionize.com/kurt-boberg).
@@ -1986,8 +1974,8 @@ Do not use this document when:
 
 ### Handles and contact
 
-- Site: 404 Security Not Found / malfunctioning.website.
+- Site: Known Issues / malfunctioning.website.
 - Author handle: lapt0r.
-- Stack Overflow, X (lapt0r), Mastodon (infosec.exchange) — gestural references on
+- X (lapt0r), Mastodon (infosec.exchange) — gestural references on
   malfunctioning.website's footer; not indexed deeply here because the public
   artifacts above are the load-bearing voice samples.

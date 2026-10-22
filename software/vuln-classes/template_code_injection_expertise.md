@@ -24,15 +24,14 @@
 >   differentiation by response delta.
 > - **Gareth Heyes** (@garethheyes, PortSwigger Research) — Long-standing PortSwigger
 >   research contributor; follow-on SSTI primers and detection techniques after Kettle's
->   2015 work. Notable for the "expression-language injection" generalisation that links
->   SSTI to AngularJS sandbox-bypass and JS prototype pollution detection. Active on the
+>   2015 work. Notable for AngularJS sandbox-escape research and server-side prototype
+>   pollution detection. Active on the
 >   PortSwigger Research blog and Web Security Academy SSTI labs.
 > - **Olivier Beg / EdOverflow** (@EdOverflow) — Web developer and bug-bounty researcher;
 >   maintains `bugbounty-cheatsheet` whose `cheatsheets/template-injection.md` is one of
 >   the most cited working references for bounty hunters across HackerOne / Bugcrowd /
 >   Intigriti. Captures pragmatic field knowledge from production triage.
-> - **Liran Tal** (Director of Developer Relations, Snyk) — Author of Snyk's SSTI blog
->   series including "The Thymeleaf Template Injection That Only Hurts If You Let It" and
+> - **Liran Tal** (Director of Developer Relations, Snyk) — Author of Snyk's
 >   "Understanding Server-Side Template Injection in Golang." Translates SSTI from research
 >   into developer-facing engineering guidance.
 > - **OWASP WSTG working group** — Curators of WSTG §4.7.18 "Testing for Server-side
@@ -151,7 +150,7 @@ This section catalogues the major engines as a working reference. For each, we l
 **detection probe** (a payload that confirms the engine is rendering by producing a
 distinctive output), the **evaluation primitive** the engine exposes, a **canonical
 exploitation payload**, and notable **CVE corpus**. Treat the detection probes as a working
-fingerprint set; the polyglot `${{<%[%'"}}%\.` (Hildebrand-Hackmanit) renders or errors
+fingerprint set; the polyglot `${{<%[%'"}}%\.` (PortSwigger) renders or errors
 distinctively across most engines and is a fast first probe.
 
 ### 2.1 Jinja2 (Python) and Django templates
@@ -187,7 +186,7 @@ invoke it.
 ```
 
 **Sandbox escape:** `SandboxedEnvironment` blocks `__class__` / `__mro__` /
-`__subclasses__` in 2.8+. The recurring escape uses Python's `str.format` / `str.format_map`:
+`__subclasses__`. The recurring escape uses Python's `str.format` / `str.format_map`:
 the format string `{0.__class__...}` reaches attributes via dispatch inside `str.format`'s
 implementation, bypassing the sandbox's instrumented getter. CVE chain: CVE-2016-10745
 (`str.format`), CVE-2019-10906 (`str.format_map`), CVE-2025-27516 (`attr` filter →
@@ -222,8 +221,7 @@ but not `File`, `FileWriter`, `Files`, `Paths`, `URL`, `URLConnection`, etc. is 
 with gaps**. The CVE corpus across Velocity-based products (XWiki, Liferay, Apache JSPWiki)
 reads as a series of "another class slipped through" findings, each individually patched.
 
-**CVE corpus:** CVE-2022-24897 (XWiki File API), CVE-2020-13937 (Kylin), CVE-2020-17518/17519
-(Flink), CVE-2024-29892 (Solr config-API). **Defensive note:** Velocity's `SecureUberspector`
+**CVE corpus:** CVE-2022-24897 (XWiki File API). **Defensive note:** Velocity's `SecureUberspector`
 denies reflection methods; audit which `Uberspector` is configured (`Uberspect` without
 `Secure` permits everything).
 
@@ -242,11 +240,9 @@ ${"freemarker.template.utility.Execute"?new()("id")}
 ```
 
 **Sandbox:** `TemplateClassResolver.SAFER_RESOLVER` denies `Execute` and a documented
-dangerous set; `ALLOWS_NOTHING_RESOLVER` denies `?new()` entirely. Canonical bypass when
-Spring CGLIB is on the classpath: `org.springframework.cglib.core.ReflectUtils`.
+dangerous set; `ALLOWS_NOTHING_RESOLVER` denies `?new()` entirely.
 
-**CVE corpus:** CVE-2021-43798 (Grafana), CVE-2023-32310 (Devolutions Server), Liferay
-LPE-17023 series.
+**CVE corpus:** Liferay LPE-17023 (CVE-2020-13445).
 
 ### 2.4 Thymeleaf (Java/Spring)
 
@@ -261,17 +257,16 @@ any classpath class:
 __${T(java.lang.Runtime).getRuntime().exec('id')}__::.x
 ```
 
-The `__${...}__::.x` form is the preprocessing escape (Liran Tal's Snyk analysis):
+The `__${...}__::.x` form is the preprocessing escape:
 Thymeleaf preprocesses `__...__` expressions **before** template rendering, so user input
-reaching a *view name* evaluates as SpEL before any template body loads. CVE family:
-CVE-2021-29425, CVE-2019-3799, CVE-2018-19528.
+reaching a *view name* evaluates as SpEL before any template body loads.
 
 **Defence:** Thymeleaf 3.0.12+ adds expression-restricted view-name preprocessing. Deeper
 fix: typed `ModelAndView` with static view-name literals, never string-built from user
 input. View names are functionally a path-traversal class with code-execution reach
 (see `code_review_expertise.md` §"absolute path handling").
 
-**CVE corpus:** CVE-2019-3799, CVE-2021-29425, CVE-2023-38286, CVE-2026-40478.
+**CVE corpus:** CVE-2023-38286, CVE-2026-40478.
 
 ### 2.5 Twig (PHP)
 
@@ -284,7 +279,7 @@ Twig-specific type string.
 {{ _self.env.registerUndefinedFilterCallback("shell_exec") }}{{ _self.env.getFilter("id") }}
 ```
 
-**Primitive (≥1.41 / 2.10 / 3.0):** Modern bypass uses the `map`/`filter`/`reduce`/`sort`
+**Primitive (≥2.10 / 3.0; `sort` arrow ≥2.12):** Modern bypass uses the `map`/`filter`/`reduce`/`sort`
 callback parameters, which still accept callable strings:
 
 ```twig
@@ -320,7 +315,8 @@ controlled by user input is functionally an evaluator over the object's method s
 unbounded given Ruby's open-class metaprogramming. Attackers could call `#destroy`,
 enumerate methods to fingerprint internal types, exhaust resources by calling
 computation-heavy methods, or leak user information. Patched in simple_form 5.0 by
-replacing `send`-based dispatch with explicit `respond_to?` + direct method call.
+replacing `send`-based dispatch with `respond_to?` checks for naming-convention methods
+(`_attachment`, `_url`, `_attacher`, `_file_name`).
 CVSS 9.8.
 
 The structural lesson generalises: **any dynamic-dispatch primitive (`send`, `__send__`,
@@ -334,9 +330,7 @@ method call: an inspectable code path where the method name is statically visibl
 practice:** custom `Liquid::Tag` and `Liquid::Filter` subclasses in host applications
 expose host-language primitives. The well-known "Liquid SSTI" pattern lives in
 application-defined filter/tag implementations evaluating user-supplied strings, and in
-`Liquid::Drop` wrappers exposing `send` on underlying ActiveRecord models. CVE-2023-2779
-(LiquidTemplate `assign` injection in Jekyll plugins); multiple Shopify HackerOne writeups
-on custom-filter abuse.
+`Liquid::Drop` wrappers exposing `send` on underlying ActiveRecord models.
 
 ### 2.8 Mustache / Handlebars (JavaScript)
 
@@ -352,8 +346,8 @@ engines look similar; `{{#with this as |o|}}{{o}}{{/with}}` differentiates Handl
 **Sandbox:** Handlebars compilation uses `new Function(...)` under the hood; user-controlled
 template source produces an attacker-controlled JS function. Defence: precompile at build
 time; never compile user sources. **CVE corpus:** CVE-2019-19919 (`prototype.constructor`
-— overlaps `prototype_pollution_expertise.md`), CVE-2021-23369 (`lookup` chained-property),
-CVE-2021-23383 (strict-mode bypass).
+— overlaps `prototype_pollution_expertise.md`), CVE-2021-23369 (RCE via certain compile options on untrusted templates),
+CVE-2021-23383 (prototype pollution via certain compile options).
 
 ### 2.9 Smarty (PHP)
 
@@ -367,7 +361,7 @@ CVE-2021-23383 (strict-mode bypass).
 
 **Sandbox:** `Smarty_Security` + `$enable_security_settings` (operators must explicitly
 enable). **CVE corpus:** CVE-2017-1000480, CVE-2018-13982, CVE-2021-26120, CVE-2024-35226
-(`{math equation=...}` constant access).
+(`{extends}` file-name code injection).
 
 ### 2.10 Razor (.NET)
 
@@ -379,8 +373,7 @@ attacker-controlled C# class:
 @{ System.Diagnostics.Process.Start("cmd", "/c whoami"); }
 ```
 
-**Sandbox:** No effective sandbox for runtime-compiled Razor. **CVE corpus:** CVE-2022-26832,
-CVE-2023-29331.
+**Sandbox:** No effective sandbox for runtime-compiled Razor.
 
 ### 2.11 Pug, EJS (Node.js)
 
@@ -396,7 +389,7 @@ CVE-2023-29331.
 <%= global.process.mainModule.require('child_process').execSync('id').toString() %>
 ```
 
-Pug `pug.compile(source)` with user source is a compile-time sink (CVE-2024-36039). EJS
+Pug `pug.compile(source)` with user source is a compile-time sink. EJS
 `options.outputFunctionName` is raw JS — direct RCE without template syntax (CVE-2024-33883,
 CVE-2022-29078).
 
@@ -417,20 +410,19 @@ removing the user-argument-accepting shell commands entirely. CVSS 8.8.
 The architectural lesson: **a template engine whose substitution targets are passed to
 `exec()` is an OS command injection sink**, not merely a templating one. NiFi's case is
 the *delivery* mechanism for OS injection, not the evaluation mechanism. Cross-link
-`shell_injection_expertise.md`. **CVE corpus:** CVE-2022-33140, CVE-2023-34468 (direct EL
-in JDBC connection properties).
+`shell_injection_expertise.md`. **CVE corpus:** CVE-2022-33140, CVE-2023-34468 (H2 JDBC
+URL in DBCPConnectionPool → code execution).
 
 ### 2.13 Other notable engines (concise reference)
 
-- **Mako (Python):** `${7*7}`. Full Python in `<% %>`. No sandbox. CVE-2020-8123 (Wagtail).
-- **Jinjava (Hubspot):** Java port of Jinja2. CVE-2023-7235.
-- **Apache Tapestry:** OGNL-driven; CVE-2021-27850.
-- **Apache JSP / JSP-EL:** `${expr}` evaluated by JSP container; CVE-2018-1304.
+- **Mako (Python):** `${7*7}`. Full Python in `<% %>`. No sandbox.
+- **Jinjava (Hubspot):** Java port of Jinja2.
+- **Apache JSP / JSP-EL:** `${expr}` evaluated by JSP container.
 - **Go `html/template` / `text/template`:** Only registered functions callable, but
   user-controlled template *source* (not just data) is the sink —
   `template.New("x").Parse(userInput)` is unsafe. Auto-contextual escaping defends XSS,
   not SSTI when the source itself is user-controlled.
-- **Tornado templates:** `{% raw %}` blocks evaluate Python; CVE-2014-9098.
+- **Tornado templates:** `{% raw %}` blocks evaluate Python.
 - **Mojolicious (Perl):** Full Perl in `<% %>`.
 
 ---
@@ -456,7 +448,7 @@ from **Identify** (which engine is evaluating?). Conflating them slows triage.
 
 ### 3.2 Polyglot detection
 
-The Kettle/Hildebrand polyglot `${{<%[%'"}}%\.` is engineered so at least one delimiter
+The PortSwigger polyglot `${{<%[%'"}}%\.` is engineered so at least one delimiter
 is recognised by every common engine:
 
 - Jinja2 / Twig see `{{`
@@ -506,12 +498,12 @@ T(java.lang.Class).forName("java.lang.Runtime").getMethod("getRuntime").invoke(n
 ```
 
 **Production surfaces:** `@PreAuthorize("hasRole('USER') and #userInput == ...")` when
-`#userInput` is a SpEL expression rather than comparand (CVE-2022-22963 Spring Cloud
-Function); Thymeleaf view names (§2.4); `@Value("#{...}")` constructed via format strings
+`#userInput` is a SpEL expression rather than comparand; Spring Cloud Function
+routing expressions (CVE-2022-22963); Thymeleaf view names (§2.4); `@Value("#{...}")` constructed via format strings
 including user input; Spring Data JPA `@Query` `?#{...}`; Spring Cloud Gateway routes
 (CVE-2022-22947).
 
-**Defence:** `SimpleEvaluationContext` (Spring 4.3+) disables type references and
+**Defence:** `SimpleEvaluationContext` (Spring 4.3.15+) disables type references and
 constructor calls. `StandardEvaluationContext` (default) provides the full reflective
 surface — its use with user-controlled expressions is equivalent to `Runtime.exec(userInput)`.
 
@@ -528,13 +520,12 @@ The canonical exploit is a multi-stage OGNL payload that (1) overwrites
 `excludedPackageNames` on the container's `OgnlUtil`, then (3) invokes
 `new ProcessBuilder(...).start()`. The payload's complexity reflects the layered defences
 Struts2 added over successive CVEs; the chain disables each before invoking
-`ProcessBuilder`. Each new CVE in the corpus (CVE-2018-11776, CVE-2020-17530,
-CVE-2023-50164) adds another bypass layer or finds another evaluation entry point.
+`ProcessBuilder`. Each new CVE in the corpus (CVE-2018-11776, CVE-2020-17530) adds another bypass layer or finds another evaluation entry point.
 
 **Equifax (2017) note:** This is the CVE chain that led to the Equifax breach. Disclosed
-2017-03-06; Equifax did not patch until 2017-07-30; the breach window was approximately
+2017-03-06; the breach window was approximately
 mid-May through July 2017. The cautionary content here is operational, not technical: the
-*technical* fix was a Struts2 upgrade, but the *breach* required a four-month patching
+*technical* fix was a Struts2 upgrade, but the *breach* required a patching
 gap. Cross-link `code_review_expertise.md` §"click-count severity" — Struts2 OGNL
 injection was a zero-click, network-reachable, no-authentication RCE; the highest severity
 class.
@@ -559,14 +550,11 @@ import java.lang.Runtime; Runtime.getRuntime().exec("id");
 new ProcessBuilder("sh", "-c", "id").start()
 ```
 
-**CVE corpus:** CVE-2022-26336 (Apache MyBatis MVEL injection), CVE-2024-39689 (Camel
-`mvel:` SSRF/RCE), various Drools-on-Activiti deployment CVEs.
-
 ### 4.4 JEXL — Apache Commons Jexl
 
 JEXL is Apache Commons' expression engine, surfaces in: Apache Velocity tools, JEXL-based
-policy DSLs (custom IAM engines), several feature-flag products. JEXL3 added a sandbox
-(`JexlSandbox`); JEXL2 was effectively un-sandboxed.
+policy DSLs (custom IAM engines), several feature-flag products. JEXL 2.1 added a sandboxing
+feature (`JexlSandbox` in JEXL3).
 
 **Canonical RCE:**
 
@@ -603,11 +591,11 @@ Smarty `Smarty_Security`. The recurring failure mode is well-documented across t
 Most template sandboxes intercept attribute access and reject a list of "known dangerous"
 attributes. The structural problem: in a language whose runtime exposes thousands of
 classes, an exhaustive denylist is intractable. Empirically, every major template engine
-has accumulated 3-10 sandbox-escape CVEs over its lifetime, each adding one or more
+has accumulated sandbox-escape CVEs over its lifetime, each adding one or more
 attributes to the denylist:
 
 - **Jinja2:** `__class__` (initial), `str.format` (CVE-2016-10745), `str.format_map`
-  (CVE-2019-10906), `xmlattr` (CVE-2024-22195/34064), `attr` → `format` (CVE-2025-27516).
+  (CVE-2019-10906), `attr` → `format` (CVE-2025-27516).
 - **Twig:** `_self`, `registerUndefinedFilterCallback` (CVE-2015-7809),
   `sort`/`map`/`reduce` callable-second-arg family (CVE-2022-23614 et seq.).
 - **Velocity:** `$class` introspection, File API (CVE-2022-24897, Kurt's anchor), Liferay
@@ -747,7 +735,7 @@ Many systems treat YAML, JSON, or properties files as templates with variable su
 The shared pattern: a configuration system supports variable substitution; user input
 reaches a configuration value that is then re-interpreted.
 
-- Helm `{{ .Values.foo }}` — CVE-2021-21303 class.
+- Helm `{{ .Values.foo }}`.
 - Argo Workflows `{{inputs.parameters.foo}}` — issue #6441 (template rewrite via parameter).
 - Tekton `$(params.foo)` — same class.
 - GitHub Actions `${{ ... }}` (see `cicd_supply_chain_expertise.md`).
@@ -867,13 +855,14 @@ a `template` field; define a structured `format` field with discrete enumerable 
 - **Terraform `${var.foo}`:** pre-0.12 string-interpolation was the language; 0.12+ HCL2
   is more constrained. `templatefile()` and `template_file` data source remain sinks.
 - **Helm `{{ .Values.foo }}`:** user-supplied `--set` values + `{{ .Values.x | toYaml }}`
-  rendering can inject YAML keys. CVE-2021-21303 class.
+  rendering can inject YAML keys.
 - **Argo Workflows `{{inputs.parameters.foo}}`:** parameter values containing `{{...}}`
   may re-evaluate, rewriting workflow definition fields. Issue #6441 class. Defence:
   validate that workflow parameter values do not contain `{{` / `}}`, or use
   base64-encoded parameter values for any field that could re-substitute.
-- **Tekton `$(params.foo)`:** same pattern; security model explicitly warns parameter
-  values must not contain `$(` substrings.
+- **Tekton `$(params.foo)`:** same pattern; Tekton docs state that variable contents
+  are not escaped, so task authors must escape values for the shell or language they
+  are used in.
 - **GitHub Actions `${{ github.event.pull_request.title }}`** substituted into shell `run`
   is OS command injection. Defence: pass via `env:` to step environment; reference
   `$VAR` in shell. See `cicd_supply_chain_expertise.md` §"GHA expression injection."
@@ -901,8 +890,8 @@ the **template string** (not just the variables), the engine exposes attribute a
 indexing that, depending on objects in scope, can reach Python internals. Recommended
 posture: use `template_format='f-string'` (narrower attribute reach than Jinja2 in
 LangChain's wrapper); never accept Jinja2 templates from untrusted sources; LangChain
-0.0.329+ renders Jinja2 via `SandboxedEnvironment` but the advisory cautions this is
-"best-effort, not a guarantee."
+0.0.329+ renders Jinja2 via `SandboxedEnvironment` but LangChain's docs describe the
+sandbox as a best-effort approach rather than a guarantee of security.
 
 ### 9.2 The bridge between SSTI and prompt injection
 
@@ -998,7 +987,6 @@ Together they produce the Log4Shell class.
 
 ### Hackmanit / Hildebrand corpus
 
-- Master's thesis: <https://hackmanit.de/images/download/thesis/Improving-the-Detection-and-Identification-of-Template-Engines-for-Large-Scale-Template-Injection-Scanning-Maximilian-Hildebrand-Master-Thesis-Hackmanit.pdf>
 - Template Injection Table: <https://cheatsheet.hackmanit.de/template-injection-table/>
 - TInjA: <https://github.com/Hackmanit/TInjA>
 - Playground: <https://github.com/Hackmanit/template-injection-playground>
@@ -1007,15 +995,11 @@ Together they produce the Log4Shell class.
 
 - Jinja2 Sandbox: <https://jinja.palletsprojects.com/en/stable/sandbox/>
 - Twig Security: <https://twig.symfony.com/doc/3.x/api.html#sandbox-extension>
-- Velocity SecureUberspector: <https://velocity.apache.org/engine/2.3/security.html>
+- Velocity SecureUberspector: <https://velocity.apache.org/engine/2.3/apidocs/org/apache/velocity/util/introspection/SecureUberspector.html>
 - Freemarker: <https://freemarker.apache.org/docs/app_faq.html#faq_template_uploading_security>
-- Smarty security: <https://www.smarty.net/docsv2/en/api.security.tpl>
 
 ### Kurt Boberg CVEs
 
-- **CVE-2022-24897** XWiki Velocity FS write:
-  <https://github.com/xwiki/xwiki-commons/security/advisories/GHSA-cvx5-m8vg-vxgc>
-  · <https://nvd.nist.gov/vuln/detail/CVE-2022-24897>
 - **CVE-2022-33140** Apache NiFi Registry command injection:
   <https://github.com/advisories/GHSA-77hf-23pq-2g7c>
   · <https://seclists.org/oss-sec/2022/q2/198>
@@ -1032,7 +1016,7 @@ Together they produce the Log4Shell class.
 
 ### Engine-specific deep-dives
 
-- Snyk Thymeleaf (Liran Tal): <https://snyk.io/blog/thymeleaf-injection/>
+- Snyk Thymeleaf (Brian Vermeer): <https://snyk.io/blog/thymeleaf-injection/>
 - Snyk Go templates: <https://snyk.io/articles/understanding-server-side-template-injection-in-golang/>
 - Spring View Manipulation: <https://0xn3va.gitbook.io/cheat-sheets/framework/spring/view-manipulation>
 - Veracode: <https://www.veracode.com/blog/secure-development/spring-view-manipulation-vulnerability/>
@@ -1044,7 +1028,6 @@ Together they produce the Log4Shell class.
 
 - Struts2 CVE-2017-5638: <https://nvd.nist.gov/vuln/detail/CVE-2017-5638>
 - Black Duck deep-dive: <https://www.blackduck.com/blog/cve-2017-5638-apache-struts-vulnerability-explained.html>
-- Avatao Equifax analysis: <https://avatao.com/blog-deep-dive-into-the-equifax-breach-and-the-apache-struts-vulnerability/>
 
 ### Jinja2 sandbox CVE corpus
 

@@ -79,7 +79,7 @@ Reference values here are policy: "accept artifacts signed by this OIDC identity
 
 ### 2.8 TLS certificate transparency
 
-CT logs are a global reference-value substrate for X.509 certificates. CAs append issued certificates to logs; clients (browsers, agents) gate trust on SCT (Signed Certificate Timestamp) presence. Reference value: "this cert appeared in two trusted CT logs at this time." Operational use: Facebook / Mozilla / others run CT-monitoring services that flag unexpected certs for owned domains.
+CT logs are a global reference-value substrate for X.509 certificates. CAs append issued certificates to logs; clients (browsers, agents) gate trust on SCT (Signed Certificate Timestamp) presence. Reference value: "this cert appeared in two trusted CT logs at this time." Operational use: Facebook / others run CT-monitoring services that flag unexpected certs for owned domains.
 
 ---
 
@@ -104,7 +104,7 @@ Consumer (operating org) fetches reference values from the originating party. Se
 
 Consumer maintains a reference-value database. Options:
 
-- **Veraison policy store** (OSS, Linaro-led) — explicit reference-value store with verifier integration.
+- **Veraison policy store** (OSS, Confidential Computing Consortium project) — explicit reference-value store with verifier integration.
 - **Cloud-provider managed** — AWS KMS condition keys with PCR values; Azure MAA reference-value bundle; GCP Confidential Space attestation policy.
 - **Custom database** — large enterprises build their own; significant engineering investment.
 - **No store** — many "we do attestation" deployments compare incoming attestations against a hardcoded list or no list at all.
@@ -140,7 +140,7 @@ Standardization status as of 2026.
 
 ### 4.1 IETF RATS (Remote ATtestation procedureS) Architecture — RFC 9334
 
-Finalized January 2023 by **Henk Birkholz** + **Hannes Tschofenig** + **Michael Richardson** + **David Thaler** (RFC 9334 authors). Defines core RATS roles:
+Finalized January 2023 by **Henk Birkholz** + **David Thaler** + **Michael Richardson** + **Ned Smith** + **Wei Pan** (RFC 9334 authors). Defines core RATS roles:
 
 - **Attester** — the device producing evidence.
 - **Verifier** — consumes evidence + reference values, produces attestation result.
@@ -151,19 +151,19 @@ RFC 9334's contribution is naming the RVP role. Before RATS, reference-value dis
 
 ### 4.2 CoRIM — Concise Reference Integrity Manifest
 
-IETF draft `[unverified specific draft number]`, CBOR-encoded reference-value format. Co-authored by **Henk Birkholz** + **Thomas Fossati** + **Yogesh Deshpande** + others. CoRIM tags identify what's measured (firmware module, boot loader, kernel) + the expected hash + the signing identity.
+IETF draft `draft-ietf-rats-corim`, CBOR-encoded reference-value format. Co-authored by **Henk Birkholz** + **Thomas Fossati** + **Yogesh Deshpande** + others. CoRIM tags identify what's measured (firmware module, boot loader, kernel) + the expected hash + the signing identity.
 
-CoRIM is the practical wire format that pairs with RATS. As of 2026, draft status `[unverified]`; some early Veraison + Intel + Arm deployments use it.
+CoRIM is the practical wire format that pairs with RATS. As of March 2026, draft status In WG Last Call (`draft-ietf-rats-corim-10`); some early Veraison + Intel + Arm deployments use it.
 
 ### 4.3 TCG Reference Integrity Manifest (RIM)
 
-TCG's pre-IETF standard. EFI variable-based for UEFI components. Vendors publish RIMs covering firmware + boot stack. **Thomas Hardjono** `[unverified specific role]` led TCG work in this space.
+TCG's pre-IETF standard. Vendors publish RIMs covering firmware + boot stack.
 
-Two RIM types: **base RIM** (vendor's golden reference) + **support RIM** (per-configuration). Adoption: Cisco + Dell + HPE + Lenovo publish RIMs for enterprise hardware lines. Consumer-side tooling for ingesting RIMs lags vendor publication.
+Two RIM types: **base RIM** (vendor's golden reference) + **support RIM** (per-configuration). Consumer-side tooling for ingesting RIMs lags vendor publication.
 
 ### 4.4 IETF SUIT — Software Updates for the Internet of Things
 
-WG chaired by **Hannes Tschofenig** `[unverified]` + **David Brown** `[unverified]`. SUIT manifest format (RFC 9124 information model, RFC 9019 architecture) defines firmware-update manifest including reference-value hashes. **Brendan Moran** + **Hannes Tschofenig** + **Geoff Cohen** `[unverified specific authorship]` are core authors.
+WG chaired by **Dave Thaler** + **Dave Waltermire** + **Russ Housley** (later **Akira Tsukamoto** + **Jacqui McCall**). SUIT manifest format (RFC 9124 information model, RFC 9019 architecture) defines firmware-update manifest including reference-value hashes. **Brendan Moran** + **Hannes Tschofenig** + **Henk Birkholz** (RFC 9124) and **David Brown** + **Milosch Meriac** (RFC 9019, with Moran + Tschofenig) are core authors.
 
 SUIT's contribution is that the update manifest itself carries the reference value the device will become after update. Verifier policy can pre-stage acceptance of new reference values based on SUIT manifests, smoothing the update-lag problem.
 
@@ -187,11 +187,11 @@ Cisco, Dell, HPE, Lenovo, and others publish signed RIMs or equivalent manifest 
 
 ### 5.3 TCG RIM Verification Service / IETF RVP services
 
-Standardized exchange. **Mike Bursell** (Veraison + Profian co-founder) leads OSS verifier work in this space. Adoption growing but partial — most enterprises consume from vendor-specific channels rather than standardized ones.
+Standardized exchange. Adoption growing but partial — most enterprises consume from vendor-specific channels rather than standardized ones.
 
 ### 5.4 Sigstore Rekor
 
-Public append-only log for software signatures + attestations. **Dan Lorenc** co-founded sigstore at Google. Rekor entries are inherently reference values for "this signature exists." Verifiable transparency via the public log + monitor patterns. Production at npm, PyPI, Kubernetes, many OSS projects.
+Public append-only log for software signatures + attestations. **Luke Hinds** (Red Hat) and **Dan Lorenc** (Google) started sigstore. Rekor entries are inherently reference values for "this signature exists." Verifiable transparency via the public log + monitor patterns. Production at npm, PyPI, Kubernetes, many OSS projects.
 
 ### 5.5 OCI registry attestations
 
@@ -199,11 +199,11 @@ Container images with attached SLSA provenance + sigstore signatures. OCI 1.1 re
 
 ### 5.6 GitHub Artifact Attestations
 
-GA 2024 `[unverified specific date]`. GitHub-hosted attestation service for build provenance, using sigstore Fulcio for OIDC-bound short-lived certs + Rekor for transparency. As of 2026, the easiest path for GitHub-built artifacts. Adoption uneven across OSS ecosystems.
+GA June 25, 2024. GitHub-hosted attestation service for build provenance, using sigstore Fulcio for OIDC-bound short-lived certs + Rekor for transparency. As of 2026, the easiest path for GitHub-built artifacts. Adoption uneven across OSS ecosystems.
 
 ### 5.7 in-toto attestation framework
 
-`[[reference-supply-chain-provenance]]` covers in-toto. **Trevor Stratmann** + **Mike McLeod** `[unverified specific authorship]` + the in-toto / SLSA community led design. Generic supply-chain step attestation; broader than build provenance.
+`[[reference-supply-chain-provenance]]` covers in-toto. **Santiago Torres-Arias** + **Justin Cappos** (NYU) + the in-toto / SLSA community led design. Generic supply-chain step attestation; broader than build provenance.
 
 ---
 
@@ -306,7 +306,7 @@ Reference values for "this artifact contains these components with these hashes.
 
 ### 8.5 GitHub Artifact Attestations
 
-Cloud-hosted reference-value provider since 2024 `[unverified specific date]`. `gh attestation verify` is the consumer command. For GitHub-built artifacts, this is the lowest-friction path to provenance.
+Cloud-hosted reference-value provider since June 25, 2024 (GA). `gh attestation verify` is the consumer command. For GitHub-built artifacts, this is the lowest-friction path to provenance.
 
 ### 8.6 OCI image-digest pinning
 
@@ -354,13 +354,13 @@ Sigma → SigmaHQ; YARA → YARA-Rules + vendor feeds; Falco → falco-rules + F
 
 ### 10.2 OSS Veraison
 
-Linaro-led OSS attestation verifier with reference-value store. CC (Confidential Computing Consortium) + IBM + Microsoft + Arm contributing. **Mike Bursell** + **Thomas Fossati** + **Yogesh Deshpande** + others. Production deployments emerging 2025-2026 `[unverified specific deployment list]`. Supports CCA, PSA, DICE, TPM evidence formats.
+OSS attestation verifier with reference-value store, adopted as a CC (Confidential Computing Consortium) project. **Thomas Fossati** + **Yogesh Deshpande** + others. Supports CCA, PSA, DICE, TPM evidence formats.
 
 ### 10.3 Vendor-locked services
 
-- **Apple PCC (Private Cloud Compute).** Apple publishes per-image attestation `[unverified specific commitment]`. No public verifier; relying parties trust Apple's transparency claims.
-- **Azure Sphere.** Closed-loop attestation, EOL'd 2024 `[unverified specific EOL date]`. Orphaned reference-value data on existing deployments. Cross-link `[[reference-dice-embedded-device-identity]]` §12.7.
-- **Microsoft Pluton.** Closed integration into Windows attestation. **Andrew Robbins** `[unverified specific role]` historically associated with Pluton work.
+- **Apple PCC (Private Cloud Compute).** Apple publishes measurements of every production PCC software image in an append-only transparency log; user devices send requests only to nodes whose attested measurements match a logged release.
+- **Azure Sphere.** Closed-loop attestation; service retires July 31, 2031 (MT3620 chip EOL July 31, 2026). Reference-value data on existing deployments will be orphaned. Cross-link `[[reference-dice-embedded-device-identity]]` §12.7.
+- **Microsoft Pluton.** Closed integration into Windows attestation.
 
 ### 10.4 Custom verifiers
 
@@ -376,15 +376,15 @@ Large enterprises (Google, Meta, Amazon, Microsoft, financial services) build th
 
 ### 11.1 IETF RATS RFC 9334 (January 2023) finalization
 
-Bedrock document for RVP role naming. **Henk Birkholz** + **Hannes Tschofenig** + **Michael Richardson** + **David Thaler** as authors.
+Bedrock document for RVP role naming. **Henk Birkholz** + **David Thaler** + **Michael Richardson** + **Ned Smith** + **Wei Pan** as authors.
 
 ### 11.2 CoRIM IETF draft progress
 
-`[unverified specific status]`. Multiple drafts published; not yet RFC. Implementation activity in Veraison + Intel SGX tooling + Arm CCA verifier.
+In RATS WG Last Call as of March 2026 (`draft-ietf-rats-corim-10`). Multiple drafts published; not yet RFC. Implementation activity in Veraison + Intel SGX tooling + Arm CCA verifier.
 
 ### 11.3 GitHub Artifact Attestations GA 2024
 
-`[unverified specific GA date]`. Brought sigstore-bound build provenance to the largest CI population. Adoption uneven; many repos haven't opted in yet.
+GA June 25, 2024. Brought sigstore-bound build provenance to the largest CI population. Adoption uneven; many repos haven't opted in yet.
 
 ### 11.4 EU CRA (Regulation 2024/2847)
 
@@ -394,10 +394,10 @@ Product manufacturers face reference-value publication requirements implicitly v
 
 The frontier:
 
-- **Model-weight hashes.** Apple PCC publishes per-image attestation `[unverified specific commitment]`. Anthropic + OpenAI + Meta have not published comparable per-model reference values as of 2026.
+- **Model-weight hashes.** Apple PCC publishes measurements of every production software image in a public transparency log. Anthropic + OpenAI + Meta have not published comparable per-model reference values as of 2026.
 - **Training-data attestations.** Operational concept; production deployments minimal.
 - **System-prompt hashes.** Some agent-deployment frameworks experiment with hashing the system prompt; per-inference reference values not yet operational.
-- **GPU firmware reference values.** NVIDIA H100 attestation includes firmware + microcode versions; reference values published via NVIDIA-managed services `[unverified specific channel]`.
+- **GPU firmware reference values.** NVIDIA H100 attestation includes firmware + microcode versions; reference values published as signed RIMs via the NVIDIA RIM Service, with NRAS performing verification.
 
 ### 11.6 Veraison maturity
 
@@ -439,11 +439,11 @@ The technology works; the adoption curve is the limiter. As of 2026, the majorit
 
 ### 12.7 Reference values for AI systems are the frontier
 
-Model-weight hashing scales (weights are blob-style), but per-inference reference values (system-prompt hashes, RAG-context hashes, tool-set hashes) are operationally untested. Apple PCC's per-image attestation `[unverified specific commitment]` is a leading example; broad industry adoption is years out.
+Model-weight hashing scales (weights are blob-style), but per-inference reference values (system-prompt hashes, RAG-context hashes, tool-set hashes) are operationally untested. Apple PCC's per-image transparency log is a leading example; broad industry adoption is years out.
 
 ### 12.8 Closed-loop verifier services leave orphans
 
-Azure Sphere EOL'd 2024 `[unverified specific date]`; existing devices have reference-value data in Microsoft-operated infrastructure that customers cannot migrate. Cross-link `[[reference-dice-embedded-device-identity]]` §12.7. Closed-loop verifiers carry this risk by design.
+Azure Sphere retires July 31, 2031; existing devices have reference-value data in Microsoft-operated infrastructure that customers cannot migrate. Cross-link `[[reference-dice-embedded-device-identity]]` §12.7. Closed-loop verifiers carry this risk by design.
 
 ### 12.9 "We did attestation" without RVP discipline is theater
 

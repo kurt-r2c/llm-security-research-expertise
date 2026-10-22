@@ -3,19 +3,17 @@
 
 > **Primary researchers and teams:**
 >
-> - **Lea Kissner** — co-designer of Google Zanzibar; former Google Global Lead, Privacy
+> - **Lea Kissner** — co-author of the Google Zanzibar paper; former Google Global Lead, Privacy
 >   Technology; former Twitter CISO and Head of Privacy Engineering; former Lacework CISO; PhD
->   cryptography, CMU. The "P" in the Zanzibar paper author list and one of the few practitioners
->   to operate the relationship-tuple authorization model at planetary scale before describing it
->   in print.
+>   cryptography, CMU.
 > - **Ruoming Pang, Ramon Cáceres, Mike Burrows, Zhifeng Chen, Pratik Dave, Nathan Germer,
 >   Alexander Golynski, Kevin Graney, Nina Kang, Jeffrey L. Korn, Abhishek Parmar, Christina D.
 >   Richards, Mengzhi Wang** — the Google Zanzibar paper authors (USENIX ATC 2019). Burrows
 >   carries the Chubby, BigTable, and Dapper legacy; the team's combined CV is essentially the
 >   distributed-systems primitives layer underneath every Google service that does access checks.
 > - **Tim Hinrichs, Torin Sandall, Teemu Koponen** — co-creators of Open Policy Agent (Styra,
->   2016). Hinrichs (CTO, Styra; PhD Stanford; co-founder OpenStack Congress) and Sandall (VP
->   Engineering and OSS, Styra) drove OPA from inception through CNCF graduation. OPA is the
+>   2016). Hinrichs (CTO, Styra; PhD Stanford; co-founder OpenStack Congress) and Sandall (VP of
+>   Open Source, Styra) drove OPA from inception through CNCF graduation. OPA is the
 >   canonical declarative policy engine in the Kubernetes admission controller path and the
 >   reference example for "policy as code" in cloud-native authorization.
 > - **Paulo Silva, Erez Yalon, Inon Shkedy** — co-leads of the OWASP API Security Top 10 2023.
@@ -29,7 +27,7 @@
 > - **Daniel Fett, Torsten Lodderstedt, John Bradley, Andrey Labunets** — IETF OAuth Working
 >   Group authors of RFC 9700 ("Best Current Practice for OAuth 2.0 Security," January 2025)
 >   and its predecessor `draft-ietf-oauth-security-topics`. The canonical statement of the
->   OAuth threat model and the seven attacks the protocol layer must defend against.
+>   OAuth threat model and the attacks the protocol layer must defend against.
 > - **Kurt Boberg (`kurt-r2c`)** — Semgrep staff researcher; five publicly-credited AuthN/AuthZ
 >   CVEs covering the exact failure-mode bestiary this document codifies:
 >   - CVE-2020-13957 (Apache Solr, CVSS 9.8) — auth-bypass on ConfigSet upload via
@@ -48,8 +46,7 @@
 >     https://github.com/advisories/GHSA-qf8x-vqjv-92gr
 >
 > These five CVEs hit five different products, five different protocols, and five different
-> failure modes — but they all land in the **CWE-287 / CWE-306 / CWE-862 / CWE-863 / CWE-1390**
-> cluster. This document is the synthesis of those failure modes plus the broader
+> failure modes. This document is the synthesis of those failure modes plus the broader
 > distributed-AuthZ literature, written to drive a static-analysis authz-detection workflow.
 >
 > Sources: USENIX ATC 2019 (Zanzibar paper); GHSA advisories cited inline; OWASP API Top 10
@@ -141,8 +138,7 @@ mode:
 
 ### The "auth-once at edge" vs "auth-at-every-hop" tradeoff
 
-The central architectural decision in distributed AuthZ. Zanzibar's argument (Pang et al.
-2019, §2): authorization should be a **single, consistent decision** made once, with the
+The central architectural decision in distributed AuthZ. One position: authorization should be a **single, consistent decision** made once, with the
 result propagated to every component that needs to know. The alternative — every service
 re-asks the question — is operationally expensive, inconsistent (different services may have
 different views of the policy graph), and impossible to make uniformly fast.
@@ -192,9 +188,7 @@ to act for that target.
 Apple Game Center: the server fetches Apple's signing certificate from a URL Apple supplies
 in the player identity assertion, then verifies the assertion against that certificate. The
 pre-fix parse-server code accepted the certificate URL **from the client-supplied
-assertion** with only a substring check for `apple.com`. Attacker supplies
-`https://evil.com/apple.com/cert.pem` (substring passes) or `https://apple.com.evil.com/`,
-server fetches the attacker certificate, verifies trivially.
+assertion** with only weak validation of that URL, allowing authentication bypass.
 
 Structural lesson: **trust chain anchored to server-controlled value, not client-supplied.**
 Federation must pin IdP discovery to a server-side allowlist, not extract from request
@@ -210,8 +204,8 @@ a server-side allowlist gate.
 
 Apache Solr's ConfigSet API: ConfigSets contain Velocity templates and arbitrary Java
 classes that Solr executes — upload-with-RCE is the obvious endpoint. The pre-fix code
-applied an auth check on `CREATE` but not on `UPLOAD`. Attacker uploads malicious ConfigSet
-unauthenticated, CREATEs a core from it through an action-composition gap → unauth RCE.
+blocked dangerous features in ConfigSets uploaded via the API without authentication, but the
+check could be circumvented by combining the `UPLOAD` and `CREATE` actions → unauth RCE.
 
 Structural lesson: **authentication enforced at the operation level, not the endpoint
 level.** Two operations on the same endpoint with different effects cannot share an
@@ -244,7 +238,7 @@ always AuthZ — attacker claims any identity the SP trusts the IdP to assert.
 
 **OAuth/OIDC** canonical attacks per RFC 9700 §4: authorization code injection, missing
 `state` (CSRF on authorize endpoint), mix-up attack across IdPs, access-token redirect via
-Referer/logs, PKCE downgrade, confused-deputy in cross-org apps, refresh-token theft +
+Referer/logs, PKCE downgrade, refresh-token theft +
 rotation evasion. The cross-cutting failure mode — "trusting a client-supplied value during
 identity assertion" — is the dominant primitive across all of them.
 
@@ -260,18 +254,18 @@ the missing check is on a privileged route).
 ### Path-based bypasses in reverse proxies (CVE-2022-3294)
 
 Kurt's CVE-2022-3294: kube-apiserver supports node-proxying — clients reach kubelet
-endpoints through the API server, which validates against the Node's `addresses` field. The
-bypass: a user who can modify Node objects edits the `addresses` field to include arbitrary
-internal endpoints. API server validates against the (attacker-modified) list, sees match,
-proxies the request → authenticated requests reach arbitrary internal endpoints from the
-API server's network position.
+endpoints through the API server, which validates the proxying address for Nodes. The
+bypass: a bug in kube-apiserver let a user who can modify Node objects and send proxy
+requests to them bypass this validation → authenticated requests destined for Nodes reach
+the API server's private network.
 
 Structural lesson: **validation-against-mutable-data is not validation.** If the allowlist
 itself is editable by the attacker, it's a UX feature, not a security control. Path-
 normalization bugs in reverse proxies are the same family: NGINX/Envoy/HAProxy normalize
 one way, backend Spring/Django/Express normalize differently, and the difference is the
-attacker's escape route. James Kettle's "Path Confusion in Web Caches" (2020) is the
-canonical research line.
+attacker's escape route. Mirheidari et al.'s "Cached and Confused: Web Cache Deception in the Wild" (USENIX
+Security 2020), which frames web cache deception as path confusion, is the canonical
+research line.
 
 Detection (cross-cuts CWE-863 and CWE-22): handler proxies to a backend address selected
 from request data via validation-against-stored-state where the stored state is writable by
@@ -279,10 +273,9 @@ non-admin actors.
 
 ### Capability-confusion in role models (CVE-2022-1332)
 
-Kurt's CVE-2022-1332 in Mattermost: custom admin roles allowed combining permissions in
-ways the role-engine didn't anticipate. A role with `read_server_logs` (intended
-read-only-on-logs) combined with another permission could be coerced through the API into
-accessing the server config.json contents.
+Kurt's CVE-2022-1332 in Mattermost: an API failed to properly protect permissions, so
+authenticated members with a restricted custom admin role could bypass those restrictions
+and view the server logs and the server config.json contents.
 
 Structural lesson: **role composition is a security boundary.** Custom role models that let
 admins combine permissions must enumerate the combinations or impose a closure rule.
@@ -467,21 +460,19 @@ To answer "can Alice view doc 123" the system:
 4. Look up parent: `folder:F1#viewer@user:alice` (per parent rewrite) → if found, allow
 5. Otherwise deny
 
-This is the **expand** algorithm. The structural property: every authorization decision is
-the answer to a graph reachability query in the relationship graph. The query terminates
-because rewrites are restricted to non-cyclic forms (this is the constraint that lets
-Zanzibar scale; not every ReBAC model can guarantee termination).
+This is how a **Check** request is evaluated. The structural property: every authorization decision is
+the answer to a graph reachability query in the relationship graph.
 
 ### Consistency: ZedTokens and the "new enemy" problem
 
-The "new enemy" problem (Pang et al. §3.3): a user U is removed from a group G; immediately
+The "new enemy" problem (Pang et al. §2.2): a user U is removed from a group G; immediately
 after, a document D's permissions are changed to grant access to G; U should not be able to
 read D after the change, but if the system reads from a stale snapshot, U might see the
 group-grant decision before seeing the group-removal.
 
-Zanzibar's solution: every write returns a **ZedToken** (a logical timestamp). A subsequent
-check that wants strong consistency with respect to the write passes the ZedToken; the
-system guarantees the check sees the world at or after that point. Without a ZedToken, the
+Zanzibar's solution: every write returns a **zookie** (an opaque token encoding a timestamp). A subsequent
+check that wants strong consistency with respect to the write passes the zookie; the
+system guarantees the check sees the world at or after that point. Without a zookie, the
 check is allowed to use a snapshot — much faster, less consistent.
 
 This is the defining operational property of Zanzibar-style systems: **consistency is
@@ -491,14 +482,12 @@ strong consistency; common reads use snapshot consistency for performance.
 ### Adoption, limits, and the hybrid argument
 
 Production implementations: AuthZed/SpiceDB (schema-faithful), OpenFGA (Auth0/Okta-flavored),
-Permify (YAML-schema-friendly), Google Cloud IAM internals, Microsoft Entra ID's graph-
-based access model. The argument for ReBAC over RBAC: real authorization questions are
+Permify (YAML-schema-friendly), Google Cloud IAM internals. The argument for ReBAC over RBAC: real authorization questions are
 relationship questions — "Can X edit D" depends on whether X owns D, is in a group that owns
 D, or is in a project that owns the folder containing D. RBAC's flat role-permission pairs
 cannot express the graph; ReBAC encodes it directly.
 
-Known limits: **schema rigidity** (rewrite language has no negation in the reference paper;
-SpiceDB adds bounded negation via `excludes`); **bulk operations** (`LookupResources` —
+Known limits: **schema rigidity**; **bulk operations** (`LookupResources` —
 "every document Alice can view" — is much more expensive than `CheckPermission`);
 **consistency-snapshot tradeoff** (ZedTokens pin a snapshot but force fresh-enough replica
 reads with tail-latency cost). For most applications the right answer is a hybrid: ReBAC
@@ -543,7 +532,8 @@ per-request `state`, or doesn't validate `state` on callback; client code that s
 
 ### Refresh token theft, scope creep, confused-deputy
 
-**Refresh tokens** are long-lived. RFC 9700 mandates rotation with replay detection: every
+**Refresh tokens** are long-lived. RFC 9700 requires refresh tokens for public clients to be
+sender-constrained or use refresh token rotation; with rotation, every
 refresh issues a new token and invalidates the old; reuse triggers family-wide
 invalidation.
 
@@ -558,7 +548,7 @@ user-grant context. Detection: resource-server code that authorizes based on OAu
 
 ### Apple Sign-In / Google OAuth credential confusion
 
-Apple Sign-In ID tokens may lack `email_verified` (Apple does not verify email ownership).
+Apple Sign-In ID tokens may carry `email_verified` false (Apple may not verify email addresses for Sign in with Apple at Work & School users).
 An attacker registers Apple ID with `victim@gmail.com`; a relying party that accepts
 either Apple or Google ID tokens for the same account, and uses email as the cross-IdP
 identifier, lets the attacker sign in as the victim. This is **CVE-2022-24901 at the
@@ -677,7 +667,7 @@ token size grows with capability count, bearer-compromise grants capability.
 `(actor, action)`. If the policy function literally cannot be called without a resource,
 BOLA cannot happen by omission.
 
-**Audit every authorization decision** (the Stripe model): every prod AuthZ check emits an
+**Audit every authorization decision**: every prod AuthZ check emits an
 event with actor, action, resource, decision, policy-rule. This is forensic ground truth
 and the feedstock for anomaly detection. Audit logs must be off-cluster, append-only,
 immutable (cross-link `container_k8s_security.md` §8).
@@ -779,8 +769,8 @@ email } } }` checks that the caller can see their own user, then recursively ret
 friends' fields without checking per-field permissions.
 
 Defense: field-level resolvers each call the PDP with the specific (actor, action,
-resource) tuple. GraphQL Shield, Permify's GraphQL integration, and SpiceDB's
-relationship-tuple model all support this. Every resolver declares its authorization
+resource) tuple. GraphQL Shield and SpiceDB's
+relationship-tuple model support this. Every resolver declares its authorization
 requirement; resolvers without an explicit declaration are denied by default.
 
 ### AuthZ for AI/agent contexts and vector databases
@@ -824,7 +814,6 @@ restricting to the caller's tenant.
 
 - OPA project: https://www.openpolicyagent.org/
 - OPA documentation: https://www.openpolicyagent.org/docs/latest/
-- Styra: https://www.styra.com/about/leadership-team/
 
 ### OAuth / OIDC
 

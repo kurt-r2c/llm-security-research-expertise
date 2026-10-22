@@ -20,21 +20,14 @@
 >   edition canonicalized the **BOLA / BFLA / BOPLA** taxonomy, which is now the dominant
 >   API-AuthZ bug vocabulary in product-security triage.
 > - **Aleksei Tiurin** — Senior Security Researcher at Acunetix / Invicti since 2018. Long
->   author byline on Acunetix's web-security blog covering GraphQL introspection,
->   GraphiQL/Playground exposure, schema enumeration, and GraphQL-specific scanner detections.
->   The Acunetix rules for `GraphQL Introspection Query Enabled`, `GraphiQL Explorer/Playground
->   Enabled`, and `GraphQL Alias Overloading Allowed` are downstream of his research.
+>   author byline on Acunetix's web-security blog covering cache-poisoning DoS, reverse-proxy
+>   attacks, SSTI in Thymeleaf, and JS deserialization.
 > - **Frans Rosén** — Security advisor at Detectify; one of the highest-paid HackerOne
 >   bounty hunters of the 2017–2022 era. Canonical writeups: "Hacking Slack using
 >   postMessage and WebSocket-reconnect to steal your precious token" (2017), "postMessage
 >   XSS on a million sites," "Account hijacking using 'dirty dancing' in sign-in OAuth-flows."
 >   His writeups establish that API-layer bugs compose with browser-layer bugs into full
 >   account takeover.
-> - **Lewis Ardern (`@LewisArdern`)** — Staff Security Researcher at Semgrep; previously
->   Lead Security Engineer at Salesforce. Hosts the SecuriTEA & Crumpets podcast.
->   Subject-matter expert in modern web frameworks, JavaScript ecosystem security, GraphQL
->   rule authoring, and supply-chain research. Owns the JavaScript / TypeScript / GraphQL
->   rule-authoring lane in a private detection-rule corpus.
 > - **James Kettle, Gareth Heyes, Martin Doyhenard** (PortSwigger) — Director of Research
 >   and collaborators behind the Web Security Academy GraphQL labs. Their contribution is
 >   the systematic methodology for finding GraphQL endpoints (via `__schema`,
@@ -51,11 +44,9 @@
 >   > early adopters of GraphQL. The target organization had a collection of services
 >   > notorious for broken access control. I strongly advocated for authorization
 >   > considerations early in the design process which lead to a launch with basically zero
->   > authorization issues." — *tl;dr sec, "Staff Eng Security Stories: Kurt Boberg"*
+>   > authorization issues." — *tl;dr sec, "Kurt Boberg - Staff Security Researcher at r2c"*
 >
->   Five publicly-credited AuthN/AuthZ CVEs (CVE-2020-13957 Apache Solr CVSS 9.8;
->   CVE-2022-1245 Keycloak CVSS 9.8; CVE-2022-1332 Mattermost; CVE-2022-3294 Kubernetes
->   CVSS 8.8; CVE-2022-24901 parse-server). See
+>   Publicly credited (with yoshmidev) on CVE-2022-24901 (parse-server). See
 >   `expertise/software/distributed_authz_expertise.md` for per-CVE writeups.
 >
 > Sources: OWASP API Security Top 10 2023; *Black Hat GraphQL* (No Starch, 2023); Apollo
@@ -118,7 +109,7 @@ exist:
 - **Field-suggestion error oracles.** Most servers (Apollo, graphql-java, HotChocolate)
   emit `Did you mean "..."` for misspelled fields, revealing the closest valid field by
   Levenshtein distance. `graphql-cop` and `graphw00f` automate iterative rebuild.
-- **Tooling fingerprints.** `graphw00f` matches behavior to ~30 frameworks by observing how
+- **Tooling fingerprints.** `graphw00f` matches behavior to 37 frameworks by observing how
   each handles malformed queries, alias depth, and reserved characters. Knowing the
   framework narrows exploit surface — different alias-cap defaults, cost models, unauth
   introspection posture.
@@ -334,7 +325,7 @@ type Mutation {
 ```
 
 Schema visitor at construction wraps every annotated resolver. Apollo Server supports this
-via `SchemaDirectiveVisitor` (v2/v3, deprecated v4 in favor of `mapSchema` from
+via `SchemaDirectiveVisitor` (v2; built-in support removed in v3 in favor of `mapSchema` from
 `@graphql-tools/utils`). Declarative form is auditable — grep `@auth` and see protected
 fields. Risk: **silent permissive default** — fields without `@auth` are unprotected.
 
@@ -402,7 +393,7 @@ security feature.
    SHA-256 hash.
 2. Client sends `{ extensions: { persistedQuery: { sha256Hash: "..." } } }`.
 3. Server in safelist mode looks up the hash; executes if found; rejects
-   `PersistedQueryNotFound` if not — no fallback to arbitrary queries.
+   `PERSISTED_QUERY_NOT_IN_LIST` if not — no fallback to arbitrary queries.
 
 This is the strongest discoverability hardening: attacker without build-pipeline access
 cannot run arbitrary queries. Introspection moot. Alias batching moot (every operation is
@@ -475,20 +466,19 @@ query Amplify {
 ```
 
 Each alias triggers an independent resolver call. Invicti's `GraphQL Alias Overloading
-Allowed` detection flags this. Defense: alias-count cap (Apollo Router and graphql-armor
-default to ~15); field-count cap; cost analysis counting each alias separately.
+Allowed` detection flags this. Defense: alias-count cap (graphql-armor
+defaults to 15); field-count cap; cost analysis counting each alias separately.
 
 ### Fragment recursion (where allowed)
 
-The spec forbids direct circular fragments. Mutual recursion through indirection
-(`A → B → A`) is a known weakness in some implementations. graphql-java had CVE-2024-40094
-("Apollo cycle"); fix in 22.1. Defense: current parser version plus depth limit.
+The spec forbids fragment-spread cycles, direct or indirect. Mutual recursion through indirection
+(`A → B → A`) is a known weakness in some implementations. Defense: current parser version plus depth limit.
 
 ### Field-name suggestion as side-channel DoS
 
 `Did you mean ...` computes Levenshtein distance against every schema field. For 1000-field
 schemas and long misspelled names, computation is O(schema × len(query)). Repeated long
-random probes amplify load. graphql-armor's "field-suggestions" plugin disables suggestions
+random probes amplify load. graphql-armor's "block-field-suggestions" plugin disables suggestions
 in production both as a recon-oracle close (§6) and to remove this side-channel.
 
 Cross-link `redos_algorithmic_dos_expertise.md` §7 for the broader algorithmic-DoS framing.
@@ -583,9 +573,9 @@ new ApolloServer({
 });
 ```
 
-Equivalent in graphql-java (`Instrumentation`), HotChocolate (`AddIntrospectionAllowed(false)`),
+Equivalent in graphql-java (`Instrumentation`), HotChocolate (`AllowIntrospection(false)`),
 Sangria, gqlgen. Disabling introspection is necessary but not sufficient — the
-field-suggestion oracle still leaks types. Combine with graphql-armor's `field-suggestions`
+field-suggestion oracle still leaks types. Combine with graphql-armor's `block-field-suggestions`
 plugin.
 
 ### Schema diffing as CI gate
@@ -664,19 +654,19 @@ URL, auth check is "is logged in" not "is admin," self-promotion follows. Detect
 state-changing route operating on a resource needs a function-level check distinct from
 the ownership check.
 
-### API6:2023 — Server-Side Request Forgery (SSRF)
+### API7:2023 — Server-Side Request Forgery (SSRF)
 
 Webhook registration, image-by-URL, OAuth callback URLs, document-fetch-by-URL, AI-agent
 tool integrations. Capital One 2019 was SSRF via an internal WAF misconfiguration on a
 metadata-service-adjacent endpoint. Cross-link `ssrf_url_parsing_expertise.md`.
 
-### API7:2023 — Security Misconfiguration
+### API8:2023 — Security Misconfiguration
 
 Default credentials, verbose errors, missing/permissive CORS, default ports left open,
 dev tooling exposed in production (GraphiQL, Playground, Swagger UI with editable
 Try-It-Now), missing TLS, reachable debug endpoints. Cross-link `http_web_security.md` §IV.
 
-### API8:2023 — Lack of Protection from Automated Threats
+### API6:2023 — Unrestricted Access to Sensitive Business Flows
 
 New in 2023 as distinct from rate limiting because per-IP defenses fail against
 distributed credential stuffing. Mitigation: device fingerprinting; bot management
@@ -760,7 +750,7 @@ right baseline.
 
 - **Non-rotating refresh tokens.** Token issued at first login valid six months later;
   theft gives permanent access. Fix: rotation — every redemption issues new token,
-  invalidates old. RFC 9700 mandates for confidential clients.
+  invalidates old. RFC 9700 requires rotation or sender-constraining for public clients.
 - **Refresh-token replay without detection.** Attacker steals token, uses once; legitimate
   client also uses. Detection: redeemed-then-redeemed-again chain → all tokens in chain
   invalidated; user forced to re-auth.
@@ -900,7 +890,7 @@ bestiary with resolver-specific patterns:
   `persistedQueries` configured AND safelist-only routing. Misconfigured safelist falling
   back to arbitrary queries is a regression from no safelist (false sense of security).
 - **Missing depth/complexity limit configuration.** `ApolloServer` instantiations whose
-  `validationRules` lack `createDepthLimit(...)` or `createComplexityLimitRule(...)`.
+  `validationRules` lack `depthLimit(...)` or `createComplexityLimitRule(...)`.
   MEDIUM absence.
 
 ### REST detection patterns

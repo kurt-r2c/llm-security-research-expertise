@@ -31,8 +31,8 @@
 >   (Oxford University Press). Long-running WEIS co-organizer. Research span:
 >   phishing-site-takedown economics, cybercrime cost measurement, Bitcoin security, the
 >   patching-as-public-good problem, and the empirical study of vulnerability markets.
-> - **Allan Friedman** — Senior Advisor and Strategist at the Cybersecurity and
->   Infrastructure Security Agency (CISA); previously Director of Cybersecurity
+> - **Allan Friedman** — former Senior Advisor and Strategist at the Cybersecurity and
+>   Infrastructure Security Agency (CISA), which he left in July 2025; previously Director of Cybersecurity
 >   Initiatives at NTIA, where he led the multi-stakeholder process that produced the
 >   Software Bill of Materials (SBOM) standard. Widely known as the "Father of the SBOM."
 >   Prior decade at Harvard Computer Science, the Brookings Institution, and George
@@ -45,11 +45,11 @@
 >   of *Click Trajectories: End-to-End Analysis of the Spam Value Chain* (IEEE S&P 2011)
 >   — the canonical study that turned abuse research from pattern-matching into
 >   supply-chain economics. The Click Trajectories paper found that spam-pharmaceutical
->   campaigns funneled through a handful of acquiring banks, and that disrupting the
->   payment layer collapsed the campaigns far more effectively than blocking the spam
+>   campaigns funneled through a handful of acquiring banks, making the
+>   payment layer a far more concentrated intervention point than blocking the spam
 >   itself. Savage's research program is the canonical "follow the money" approach to
 >   cybercrime.
-> - **Philip Daian** (PhD Cornell Tech) — Co-founder and Chief Scientist at **Flashbots**
+> - **Philip Daian** (PhD Cornell Tech) — Co-founder of **Flashbots**
 >   (2020); previously IC3 (Initiative for CryptoCurrencies and Contracts). Co-author
 >   with Steven Goldfeder, Tyler Kell, Yunqi Li, Xueyuan Zhao, Iddo Bentov, Lorenz
 >   Breidenbach, and Ari Juels of *Flash Boys 2.0: Frontrunning, Transaction Reordering,
@@ -165,7 +165,8 @@ Anderson's *Why Information Security is Hard* (2001) made the foundational claim
 most security failures are misaligned-incentive failures, not technical failures. The
 canonical example: a bank's online banking has a fraud problem; the bank could deploy
 stronger authentication, but the fix costs more than the fraud losses the bank itself
-bears (because fraud is borne by customers under the EFTA burden-of-proof rules). The
+bears (because, in Anderson's UK example, banks could shift liability for disputed
+transactions onto customers). The
 bank's privately-optimal posture is to accept the fraud; the socially-optimal posture
 requires regulatory intervention.
 
@@ -199,9 +200,8 @@ two-sided market drives researcher compensation toward the lower-tail of asset v
 3. **Out-of-scope rejection risk.** Issues outside narrowly-defined scope are not paid;
    hunting cost is sunk.
 
-The empirical literature (Zhang, Demirezen, Kumar in *Information Systems Research*,
-2024; Kuehn & Mueller, SSRN 2014; *Journal of Cybersecurity* "simple economics of an
-external shock," 2024) finds price elasticities for security-researcher labor supply
+The empirical literature (Sridhar & Ng, *Journal of Cybersecurity*, 2021, on HackerOne
+data) finds price elasticities for security-researcher labor supply
 between 0.1 and 0.2 at the median — researchers are motivated by non-pecuniary factors
 (reputation, skill development, intrinsic interest), and increasing bounty payouts has
 very low marginal effect on hunting hours.
@@ -212,8 +212,8 @@ The high-end of the vulnerability market is structurally different. **Zerodium**
 (founded 2015) was the first platform to publish a full pricing chart: $5K to $1.5M per
 exploit at launch, rising to $2.5M for full-chain zero-click Android and $2M for iOS
 by 2024. **Crowdfense** (founded 2017, UAE-based) raised the ceiling: up to $9M for
-zero-click SMS/MMS full-chain, $7M iOS, $5M Android, $3M-$5M Chrome/Safari/WhatsApp/
-iMessage as of 2024.
+zero-click SMS/MMS full-chain, $7M iOS, $5M Android, $2M-$3M Chrome, $2.5M-$3.5M Safari, $3M-$5M
+WhatsApp/iMessage as of 2024.
 
 These markets have three load-bearing features:
 
@@ -247,8 +247,7 @@ The four major Western platforms are a near-oligopoly. Three operational dynamic
 
 - **Researcher reputation as the multi-platform binder.** A researcher's reputation
   travels across platforms (Twitter handle, HackerOne profile, conference history); the
-  platforms do not. Top-percentile researchers command a 1.5x-3x bonus on most platforms
-  (HackerOne's "MVH" multiplier, Bugcrowd's "Priority One" status).
+  platforms do not.
 - **Triage-and-resolution-time SLA as the program-side quality signal.** Slow triage
   drives researchers away; the platform displays median-time-to-resolution publicly. A
   program with >30-day triage loses access to top researchers regardless of bounty
@@ -260,11 +259,10 @@ The four major Western platforms are a near-oligopoly. Three operational dynamic
 
 ### The "researcher reputation" multiplier (top-X percentile bounty bonuses)
 
-Top researcher bonuses (1.5x-3x base bounty) are a structural feature of platform
+Top researcher bonuses are a structural feature of platform
 economics. The rationale is information-revelation: a researcher's past behavior is the
 best predictor of future submission quality, and the platform internalizes this by
-paying for it. The criticism is that the system amplifies winner-take-most dynamics:
-1% of researchers collect ~50% of bounty payouts on HackerOne. The defense is that the
+paying for it. The criticism is that the system amplifies winner-take-most dynamics. The defense is that the
 variance reduction is socially efficient and the inequality is a feature of the
 platform's information-extraction mechanism.
 
@@ -287,13 +285,13 @@ asks "how should the contract be structured to align incentives?"
 
 ### The CRA Article 14 mandatory-disclosure regime
 
-The EU **Cyber Resilience Act** (Regulation EU 2024/2847, in force 11 December 2024,
+The EU **Cyber Resilience Act** (Regulation EU 2024/2847, in force 10 December 2024,
 mandatory compliance December 2027) imposes coordinated-vulnerability-disclosure
 obligations on every vendor placing digital products on the EU market. Article 14
-requires 24-hour notification of actively-exploited vulnerabilities to ENISA, 72-hour
-preliminary report, and full report within 14 days. Researcher safe-harbor is implicit
-but not strongly codified; the CVD framework is explicit and references ISO/IEC 29147
-and 30111.
+requires a 24-hour early warning of actively-exploited vulnerabilities to the CSIRT
+coordinator and ENISA, a 72-hour notification, and a final report within 14 days after a
+corrective measure is available. Researcher safe-harbor is implicit
+but not strongly codified; the CVD framework is explicit.
 
 The CRA's economic logic shifts the cost-bearing structure: vendors now bear
 notification cost as a fixed compliance overhead; researcher safe-harbor reduces the
@@ -317,8 +315,7 @@ The foundational paper, Daian et al., *Flash Boys 2.0* (arXiv 1904.05234, IEEE S
 through control of transaction ordering, beyond the protocol-defined block reward.
 Post-Merge (September 2022), the term was generalized to **Maximal Extractable Value**
 to capture extraction by validators, builders, searchers, and proposers in the
-proof-of-stake architecture. The paper documented four extraction mechanisms —
-frontrunning, backrunning, sandwich attacks, liquidation arbitrage — and named the
+proof-of-stake architecture. The paper documented frontrunning bots and named the
 **Priority Gas Auction (PGA)**: searcher bots competitively bid up transaction fees to
 obtain priority ordering.
 
@@ -338,8 +335,8 @@ standard Cournot quantity. Two operational consequences:
   searchers compete with each other for the user's slippage, not for the user's
   business.
 - **The user's defense is to commit to maximum slippage in the trade order**, which caps
-  the searchers' aggregate B1. This is why modern DEXes default to 0.5%-1.0% slippage
-  caps.
+  the searchers' aggregate B1. This is why DEXes default to capped slippage (Uniswap's auto
+  slippage: 0.5%-5%, by network cost and swap size).
 
 ### JIT (Just-In-Time) liquidity as sniping
 
@@ -352,8 +349,8 @@ This is the **sniping** strategy from online-auction theory: the LP times partic
 to the moment of highest reward and exits immediately. The victim is the long-term LP
 whose liquidity would otherwise have earned the trade fee. Uniswap V4's hook
 architecture allows pool designers to charge JIT LPs a withdrawal penalty or credit
-fees to long-term LPs only — structurally the same defense as eBay's "automatic
-bidding" extension (Roth & Ockenfels 2002) against timed-bid sniping.
+fees to long-term LPs only — structurally the same defense as Amazon auctions' automatic
+extension rule (Roth & Ockenfels 2002) against timed-bid sniping.
 
 ### Order-flow auctions (CowSwap, UniswapX) as second-price auctions
 
@@ -372,9 +369,9 @@ between their solution's user-surplus and the second-best solver's user-surplus,
 truthful bidding the dominant strategy for solvers.
 
 UniswapX implements a Dutch auction where initial fill-price is set by an off-chain
-pricing oracle and decays over time until a solver fills. Empirical comparison (Bachu &
-Wan, 2024) shows both designs deliver substantial price improvement over public-mempool
-DEX execution.
+pricing oracle and decays over time until a solver fills. Empirical analysis (Bachu, Wan &
+Moallemi, 2024) of UniswapX and 1inch Fusion finds statistically significant price
+improvement, averaging 4-5 basis points.
 
 ### Frequent batch auctions (Budish-Cramton-Shim) — proposed remedy
 
@@ -403,8 +400,8 @@ commit blocks. Flashbots' **MEV-Boost** implements out-of-protocol PBS; >90% of
 Ethereum validators run MEV-Boost as of 2026. PBS decouples the centralization-risk of
 MEV extraction (sophisticated builders) from the decentralization-requirement of
 consensus (many validators). The criticism: PBS **centralizes the builder layer** —
-three builders (Beaver, rsync, Titan) dominated >80% of MEV-Boost block-construction
-2024-2025, creating a single-point-of-control for transaction censorship (OFAC-
+three builders (beaverbuild, rsync, Titan) produced ~80% of MEV-Boost blocks from
+October 2023 to March 2024, creating a single-point-of-control for transaction censorship (OFAC-
 sanctioned address censorship observed 2022-2023). Mitigation: **enshrined-PBS (ePBS)**
 with cryptographic censorship-resistance. Cross-link to
 `blockchain_wallet_consensus_security_expertise.md` §8.
@@ -420,8 +417,7 @@ executive will ever face. The defender's data is encrypted; the attacker offers
 decryption for a ransom. The game has two sequential moves with private information
 (defender's data-valuation; attacker's reputation-cost of not delivering).
 
-The literature (Cartwright & Castro, *Journal of Cybersecurity*, 2019; Caporusso, 2018;
-Iuga et al., *Computers & Security*, 2022) converges on five operational findings:
+The literature (Cartwright & Castro, *Journal of Cybersecurity*, 2019; Caporusso, 2018) converges on five operational findings:
 
 1. **Patience asymmetry favors the attacker.** The defender's recovery time horizon is
    short; the attacker's negotiation horizon is long. Bargaining theory predicts the
@@ -465,10 +461,9 @@ insured defender has reduced incentive to invest in prevention; the attacker can
 insured-defender populations preferentially because the payment-conversion rate is
 higher.
 
-The empirical 2020-2024 literature documents both effects: ransomware insurance claims
-rose to constitute >40% of cyber-insurance claim volume by 2021 (NAIC 2023); several
-large insurers (AIG, Chubb, Lloyd's syndicates) introduced ransom-payment carve-outs or
-co-pay structures starting 2022. France's October 2022 LOPMI law made ransom-payment-
+Market responses followed: large
+insurers such as Chubb introduced ransom-payment sublimits and
+co-insurance structures. France's January 2023 LOPMI law made ransom-payment-
 coverage conditional on filing a criminal complaint within 72 hours, attempting to
 convert insurance moral hazard into an investigation incentive.
 
@@ -485,10 +480,8 @@ to `dfir_methodology_expertise.md` §11.
 
 ### The "ransom-as-percentage-of-revenue" disclosure correlation
 
-Coveware publishes quarterly statistics on median ransom demand and payment. The
-2020-2024 series shows median demands tracking ~1-3% of victim annual revenue at the
-small-business end (10-100 employees) and falling to <0.1% at the large-enterprise end.
-The interpretation: operators perform revenue-discovery through automated OSINT
+Coveware publishes quarterly statistics on median ransom demand and payment.
+The interpretation of ransom sizing: operators perform revenue-discovery through automated OSINT
 (company filings, employee count, industry classification) and price-discriminate
 accordingly — textbook **first-degree price discrimination**. Defender-side
 implication: **revenue-suppression of OSINT** is a low-cost mitigation.
@@ -515,7 +508,7 @@ Linux LTS cycles); **insurance-premium discounts for patched populations**.
 Common-pool resources at Internet scale exhibit **tragedy-of-the-commons** dynamics:
 **DNS namespace** (speculative registration; ICANN-WIPO UDRP response), **BGP routing**
 (mis-announcements cause global routing failures — YouTube/Pakistan 2008, Amazon Route
-53 2018; RPKI response is ~50% deployed as of 2026), **TLS CA trust roots** (mis-
+53 2018; RPKI response: ROAs cover ~67-70% of routed prefixes as of 2026), **TLS CA trust roots** (mis-
 behaving CAs like DigiNotar 2011 and Symantec 2017-2018 impose global trust costs;
 Certificate Transparency response).
 
@@ -648,7 +641,7 @@ the distribution of valuations.
 
 **Second-price (Vickrey)** (highest bidder wins, pays second-highest bid) is
 **strategy-proof**: dominant strategy is to bid true valuation. Two security advantages:
-**truthful revelation** (same property exploited by CowSwap/UniswapX OFAs in §3) and
+**truthful revelation** (same property exploited by CowSwap's second-price solver auction in §3) and
 **simple computation** (no need to estimate competitors' valuations). Disadvantage:
 **seller-misrepresentation vulnerability** (shill second-highest bid); defense is
 third-party auctioneer attestation or cryptographic sealed-bid commitments.
@@ -667,7 +660,7 @@ sealed researcher submission**.
 
 ### Best-bid-loses (lottery) for pen-test contractor selection
 
-A counter-intuitive procurement mechanism (McAfee & McMillan 1992): **best-bid-loses
+A counter-intuitive procurement mechanism: **best-bid-loses
 lottery** — the LOWEST bid is excluded, the contract awarded by lottery among remaining
 bidders. Discourages bid-shading races where bidders have asymmetric costs. For pen-test
 contractor selection, **exclude the lowest-bid contractor (presumed under-investment)**
@@ -678,8 +671,8 @@ bid-evaluation with qualitative scoring, which suffers from gameability.
 
 **VCG** generalizes Vickrey to multi-item, multi-bidder allocation: each participant
 bids; allocation is welfare-maximizing; each winner pays the **externality they impose
-on others**. Canonical strategy-proof mechanism for multi-item allocation; deployed in
-FCC spectrum auctions and Google cluster scheduling. For bug-bounty
+on others**. Canonical strategy-proof mechanism for multi-item allocation, though seldom used in
+practice (Ausubel & Milgrom, "The Lovely but Lonely Vickrey Auction"). For bug-bounty
 multi-submission resolution, VCG could allocate the bounty in proportion to each
 submission's marginal contribution; in practice, common-knowledge valuations are
 absent and computational complexity (NP-hard in general) makes deployment impractical.
@@ -788,9 +781,8 @@ regulatory fines, reputation damage excluded).
 
 Insurers accumulate proprietary claims data that academic researchers and regulators
 cannot access. The result is **information asymmetry across insurers**: incumbents
-(Marsh, AIG, Chubb, AXIS, Beazley, Lloyd's syndicates) have a structural barrier-to-
-entry moat. Policy proposals (mandatory claims-data sharing to public-good aggregator,
-NAIC 2023; public reinsurance backstop, Treasury 2022) — neither adopted as of 2026.
+(AIG, Chubb, AXIS, Beazley, Lloyd's syndicates) have a structural barrier-to-
+entry moat. Policy proposals (public reinsurance backstop, Treasury 2022) — not adopted as of 2026.
 
 ### Cyber-insurance market post-Equifax / SolarWinds / Colonial Pipeline
 
@@ -799,8 +791,8 @@ Three high-impact incidents reshaped the market:
 - **SolarWinds (2020)**: supply-chain attack via trusted-vendor compromise triggered
   reconsideration of dependency-claim coverage.
 - **Colonial Pipeline (2021)**: ransomware payout triggered debate about ransom-payment
-  coverage and OFAC-sanctions exposure. Several insurers exited the ransomware-coverage
-  market in 2022.
+  coverage and OFAC-sanctions exposure. AXA stopped writing ransom-payment
+  coverage in France in 2021.
 
 Cumulative 2021-2024 effect: premium increases of 50%-200%, coverage-limit reductions,
 deductible increases, policy-language hardening. 2025-2026 stabilization visible but
@@ -821,7 +813,7 @@ insured faces genuine economic loss the policy indemnifies. Against: ransom-paym
 coverage creates moral hazard and indirectly subsidizes the attacker class. The
 2022-2024 industry response is **conditional coverage** (pre-incident hardening
 requirements, insurer-response-team approval, non-OFAC-sanctioned recipient, sub-limits
-well below typical demand). The French LOPMI 2022 law goes further: coverage allowed
+well below typical demand). The French LOPMI law (Law 2023-22 of 24 January 2023) goes further: coverage allowed
 only if the firm files a criminal complaint within 72 hours.
 
 ---
@@ -928,8 +920,8 @@ Minimize over model parameters θ the expected maximum (over perturbation δ in 
 loss L. The perturbation set captures attacker capability; the inner max is the
 adversarial-attack subproblem; the outer min is the defender's training procedure.
 
-The framework has been adapted to LLM-safety (Wei et al. 2023; Carlini et al. 2024),
-agent-runtime safety (arXiv 2510.09023 on attacker-second adversarial-RL), and
+The framework has been adapted to LLM-safety (Wei et al. 2023; Carlini et al. 2023),
+prompt-injection and jailbreak defenses (arXiv 2510.09023, "The Attacker Moves Second", on adaptive attacks), and
 detection-system safety. Cross-link to `adversarial_ml_model_security_expertise.md` §1
 and `llm_agent_security_expertise.md`.
 
@@ -975,8 +967,8 @@ face access barriers.
 
 ### Incentive design for sigstore / SLSA L3 adoption
 
-SLSA defines a four-level hierarchy of provenance assurance. Most production projects
-are at L1 or L2; L3 (hardened build) and L4 (two-party review) remain rare. The
+SLSA v1.0 defines build levels L0-L3 of provenance assurance. Most production projects
+are at L1 or L2; L3 (hardened build) remains rare. The
 adoption problem is a **coordination problem**: adopting L3 requires substantial
 engineering investment, and the benefit accrues mainly to downstream consumers who have
 not paid the cost. Mechanism-design questions: Can SLSA-L3 attestation become a
@@ -1055,16 +1047,13 @@ economic-side framing is still in flux as of mid-2026.
 - Budish, Eric B. Academic webpage. `https://ericbudish.org`
 - CowSwap documentation. `https://docs.cow.fi`
 - UniswapX overview. `https://docs.uniswap.org/contracts/uniswapx/overview`
-- Bachu, Brad, and Xin Wan. *Quantifying Price Improvement in Order Flow Auctions*.
+- Bachu, Brad, Xin Wan, and Ciamac C. Moallemi. *Quantifying Price Improvement in Order Flow Auctions*.
   2024. `https://moallemi.com/ciamac/papers/uniswapx-pi-2024.pdf`
 
 ### Ransomware economics
-- Cartwright, Edward, and Julio Hernandez Castro. *To pay or not: game theoretic models
+- Cartwright, Edward, Julio Hernandez Castro, and Anna Cartwright. *To pay or not: game theoretic models
   of ransomware*. Journal of Cybersecurity 5(1), 2019.
   `https://academic.oup.com/cybersecurity/article/5/1/tyz009/5554879`
-- Iuga, Cătălin, et al. *Determination of ransomware payment based on Bayesian game
-  models*. Computers & Security, 2022.
-  `https://www.sciencedirect.com/science/article/abs/pii/S0167404822000839`
 - Coveware quarterly ransomware reports. `https://www.coveware.com/blog`
 - U.S. Treasury OFAC Cyber-Related Sanctions Advisories.
   `https://ofac.treasury.gov/recent-actions/cyber-related-sanctions`

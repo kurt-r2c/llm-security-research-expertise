@@ -20,11 +20,11 @@
 >
 > **Researchers:**
 > - **Lee Holmes** — Lead Security Architect (Azure Management) at Microsoft;
->   original PowerShell team member; author of *Windows PowerShell Cookbook*
+>   original PowerShell team member; author of *PowerShell Cookbook*
 >   (4th ed.); canonical author of "Defending Against PowerShell Attacks"
 >   (PowerShell Team blog, DerbyCon 2017); source of the Microsoft statement
 >   that "execution policy is not a security boundary"; co-author with Daniel
->   Bohannon of *Revoke-Obfuscation* (DEF CON 25, 2017). Holmes' blog at
+>   Bohannon of *Revoke-Obfuscation* (Black Hat USA 2017). Holmes' blog at
 >   `leeholmes.com` is the load-bearing source for PowerShell-engine
 >   security internals, AMSI integration design rationale, and the
 >   ConstrainedLanguage / FullLanguage / NoLanguage mode taxonomy
@@ -35,18 +35,17 @@
 >   design lineage — pipelines as object streams, type-coercion via
 >   `[type]$value`, dynamic dispatch via `&` and `.`, scriptblock-as-first-
 >   class-value — is the source of nearly every footgun in this document
-> - **Matt Graeber** (`@mattifestation`) — Independent security researcher;
->   original AMSI bypass disclosure (2016, the `[Ref].Assembly.GetType('...
+> - **Matt Graeber** (`@mattifestation`) — original AMSI bypass disclosure (2016, the `[Ref].Assembly.GetType('...
 >   AmsiUtils').GetField('amsiInitFailed','NonPublic,Static').SetValue($null,
->   $true)` technique); AMSI-for-WMI research; *Subverting Trust in Windows*
->   Black Hat keynote on code-signing internals. Already cited in
+>   $true)` technique); *Subverting Trust in Windows*
+>   DerbyCon VII keynote on code-signing internals. Already cited in
 >   `detection_engineering_expertise.md` and
 >   `active_directory_windows_security.md` — cross-link rather than re-state
 > - **Will Schroeder** (`@harmj0y`) — Technical architect at SpecterOps;
 >   author of *PowerView* (the AD-enumeration toolkit dominating red-team
 >   recon) and primary contributor to *PowerSploit* and *Empire*. Co-founder
 >   of BloodHound. Already cited in `active_directory_windows_security.md`
-> - **Daniel Bohannon** (`@danielhbohannon`) — Principal Security Researcher
+> - **Daniel Bohannon** (`@danielhbohannon`) — Principal Threat Researcher
 >   at Permiso Security (previously Microsoft, previously Mandiant). Author
 >   of `Invoke-Obfuscation` (DerbyCon 2016), `Invoke-CradleCrafter`, and
 >   *Revoke-Obfuscation*. Primary source for the canonical attacker chain
@@ -63,9 +62,7 @@
 >   and the ConstrainedLanguage enforcement triggered by AppLocker / WDAC
 > - **The Mandiant + Trail of Bits + Truesec PowerShell-incident corpus** —
 >   Institutional. Truesec's 2024 *Attacking PowerShell CLIXML Deserialization*
->   is the load-bearing recent disclosure for the `Import-CliXml` surface;
->   Mandiant's M-Trends 2015-2025 rank PowerShell among top-3 commodity-
->   malware execution platforms
+>   is the load-bearing recent disclosure for the `Import-CliXml` surface
 >
 > **Institutional contributors:** MITRE ATT&CK (T1059.001), MITRE D3FEND,
 > Microsoft Learn (`about_Execution_Policies`, `about_Language_Modes`,
@@ -134,8 +131,7 @@ Every footgun here satisfies: **the PowerShell parser accepts the syntax
 without warning, PSScriptAnalyzer does not flag it under default
 settings, and the runtime executes it without complaint**.
 `PSAvoidUsingInvokeExpression` is the only built-in warning for §2.1
-and is off by default unless the caller passes `-IncludeDefaultRules`
-or `-Severity Warning`.
+and is always enabled (Warning severity).
 
 ### 1.4 Audit-cost asymmetry
 
@@ -160,10 +156,10 @@ The canonical PowerShell injection sink. `Invoke-Expression` (alias `iex`)
 takes a string and evaluates it as PowerShell. Microsoft's documentation
 is explicit:
 
-> "If input is accepted from a user or any third party source, there is a
-> possibility that they could inject unwanted additional PowerShell commands
-> into the script with undesirable effects... it is best to design your
-> script with predefined input options, rather than allowing freeform input."
+> "When using `Invoke-Expression` to run a command that the user enters,
+> verify that the command is safe to run before running it. In general, it
+> is best to design your script with predefined input options, rather than
+> allowing freeform input."
 
 Never use:
 ```powershell
@@ -269,9 +265,9 @@ boundary; naming is misleading.
 
 Microsoft's documentation:
 
-> "The execution policy isn't a security system that restricts user
-> actions. For example, users can easily bypass a policy by typing the
-> script contents at the command line when they cannot run a script.
+> "The execution policy isn't a security boundary, it's defense in depth.
+> For example, users can easily bypass a policy by typing the
+> script contents at the command line when they can't run a script.
 > Instead, the execution policy helps users to set basic rules and
 > prevents them from violating them unintentionally."
 
@@ -310,8 +306,6 @@ takedown re-emergence), IcedID, the long tail of "fake update" /
 browser-update social-engineering campaigns delivering a one-liner via
 clipboard hijack, and the standard post-exploitation cradles in Cobalt
 Strike's `powershell-command` beacon, Sliver, Brute Ratel, Mythic.
-Mandiant M-Trends 2017-2025 consistently rank PowerShell among the top-3
-commodity-malware execution platforms.
 
 Defensive baseline (cross-link `dfir_methodology_expertise.md`):
 script-block logging enabled, AMSI integration verified,
@@ -337,7 +331,8 @@ PowerShell exposes a session property,
   AppLocker or WDAC is enforcing.
 - **`RestrictedLanguage`** — even more restrictive; primarily for module
   manifests.
-- **`NoLanguage`** — used by cmdlet implementations.
+- **`NoLanguage`** — used by JEA session configurations to restrict
+  sessions to command invocations only.
 
 The crucial mode for attackers is `FullLanguage`; the crucial mode for
 defenders is `ConstrainedLanguage` because it removes the .NET reflection
@@ -388,7 +383,7 @@ cat-and-mouse since 2016.
 
 ### 4.5 The "patch amsi.dll in memory" canonical bypass
 
-Structural shape (Cornelis de Plaa, Matt Graeber, and successors):
+Structural shape (Rasta Mouse's `AmsiScanBufferBypass` and successors):
 
 ```powershell
 $kernel32 = [Win32]::GetModuleHandle('amsi.dll')
@@ -412,8 +407,9 @@ reflection-based AMSI bypass.
 
 WDAC's deployment cost is high — every legitimate binary must be
 allowlisted. The NSA + CISA joint advisory "Keeping PowerShell" (2022)
-recommends WDAC-enforced ConstrainedLanguage as the only durable
-PowerShell mitigation short of removing PowerShell entirely.
+recommends Constrained PowerShell with Application Control alongside
+AMSI, logging, and remoting protections, and advises configuring
+PowerShell rather than removing it.
 
 (Cross-link: `detection_engineering_expertise.md` §4 covers Sigma rules
 for AMSI-bypass detection.)
@@ -432,10 +428,10 @@ the rest of the .NET deserialization family (cross-link
 `csharp_dotnet_footguns_expertise.md` §6).
 
 The Truesec 2024 *Attacking PowerShell CLIXML Deserialization* writeup
-documents arbitrary-object reconstitution: a CLIXML file naming a
-malicious type via `<TypeNames>` and including property values triggering
-side-effecting setters lets an attacker controlling the content run code
-in the deserializing process. Exchange ProxyNotShell referenced CLIXML
+documents attacker-controlled CLIXML reaching code execution through
+rehydrated breakpoint script blocks, `ScriptProperty` getters in default
+type definitions, and type converters (e.g. PSFramework's
+`BinaryFormatter`-wrapping converter). Exchange ProxyNotShell referenced CLIXML
 deserialization as a load-bearing gadget.
 
 Treat `Import-CliXml -Path $userPath` like `BinaryFormatter.Deserialize(stream)`.
@@ -446,10 +442,10 @@ user-writable directory, the call is a deserialization sink.
 
 `[xml]$string` invokes `System.Xml.XmlDocument` and parses the string as
 XML. *Not* a cast — it constructs a new object via the type's parsing
-constructor. .NET Framework 4.5.2 and earlier enabled XXE by default;
-4.5.2+ disabled DTD processing for `XmlDocument`, but `XmlReader` and
-`XmlTextReader` retain legacy permissive defaults unless
-`XmlReaderSettings.DtdProcessing = Prohibit` is set explicitly.
+constructor. .NET Framework versions before 4.5.2 enabled XXE by default
+for `XmlDocument` and `XmlTextReader`; 4.5.2+ made both safe by default
+(`XmlReader` was already safe), but supplying a non-null `XmlResolver`
+reintroduces external-entity resolution.
 
 The footgun: the auditor sees `[xml]$body` as a cast. Actual semantics
 are XML parsing with deserialization-class side effects, including
@@ -490,7 +486,7 @@ $obj = $bf.Deserialize($stream)    # arbitrary-type instantiation
 
 Inherits the full .NET deserialization-gadget catalog (cross-link
 `csharp_dotnet_footguns_expertise.md` §6 and
-`deserialization_expertise.md`). .NET 9 deprecated `BinaryFormatter`;
+`deserialization_expertise.md`). .NET 9 removed the `BinaryFormatter` implementation;
 PowerShell 7+ on .NET 9+ throws `PlatformNotSupportedException`.
 PowerShell 5.1 on .NET Framework 4.x retains the legacy surface
 indefinitely.
@@ -595,14 +591,12 @@ attacker primitives.
 The reflective-PE-load primitive. `Assembly.Load` accepts a byte array
 containing a .NET PE image and loads it into the current AppDomain
 without writing to disk. The loaded assembly's types become reachable
-via `[YourLoadedType]::Method`. Canonical surface for the
-**Invoke-ReflectivePEInjection** PowerSploit primitive and successors
-in Empire, Covenant: embed base64 payload, decode to bytes,
+via `[YourLoadedType]::Method`. Canonical pattern: embed base64
+payload, decode to bytes,
 `[Reflection.Assembly]::Load($bytes)`, invoke an entry method.
 
 No disk artifact. Defender's AMSI integration scans the byte array on
-`Load` (.NET AMSI surface added in .NET Framework 4.8 and maintained
-on .NET 5+); the bypass corpus targets the AMSI scan *before* `Load`.
+`Load` (.NET AMSI surface added in .NET Framework 4.8); the bypass corpus targets the AMSI scan *before* `Load`.
 ConstrainedLanguage blocks `[Reflection.Assembly]::Load`; WDAC's
 "Dynamic Code Security" feature additionally blocks in-memory
 assemblies not matching the allowlist.
@@ -655,7 +649,7 @@ type-aware deserialization gadgets — same downstream effect
 ### 7.6 The "Invoke-ReflectivePEInjection" primitive
 
 PowerSploit's `Invoke-ReflectivePEInjection.ps1` demonstrates how
-`Assembly.Load` + `Marshal` + reflection compose into generic
+`Marshal` + reflection compose into generic
 in-memory-execution: take a PE byte array, allocate executable memory
 in the current or remote process, map PE sections, fix up relocations
 and imports, invoke the entry point — replicating the Windows loader's
@@ -726,9 +720,10 @@ registry. `Install-Module` / `Install-Script` and the modern
 PSResourceGet (`Install-PSResource`) pull from the Gallery by default.
 Aqua "PowerHell" research (2023) catalogued three weaknesses:
 **typosquatting** (no built-in protection against names visually
-resembling popular modules — `AzureRM` vs `AzureRm` vs `Az`);
-**metadata spoofing** (arbitrary `Author`, `Description`, `Copyright`,
-`CompanyName` fields; an attacker can publish claiming Microsoft
+resembling popular modules — Aqua published `Az.Table` mimicking
+`AzTable`);
+**metadata spoofing** (arbitrary `Author`, `Description`, `Copyright`
+fields; an attacker can publish claiming Microsoft
 authorship without verification); **unlisted-module enumeration** (API
 endpoint exposed withdrawn modules, sometimes containing secrets the
 original publisher intended to remove).
@@ -789,8 +784,7 @@ verify per cmdlet.
 
 Cmdlet-specific: bypasses `-Confirm` prompts in some cases; overrides
 read-only file attributes; in `Remove-Item -Force -Recurse`, bypasses
-the directory confirmation; in `Set-Acl`, can override
-inherited-permission warnings; in `Copy-Item -Force`, overwrites without
+the directory confirmation; in `Copy-Item -Force`, overwrites without
 prompting. Semantics not consistent across cmdlets. Treat as a per-cmdlet
 escape hatch and look up the specific behavior, including whether it
 bypasses ACL inheritance checks.
@@ -880,12 +874,12 @@ unmanaged memory; encryption is gone, API unchanged, scripts depending
 on it for at-rest protection silently lose it cross-platform.
 `Marshal.SecureStringToBSTR` round-trip extracts plaintext into managed
 memory, defeating protection during use. Process-memory dumps (procdump,
-LSASS-style) capture the encrypted SecureString *plus* DPAPI key
-material for the running user, enabling offline decryption.
+LSASS-style) capture the encrypted SecureString buffer, which .NET Framework
+encrypts via `RtlEncryptMemory` (not technically DPAPI).
 
-.NET team's official guidance (.NET 6+): use
-`Microsoft.AspNetCore.DataProtection` or platform secret manager for new
-code, not `SecureString`.
+.NET team's official guidance: don't use `SecureString` for new
+development on .NET (Core); instead use an opaque handle to credentials
+stored outside of the process.
 
 ### 10.5 Credential pickling via `Export-CliXml`
 
@@ -951,7 +945,7 @@ closer to malicious intent. (Cross-link:
 
 ### 11.4 Obfuscating script-block content to evade 4104
 
-The arms race *Revoke-Obfuscation* (Holmes + Bohannon, DEF CON 25)
+The arms race *Revoke-Obfuscation* (Holmes + Bohannon, Black Hat USA 2017)
 addresses. Attacker techniques: **string concatenation** breaking
 detection keywords across variables (`$x = 'iex'; & (Get-Command $x)`);
 **character-code arithmetic** (`[char]105 + [char]101 + [char]120` =
@@ -969,9 +963,8 @@ obfuscated form: high entropy, low printable-character ratio,
 
 Windows 10 / 11 / Server 2016+ ship 5.1 by default, but the legacy
 PowerShell 2.0 engine remained available as a Windows-Optional-Feature
-through Windows 10 1809 and as side-by-side install thereafter
-(formally deprecated, removal in progress, but many enterprise images
-still include it). PowerShell 2.0 predates AMSI, Script Block Logging,
+(deprecated in 2017; removed from Windows 11 version 24H2 in August 2025
+and from Windows Server 2025 in September 2025). PowerShell 2.0 predates AMSI, Script Block Logging,
 Module Logging, and LanguageMode restrictions.
 
 Attacker downgrade:
@@ -996,12 +989,11 @@ v2-downgrade check.)
 PowerShell Core 6 (2018) and PowerShell 7+ ship as cross-platform .NET-
 Core / .NET-5+ apps inheriting the Windows language surface, but cmdlet
 runtime semantics differ subtly. File permissions are the most visible
-difference: `Set-Acl` is Windows-only; `chmod`-equivalent on Linux is
-`Set-Item -Path ... -Mode ...` with Unix-permission syntax, but most
+difference: `Set-Acl` is Windows-only, but most
 Windows-authored scripts assume NTFS-style ACL semantics. A
 Windows-PowerShell defensive playbook checking ACLs via `Get-Acl`
-silently no-ops on Linux — the cmdlet returns objects with different
-property semantics.
+does not work on Linux — the cmdlet is only available on the Windows
+platform.
 
 ### 12.2 `Invoke-RestMethod` cross-platform — different TLS defaults
 
@@ -1024,10 +1016,7 @@ validate the other.
 
 ### 12.4 `Get-Process` semantics across platforms
 
-Same type on all platforms but property semantics differ: `Modules` is
-populated on Windows, sparse on Linux (only main module); `Handles` is
-Windows-specific (0 on Linux); `CPU` calculation differs; `Path` on
-Linux is `/proc/<pid>/exe` (a symlink). Detection rules keying on
+Same type on all platforms but property semantics differ. Detection rules keying on
 `Process.Path` matching a known-bad substring produce different results
 on Linux. Defensive scripts enumerating processes for suspicious modules
 under-report on Linux.
@@ -1093,9 +1082,7 @@ parameters). The set is minimal compared to the bug classes here.
 
 ### 13.3 Defender for Endpoint signatures
 
-`Behavior:Win32/PowerEmpire` (Empire stager),
-`Behavior:Win32/Suspicious_RUC.PowerSh` (generic-loader),
-`Trojan:PowerShell/Powessere.G` (PowerSploit / DLL-injection), and a
+`Trojan:Win32/Powessere.G` (Poweliks-style rundll32 execution) and a
 long tail of `Powerstager`, `Powerfun`, `Posh-` family signatures. All
 AMSI-driven (§4.3); the engine consumes deobfuscated script-block
 content. AMSI-bypassed payloads evade these; AMSI-not-bypassed payloads
@@ -1108,7 +1095,7 @@ PowerShell-borne activity: **command-line patterns**
 (`proc_creation_win_powershell_*.yml` matching Sysmon Event ID 1 against
 suspicious flag combinations — `-EncodedCommand`, `-ExecutionPolicy
 Bypass`, `-NoProfile -NonInteractive -WindowStyle Hidden`);
-**script-block-logging patterns** (`posh_pc_*.yml` matching Event ID 4104
+**script-block-logging patterns** (`posh_ps_*.yml` matching Event ID 4104
 ScriptBlockText against `AmsiUtils`, `amsiInitFailed`,
 `ReflectivePEInjection`, common AMSI-bypass strings);
 **module-logging patterns** (matching Event ID 4103 cmdlet invocations
@@ -1153,8 +1140,9 @@ For any PowerShell codebase or PowerShell-enabled host:
 
 **PowerShell Direct** (Hyper-V). Executes PowerShell inside a guest VM
 without network connectivity, via Hyper-V VMBus. Auth requires Hyper-V
-Administrator on the host. Footgun: any Hyper-V admin executes arbitrary
-PowerShell in any guest, bypassing network ACLs and host-based firewalls
+Administrator on the host plus valid user credentials for the guest.
+Footgun: a Hyper-V admin holding guest credentials executes arbitrary
+PowerShell in the guest, bypassing network ACLs and host-based firewalls
 on the guest. Defensive boundary is host-level access control, not
 guest-level network isolation.
 
@@ -1176,8 +1164,8 @@ isolation. Recommended allowlist: specific cmdlets with specific
 parameters with specific value patterns — anything more permissive is a
 footgun-shaped escape.
 
-**PowerShell on AWS Lambda**. The `AWSLambdaPSCore` custom runtime hosts
-PowerShell 7+ inside the Lambda sandbox. Footguns: cold-start re-imports
+**PowerShell on AWS Lambda**. The `AWSLambdaPSCore` module develops
+PowerShell Lambda functions on the .NET Core runtime. Footguns: cold-start re-imports
 modules per invocation; shared state via `$env:LAMBDA_TASK_ROOT` can
 produce cross-invocation data leakage if a module caches per-user data;
 IAM permissions inherited from the execution role are unconstrained by
@@ -1231,12 +1219,12 @@ All under `learn.microsoft.com`:
 ### 15.2 PowerShell team blog
 
 - *Defending Against PowerShell Attacks* (Lee Holmes) — `devblogs.microsoft.com/powershell/defending-against-powershell-attacks/`
-- *PowerShell Constrained Language Mode* (Lee Holmes) — `devblogs.microsoft.com/powershell/powershell-constrained-language-mode/`
+- *PowerShell Constrained Language Mode* (Paul Higinbotham) — `devblogs.microsoft.com/powershell/powershell-constrained-language-mode/`
 
 ### 15.3 Researcher writeups
 
 - Lee Holmes — `leeholmes.com`
-- Bohannon + Holmes — *Revoke-Obfuscation* (DEF CON 25, 2017)
+- Bohannon + Holmes — *Revoke-Obfuscation* (Black Hat USA 2017)
 - Daniel Bohannon — `github.com/danielbohannon/Invoke-Obfuscation`,
   `danielbohannon.com`
 - Matt Graeber — `mattifestation.medium.com`, `github.com/mattifestation`
@@ -1278,7 +1266,7 @@ All under `learn.microsoft.com`:
 
 - Bruce Payette + Richard Siddaway — *Windows PowerShell in Action, Third
   Edition* (Manning, 2017). Canonical language reference.
-- Lee Holmes — *Windows PowerShell Cookbook, Fourth Edition* (O'Reilly).
+- Lee Holmes — *PowerShell Cookbook, Fourth Edition* (O'Reilly).
   Standard practical reference; security chapters cover this doc's
   topics in depth.
 

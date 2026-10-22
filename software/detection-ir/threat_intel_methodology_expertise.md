@@ -5,8 +5,8 @@
 > - **Sherman Kent** (1903–1986; Yale historian, OSS Research & Analysis, CIA Board of
 >   National Estimates) — Author of *Strategic Intelligence for American World Policy*
 >   (Princeton University Press, 1949), the foundational text of analytical intelligence
->   as a discipline. Kent argued intelligence is simultaneously *product*, *process*,
->   and *organization*; the tradecraft he formalized at CIA's Office of National
+>   as a discipline. Kent argued intelligence is simultaneously *knowledge*, *organization*,
+>   and *activity*; the tradecraft he formalized at CIA's Office of National
 >   Estimates is the direct ancestor of every modern analytic program. Often called the
 >   father of intelligence analysis.
 > - **Richards J. Heuer Jr.** (1927–2018; CIA, 45 years) — Author of *Psychology of
@@ -14,13 +14,11 @@
 >   Hypotheses (ACH), developed for a 1984 interagency deception course on Soviet
 >   arms-control behavior. The book collects CIA Directorate of Intelligence articles
 >   from 1978–86. CIA Seal Medallion (1987). ACH is the most-deployed structured
->   analytic technique outside the academy and has been ported into cyber-attribution
->   practice by Dragos, Mandiant, and Recorded Future.
+>   analytic technique outside the academy.
 > - **Sergio Caltagirone, Christopher Betz, Andrew Pendergast** — Authors of *The
 >   Diamond Model of Intrusion Analysis* (DTIC technical report, 2013). Each was a
->   senior US-IC analyst at the time of writing; Caltagirone is now CSO at Dragos;
->   Betz subsequently led Microsoft Threat Intelligence Center (MSTIC) and is now a
->   CISO; Pendergast went to ThreatConnect. The Diamond Model — four core features
+>   senior US-IC analyst at the time of writing; Caltagirone later built Dragos's threat-intelligence team;
+>   Pendergast went to ThreatConnect. The Diamond Model — four core features
 >   (adversary, capability, infrastructure, victim) edge-connected as a diamond — is
 >   the dominant operational intrusion-analysis framework. The paper's contribution is
 >   formal: an atomic event structure supporting measurement, testability, and
@@ -61,9 +59,9 @@
 > - **The Citizen Lab** (founded 2001 by Ronald Deibert at the Munk School, University
 >   of Toronto) — Interdisciplinary research lab combining technical forensics, field
 >   research, social science, and legal analysis. Their Pegasus / NSO Group research
->   (2016–present) — including the 2021 forensic methodology report joint with Amnesty
->   Tech and the 2022 disclosure of three iOS 15/16 zero-click exploit chains used
->   against civil society — is the high-water mark for rigorous civil-society
+>   (2016–present) — including the 2021 peer review of Amnesty Tech's forensic methodology
+>   report and the 2023 disclosure of three iOS 15/16 zero-click exploit chains used
+>   in 2022 against civil society — is the high-water mark for rigorous civil-society
 >   targeting intel: forensic disclosure, signed evidence chains, named victims (with
 >   consent), and named operators.
 >
@@ -174,13 +172,13 @@ with four core features connected as a diamond:
 - **Victim** — targeted entity / person / asset; sector, geography, role.
 
 Six meta-features attach: timestamp, phase (mapped to kill chain), result, direction,
-methodology, resources. Two thread types: *activity thread* (same adversary, shifting
-victims) and *event group* (different adversaries, same victim; or same campaign,
-multiple victims).
+methodology, resources. Two higher-level constructs: *activity threads* (phase-ordered,
+causally linked events) and *activity groups* (clusters of related events and
+threads).
 
 The paper's formal contribution: a diamond is a graph node; threads and groups are
-edges; pivots are explicit traversals. The Diamond Model is the underlying schema of
-every modern intel platform (MISP, OpenCTI, ThreatConnect). Use it on every intrusion
+edges; pivots are explicit traversals.
+Use it on every intrusion
 you analyze — the discipline of writing the diamond forces articulation of what you
 know per corner and what you don't. "Adversary: unknown" stated explicitly beats
 "Adversary: probably Russia" stated sloppily.
@@ -200,9 +198,8 @@ technique-level fill.
 
 ### MITRE ATT&CK and D3FEND
 
-ATT&CK is the de-facto taxonomy. As of May 2026, the enterprise matrix covers 14
-tactics, ~600 techniques, ~1,500 sub-techniques; separate matrices for mobile, ICS,
-containers, cloud. Map every intel write-up to ATT&CK IDs — it's the consumer-side
+ATT&CK is the de-facto taxonomy. As of May 2026 (v19), the enterprise matrix covers 15
+tactics, 222 techniques, 475 sub-techniques; separate matrices for mobile and ICS. Map every intel write-up to ATT&CK IDs — it's the consumer-side
 lingua franca. D3FEND is the defender-side dual; less universally adopted but value is
 the explicit mapping between defensive action and the offensive technique it counters.
 Use D3FEND when proposing posture changes.
@@ -216,8 +213,8 @@ the 20%. Coverage maps are directional, not report cards.
 OASIS standards. STIX 2.1 (OASIS Standard, 2021) is the data model — ~20 object types
 (indicators, malware, threat actors, campaigns, intrusion sets, identities, attack
 patterns, courses of action, marking definitions including TLP). TAXII 2.1 is the
-transport protocol — RESTful over HTTPS with Collections (repository) and Channels
-(pub/sub). Right substrate for inter-organizational sharing (governments, ISACs, vendor
+transport protocol — RESTful over HTTPS with Collections (repository); Channels
+(pub/sub) are reserved but not specified in 2.1. Right substrate for inter-organizational sharing (governments, ISACs, vendor
 feeds); overkill for internal use — most internal programs run MISP/OpenCTI with STIX
 export only at the sharing boundary. Common failure: STIX-document maximalism (thousand-
 object bundles with sparse fields). Discipline: emit minimum STIX satisfying the
@@ -425,8 +422,8 @@ mentally; junior analysts run it on paper.
 
 Citizen Lab's Pegasus research is the modern gold standard for high-rigor attribution:
 forensic evidence from consenting victims; technical analysis with chain-of-custody;
-cross-references to infrastructure pivots from prior research; joint methodology
-publication with Amnesty Tech (2021) for replicability; named victims (with consent)
+cross-references to infrastructure pivots from prior research; peer review of
+Amnesty Tech's methodology publication (2021) for replicability; named victims (with consent)
 and named operators where possible; public PDFs of the evidence chain.
 
 The contrast with most commercial attribution is stark: Citizen Lab discloses
@@ -489,7 +486,7 @@ Campaigns have a lifecycle: provisioning → operational ramp → tempo → degr
 - Tempo — hours-of-operation patterns (sanity check on attribution).
 - Degradation — defender publications, takedowns, arrests.
 - Rebranding — discontinuity in tooling combined with continuity in infrastructure
-  (or vice versa). Conti → BlackSuit → Royal is the textbook example.
+  (or vice versa). Conti → Royal → BlackSuit is the textbook example.
 
 A campaign in ramp is the worst time to ignore it; a campaign in degradation is the
 best time to publish defensive guidance because the actor struggles to recover.
@@ -539,7 +536,7 @@ enrich static clustering, not replace it.
 
 Stylometry attempts to attribute code to individual authors via variable naming,
 control-flow preferences, library choices, and comment-language artifacts. Academic
-studies (Caliskan-Islam et al., 2015) show >90% accuracy on thousand-line corpora —
+studies (Caliskan-Islam et al., 2015) show >90% accuracy (94% across 1,600 Google Code Jam programmers) —
 but it fails at production-actor scale because real campaigns reuse code, share
 contributors, and adopt commodity malware. The "code-reuse-is-not-shared-author"
 caveat (§4) dominates: leaked Babuk and Conti sources plus leaked red-team frameworks
@@ -549,7 +546,7 @@ aren't. Use stylometry as one input in an ACH matrix, never the sole basis.
 ### ML-assisted clustering
 
 ML helps with large-scale binary-feature clustering where signal-to-noise is high and
-ground-truth labels exist (VirusTotal similarity clustering, Microsoft MalSent). It
+ground-truth labels exist (VirusTotal similarity clustering). It
 over-promises on zero-day classification and individual-author attribution; marketing
 claims routinely outrun empirical performance. Black-box classifiers without
 explainable feature attribution are actively harmful — the IR analyst cannot defend
@@ -618,10 +615,9 @@ burner SMS, separate browser profiles, separate hardware where risk justifies);
 infrastructure separation (research VPS for actor-domain fetches, never corporate
 network; kasm or VM for opening attacker content); VPN / Tor for high-risk pivots
 (don't fetch attacker C2 panels from home IP); personal-life pseudonymization (keep
-personal LinkedIn, family photos, home address off the public web — APT1 blowback
-included identity-pressure attempts against analysts); threat model against
+personal LinkedIn, family photos, home address off the public web); threat model against
 worst-case adversary identifying you. Closer to investigative journalism than
-corporate security. Hultquist's writing on analyst OPSEC is the most-cited reference.
+corporate security.
 
 ---
 
@@ -658,7 +654,7 @@ Five source families:
    Cyjax, Intel 471). Curated, often actor-attributed; quality varies; most programs
    buy two or three for cross-corroboration.
 4. **Partner sharing** (ISACs, trusted-group rings, government-to-private — CISA AIS
-   in the US, MISP-as-a-Service in Europe). High quality when the partner is
+   in the US). High quality when the partner is
    competent; political/contractual friction is real.
 5. **HUMINT-adjacent and undercover** — persona-led collection on closed channels.
    Highest signal-per-yield; highest OPSEC cost; specialist teams with legal review.
@@ -733,13 +729,12 @@ The Traffic Light Protocol v2.0 (FIRST.org, August 2022):
   organization.
 
 Markings capitalized, no spaces, on every page and in metadata. Forwarding a TLP:RED
-brief to your team is a serious breach; vendors and analysts have been blacklisted
-for it.
+brief to your team is a serious breach.
 
 ### ISACs, trusted-group rings, government programs
 
 **ISACs** (Information Sharing and Analysis Centers) — sectoral nonprofits: FS-ISAC,
-H-ISAC, E-ISAC, Auto-ISAC, Aviation-ISAC, IT-ISAC, MS-ISAC. Membership-fee-funded;
+H-ISAC, E-ISAC, Auto-ISAC, Aviation-ISAC, IT-ISAC, MS-ISAC.
 FS-ISAC and H-ISAC are widely regarded as the highest-utility. **Trusted-group rings**
 — invite-only reputation-gated groups (OpsTrust, RSA-adjacent informal channels);
 lighter than ISACs, higher trust-density, smaller scope. **Government-to-private** —
@@ -940,7 +935,7 @@ dangerous: ungrounded analytical output presented as analyst-validated. Cross-li
 
 ### Sharing standards
 
-- OASIS [STIX 2.1](https://docs.oasis-open.org/cti/stix/v2.1/csprd01/stix-v2.1-csprd01.html)
+- OASIS [STIX 2.1](https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html)
   and [TAXII 2.1](https://docs.oasis-open.org/cti/taxii/v2.1/os/taxii-v2.1-os.html), 2021.
 - FIRST.org [TLP 2.0](https://www.first.org/tlp/), August 2022. [User guide PDF](https://www.cisa.gov/sites/default/files/2023-02/tlp-2-0-user-guide_508c.pdf).
 

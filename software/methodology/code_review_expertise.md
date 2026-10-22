@@ -4,20 +4,15 @@
 > **Researchers:**
 > - **Mark Dowd** — Co-author *The Art of Software Security Assessment* (Addison-Wesley, 2006);
 >   former Principal Security Architect, McAfee Avert Labs; X-Force / IBM ISS research; founder of
->   Azimuth Security (now part of L3Harris). Disclosed sendmail, Microsoft Exchange, ASN.1 parsing,
->   and IIS vulnerabilities. Known for fluent, line-by-line auditing of C/C++ daemons and his
+>   Azimuth Security (now part of L3Harris). Disclosed sendmail, Microsoft Exchange, OpenSSH,
+>   and Internet Explorer vulnerabilities. Known for fluent, line-by-line auditing of C/C++ daemons and his
 >   "candidate point auditing" methodology.
-> - **Justin Schuh** — Co-author *The Art of Software Security Assessment*; former Chrome Security
->   Tech Lead at Google (2011-2020); led the Chrome sandbox, site-isolation, and the move to
->   Mandatory-ASLR + CET on Windows. Lead reviewer on Microsoft Office, Check Point VPN, sendmail,
->   and Internet Explorer audits at IBM ISS. Currently independent.
-> - **John McDonald** — Co-author *The Art of Software Security Assessment*; co-founder of
->   Matasano Security (acquired by NCC Group) and later co-founder of Trail of Bits. Original
->   Solaris kernel and X11 vulnerability researcher. Black Hat speaker on parsing-engine attack
->   surface.
-> - **Eoin Keary** — Lead author of the *OWASP Code Review Guide v2.0* (2017); co-founder/CTO,
->   edgescan / BCC Risk Advisory (Dublin). Former OWASP Global Board member. Operates one of the
->   largest continuous code-review-as-a-service practices in Europe.
+> - **Justin Schuh** — Co-author *The Art of Software Security Assessment*; Engineering Director on
+>   Google Chrome Trust & Safety (as of 2020) and a member of the Chrome team for more than a decade.
+> - **John McDonald** — Co-author *The Art of Software Security Assessment*; former senior
+>   security researcher at IBM ISS X-Force; director and founder of Azimuth Security.
+> - **Eoin Keary** — Originator and past project leader of the *OWASP Code Review Guide*;
+>   founder/CEO, edgescan, and founder, BCC Risk Advisory (Dublin). Former OWASP Global Board member.
 > - **Michał Zalewski** (lcamtuf) — Author *The Tangled Web* (No Starch, 2011) and *Silence on
 >   the Wire*; creator of `afl` / `american fuzzy lop`; former Director of Information Security
 >   Engineering, Google. Browser-bug archaeology (XSS family taxonomy), content-sniffing /
@@ -148,7 +143,7 @@ non-anticipated input.
 
 ### Tools as multipliers, not substitutes
 
-Static analysis (Semgrep, CodeQL, Coverity), taint tracers (Pysa, JLint),
+Static analysis (Semgrep, CodeQL, Coverity), taint tracers (Pysa),
 fuzzers (afl, libFuzzer, honggfuzz), and LSP-aware IDE navigation collectively let a single
 auditor cover orders of magnitude more code than was possible in 2006. But every tool's
 output is candidate points, not findings. The tool tells you where to look; the auditor
@@ -169,7 +164,7 @@ without three load-bearing primitives that the rest of the field has adopted.
 
 - **Cross-file / cross-function dataflow at scale.** Semgrep's Pro Engine moved
   inter-procedural taint analysis out of "research project" into "default expectation."
-  The publicly-cited numbers — 25% fewer false positives, 250% more true positives over
+  The publicly-cited numbers — 25% fewer false positives, 2.5x more true positives over
   the OSS engine on the same rules — represent the structural shift: a finding that
   would have been "unreachable / FP" on local analysis is now "reachable through three
   service boundaries" on cross-file analysis ([Semgrep AppSec Platform vs CE](https://semgrep.dev/products/semgrep-vs-ce/)).
@@ -177,7 +172,7 @@ without three load-bearing primitives that the rest of the field has adopted.
   ([Fall Release 2025](https://semgrep.dev/blog/2025/semgrep-community-edition-fall-release-2025/)),
   meaning whole-repo audit-time analyses that used to be batch jobs now fit in a CI step.
   Snyk Code (DeepCode AI) covers similar ground with a hybrid symbolic / generative
-  pipeline trained on 25M+ dataflow cases across 19+ languages and claims 80%-accurate
+  pipeline trained on 25M+ dataflow cases across 19+ languages and claims 85%-accurate
   autofixes ([DeepCode AI](https://snyk.io/platform/deepcode-ai/)).
 - **AI-assisted triage as a first-class layer on top of static analysis.** Semgrep
   Assistant's deployed numbers — 96% internal-researcher agreement, 95% end-user
@@ -207,9 +202,9 @@ without three load-bearing primitives that the rest of the field has adopted.
   longer a research-team-only capability ([Multi-repository variant analysis](https://github.blog/security/vulnerability-research/multi-repository-variant-analysis-a-powerful-new-way-to-perform-security-research-across-github/),
   [Introducing mrva (Trail of Bits, Dec 2025)](https://blog.trailofbits.com/2025/12/11/introducing-mrva-a-terminal-first-approach-to-codeql-multi-repo-variant-analysis/)).
 - **IaC and config-as-code review consolidated.** `tfsec` was absorbed by Trivy
-  in 2023 (transition completed 2024); Terrascan was archived by Tenable on
+  in 2023; Terrascan was archived by Tenable on
   2025-11-20. Checkov (Palo Alto / Prisma Cloud) and Trivy now own the IaC scanning
-  tier with 1,000+ policies and graph-based analysis respectively
+  tier; Checkov ships 1,000+ policies including graph-based cross-resource checks
   ([env0: Best IaC Security Scan Tools 2026](https://www.env0.com/blog/best-iac-scan-tool)).
   IaC, Dockerfile, and Kubernetes manifests are now part of the audit scope by
   default, not "infra-team's problem."
@@ -225,7 +220,7 @@ candidate-point generation, false-positive filtering, and variant hunt are now
 GitHub Copilot Code Review went GA on 2025-04-04
 ([GitHub Copilot Code Review GA](https://github.blog/changelog/2025-04-04-copilot-code-review-now-generally-available/));
 1M+ developers used it within a month. CodeRabbit (a code-review-specific product)
-ran on 2M+ repositories and processed 13M+ PRs in 2025
+ran on 2M+ repositories and processed 13M+ PRs
 ([CodeRabbit 2025 Year-End](https://www.coderabbit.ai/blog/2025-the-year-of-the-ai-dev-tool-tech-stack)).
 Anthropic's Claude Code (via the `/review` skill family) is the daily-driver review
 tool inside Semgrep's research org and many of the AI-first AppSec startups. The
@@ -251,8 +246,8 @@ blind-spot patterns:
    semantic-and-architectural tier and *not* spend cycles on the patterns
    the LLM already covered.
 3. **LLMs hallucinate fixes.** Suggested patches that look right but
-   subtly change behavior are common. Endor Labs published a benchmark
-   showing 30-50% of LLM-generated code introduces vulnerabilities
+   subtly change behavior are common. Endor Labs, citing academic studies,
+   reports that over 40% of AI-generated code solutions contain security flaws
    ([Endor Labs: most common AI-generated code vulnerabilities](https://www.endorlabs.com/learn/the-most-common-security-vulnerabilities-in-ai-generated-code)).
    The same hallucination tax applies to LLM-suggested fixes. Treat every
    LLM patch as untrusted input — review the suggested code, do not
@@ -518,8 +513,7 @@ printf("%s", user_input);
 But the smell extends far beyond C `printf`. Modern manifestations:
 
 - **`String.format()` with user input as the format argument** (Java) — `String.format(userTemplate, args)`
-  enables `%n` writes and arbitrary-length output. CVE-2017-7525 family includes format-string
-  variants in Java logging.
+  enables arbitrary-length output.
 - **f-strings constructed from user input** (Python 3) — `eval(f"{user}")` is the obvious
   case; less obvious is `logger.info(f"User {user_input} did X")` where `user_input` contains
   printf-style escapes that some logging backends still honor.
@@ -748,7 +742,7 @@ The grep heuristics:
   `marshal.loads`, `shelve.open`.
 - **PHP**: `unserialize`, `__wakeup`/`__destruct` magic methods on attacker-reachable
   classes.
-- **Ruby**: `Marshal.load`, `YAML.load` (deprecated; use `YAML.safe_load`),
+- **Ruby**: `Marshal.load`, `YAML.load` (unsafe before Psych 4 / Ruby 3.1), `YAML.unsafe_load`,
   `Oj.load(_, mode: :object)`.
 - **JS/TS**: `eval`, `Function(`, `vm.runInThisContext`, but more subtly any custom
   reviver function in `JSON.parse(_, reviver)` that instantiates classes from type
@@ -782,7 +776,7 @@ When the application *cannot* eliminate polymorphic deserialization:
 - **Switch to a serialization format that does not support type metadata** — Protobuf,
   FlatBuffers, MessagePack with strict typing. The format itself prevents the bug class.
 - **Apply the JEP 290 / `ObjectInputFilter` / `SerializationBinder` allowlist** where
-  the format cannot be changed. Wulftange's research catalogs the recurring failure
+  the format cannot be changed. Watch for the recurring failure
   modes — allowlists that accept "abstract parent classes" of gadget chains, allowlists
   applied per-call instead of globally, allowlists that omit the deserialization-time
   side effects (`@JsonAlias`, `@JsonAnySetter`).
@@ -796,14 +790,16 @@ waiting to happen — the bypass exists; it has not been disclosed yet.
 The single fastest-growing deserialization sink in 2024-2026 is the ML-model
 loader. PyTorch's `torch.load`, scikit-learn's `joblib.load`, HuggingFace's
 `from_pretrained` (which delegates to `pickle.load` for non-safetensors weights),
-and TensorFlow's older `tf.keras.models.load_model` all run pickle by default,
+and TensorFlow's older `tf.keras.models.load_model` all run pickle by default (`torch.load` only
+before PyTorch 2.6, which flipped `weights_only` to `True`; `weights_only=False`
+restores full unpickling),
 and the model artifact is treated by developers as data when it is, structurally,
 code ([HuggingFace Pickle Scanning docs](https://huggingface.co/docs/hub/en/security-pickle)).
 
 JFrog's 2024 disclosure of malicious models on HuggingFace
 ([JFrog: malicious HuggingFace models with silent backdoor](https://jfrog.com/blog/data-scientists-targeted-by-malicious-hugging-face-ml-models-with-silent-backdoor/))
-demonstrated the working class. HuggingFace's response — `safetensors` format,
-externally audited by Trail of Bits / EleutherAI / Stability AI and confirmed
+demonstrated the working class. HuggingFace's `safetensors` format — externally audited by Trail of Bits
+(commissioned by HuggingFace with EleutherAI and Stability AI) and confirmed
 to have no critical RCE-enabling flaws — gives the codebase a structural
 out. The audit posture:
 
@@ -840,12 +836,8 @@ Between mid-2024 and 2026, the canonical question "where did this code come
 from?" stopped having a single answer. A substantial fraction of code in modern
 codebases is now written by Cursor, Claude Code, GitHub Copilot, Windsurf, or
 similar tooling, sometimes with human review and sometimes pasted directly.
-Studies in 2024-2025 found that **12-65% of LLM-generated code snippets are
-non-compliant with basic secure coding standards or explicitly trigger
-CWE-classified vulnerabilities**, and that **30-50% of code generated with
-LLM-based assistants contains vulnerabilities** ([Endor Labs: most common AI-generated code vulnerabilities](https://www.endorlabs.com/learn/the-most-common-security-vulnerabilities-in-ai-generated-code),
-[Hidden Risks of LLM-Generated Web Apps (arXiv:2504.20612)](https://arxiv.org/pdf/2504.20612),
-[Systematic Literature Review (arXiv:2412.15004)](https://arxiv.org/html/2412.15004v2)).
+Endor Labs reports that **over 40% of AI-generated code solutions contain
+security flaws** ([Endor Labs: most common AI-generated code vulnerabilities](https://www.endorlabs.com/learn/the-most-common-security-vulnerabilities-in-ai-generated-code)).
 
 The reviewer's job in this environment is structurally different than in 2017.
 The author of the code is not necessarily the human in the PR; the human in
@@ -1104,9 +1096,9 @@ Find the use-case constraint and use a standard codec.
 Threat modeling moved decisively into the codebase between 2017 and 2026. OWASP
 pytm (a Python library that expresses processes, dataflows, and trust boundaries
 as code) and OWASP Threat Dragon (visual, browser-based, supporting STRIDE /
-LINDDUN / CIA / DIE / PLOT4ai) are now the two dominant tools, with both
-participating in the CycloneDX TMBOM (Threat Model Bill of Materials)
-interchange format ([OWASP pytm](https://owasp.org/www-project-pytm/),
+LINDDUN / CIA / DIE / PLOT4ai) are now the two dominant tools, with Threat Dragon
+able to import the CycloneDX TM-BOM (Threat Model Bill of Materials)
+format ([OWASP pytm](https://owasp.org/www-project-pytm/),
 [OWASP Threat Dragon](https://owasp.org/www-project-threat-dragon/)).
 
 The auditor's leverage: when the threat model itself is committed to the
@@ -1124,8 +1116,9 @@ For pytm specifically, the audit recipe:
    the corresponding Boundary exists. If it doesn't, the bug is either a
    missing boundary in the model or a missing trust-transition control in
    the code; both are findings.
-2. **Every Dataflow has a `protocol`, `is_authenticated`, and `is_encrypted`
-   field.** A Dataflow in the model that claims `is_authenticated=True`
+2. **Every Dataflow has a `protocol` field and `isEncrypted` /
+   `authenticatesDestination` controls.** A Dataflow in the model that claims
+   `controls.authenticatesDestination=True`
    while the code lacks an auth check is a model-vs-code drift finding —
    the model is now lying.
 3. **Run `tm.py --dfd` in CI** to produce the dataflow diagram and check it
@@ -1138,8 +1131,8 @@ For pytm specifically, the audit recipe:
 Section 1's "symptoms recur; root causes generalize" framing matured in
 2024-2026 into an institutional discipline. GitHub Security Lab's MRVA
 combined with Trail of Bits' `mrva` terminal tool gives any auditor the
-ability to take a single bug and search for variants across 1000+ pre-built
-CodeQL databases without needing build infrastructure
+ability to take a single bug and search for variants across up to 1,000 repositories'
+pre-built CodeQL databases without needing build infrastructure
 ([Trail of Bits codeql-queries](https://github.com/trailofbits/codeql-queries),
 [Multi-repository variant analysis blog](https://github.blog/security/vulnerability-research/multi-repository-variant-analysis-a-powerful-new-way-to-perform-security-research-across-github/)).
 
@@ -1154,7 +1147,7 @@ The operationalization the discipline now expects:
    have the same bug shape, the finding's title is the bug class, not the
    specific handler.
 3. **The query is committed to the repository's security tier**
-   (`.github/codeql-custom-queries/` is the convention) so the CI catches
+   so the CI catches
    regressions. The auditor's investment in writing the query pays
    forward into every future PR.
 
@@ -1173,7 +1166,7 @@ include:
   Checkov (1,000+ policies, graph-based, Palo Alto) and Trivy (the
   `tfsec`-successor, covering Terraform / CloudFormation / ARM / Helm)
   are the production tooling
-  ([Trivy / tfsec migration guide](https://www.env0.com/blog/best-iac-scan-tool)).
+  ([Trivy / tfsec migration guide](https://github.com/aquasecurity/tfsec/blob/master/tfsec-to-trivy-migration-guide.md)).
   The audit pattern: every IAM-policy resource, every public-bucket
   resource, every NetworkSecurityGroup is a candidate point.
 - **Dockerfile** — `USER root`, missing `--no-install-recommends`,
@@ -1181,7 +1174,7 @@ include:
   command-injection), `ADD <url>` for downloads, hardcoded credentials
   in build args. The audit posture: Dockerfile is application code with
   full filesystem and network capability; treat it as such.
-- **Kubernetes manifests** — `securityContext.runAsRoot`,
+- **Kubernetes manifests** — `securityContext.runAsUser: 0` or missing `runAsNonRoot: true`,
   `privileged: true`, `hostNetwork: true`, missing NetworkPolicies,
   missing RBAC boundaries. The audit posture: every cluster object is
   a privilege grant.
@@ -1206,14 +1199,14 @@ SLSA's progression to higher levels mandates two-party code review as
 a structural control ([SLSA spec](https://slsa.dev/),
 [SLSA + in-toto](https://slsa.dev/blog/2023/05/in-toto-and-slsa)).
 The reviewer's leverage: the code-review act itself becomes a signed
-attestation; a SLSA Level 3+ build asserts that every artifact had a
-human-reviewed source. The auditor's role expands from "find bugs in
+attestation; SLSA Source Level 4 requires two trusted people to review
+every change. The auditor's role expands from "find bugs in
 this PR" to "every PR must clear the review gate that the SLSA
 attestation will sign over."
 
 GitHub's 2024-2025 introduction of artifact attestations and SBOM
 generation in Actions ([InfoQ: Provenance Tools Becoming Standard](https://www.infoq.com/news/2025/08/provenance/))
-means the auditor can verify, post-hoc, *which reviewer signed which
+means the auditor can verify, post-hoc, *which workflow and commit built which
 artifact* — and trace back-compromises to the review gate that
 admitted them. This is the operational tie between code review and
 incident response; cross-link to

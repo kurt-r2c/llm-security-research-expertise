@@ -547,7 +547,7 @@ Add-DomainObjectAcl -TargetIdentity "DC=domain,DC=local" -PrincipalIdentity atta
 |---------|---------|
 | `asktgt` | Request TGT with password/hash/cert |
 | `asktgs` | Request TGS for specified SPN |
-| `kerberoast` | AS-REQ service ticket extraction for offline cracking |
+| `kerberoast` | TGS-REQ service ticket extraction for offline cracking |
 | `asreproast` | AS-REP extraction for accounts without pre-auth |
 | `ptt` | Pass-the-Ticket: inject ticket into current or target LUID |
 | `dump` | Export all tickets (base64 kirbi format) |
@@ -581,7 +581,7 @@ Seatbelt.exe -ComputerName=server01 OSInfo    # Remote
 ```
 SharpDPAPI.exe backupkey /server:DC.domain.local /file:key.pvk   # Domain backup key (DA required)
 SharpDPAPI.exe credentials /pvk:key.pvk                          # Decrypt all user cred files
-SharpDPAPI.exe logins /browser:chrome /pvk:key.pvk              # Chrome saved passwords
+SharpChrome.exe logins /browser:chrome /pvk:key.pvk              # Chrome saved passwords
 SharpDPAPI.exe rdg /pvk:key.pvk                                  # RDP saved credentials
 ```
 
@@ -620,16 +620,16 @@ SharpWMI.exe action=exec computername=server01 command="cmd.exe /c whoami > C:\o
 | PetitPotam | MS-EFSRPC | Originally unauthenticated; CVE-2021-36942 patch added auth requirement; CVE-2022-26925 re-opened partial unauth via different RPC opcode | PetitPotam.py (topotam) |
 | DFSCoerce | MS-DFSNM | Authenticated Users | dfscoerce.py (filip-dragovic) |
 | ShadowCoerce | MS-FSRVP (Shadow Copy) | Authenticated Users | ShadowCoerce.py |
-| WSPCoerce | MS-WSP (Windows Search Protocol) | Authenticated Users | 2023 disclosure; less commonly mitigated |
-| Coercer | Multiple (RPRN, EFSRPC, DFSNM, FSRVP, WSP, …) | Varies | Coercer.py (p0dalirius) — automated multi-protocol coercion |
+| WSPCoerce | MS-WSP (Windows Search Protocol) | Authenticated Users | Less commonly mitigated |
+| Coercer | Multiple (RPRN, EFSR, DFSNM, FSRVP, EVEN, …) | Varies | Coercer.py (p0dalirius) — automated multi-protocol coercion |
 
-**Patching pattern**: Microsoft has consistently patched coercion primitives **at the RPC interface level** (requiring authentication, enforcing EPA) rather than removing the underlying coerce capability. New protocols are continuously surfaced (WSPCoerce in 2023, periodic additions through 2024–2025). Unit 42 reports the technique class remains an active research surface through 2025 — defensive posture must assume future coercion primitives will be discovered. Sources: <https://unit42.paloaltonetworks.com/authentication-coercion/>; <https://horizon3.ai/attack-research/n0-attack-paths/the-elephant-in-the-room-ntlm-coercion-and-understanding-its-impact/>
+**Patching pattern**: Microsoft has consistently patched coercion primitives **at the RPC interface level** (requiring authentication, enforcing EPA) rather than removing the underlying coerce capability. New protocols are continuously surfaced. Unit 42 reports the technique class remains an active research surface through 2025 — defensive posture must assume future coercion primitives will be discovered. Sources: <https://unit42.paloaltonetworks.com/authentication-coercion/>; <https://horizon3.ai/attack-research/n0-attack-paths/the-elephant-in-the-room-ntlm-coercion-and-understanding-its-impact/>
 
-**Windows 11 / Server 2025 NTLM deprecation**: Microsoft announced NTLM deprecation October 2023; Windows 11 24H2 and Server 2025 audit-mode-enable NTLM auditing by default and provide policy levers to block NTLM outbound at the OS level. The transition is multi-year; legacy app dependencies make full disablement rare in 2025–2026. SMB signing is **enforced by default** on Server 2025 (substantially shrinking the SMB-relay surface in greenfield deployments).
+**Windows 11 / Server 2025 NTLM deprecation**: Microsoft announced NTLM deprecation October 2023; Windows 11 24H2 and Server 2025 introduce enhanced NTLM audit logging and provide policy levers to block NTLM outbound at the OS level. The transition is multi-year; legacy app dependencies make full disablement rare in 2025–2026. SMB signing is **required by default** for outbound connections on Server 2025, and for inbound and outbound connections on Windows 11 24H2 Enterprise/Pro/Education; Server 2025 does not require inbound signing by default.
 
 ### SMB Relay
 
-**Conditions**: Target host does not require SMB signing (default on non-DC Windows until Server 2025; Server 2025 enforces by default).
+**Conditions**: Target host does not require SMB signing (default on non-DC Windows Server, including Server 2025, which requires signing only for outbound connections; Windows 11 24H2 Enterprise/Pro/Education require inbound signing).
 
 ```bash
 ntlmrelayx.py -t smb://TARGET_IP -smb2support             # Relay + dump SAM
@@ -694,20 +694,20 @@ RoadToken / ROADtools / AADInternals Export-AADIntLocalDeviceCertificate  (requi
 
 ### AzureHound and Hybrid Paths
 
-AzureHound collects Azure/Entra ID data; BloodHound 5.13+ generates cross-tier hybrid paths. On-prem DA → sync account compromise → Entra Global Admin; and vice versa. BloodHound Enterprise also covers Okta (SAML/OIDC federation paths), GitHub (org membership, Actions secrets), and macOS (announced 2025).
+AzureHound collects Azure/Entra ID data; BloodHound 5.13+ generates cross-tier hybrid paths. On-prem DA → sync account compromise → Entra Global Admin; and vice versa. BloodHound Enterprise also covers Okta (SAML/OIDC federation paths), GitHub (org membership, Actions secrets), and macOS (announced March 2026).
 
-**BloodHound CE v8 + OpenGraph** (released Jul 29 2025): OpenGraph generalizes the graph to ingest identity data from arbitrary platforms via a documented JSON schema. Initial native collectors: AD (SharpHound), Entra ID (AzureHound), GitHub, Snowflake, 1Password, Microsoft SQL Server, Jamf (macOS device management). Adds **four new trust edges** replacing the legacy `TrustedBy` model to more accurately reflect trust direction, configuration, and exploitability. The November 2025 SpecterOps "Many Subgraphs" post (Stephen Hinck) demonstrates hybrid attack-path modeling across SharpHound + AzureHound + GCP-Hound + GitHound. Sources: <https://specterops.io/blog/2025/07/29/bloodhound-community-edition-v8-launches-with-opengraph-identity-attack-paths-beyond-active-directory-entra-id/>; <https://specterops.io/blog/2025/11/13/taming-the-attack-graph-a-many-subgraphs-approach-to-attack-path-analysis/>
+**BloodHound CE v8 + OpenGraph** (released Jul 29 2025): OpenGraph generalizes the graph to ingest identity data from arbitrary platforms via a documented JSON schema. Initial native collectors: AD (SharpHound), Entra ID (AzureHound), GitHub, Snowflake, 1Password, Microsoft SQL Server. Adds **four new trust edges** replacing the legacy `TrustedBy` model to more accurately reflect trust direction, configuration, and exploitability. The November 2025 SpecterOps "Many Subgraphs" post (JD Crandell) demonstrates hybrid attack-path modeling across SharpHound + AzureHound + GCP-Hound + GitHound. Sources: <https://specterops.io/blog/2025/07/29/bloodhound-community-edition-v8-launches-with-opengraph-identity-attack-paths-beyond-active-directory-entra-id/>; <https://specterops.io/blog/2025/11/13/taming-the-attack-graph-a-many-subgraphs-approach-to-attack-path-analysis/>
 
 ### CVE-2025-55241 — "Actor Token" Cross-Tenant Impersonation (Dirk-jan Mollema, Sep 2025)
 
-The single most severe Entra ID disclosure of 2025. Mollema discovered that undocumented Azure "Actor tokens" — a legacy service-to-service auth mechanism inherited from the Microsoft Account codebase — could be requested in a benign attacker tenant and then **replayed against the legacy Azure AD Graph API in any other tenant**, because the Graph API failed to validate that the token's tenant ID matched the resource tenant. Two combined flaws:
+The single most severe Entra ID disclosure of 2025. Mollema discovered that undocumented Azure "Actor tokens" — a legacy service-to-service auth mechanism issued by the legacy Access Control Service — could be requested in a benign attacker tenant and then **replayed against the legacy Azure AD Graph API in any other tenant**, because the Graph API failed to validate that the token's tenant ID matched the resource tenant. Two combined flaws:
 
-1. Actor tokens are unsigned JWTs containing a `netId` identifier.
+1. Impersonation tokens built from (signed) Actor tokens are unsigned JWTs (`alg: none`) that identify the target user by `netId`.
 2. Azure AD Graph API accepts them without cross-tenant validation.
 
-An attacker holding such a token could **impersonate any user (including Global Administrators) in any tenant**, read/modify directory data, create service principals, change role assignments, take control of applications and policies — with **no logs generated** in the victim tenant (the Azure AD Graph API auth path bypassed standard logging).
+An attacker holding such a token could **impersonate any user (including Global Administrators) in any tenant**, read/modify directory data, create service principals, change role assignments, take control of applications and policies — with **no logs generated** for token requests or reads in the victim tenant (Azure AD Graph has no API-level logging); modifications usually still generate audit logs.
 
-Timeline: reported Jul 14 2025; Microsoft fix deployed Jul 17 2025; CVE issued Sep 4 2025; full disclosure Sep 17 2025 (after Black Hat USA 2025 / DEF CON 33). CVSS 10.0 (Microsoft assessment 8.7–9.0). Sources: <https://dirkjanm.io/>; <https://practical365.com/death-by-token-understanding-cve-2025-55241/>
+Timeline: reported Jul 14 2025; Microsoft fix deployed Jul 17 2025; CVE issued Sep 4 2025; full disclosure Sep 17 2025 (after Black Hat USA 2025 / DEF CON 33). CVSS 10.0 (initially scored 9.0). Sources: <https://dirkjanm.io/>; <https://practical365.com/death-by-token-understanding-cve-2025-55241/>
 
 ### Storm-2372 — Device Code Phishing Campaign (2024–2025)
 
@@ -722,8 +722,7 @@ Russian-aligned activity cluster (moderate confidence; Microsoft Threat Intellig
 **Feb 14 2025 escalation**: within 24 hours of Microsoft's first publication, Storm-2372 pivoted to using the **Microsoft Authentication Broker** client ID in device-code flows. This client ID is permitted to register devices in Entra ID via the refresh token. Chain:
 1. Refresh-token replay against MS Authentication Broker → device-registration scope.
 2. Register an attacker-controlled device in the victim tenant.
-3. Enroll Windows Hello for Business credentials on the rogue device — Entra ID now treats the device as using phishing-resistant strong auth.
-4. Request a Primary Refresh Token (PRT) → satisfies even high-assurance Conditional Access policies (compliant-device + phishing-resistant-MFA grant controls).
+4. Request a Primary Refresh Token (PRT) → access organizational resources, including email.
 5. Graph API enumeration: search emails for `password`, `admin`, `credentials`, `ministry`, `gov`; exfiltrate.
 
 Source: <https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/>
@@ -745,13 +744,13 @@ Financially-motivated RaaS affiliate active since 2021 (Sabbath, Hive, BlackCat,
 3. Deploy a root certificate for SAML token signing (AADInternals tradecraft).
 4. Mint SAML tokens that impersonate any user and bypass MFA.
 
-Backups deleted, ransomware deployed; Aug 27 2025 Microsoft update reports evolution to pure cloud-native ransomware (encrypt-in-Azure rather than exfil-then-encrypt-on-prem). Sources: <https://www.microsoft.com/en-us/security/blog/2024/09/26/storm-0501-ransomware-attacks-expanding-to-hybrid-cloud-environments/>; <https://www.microsoft.com/en-us/security/blog/2025/08/27/storm-0501s-evolving-techniques-lead-to-cloud-based-ransomware/>
+Backups deleted, ransomware deployed; Aug 27 2025 Microsoft update reports evolution to cloud-based ransomware (exfiltrate Azure Storage data, delete data and backups, encrypt remaining data with attacker-created Key Vault keys). Sources: <https://www.microsoft.com/en-us/security/blog/2024/09/26/storm-0501-ransomware-attacks-expanding-to-hybrid-cloud-environments/>; <https://www.microsoft.com/en-us/security/blog/2025/08/27/storm-0501s-evolving-techniques-lead-to-cloud-based-ransomware/>
 
 ### Midnight Blizzard (APT29 / NOBELIUM) — Microsoft Corporate Tenant Breach (Jan 2024)
 
 Russian state actor; Microsoft self-disclosure Jan 25 2024 with March 8 2024 update. Initial access via **password spray against a legacy non-production test tenant with no MFA**, identified Jan 12 2024.
 
-Chain: password spray → test-tenant access → OAuth-application abuse → consent to a Microsoft-internal application with elevated tenant-level permissions → enumerate and exfiltrate from corporate mailboxes (including senior leadership and security teams) → pivot to source-code repositories and internal systems via information mined from email. Microsoft observed a **10× volume increase** in the password spray attack phase in February relative to the initial-access spike. Microsoft's response: apply current security standards (MFA, blocked legacy auth) to all legacy systems, even at the cost of disruption.
+Chain: password spray → test-tenant access → take over a legacy test OAuth application with elevated access to the corporate environment → create malicious OAuth apps and grant them the Exchange Online `full_access_as_app` role → enumerate and exfiltrate from corporate mailboxes (including senior leadership and security teams) → pivot to source-code repositories and internal systems via information mined from email. Microsoft observed a **10× volume increase** in password sprays in February relative to January. Microsoft's response: apply current security standards (MFA, blocked legacy auth) to all legacy systems, even at the cost of disruption.
 
 Lesson surface: legacy non-production tenants are first-party Tier-Zero blast-radius even when they look like dev sandboxes; OAuth consent grants on Microsoft-internal apps from a low-privilege foothold can escalate to mailbox-graph access at corporate scope. Sources: <https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/>; <https://msrc.microsoft.com/blog/2024/03/update-on-microsoft-actions-following-attack-by-nation-state-actor-midnight-blizzard/>
 
@@ -759,10 +758,10 @@ Lesson surface: legacy non-production tenants are first-party Tier-Zero blast-ra
 
 Conditional Access (CA) is the policy engine enforcing MFA / compliant-device / network-location constraints on Entra ID logins. The 2024–2026 research arc has been the systematic erosion of CA's reliability when paired with token theft:
 
-- **Token-theft as the dominant MFA bypass**: 2024 IR data shows MFA bypass via stolen/replayed access + refresh tokens overtook traditional credential-only attacks. CA evaluates on token issuance; once an attacker holds a valid token, CA is bypassed for that token's lifetime. Refresh-token replay extends that window indefinitely.
-- **Microsoft Authentication Broker device-registration trick** (Storm-2372, above): registers attacker device in tenant → WHfB enrollment on rogue device → tenant accepts the device as phishing-resistant + compliant. Satisfies the strictest CA controls.
-- **Intune compliance-gate bypass** (Dirk-jan Mollema, 2023; rediscovered Yuya Chudo Black Hat Europe 2024): Microsoft maintains backend exclusions for certain resources (Intune registration, Windows Azure Service Management API, Microsoft Graph API) from the "Require device to be marked as compliant" grant control. Attackers register a device that never satisfies CA but transparently authenticates to the excluded endpoints.
-- **Token Protection** (CA grant control, GA 2024): binds tokens to the issuing device via a cryptographic device key. Mitigates token replay for in-scope resources (initially limited subset — SharePoint, Exchange Online client apps). Coverage continues to expand through 2026.
+- **Token theft as an MFA bypass**: CA evaluates on token issuance; once an attacker holds a valid token, CA is bypassed for that token's lifetime. Refresh-token replay extends that window indefinitely.
+- **Microsoft Authentication Broker device-registration trick** (Storm-2372, above): registers attacker device in tenant → requests a PRT with the new device identity.
+- **Intune compliance-gate bypass** (Dirk-jan Mollema; Yuya Chudo, Black Hat Europe 2024): Microsoft maintains backend exclusions for certain resources (the Intune enrollment service; tokens from the excluded client ID worked against Microsoft Graph and AD Graph) from the "Require device to be marked as compliant" grant control. Attackers register a device that never satisfies CA but transparently authenticates to the excluded endpoints.
+- **Token Protection** (CA control): binds tokens to the issuing device via a cryptographic device key. Mitigates token replay for in-scope resources (initially limited subset — SharePoint, Exchange Online client apps). Coverage continues to expand through 2026.
 
 ### Hybrid Identity Attack Surface
 
@@ -786,18 +785,18 @@ The single highest-leverage attack surface in modern AD/Entra environments — e
 **Primary Refresh Token (PRT) — token-exchange surface**:
 - PRT issued to Entra-joined / Hybrid-joined devices at sign-in; 90-day default lifetime; TPM-bound on capable hardware.
 - Extraction (local admin required pre-TPM-binding): `roadtx`, `AADInternals Export-AADIntLocalDeviceCertificate`, `ROADtoken`.
-- PRT cookie injection into browser session → SSO to any Entra ID app without prompting. PRT-phishing (Mollema 2023) achieves the same outcome remotely via a malicious URL handler that captures the cookie.
+- PRT cookie injection into browser session → SSO to any Entra ID app without prompting. PRT-phishing (Mollema 2023) achieves the same outcome remotely: a phished refresh token for the Microsoft Authentication Broker client ID (device code or evilginx) is used to register a device and request a PRT.
 - WHfB key abuse: once the device key + WHfB key are in attacker hands, can mint PRTs offline without further interaction.
 
 **Cross-link**: For SAML/OIDC federation deep details (assertion forgery, audience confusion, encrypted-assertion downgrade), see `saml_federation_expertise.md`. For Entra cloud-IAM specifics (Conditional Access policy authoring, Managed Identity scoping, Microsoft Graph permission boundary), see `cloud_iam_expertise.md`.
 
 ### Identity Threat Detection and Response (ITDR) — Category Emergence
 
-**Gartner positioning**: ITDR named a top security & risk management trend in 2022; reaffirmed as a top cybersecurity trend in 2024. Gartner definition: "a security discipline that encompasses threat intelligence, best practices, a knowledge base, tools and processes to protect identity systems… implementing detection mechanisms, investigating suspect activities, and responding to attacks." Market projection: $12.8B (2024) → $35.6B (2029).
+**Gartner positioning**: ITDR named a top security & risk management trend in 2022. Gartner definition: "a security discipline that encompasses threat intelligence, best practices, a knowledge base, tools and processes to protect identity systems… implementing detection mechanisms, investigating suspect activities, and responding to attacks." MarketsandMarkets projection: $12.8B (2024) → $35.6B (2029).
 
 **Category occupants** (2024–2026):
 - **Microsoft Defender XDR / Defender for Identity (MDI)**: MDI sensors on DCs/AD FS/Entra Connect surface AD-side attacks (Kerberoasting, DCSync, golden ticket, NTLM relay); Entra ID Protection covers cloud-side (impossible travel, leaked credentials, anomalous token use); Defender XDR correlates the two. See §X detection table for AD-side coverage.
-- **CrowdStrike Falcon Identity Protection** (formerly Preempt): inline policy enforcement at the AD authentication path; ITDR-category leader; on-prem-heavy.
+- **CrowdStrike Falcon Identity Protection** (built on technology from CrowdStrike's 2020 Preempt Security acquisition): inline policy enforcement at the AD authentication path; ITDR-category leader; on-prem-heavy.
 - **SpecterOps BloodHound Enterprise**: the only pure-exposure (vs. detection) ITDR vendor — surfaces attack paths *before* exploitation, not signatures *after*. Tier-Zero choke-point analysis is the ITDR-category's preventive arm.
 - **Semperis Directory Services Protector**, **Netwrix ITDR**, **Silverfort**: AD-centric posture/detection vendors with varying ITDR depth.
 
@@ -852,9 +851,8 @@ Virtualization-Based Security (VBS) isolates LSA secrets into `LSAIso.exe` (VTL1
 | Golden Ticket — nonexistent account | TGT issued for account not in AD | 2027 |
 | Golden Ticket — encryption downgrade | RC4 TGT from AES-capable account | 2009 |
 | DCSync | Non-DC performing replication (events 4662 + 4929) | 2006 |
-| Kerberoasting | LDAP SPN query (event 1644) + TGS-REQ (event 4769) with RC4 | 2010 |
+| Kerberoasting | LDAP SPN query (event 1644) + TGS-REQ (event 4769) with RC4 | 2410 |
 | AS-REP Roasting | Multiple AS-REQ without pre-auth for different accounts | 2412 |
-| Unconstrained delegation recon | LDAP queries for `TRUSTED_FOR_DELEGATION` | 2022 |
 
 **Detection gaps**: Diamond and Sapphire tickets (base ticket legitimately issued); NTLM relay (coverage varies); uncorrelated Kerberoasting TGS requests may evade.
 
@@ -869,7 +867,7 @@ Virtualization-Based Security (VBS) isolates LSA secrets into `LSAIso.exe` (VTL1
 
 ### LAPS Reference
 
-**Windows LAPS (April 2023)**: Built into Windows OS — no agent. Stores password in `msLAPS-Password` (AD-joined) or Entra ID (Entra-joined). **Encrypted** in AD. Configurable via Intune or Group Policy. Azure RBAC for retrieval via MS Graph. Legacy LAPS stores `ms-Mcs-AdmPwd` in plaintext in AD — readable by anyone with `ReadLAPSPassword` ACE.
+**Windows LAPS (April 2023)**: Built into Windows OS — no agent. Stores password in `msLAPS-EncryptedPassword` (AD-joined, when password encryption is enabled by policy; otherwise clear text in `msLAPS-Password`) or Entra ID (Entra-joined, always encrypted). Configurable via Intune or Group Policy. Azure RBAC for retrieval via MS Graph. Legacy LAPS stores `ms-Mcs-AdmPwd` in plaintext in AD — readable by anyone with `ReadLAPSPassword` ACE.
 
 ---
 
@@ -879,20 +877,20 @@ Virtualization-Based Security (VBS) isolates LSA secrets into `LSAIso.exe` (VTL1
 
 2. **AD CS as the most underestimated attack surface**: The "Certified Pre-Owned" research revealed that most enterprises had AD CS deployed for 10+ years with no security review, multiple ESC1-vulnerable templates, and often ESC6 or ESC8 active. The 2021 disclosure shifted the standard pentest scope — AD CS enumeration is now mandatory.
 
-3. **Forest trust = credential boundary, not security boundary**: Most enterprises treat the forest trust as a hard security boundary. The Schroeder/Christensen 2019 finding — that Authenticated Users from Forest B can trigger PrinterBug against Forest A DCs — means a bidirectional forest trust is a direct attack path between forests. This is architecturally exploitable, not just a misconfiguration.
+3. **Forest trust = credential boundary, not security boundary**: Most enterprises treat the forest trust as a hard security boundary. The Schroeder/Christensen 2018 finding — that Authenticated Users from Forest B can trigger PrinterBug against Forest A DCs — means a bidirectional forest trust is a direct attack path between forests. This is architecturally exploitable, not just a misconfiguration.
 
 4. **Hybrid identity as the highest-risk attack surface in 2024+**: The MSOL_ account (Azure AD Connect sync account with DCSync rights) is created with a machine-generated password that is stored in a local SQL database. In organizations that have deployed Azure AD Connect without reading the security guidance, this account is a direct DA → Global Admin bridge in both directions. MDI and most SIEMs do not alert on MSOL_ account usage unless explicitly configured.
 
 5. **NTLM relay chains grew longer**: ESC8 (NTLM relay to AD CS Web Enrollment) extended the relay chain from "compromise a workstation" to "compromise the entire domain." The combination of any coercion technique + ESC8 + Rubeus PKINIT is now the most reliable path from non-privileged foothold to Domain Admin that doesn't touch LSASS.
 
-6. **Diamond/Sapphire tickets defeat detection**: The standard MDI golden ticket detection looks for anomalous TGT properties. Diamond tickets (legitimate base TGT, modified PAC) and Sapphire tickets (legitimate PAC from S4U2self U2U, forged TGT envelope) defeat these signatures. The only reliable detection is PAC validation on every service ticket — which is expensive but increasingly deployed via `KrbtgtFullPacSignature`.
+6. **Diamond/Sapphire tickets defeat detection**: The standard MDI golden ticket detection looks for anomalous TGT properties. Diamond tickets (legitimate base TGT, modified PAC) and Sapphire tickets (legitimate PAC from S4U2self U2U, forged TGT envelope) defeat these signatures. The only reliable detection is PAC validation on every service ticket — which is expensive but increasingly deployed via the KB5020805 / CVE-2022-37967 PAC signature enforcement (default since the July 2023 updates; the `KrbtgtFullPacSignature` registry subkey was removed in October 2023).
 
-7. **Token theft has overtaken password compromise as the dominant Entra ID intrusion vector (2024–2026)**: Storm-2372's device-code phishing → Microsoft Authentication Broker → device-registration → WHfB-enrollment → PRT chain bypasses every Conditional Access control short of Token Protection. The threat model shift: stop treating MFA as a sufficient control for high-privilege Entra accounts; Token Protection + Authentication Strength (phishing-resistant) + compliant-device + sign-in-frequency must compose. The ESC8/relay class on-prem maps directly to the device-code-phishing class in cloud — both achieve credentialless escalation via legitimate-looking auth artifacts.
+7. **Token theft has overtaken password compromise as the dominant Entra ID intrusion vector (2024–2026)**: Storm-2372's device-code phishing → Microsoft Authentication Broker → device-registration → PRT chain bypasses every Conditional Access control short of Token Protection. The threat model shift: stop treating MFA as a sufficient control for high-privilege Entra accounts; Token Protection + Authentication Strength (phishing-resistant) + compliant-device + sign-in-frequency must compose. The ESC8/relay class on-prem maps directly to the device-code-phishing class in cloud — both achieve credentialless escalation via legitimate-looking auth artifacts.
 
 8. **The AD CS escalation matrix expanded 100% in 2 years (2022–2024)**: ESC1–ESC8 (2021, "Certified Pre-Owned") became ESC1–ESC16 (Certipy v5 release). Notably ESC13 (issuance policy → group mapping, Knudsen 2024) and ESC15/EKUwu (V1 template Application Policy injection, Bollinger 2024, CVE-2024-49019) are mechanically different from the original eight — neither involves a misconfigured template DACL or a missing CA-side flag. They abuse server-side AD/AD CS semantics that have existed since Windows 2000 but were never previously audited. The lesson: AD CS attack-research is **not** complete; expect ESC17+ in the 2026 window. Every audit must run `certipy find -vulnerable` with a current Certipy version, not an old one.
 
-9. **Hybrid-identity boundary is the defining 2024–2026 attack surface**: Entra Connect / AD FS / PTA / federated-domain primitives are each independent paths from on-prem DA → cloud Global Admin and vice versa. Storm-0501 weaponized the Entra Connect path operationally at ransomware scale; Mollema's 2024–2025 research surface (Federated Credentials persistence, TAP abuse, Intune-AD CS bridge) keeps expanding the catalog. Defense must treat the Entra Connect / AD FS / federation-IdP hosts as Tier-Zero with the same rigor as DCs — same PAW-only access, same monitoring depth, same change-control.
+9. **Hybrid-identity boundary is the defining 2024–2026 attack surface**: Entra Connect / AD FS / PTA / federated-domain primitives are each independent paths from on-prem DA → cloud Global Admin and vice versa. Storm-0501 weaponized the Entra Connect path operationally at ransomware scale; Mollema's 2024–2025 research surface (Federated Credentials persistence, Intune-AD CS bridge) keeps expanding the catalog. Defense must treat the Entra Connect / AD FS / federation-IdP hosts as Tier-Zero with the same rigor as DCs — same PAW-only access, same monitoring depth, same change-control.
 
-10. **CVE-2025-55241 (Mollema, Sep 2025) is the canonical post-2024 "no-log compromise" case**: an unsigned Actor token replayed cross-tenant against Azure AD Graph API impersonated any Global Admin in any tenant with zero logs in the victim tenant. The structural lesson: cloud auth artifacts that bypass the standard token-issuance path also bypass the standard audit path — and tenants cannot detect what they cannot log. Defensive corollary: never rely on a single tenant's logs to detect cross-tenant compromise; require Microsoft-side correlation (Microsoft Defender XDR, Sentinel UEBA) for high-assurance detection on cloud-control-plane events.
+10. **CVE-2025-55241 (Mollema, Sep 2025) is the canonical post-2024 "no-log compromise" case**: an unsigned impersonation token built from an Actor token, replayed cross-tenant against Azure AD Graph API, impersonated any Global Admin in any tenant with no logs for token requests or reads in the victim tenant. The structural lesson: cloud auth artifacts that bypass the standard token-issuance path also bypass the standard audit path — and tenants cannot detect what they cannot log. Defensive corollary: never rely on a single tenant's logs to detect cross-tenant compromise; require Microsoft-side correlation (Microsoft Defender XDR, Sentinel UEBA) for high-assurance detection on cloud-control-plane events.
 
 11. **BloodHound OpenGraph (v8, Jul 2025) makes identity attack-path analysis cross-platform**: every identity surface — GitHub orgs/Actions secrets, Snowflake roles, 1Password vault permissions, SQL Server logins, Jamf MDM — becomes a candidate Tier-Zero node in the same graph as AD and Entra ID. The defensive implication: choke-point analysis must now span the full identity stack; an unprotected GitHub Actions secret with Azure-deploy credentials is on the same shortest-path graph as a Domain Admin's logged-in workstation. Mature ITDR programs in 2026 are running OpenGraph against the full identity surface, not just AD + Entra.

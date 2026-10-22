@@ -17,11 +17,10 @@
 > - **Liz Rice** (@lizrice) — Chief Open Source Officer at Isovalent; "Containers from Scratch";
 >   O'Reilly books on container security and eBPF; Tetragon lead
 > - **Andrew Martin** (@sublimino) — CEO of ControlPlane; *Hacking Kubernetes* (O'Reilly); kubesec
-> - **Tabitha Sable** (@TabbySable) — Kubernetes SIG Security co-chair; Pod Security Admission
->   KEP lead; co-presenter KubeCon EU 2021
+> - **Tabitha Sable** (@TabbySable) — Kubernetes SIG Security co-chair; co-presenter KubeCon EU 2021
 >
-> This group is informally known as **SIG-Honk**. The four co-CVE-discoverers (Coldwater,
-> Geesaman, Cooley, McCune) appear together across multiple talks and CVEs.
+> This group is informally known as **SIG-Honk**. The four (Coldwater,
+> Geesaman, Cooley, McCune) appear together across multiple talks.
 >
 > Sources: KubeCon/Black Hat/DEF CON schedules and slides; GitHub CVE advisories; raesene.github.io
 > blog; bgeesaman.github.io; mbechler.github.io; Speaker Deck; NVD; CIS; O'Reilly.
@@ -53,14 +52,14 @@ assessment. The answer is almost never the CVE your scanner found. It is the com
 defaults, misconfigurations, and RBAC grants that chain into cluster-admin access via paths no
 scanner models.
 
-Brad Geesaman's KubeCon 2017 talk was called "the seminal KubeCon security talk." Its lesson
+The lesson of Brad Geesaman's KubeCon 2017 talk
 still holds: most Kubernetes compromises do not require a zero-day. They use unvetted images, no
 network policy, cleartext secrets in environment variables, and anonymous API server access — all
 defaults or common configurations.
 
 ### Features are weapons
 
-From Ian Coldwater's KubeCon 2019 keynote: Kubernetes features designed for legitimate use are
+Kubernetes features designed for legitimate use are
 frequently the best attack primitives. Ephemeral containers enable post-compromise persistence
 without modifying a pod spec in a way that triggers alerts. The Dynamic Audit Sink feature lets
 you filter your own activity from audit logs. Validating webhooks, intended to enforce policy, can
@@ -96,7 +95,7 @@ Without a threat model, hardening decisions are guesswork. With one, they are pr
 
 ### A container is a Linux process — nothing more
 
-From Liz Rice's "Containers from Scratch" (DockerCon, GOTO Chicago 2018, and many others): a
+From Liz Rice's "Containers from Scratch" (GOTO Chicago 2018, and many others): a
 container is a Linux process with its view of the world limited through three kernel mechanisms.
 Understanding these mechanisms is the foundation for understanding every container escape.
 
@@ -132,8 +131,8 @@ filesystem isolation — but only as strong as the mount namespace.
 Linux capabilities decompose root privileges into discrete units. Containers, by default, run
 with a restricted set. The most dangerous capabilities:
 
-**`CAP_SYS_ADMIN`:** The "root of capabilities." Enables mount operations, kernel module loading,
-`ptrace`, `nsenter` into other namespaces, setting hostname, filesystem quotas. Granting
+**`CAP_SYS_ADMIN`:** The "root of capabilities." Enables mount operations,
+`nsenter` into other namespaces, setting hostname, filesystem quotas. Granting
 `CAP_SYS_ADMIN` to a container is effectively granting root on the host with extra steps.
 kubesec (Andrew Martin) flags this as the highest-risk finding in manifest analysis.
 
@@ -153,10 +152,10 @@ be set in Restricted pod security profiles.
 ### seccomp: syscall filtering
 
 seccomp (Secure Computing Mode) filters system calls via a BPF program. Docker and containerd
-apply a default seccomp profile that blocks ~300 of ~400 syscalls including the most dangerous:
+apply a default seccomp profile that disables around 44 of 300+ syscalls including the most dangerous:
 `ptrace`, `kexec_load`, `open_by_handle_at`, `bpf` (partially), `perf_event_open`. Kubernetes
-did not apply the Docker default seccomp profile by default until k8s 1.19 (when
-`SeccompDefault` became a feature gate) — before that, all pods ran with no seccomp unless
+did not apply the Docker default seccomp profile by default until `SeccompDefault`
+(alpha kubelet feature gate in k8s 1.22, stable in 1.27) — before that, all pods ran with no seccomp unless
 explicitly configured.
 
 PSS Restricted level requires `seccompProfile.type: RuntimeDefault` or `Localhost`.
@@ -168,7 +167,7 @@ that apply mandatory access control on top of DAC (discretionary — ownership/p
 Containers can apply AppArmor profiles that restrict which files can be written, which syscalls
 invoked, what network operations are allowed — independent of the capabilities granted.
 
-The default Docker AppArmor profile blocks key escape paths (`mount`, `pivot_root`, some
+The default Docker AppArmor profile blocks key escape paths (`mount`, some
 procfs/sysfs writes). Kubernetes workloads without an explicit AppArmor profile run unconfined
 unless the node's container runtime applies one by default.
 
@@ -178,8 +177,8 @@ unless the node's container runtime applies one by default.
 
 ### Privileged container: direct host access
 
-`securityContext.privileged: true` disables all namespace isolation for that container — it runs
-with all capabilities, in the host network namespace (on some runtimes), with access to all host
+`securityContext.privileged: true` does not put the container in the host's namespaces (that is
+what `hostNetwork`/`hostPID`/`hostIPC` do), but it runs with all capabilities, with access to all host
 devices. A privileged container can:
 - Mount host `/` via `mount /dev/sda1 /mnt`
 - Load kernel modules
@@ -231,7 +230,8 @@ root. The Docker socket is equivalent to a root shell on the host.
 
 ### CVE-2021-25741: subPath symlink exchange (CVSS 8.8)
 
-Discovered by Coldwater, Geesaman, Cooley, McCune. A container with a subPath volume mount can
+Reported by Fabricio Voznika and Mark Wolters of Google; the advisory thanks Coldwater, Geesaman,
+Cooley, and McCune for related research. A container with a subPath volume mount can
 create a symlink inside the subPath directory. On subsequent container creation or kubelet
 reconciliation, the symlink is followed during mount setup → the container gains access to host
 filesystem paths outside the declared volume.
@@ -246,7 +246,7 @@ Interim mitigation: disable the `VolumeSubpath` feature gate on kubelet and kube
 
 ### CVE-2021-30465: runc mount race condition (CVSS 8.5)
 
-Original by champtar; SIG-Honk developed the Kubernetes PoC. runc before 1.0.0-rc95: when a
+Discovered by Etienne Champetier (champtar). runc before 1.0.0-rc95: when a
 pod starts multiple containers concurrently, an attacker controlling one container can race to
 swap a volume mount destination symlink. The next container's mount setup follows the new symlink
 → the mount lands at the host filesystem path the symlink points to → container escape.
@@ -274,9 +274,9 @@ Sources: [Snyk Labs Leaky Vessels overview](https://labs.snyk.io/resources/leaky
 [Snyk Labs CVE-2024-21626 deep dive](https://labs.snyk.io/resources/cve-2024-21626-runc-process-cwd-container-breakout/);
 [Wiz deep dive on Leaky Vessels](https://www.wiz.io/blog/leaky-vessels-container-escape-vulnerabilities).
 
-### CVE-2020-15257: containerd-shim abstract socket (CVSS 8.8)
+### CVE-2020-15257: containerd-shim abstract socket (CVSS 5.2)
 
-Discovered by NCC Group; taught by Tabitha Sable at KubeCon EU 2021. containerd-shim exposes
+Discovered by NCC Group. containerd-shim exposes
 its management API over an abstract namespace Unix domain socket. Abstract sockets are accessible
 from the root network namespace without any filesystem path or permission check. Any container
 with `hostNetwork: true` (or in the same network namespace as the host) can connect to the shim
@@ -311,7 +311,7 @@ traffic. No anomalous authentication event. Detection via audit logging was blin
 ### IngressNightmare (CVE-2025-1974 et al.): unauthenticated cluster takeover via the admission webhook
 
 Disclosed 2025-03-24 by Nir Ohfeld, Ronen Shustin, Sagi Tzadik, and Hillai Ben-Sasson at Wiz
-Research with Andres Riancho. A five-CVE cluster in ingress-nginx
+Research. A five-CVE cluster in ingress-nginx
 (CVE-2025-1097 `auth-tls-match-cn`, CVE-2025-1098 `mirror-target` / `mirror-host`,
 CVE-2025-1974 master RCE at CVSS 9.8, CVE-2025-24513 path traversal,
 CVE-2025-24514 `auth-url`). The chain:
@@ -324,7 +324,8 @@ CVE-2025-24514 `auth-url`). The chain:
 3. The admission controller writes the rendered nginx configuration to a temp file and
    shells out to `nginx -t` to validate. Crafted annotations inject arbitrary nginx
    directives, in particular `ssl_engine` which loads an attacker-controlled shared library
-   from a path the attacker also stages via the same injection.
+   that the attacker stages by sending a large request body that NGINX buffers to a temp file,
+   referenced via `/proc/<pid>/fd/<n>`.
 4. `nginx -t` loads and executes the shared library as the ingress-nginx ServiceAccount,
    which has cluster-wide secret read access by default → instant cluster takeover.
 
@@ -384,8 +385,7 @@ brute-forcing name patterns.
 
 ### The Kubernetes CA: the "golden ticket" with no revocation
 
-From Rory McCune's "Certificate Authentication and the Golden Ticket at the Heart of Kubernetes"
-(2019): the cluster CA private key is the master credential. If compromised:
+The cluster CA private key is the master credential. If compromised:
 - Forge arbitrary client certificates with any CN (username) and O (group)
 - Map to any RBAC identity in the cluster
 - **Kubernetes has no certificate revocation** (no CRL, no OCSP)
@@ -419,7 +419,7 @@ via TLS certificates from a compromised control plane node) has:
 - All RBAC policies
 - All pod specs — including environment variables containing credentials
 
-Brad Geesaman and Ian Coldwater's Black Hat 2019 demo: mount host `/` from a pod → read etcd
+Ian Coldwater and Duffie Cooley's Black Hat 2019 demo: mount host `/` from a pod → read etcd
 data files directly → extract cluster-admin credentials. Defense: etcd encryption at rest
 (`--encryption-provider-config`), restrict network access to etcd to control plane nodes only,
 audit etcd access separately from Kubernetes API access.
@@ -447,8 +447,8 @@ etcd from non-control-plane processes, and network traffic patterns to the etcd 
 Also from "Advanced Persistence Threats":
 
 **Audit log bypass via annotation padding:**
-Pad a pod spec's `annotations` field with large amounts of junk data → the Kubernetes API server
-truncates audit log entries at a byte limit → all data after the annotation is dropped from the
+Pad a pod spec's `annotations` field with large amounts of junk data → if audit truncation is enabled (it is
+off by default), the Kubernetes API server truncates audit log entries at a byte limit → all data after the annotation is dropped from the
 audit record → pod spec details (including malicious container images, capabilities, mounts)
 are hidden from the audit log.
 
@@ -500,8 +500,6 @@ access. Since Kubernetes has no certificate revocation:
 
 ### Static containers and CRI-O/containerd direct API
 
-From Rory McCune's "Beyond the Surface" (BSides Ljubljana 2025):
-
 Containers created directly via the container runtime API (containerd gRPC, CRI-O API) without
 going through the Kubernetes API server are invisible to `kubectl get pods`. They do not appear
 in any Kubernetes resource listing because they have no corresponding Pod object in etcd.
@@ -522,7 +520,7 @@ Direct traffic to the kubelet API bypasses:
 - Admission controllers
 - Network policies (network policy is applied at the CNI level, not the kubelet level)
 
-From Rory McCune's BSides 2025 talk: this is a persistence/lateral-movement technique for
+This is a persistence/lateral-movement technique for
 attackers who have cluster-level privileges but want to minimize their audit footprint.
 
 ---
@@ -563,24 +561,15 @@ an attacker-controlled server, containerd sends its full authentication credenti
 the GCP service account token from the instance metadata — in the HTTP Authorization header to
 that URL if the server returns HTTP 401 with appropriate registry challenge headers.
 
-**Trigger:** A simple `docker pull` of the malicious image. No code executes on the victim.
+**Trigger:** A simple pull of the malicious image via containerd's default resolver (cri-containerd,
+`ctr`); Docker, which does not use that resolver, is not affected. No code executes on the victim.
 
 **GKE severity amplification:** The default GKE node service account is the Compute Engine
 default service account with Project Editor permissions. Stolen token → attacker has cloud-level
 Project Editor access to the entire GCP project, including all GCS buckets, GCE instances,
 BigQuery datasets, and IAM manipulation capabilities.
 
-Won Google's 2020 Vulnerability Research Prize.
-
-### GKE OAuth scope: non-default scope removes all scope restrictions
-
-Default GKE node pools use the default Compute service account with OAuth scopes that limit the
-token's effective permissions even if the IAM role is broad. Finding: if a node pool is created
-with **any non-default OAuth scope**, the scope restriction mechanism is removed entirely,
-giving the token its full IAM permissions (Project Editor) rather than the scoped subset.
-
-Combined with the metadata access path (any pod → node service account token), this becomes:
-pod → full Project Editor GCP IAM → escalate to Project Owner via IAM policy manipulation.
+Won fifth place in Google's 2020 GCP VRP Prize.
 
 ### 6b. Workload identity evolution 2024-2026: federation replaces impersonation
 
@@ -716,7 +705,7 @@ configuration apparatus). Key 2024-2025 developments:
 - Chainguard publishes >1,000 distroless-style images, claiming ~54,000 remediated CVEs
   cumulatively. Adopters include Anduril, Canva, Snowflake, Wiz, and (per their published
   case study) Elastic — Elastic's 8.16+ Stack containers ship a Chainguard variant with
-  near-zero residual CVEs.
+  a lower CVE count than previous versions.
 - Multi-layer image format (May 2025) — shared base layers across the catalog improve cache
   reuse and reduce per-image effective size.
 - Wolfi-base remains free and openly accessible; the curated images and SLA are the
@@ -780,8 +769,7 @@ modifications; at None for read-only operations on non-sensitive resources to ma
 KubeHound (Datadog Security Labs) models the Kubernetes cluster as an attack graph using
 JanusGraph. It ingests Kubernetes API data and computes all attack paths from a given starting
 node (e.g., a compromised pod) to a target (e.g., cluster-admin). It models 25+ attack
-techniques including TOKEN_BRUTEFORCE, NODES_PROXY_EXEC, SHARE_HOST_PID_NAMESPACE, and the
-full CVE-2021-25741 subPath chain.
+techniques including TOKEN_BRUTEFORCE and SHARE_PS_NAMESPACE.
 
 The graph model reveals multi-hop attack paths that linear policy review misses: a pod with
 `get` on configmaps in namespace A + `create` on pods in namespace B + a privileged service
@@ -796,8 +784,8 @@ for the broader eBPF observability story.
 
 | Tool | Author | Primary mode | Strength | Overhead |
 |------|--------|--------------|----------|----------|
-| **Tetragon** | Isovalent / Cilium (Liz Rice) | Detection + in-kernel enforcement | Kernel-level kill/block before syscall completes; namespace-escape detection via process-lineage tracking | <1% CPU |
-| **Falco** | Sysdig / CNCF | Detection (userspace rules engine over eBPF or kernel-module events) | Mature rules library; long-running CNCF graduated project | 5-10% CPU |
+| **Tetragon** | Isovalent / Cilium (Liz Rice) | Detection + in-kernel enforcement | Kernel-level kill/block before syscall completes; namespace-escape detection via process-lineage tracking | ~6.5 mCPU (SciTePress 2025 test; lowest) |
+| **Falco** | Sysdig / CNCF | Detection (userspace rules engine over eBPF or kernel-module events) | Mature rules library; long-running CNCF graduated project | ~431 mCPU (same test; highest) |
 | **Tracee** | Aqua Security | Detection + forensic event stream | Strong forensic-event detail; behavior-signature engine | Balanced |
 
 Tetragon's distinguishing capability is **in-kernel prevention** — eBPF programs return
@@ -853,7 +841,7 @@ components are easier to monitor and patch than thousands of sidecars.
 ### Pod Security Standards: the replacement for PodSecurityPolicy
 
 PodSecurityPolicy (PSP) was deprecated in k8s 1.21 and removed in k8s 1.25. Its replacement is
-Pod Security Admission (PSA), led by Tabitha Sable and Ian Coldwater.
+Pod Security Admission (PSA).
 
 PSA enforces at the namespace level via the `pod-security.kubernetes.io/` label set. Three
 levels:
@@ -865,7 +853,6 @@ levels:
 - No `hostPID`, `hostIPC`, `hostNetwork`
 - No `hostPath` volumes
 - No dangerous capabilities (beyond the default set)
-- No `allowPrivilegeEscalation: true`
 - No host port binding
 - Limited seccomp profiles (RuntimeDefault or defined)
 
@@ -884,7 +871,7 @@ uncontrolled to Restricted.
 
 ### RBAC: minimum viable rights per workload
 
-From the Kubernetes RBAC Good Practice Guide (Rory McCune, now official k8s documentation):
+From the Kubernetes RBAC Good Practice Guide (official k8s documentation):
 
 - **Avoid `cluster-admin` ServiceAccounts.** Most workloads need namespace-scoped permissions
   at most. `cluster-admin` should be reserved for cluster management components.
@@ -980,7 +967,7 @@ for the agent-level treatment; this section covers the Kubernetes-specific surfa
 
 ### KServe / Triton / Seldon: model-serving control planes as attack targets
 
-KServe (CNCF Incubating, v0.15 in May 2025) is the dominant Kubernetes-native
+KServe (CNCF Incubating, v0.15 in 2025) is the dominant Kubernetes-native
 model-serving abstraction. Its `InferenceService` CRD orchestrates Deployment, Service,
 HPA, and (optionally) Knative resources around a backing runtime — Triton, vLLM, TGI, or a
 custom predictor. Security-relevant properties:
@@ -994,8 +981,7 @@ custom predictor. Security-relevant properties:
   Combined with the pickle-execution attack surface, a compromised model deserialization
   becomes a credential-theft pivot. The pod's cloud workload identity (IRSA / Pod Identity /
   WIF) becomes the post-compromise lateral path.
-- **KServe security advisories 2024-2025:** CVE-2025-22872, CVE-2025-47914, CVE-2025-58181,
-  CVE-2024-43598. Treat the KServe controller and any custom transformer/predictor as
+- Treat the KServe controller and any custom transformer/predictor as
   privileged code-execution surfaces, not as managed inference plumbing.
 Source: [KServe GitHub releases](https://github.com/kserve/kserve/releases).
 
@@ -1049,7 +1035,7 @@ For the broader GPU and accelerator-sharing treatment, see
 | **kube-env-stealer** | Brad Geesaman | GKE bootstrap credential theft | Reads kube-env metadata → generates kubelet certs for all nodes → extracts all Secrets |
 | **mkit** | Darkbit (Geesaman/Larsen) | Managed k8s security config assessment | GKE, EKS, AKS; archived |
 | **k8s-mirror** | Darkbit | Offline cluster review | Mirrors cluster to in-memory apiserver+etcd in Docker; no credentials needed for review |
-| **OpenCSPM** | Darkbit | Cloud Security Posture Management | JanusGraph-based; cross-references GCP IAM + k8s RBAC for relationship analysis |
+| **OpenCSPM** | Darkbit | Cloud Security Posture Management | Cross-references GCP IAM + k8s RBAC for relationship analysis |
 | **malicious-compliance** | Brad Geesaman | Scanner evasion PoC | Five evasion technique image variants from KubeCon EU 2023 |
 | **kubesec** | Andrew Martin / ControlPlane | Manifest risk scoring | Scores pod specs 0–100; checks privileged, hostPID, capabilities, allowPrivilegeEscalation |
 | **kube_security_lab** | Rory McCune | Attack/defense practice labs | Ansible + kind; spin up clusters with specific vulnerable configurations |
@@ -1077,13 +1063,13 @@ For the broader GPU and accelerator-sharing treatment, see
 | CVE-2018-1002105 | 9.8 | kube-apiserver | Analyzed/taught by Coldwater | Proxied upgrade request → persistent connection → backend auth bypass |
 | CVE-2019-11253 | 7.5 | kube-apiserver | Geesaman, McCune | YAML anchor recursion → Billion Laughs memory exhaustion DoS |
 | CVE-2020-15157 "ContainerDrip" | 6.1 (higher in GKE) | containerd | Geesaman | Foreign layer manifest → credential theft at image pull time |
-| CVE-2020-15257 "Abstract Shimmer" | 8.8 | containerd-shim | NCC Group; taught by Sable | Abstract Unix socket → host network containers access shim API → host escape |
-| CVE-2021-25741 | 8.8 | kubelet | Coldwater, Geesaman, Cooley, McCune | subPath symlink exchange → host filesystem access, bypasses hostPath restrictions |
+| CVE-2020-15257 "Abstract Shimmer" | 5.2 | containerd-shim | NCC Group; taught by Sable | Abstract Unix socket → host network containers access shim API → host escape |
+| CVE-2021-25741 | 8.8 | kubelet | Fabricio Voznika, Mark Wolters (Google); built on research by Coldwater, Cooley, Geesaman, McCune | subPath symlink exchange → host filesystem access, bypasses hostPath restrictions |
 | CVE-2021-30465 | 8.5 | runc | champtar (original); SIG-Honk k8s PoC | Mount destination symlink race → container escape |
 | CVE-2024-21626 "Leaky Vessels" | 8.6 | runc | Rory McNamara (Snyk Labs) | Leaked fd + WORKDIR → process spawns with cwd in host filesystem namespace |
-| CVE-2024-23651/52/53 | 8.7-9.8 | BuildKit | Rory McNamara (Snyk Labs) | Mount-cache race / build-teardown arbitrary delete / GRPC privilege check — companion CVEs to CVE-2024-21626 |
-| CVE-2025-1974 "IngressNightmare" | 9.8 | ingress-nginx | Ohfeld, Shustin, Tzadik, Ben-Sasson, Riancho (Wiz) | Unauthenticated pod-network reach to admission webhook → nginx config injection → ssl_engine library load → cluster takeover via ingress-nginx SA secret access |
-| CVE-2025-1097 / 1098 / 24513 / 24514 | 8.8-9.8 | ingress-nginx | Wiz Research | Admission-webhook annotation-injection variants in `auth-tls-match-cn`, `mirror-target`, path traversal, `auth-url` |
+| CVE-2024-23651/52/53 | 8.7-10.0 | BuildKit | Rory McNamara (Snyk Labs) | Mount-cache race / build-teardown arbitrary delete / GRPC privilege check — companion CVEs to CVE-2024-21626 |
+| CVE-2025-1974 "IngressNightmare" | 9.8 | ingress-nginx | Ohfeld, Shustin, Tzadik, Ben-Sasson (Wiz) | Unauthenticated pod-network reach to admission webhook → nginx config injection → ssl_engine library load → cluster takeover via ingress-nginx SA secret access |
+| CVE-2025-1097 / 1098 / 24513 / 24514 | 4.8-8.8 | ingress-nginx | Wiz Research | Admission-webhook annotation-injection variants in `auth-tls-match-cn`, `mirror-target`, path traversal, `auth-url` |
 
 ---
 
@@ -1107,7 +1093,7 @@ For the broader GPU and accelerator-sharing treatment, see
    private key with HSM-level security. Monitor for unknown certificate CNs in API server auth logs.
 
 5. **Audit logs are only valuable if they're off-cluster and immutable.** A cluster-admin
-   attacker can modify audit configuration, truncate log entries via annotation padding, and
+   attacker can modify audit configuration and
    delete log storage within the cluster. Audit logs that stay in the cluster can be manipulated.
 
 6. **Scanners are policy controls, not security boundaries.** Any image builder who knows five
@@ -1145,7 +1131,7 @@ For the broader GPU and accelerator-sharing treatment, see
     image analysis) are visible at runtime via eBPF observation of the actual `execve` and
     file-mutation events. Pair static scanning with eBPF runtime as overlapping layers.
 
-12. **Workload identity federation is the new credential model.** EKS Pod Identity, GKE
+12. **Workload identity federation is the new credential model.** EKS IAM Roles for Service Accounts (IRSA), GKE
     Workload Identity Federation, and AKS Workload Identity replace impersonation chains with
     direct OIDC-federated trust. The cluster's OIDC issuer JWKS endpoint becomes load-bearing
     cloud-IAM trust infrastructure; monitor it accordingly. See

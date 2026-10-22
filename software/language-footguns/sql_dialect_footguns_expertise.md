@@ -26,10 +26,10 @@
 >   `xp_cmdshell`, OPENROWSET, error-based extraction, and the
 >   MSSQL-specific primitives still catalogued today. Co-author of
 >   *The Database Hacker's Handbook* (Wiley, 2005) and *The
->   Shellcoder's Handbook*. Now CSO at NCC Group.
+>   Shellcoder's Handbook*. Now Chief Scientist at NCC Group.
 > - **David Litchfield** — co-author with Anley of *The Database
 >   Hacker's Handbook*; sole author of *The Oracle Hacker's Handbook*
->   (Wiley, 2007) and *SQL Server Security*. Discoverer of the 2008
+>   (Wiley, 2007); co-author of *SQL Server Security*. Discoverer of the 2008
 >   Oracle "Lateral SQL Injection" class and the 2006 cursor-snarfing
 >   class. The single largest individual contributor to public Oracle
 >   security research. Cross-link §6.
@@ -44,15 +44,10 @@
 >   specific takeover payloads (file read/write, UDF upload, RCE
 >   primitives). The most reliable source for what *actually* works
 >   in 2026 against modern MySQL/MSSQL/PostgreSQL/Oracle versions.
-> - **HD Moore** — founder of Metasploit (2003); originator of the
->   `mssql_payload_sqli`, `mssql_ntlm_stealer`, and broader database-
->   exploitation module family. The MSSQL UNC-path NTLM-relay primitive
->   was operationalized in Metasploit before being widely understood
->   in the broader pentest community.
+> - **HD Moore** — founder of Metasploit (2003).
 > - **Alexander Polyakov** — founder of ERPScan; author of books on
->   SAP and Oracle Database security. Coined the term "SSRF" in 2013
->   and demonstrated the Oracle / SAP database lateral-movement
->   surface through `DBMS_LDAP`, `UTL_HTTP`, `XML DB`. The institutional
+>   SAP and Oracle Database security. Presented "SSRF vs. Business Critical Applications" (Black Hat USA 2012).
+>   The institutional
 >   memory for Oracle / SAP / PeopleSoft database attacks.
 > - **PortSwigger Research / James Kettle** — Director of Research at
 >   PortSwigger; author of HTTP Request Smuggler, Backslash Powered
@@ -71,13 +66,8 @@
 >   demonstrated `ATTACH DATABASE` + crafted SQL is a remote code
 >   execution primitive in any context where attacker-controlled SQL
 >   reaches a SQLite engine. Continued SQLite work through "Magellan 2."
-> - **Trail of Bits database team** — `Testing Handbook` appsec.guide
->   chapters on database hardening; the cURL audit (which exercised
->   `sqlite3` extension loading); pgAudit / row-level-security write-ups
->   in the blog archive.
 > - **Kurt Boberg** (Semgrep) — co-author of this expertise; reporter
->   of CVE-2018-3760 (Rails Sprockets path traversal — adjacent to
->   the data-export primitive set), CVE-2023-22794 (ActiveRecord
+>   of CVE-2023-22794 (ActiveRecord
 >   annotation SQLi — the ORM-introduced footgun pattern in §12).
 >
 > **Institutional contributors:** OWASP SQL Injection Prevention
@@ -182,7 +172,7 @@ defensive checklist in §14 are the load-bearing artifacts.
 PostgreSQL has the cleanest documentation and most ergonomic
 privilege model — and the most powerful built-in primitives for
 converting SQL access into OS access. The project's position
-(per the 2019 EDB blog "PostgreSQL COPY FROM PROGRAM is not a
+(per the 2020 EDB blog "PostgreSQL COPY FROM PROGRAM is not a
 Vulnerability") is that the DBA is trusted and the documented
 privileged roles are not CVEs. Operators who don't want them
 must explicitly remove grants.
@@ -309,8 +299,8 @@ Leave the extension uninstalled unless required.
 
 ### 2.9 `pg_settings` information leakage
 
-Public-readable by default. Discloses `data_directory`,
-`ssl_cert_file`, `ssl_key_file`. The footgun is the chain:
+Public-readable by default. Discloses `ssl_cert_file`,
+`ssl_key_file` (`data_directory` is superuser-only). The footgun is the chain:
 `pg_settings` discovers cert paths; `pg_read_server_files` reads
 them.
 
@@ -356,7 +346,7 @@ paths; set to NULL disables file I/O.
 LOAD DATA INFILE '/etc/passwd' INTO TABLE leak;
 ```
 
-MySQL 8.x defaults `secure_file_priv` to `/var/lib/mysql-files/` —
+MySQL DEB/RPM builds default `secure_file_priv` to `/var/lib/mysql-files/` —
 narrows but doesn't eliminate.
 
 ### 3.2 `LOAD DATA LOCAL INFILE` — the rogue-server attack
@@ -507,7 +497,8 @@ relay impact.
 
 ### 4.5 `xp_regread` / `xp_regwrite`
 
-Undocumented sysadmin-only registry access. Persistence (autorun),
+Undocumented registry access; `xp_regread` is executable by
+PUBLIC (limited to SQL Server-related keys since SQL Server 2000 SP4). Persistence (autorun),
 credential extraction (Putty, RDP), config tampering.
 
 ### 4.6 CLR Integration
@@ -545,9 +536,7 @@ server.
 
 Extended Events and Defender for SQL cover
 `xp_cmdshell`/`sp_OACreate`/`OPENROWSET` well; UNC-relay
-primitives are noisier — require XEvent
-`audit_database_principal_impersonation_group`. Operators who
-don't enable it have no telemetry on the most-important primitive.
+primitives are noisier.
 
 ---
 
@@ -595,7 +584,7 @@ is RCE-equivalent.
 `CVE-2018-20346`, `-20505`, `-20506` ("Magellan"): FTS3 integer
 overflow + buffer overflow chain, exploited via crafted SQL,
 yielding RCE in the engine. `CVE-2020-15358`: heap overflow in
-SELECT-with-INDEXED-BY.
+the query-flattener optimization (`multiSelectOrderBy`).
 
 Class lesson: **arbitrary-SQL access to a SQLite engine is RCE
 at the engine's privilege level**. Disabling `load_extension`
@@ -640,7 +629,7 @@ is weaker than MSSQL's.
 
 Server-side file I/O package. Historical default: `EXECUTE ON
 UTL_FILE TO PUBLIC` + `UTL_FILE_DIR` init parameter. Modern Oracle
-(11g+) replaces `UTL_FILE_DIR` with `DIRECTORY` objects requiring
+(18c+) replaces `UTL_FILE_DIR` with `DIRECTORY` objects requiring
 explicit `READ`/`WRITE` grants. Upgrade paths leave old systems
 exposed.
 
@@ -687,8 +676,7 @@ EXEC DBMS_JAVA.GRANT_PERMISSION('USER1', 'SYS:java.io.FilePermission',
 C library callable via the listener-spawned extproc mechanism. The
 "extproc attack" class (pre-2010) reaches RCE from any
 listener-reachable attacker. Modern Oracle (12c+) uses
-`DBMS_CREDENTIAL` + `ENFORCE_CREDENTIAL=TRUE` in `extproc.ora` —
-but defaults to FALSE.
+`DBMS_CREDENTIAL` + `ENFORCE_CREDENTIAL=TRUE` in `extproc.ora`.
 
 ### 6.6 `DBMS_SCHEDULER` external jobs
 
@@ -705,8 +693,8 @@ separate attack vectors; Litchfield is the reference.
 ### 6.8 TNS listener lineage
 
 Pre-2009: unauthenticated remote management; CVE-2012-1675
-"poison attack" registration. Fixed in 2012 via
-`SECURE_REGISTER_LISTENER` + `LOCAL_REGISTRATION` defaults. Still
+"poison attack" registration. Oracle's 2012
+workaround: Class of Secure Transport (`SECURE_REGISTER_<listener>`). Still
 a high-value internal target.
 
 ### 6.9 Lateral SQL Injection (Litchfield 2008)
@@ -796,7 +784,7 @@ Always `IS NULL` / `IS NOT NULL`. Never `= NULL`.
 
 - `COALESCE(a, b, ...)` — SQL standard, universal.
 - `IFNULL(a, b)` — MySQL, SQLite. Two-arg.
-- `ISNULL(a, b)` — MSSQL two-arg; Oracle's `ISNULL(x)` is a
+- `ISNULL(a, b)` — MSSQL two-arg; MySQL's `ISNULL(x)` is a
   predicate. Confusing collision.
 - `NVL(a, b)` — Oracle.
 
@@ -827,7 +815,7 @@ from "denied" to "unknown" — audit authz rule engines.
 `ALL` is dialect-specific union:
 
 - PostgreSQL: SELECT, INSERT, UPDATE, DELETE, TRUNCATE,
-  REFERENCES, TRIGGER.
+  REFERENCES, TRIGGER, MAINTAIN (17+).
 - MySQL: + CREATE / DROP / INDEX at table level.
 - MSSQL: SELECT / INSERT / UPDATE / DELETE / REFERENCES.
 - Oracle: SELECT / INSERT / UPDATE / DELETE / REFERENCES / ALTER /
@@ -851,8 +839,8 @@ vs dynamic authorization analysis."
 
 ### 9.3 `PUBLIC` default privileges
 
-- PostgreSQL: `EXECUTE` on many built-ins; `CREATE`/`USAGE` on
-  `public` schema.
+- PostgreSQL: `EXECUTE` on many built-ins; `USAGE` on `public`
+  schema (`CREATE` too before PG 15).
 - Oracle: `EXECUTE` on hundreds of packages historically including
   `UTL_FILE`, `UTL_HTTP`, `DBMS_LDAP`. Hardening guides spend most
   of their text on `REVOKE FROM PUBLIC`.
@@ -876,7 +864,8 @@ underlying contents. Unqualified references inside trigger the
 - **PostgreSQL**: `CREATE POLICY`; bypass = superuser / `BYPASSRLS`
   / table owner (unless `FORCE`).
 - **MSSQL**: `CREATE SECURITY POLICY` filter + block predicates;
-  bypass = `sysadmin` / `db_owner` / `IMPERSONATE`.
+  predicates apply to dbo / `db_owner` too; bypass = altering or
+  dropping the policy (`ALTER ANY SECURITY POLICY`; dbo can).
 - **MySQL**: no native; views + `CURRENT_USER()`. Direct table
   access circumvents.
 - **Oracle**: VPD via `DBMS_RLS.ADD_POLICY`; bypass =
@@ -921,13 +910,9 @@ can differ).
 
 ### 10.4 PostgreSQL encoding set at `initdb`
 
-Immutable thereafter. Modern PG: UTF-8.
-
-### 10.5 BOM in CSV imports
-
-`COPY ... FROM '/path.csv' WITH (HEADER true)` does not strip the
-UTF-8 BOM; it becomes part of the first column name. Preprocess
-or use `FORMAT csv` with explicit column list.
+`initdb -E` sets the template database's encoding, the default for
+databases created later unless `CREATE DATABASE` overrides it;
+if unset, it is derived from the locale, else `SQL_ASCII`.
 
 ---
 
@@ -962,7 +947,7 @@ compilation with chosen params affects legitimate-call performance
 ### 11.5 Recursive triggers
 
 - PostgreSQL: recurse to `max_stack_depth`.
-- MySQL 8.0: bounded by `max_sp_recursion_depth`; 5.x no recursion.
+- MySQL: no recursion (stored-function restrictions apply to triggers).
 - MSSQL: `nested triggers` / `recursive triggers` server options.
 - Oracle: mutating-table restriction.
 
@@ -988,7 +973,7 @@ interpolation inside `where`, `order`, `group`, `joins`, `select`,
 `find_by_sql`.
 
 `annotate` / `optimizer_hints` / `query_log_tags` emit SQL
-comments. CVE-2023-22794 (reported by Kurt Boberg) is annotation-
+comments. CVE-2023-22794 (reported by `hmac_`) is annotation-
 string interpolation that escapes the comment. Cross-link
 [[reference-ruby-footguns]] §9.
 
@@ -1237,8 +1222,8 @@ discipline.
 - **pgFormatter** — PostgreSQL-specific formatter.
 - **Brakeman** — Rails-specific scanner with deep ActiveRecord
   SQLi coverage.
-- **Bandit** — Python; covers SQLAlchemy `text()` and Django
-  `raw`.
+- **Bandit** — Python; covers Django `RawSQL` (B611) and
+  string-built SQL (B608).
 - **CodeQL** — has ORM-specific query packs for Rails / Django /
   Hibernate / Entity Framework.
 - **rails_best_practices** — Rails-specific style + security
@@ -1300,21 +1285,19 @@ Azure Database for PostgreSQL/MySQL, AlloyDB, Aurora) ship with
 different default configurations that subtly alter the dialect-
 footgun catalog:
 
-- **AWS RDS PostgreSQL** disables `pg_execute_server_program`
-  outright; `COPY FROM PROGRAM` is not available. `CREATE
+- **AWS RDS PostgreSQL**: `CREATE
   EXTENSION` is restricted to a vendor-curated allowlist
   (`rds.extensions`). The `rds_superuser` role is the closest
   available proxy to superuser; it does not have unrestricted
   file access.
-- **AWS RDS MSSQL** disables `xp_cmdshell`, OLE Automation,
+- **AWS RDS MSSQL** disables `xp_cmdshell` and
   CLR-with-UNSAFE-PermissionSet. Linked servers are restricted.
-- **GCP Cloud SQL PostgreSQL** similar to RDS — disabled
-  `COPY FROM PROGRAM`, allowlisted extensions
-  (`cloudsql.iam_authentication`, `pgaudit`, etc.). The
+- **GCP Cloud SQL PostgreSQL** similar to RDS — allowlisted extensions
+  (`pgaudit`, etc.). The
   `cloudsqlsuperuser` is a proxy superuser.
 - **Azure SQL Database** disables CLR, xp_cmdshell, OLE
   Automation, linked servers (except Azure SQL Managed Instance).
-  The `dbmanager` role is the proxy admin.
+  The `dbmanager` role in `master` can create and delete databases.
 - **Azure Database for PostgreSQL** restricts `CREATE EXTENSION`
   to allowlist; `azure_pg_admin` is the proxy superuser.
 
@@ -1325,8 +1308,7 @@ database is fully hardened" overstates it — managed defaults
 still grant the proxy admin substantial capability, including
 metadata service access (the IMDS SSRF chain still applies if
 network ACLs permit), and the curated extension allowlist still
-includes powerful entries (`pg_cron`, `pg_partman`, `plpython3u`
-on some platforms).
+includes powerful entries (`pg_cron`, `pg_partman`).
 
 The cross-link [[reference-cicd-supply-chain]] applies for the
 secret-management discipline around managed-database

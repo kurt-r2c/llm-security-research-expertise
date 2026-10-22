@@ -13,7 +13,7 @@ Doctrine: every RTC app is a parser plus a state machine; both need adversarial 
 
 ### Patrick Wardle (Objective-See)
 
-Founder of Objective-See and Objective by the Sea conference. Former NSA TAO. Focus: macOS-native exploitation, installer abuse, privilege escalation. Repeatedly broken Zoom on macOS — March 2020 disclosed installer abuse of `AuthorizationExecuteWithPrivileges` (local attacker replaces `runwithroot` script during install/upgrade for root) and Zoom's exception entitlement enabling library injection; DEF CON 30 (Aug 2022) disclosed CVE-2022-28756, cryptographic-verification flaw in Zoom's auto-updater. Repeated pattern: installer and updater paths are LPE sources because nobody fuzzes them, and they run as root.
+Founder of Objective-See and Objective by the Sea conference. Former NSA. Focus: macOS-native exploitation, installer abuse, privilege escalation. Repeatedly broken Zoom on macOS — March 2020 disclosed installer abuse of `AuthorizationExecuteWithPrivileges` (local attacker replaces `runwithroot` script during install/upgrade for root) and Zoom's exception entitlement enabling library injection; DEF CON 30 (Aug 2022) disclosed CVE-2022-28756, cryptographic-verification flaw in Zoom's auto-updater. Repeated pattern: installer and updater paths are LPE sources because nobody fuzzes them, and they run as root.
 
 ### Bill Marczak (Citizen Lab)
 
@@ -25,23 +25,23 @@ Former CTO of Mozilla. Principal author of TLS 1.3 (RFC 8446); co-author of DTLS
 
 ### Justin Uberti (@juberti)
 
-Designed Google Hangouts Video (first high-quality browser video conferencing), then ported it to WebRTC and VP8 — the foundation of Google Meet. ~15 years at Google as Distinguished Engineer. Now leads Realtime AI at OpenAI. Public commentary on libwebrtc complexity (1.21M LOC at end-2018, ~3x Space Shuttle flight software) is the standard "this is too much attack surface" citation.
+Designed Google Hangouts Video (first high-quality browser video conferencing), then ported it to WebRTC and VP8 — the foundation of Google Meet. ~13 years at Google as Distinguished Engineer. Now leads Realtime AI at OpenAI. Public commentary on libwebrtc complexity is the standard "this is too much attack surface" citation.
 
 ### Philipp Hancke (@hcornflower, fippo)
 
-WebRTC practitioner researcher; at Meta on WebRTC at scale. Active contributor at [webrtcHacks.com](https://webrtchacks.com/) since 2012. Practitioner reference for production RTC engineering — TURN traffic distributions (2017 telemetry: ~16% of Chrome calls use TURN — 68% UDP, 29% TCP, 2.5% TLS), SFU architecture tradeoffs, regression-detection methodology, insertable-streams E2EE explainers.
+WebRTC practitioner researcher; at Meta on WebRTC at scale. Active contributor at [webrtcHacks.com](https://webrtchacks.com/); full-time on WebRTC since 2012. Practitioner reference for production RTC engineering — TURN traffic distributions, SFU architecture tradeoffs, regression-detection methodology, insertable-streams E2EE explainers.
 
 ### Sandro Gauci (Enable Security)
 
-Founder and CEO of Enable Security (Malta, 2008). Original developer of **SIPVicious** (canonical SIP security testing toolset; first release 2007). Maintains SIPVicious PRO, ESAP, DVRTC. Recurring themes: SIP enumeration at scale, RTP injection/hijacking, TURN abuse for tunnelling, DDoS against VoIP providers.
+Founder and CEO of Enable Security (2008). Original developer of **SIPVicious** (canonical SIP security testing toolset). Maintains SIPVicious PRO, ESAP, DVRTC. Recurring themes: SIP enumeration at scale, RTP injection/hijacking, TURN abuse for tunnelling, DDoS against VoIP providers.
 
 ### Ben Nassi (Tel Aviv University)
 
-Faculty at TAU School of Electrical and Computer Engineering; previously led AdMin at Ben-Gurion. Canonical researcher for optical and acoustic side-channels: **Lamphone** (Black Hat USA 2020, real-time passive sound recovery from a hanging light bulb at 25m); **The Little Seal Bug** (USENIX Security 2023, sound from lightweight reflective objects); **Video-Based Cryptanalysis** (2024, ECDSA keys from standard video of target device's power LED). Lineage matters because every video call is also continuous audio capture, every speaker a vibrating surface, every webcam stream contains the LEDs of every device in frame.
+Faculty at TAU School of Electrical and Computer Engineering; leads the AdMin research group. Canonical researcher for optical and acoustic side-channels: **Lamphone** (Black Hat USA 2020, real-time passive sound recovery from a hanging light bulb at 25m); **The Little Seal Bug** (WOOT 2023, sound from lightweight reflective objects); **Video-Based Cryptanalysis** (2024, ECDSA keys from standard video of target device's power LED). Lineage matters because every video call is also continuous audio capture, every speaker a vibrating surface, every webcam stream contains the LEDs of every device in frame.
 
 ### Citizen Lab Zoom Team
 
-Beyond Marczak, the April 2020 Zoom audit was conducted by Bahr Abdul Razzak (Senior Research Specialist), John Scott-Railton (Senior Researcher), and Ron Deibert (Director). Methodology — traffic capture, client binary analysis, Shodan server-fingerprinting, SEC-filing review — is the canonical "audit-an-RTC-vendor" recipe. Reports written for both technical and policy audiences, driving regulatory and procurement responses within weeks.
+Beyond Marczak, the April 2020 Zoom audit was co-authored by John Scott-Railton. Methodology — traffic capture, client binary analysis, Censys server-fingerprinting, SEC-filing review — is the canonical "audit-an-RTC-vendor" recipe. Reports written for both technical and policy audiences, driving regulatory and procurement responses within weeks.
 
 ---
 
@@ -62,7 +62,7 @@ A video-conferencing client is a microphone-and-camera control plane permanently
 
 ### Trust Boundaries: Signalling vs. Media
 
-WebRTC (RFC 8827, Rescorla) draws explicit boundaries. **Signalling**: server-mediated, app-defined. Carries SDP offers/answers, ICE candidates, call setup metadata. Server sees all metadata; can mount MITM by substituting SDP fingerprints; cannot decrypt media in flight. **Media**: peer-to-peer or via TURN, DTLS-SRTP-encrypted. Fingerprints in SDP. If both peers verify each other's DTLS fingerprint (signed identity assertion per RFC 8843/8827, or out-of-band), signalling cannot wiretap. In practice browsers don't surface fingerprints; IdP integration is rarely deployed. Signalling is trusted by default.
+WebRTC (RFC 8827, Rescorla) draws explicit boundaries. **Signalling**: server-mediated, app-defined. Carries SDP offers/answers, ICE candidates, call setup metadata. Server sees all metadata; can mount MITM by substituting SDP fingerprints; cannot decrypt media in flight. **Media**: peer-to-peer or via TURN, DTLS-SRTP-encrypted. Fingerprints in SDP. If both peers verify each other's DTLS fingerprint (signed identity assertion per RFC 8827, or out-of-band), signalling cannot wiretap. In practice browsers don't surface fingerprints; IdP integration is rarely deployed. Signalling is trusted by default.
 
 ### 0-Click vs. 1-Click vs. n-Click
 
@@ -80,29 +80,29 @@ WebRTC deliberately does not specify a signalling protocol. Applications choose:
 
 ### ICE (RFC 8445)
 
-Solves NAT traversal. Each endpoint collects candidates: host (local interfaces — LAN IP, VPN IP, IPv6 link-local); server-reflexive (public IP/port via STUN); relayed (TURN-server addresses). Peers exchange candidate lists via signalling, run connectivity checks (STUN binding requests across each pair) to find the highest-priority working path. RFC 8445 (July 2018) obsoletes RFC 5245. ICE checks carry an integrity tag (HMAC-SHA1 with session-shared ICE-CONTROLLED/ICE-CONTROLLING password) preventing off-path forgery. ICE has no privacy property: candidate exchange leaks all endpoint network addresses (including LAN IPs) to the signalling counterparty. Basis of the WebRTC IP-leak class (§X).
+Solves NAT traversal. Each endpoint collects candidates: host (local interfaces — LAN IP, VPN IP, IPv6 link-local); server-reflexive (public IP/port via STUN); relayed (TURN-server addresses). Peers exchange candidate lists via signalling, run connectivity checks (STUN binding requests across each pair) to find the highest-priority working path. RFC 8445 (July 2018) obsoletes RFC 5245. ICE checks carry an integrity tag (HMAC-SHA1 via the STUN short-term credential mechanism, keyed with the ICE password) preventing off-path forgery. ICE has no privacy property: candidate exchange leaks all endpoint network addresses (including LAN IPs) to the signalling counterparty. Basis of the WebRTC IP-leak class (§X).
 
 ### STUN (RFC 5389/8489) and TURN (RFC 5766/8656)
 
 **STUN**: small UDP packet to STUN server; server responds with source IP/port observed. 20-byte header, optional attributes, no encryption except in STUN-over-TLS/DTLS inside ICE. Primary concern: amplification — spoofed-source STUN used in DDoS reflection.
 
-**TURN**: fallback when ICE checks fail (symmetric NAT both ends, restrictive firewall). Allocates public IP/port both endpoints can reach. **Anonymous TURN must never be deployed** — open TURN is a free general-purpose internet relay abused for anonymized port scans, attacks on arbitrary destinations, C2 tunnelling. RFC 8656 mandates authentication via short-term credentials (~5-min lifetime). TURN sees plaintext IP/port endpoints but encrypted SRTP payload; cannot wiretap unless co-located with the SFU.
+**TURN**: fallback when ICE checks fail (symmetric NAT both ends, restrictive firewall). Allocates public IP/port both endpoints can reach. **Anonymous TURN must never be deployed** — open TURN is a free general-purpose internet relay abused for anonymized port scans, attacks on arbitrary destinations, C2 tunnelling. RFC 8656 requires TURN servers and clients to implement the STUN long-term credential mechanism. TURN sees plaintext IP/port endpoints but encrypted SRTP payload; cannot wiretap unless co-located with the SFU.
 
 ### SDP (RFC 4566/8866)
 
-Plaintext-textual session description used as offer/answer payload. Contains version, originator, connection address, timing, media descriptors (`m=`), per-media attributes (`a=`: codec parameters, fingerprints, ICE credentials, DTLS setup, RTP extensions). Attacker-controllable in 0-click scenarios. The `a=fingerprint` is the SHA-256 of the DTLS certificate presented during SRTP key exchange — substituting this is the MITM attack a signalling server could mount; verifying it (out-of-band or signed identity) is the defence.
+Plaintext-textual session description used as offer/answer payload. Contains version, originator, connection address, timing, media descriptors (`m=`), per-media attributes (`a=`: codec parameters, fingerprints, ICE credentials, DTLS setup, RTP extensions). Attacker-controllable in 0-click scenarios. The `a=fingerprint` is a hash (typically SHA-256) of the DTLS certificate presented during SRTP key exchange — substituting this is the MITM attack a signalling server could mount; verifying it (out-of-band or signed identity) is the defence.
 
 ### DTLS-SRTP (RFC 5764 + RFC 3711)
 
 The mechanism that takes WebRTC media from "P2P-encrypted in theory" to "P2P-encrypted in practice." **SRTP** (RFC 3711, 2004): authenticated-encryption of RTP payload. Default cipher in WebRTC is AES-GCM (RFC 7714) or AES-128 counter with HMAC-SHA1-80. Also encrypts SRTCP. **DTLS-SRTP** (RFC 5764, 2010, McGrew/Rescorla): DTLS handshake over the same UDP flow as the media, with a DTLS extension deriving SRTP master keys from DTLS keying material.
 
-Handshake follows ICE producing a connectivity-checked candidate pair. DTLS certificates are self-signed (no PKI); peers learn each other's fingerprint and verify against `a=fingerprint` in signalling. If signalling is honest, fingerprint match proves peer-to-peer completion. DTLS 1.3 (RFC 9147, March 2022) is modern; DTLS 1.2 remains widely deployed.
+Handshake follows ICE producing a connectivity-checked candidate pair. DTLS certificates are self-signed (no PKI); peers learn each other's fingerprint and verify against `a=fingerprint` in signalling. If signalling is honest, fingerprint match proves peer-to-peer completion. DTLS 1.3 (RFC 9147, April 2022) is modern; DTLS 1.2 remains widely deployed.
 
 ### RTP-over-QUIC and IdP Integration
 
 QUIC (RFC 9000) is replacing TCP+TLS in HTTP/3. RTP-over-QUIC is in active IETF work. Promises better head-of-line-blocking properties, built-in encryption, connection migration. Security implication: fresh new parser — expect 0-days in the first 24 months of adoption.
 
-**IdP integration** (RFC 8827 + RFC 8843): the rarely-deployed-but-critical feature binding an identity assertion (OAuth-style IdP token) to the DTLS fingerprint via SDP `a=identity`. If both peers verify, they prove the partner's identity even when signalling is malicious. Almost nobody deploys this — browsers don't ship built-in IdP integration; vendors won't build it because UX friction loses users. The standard's strongest privacy property is structurally unavailable to consumers.
+**IdP integration** (RFC 8827): the rarely-deployed-but-critical feature binding an identity assertion (OAuth-style IdP token) to the DTLS fingerprint via SDP `a=identity`. If both peers verify, they prove the partner's identity even when signalling is malicious. Almost nobody deploys this — browsers don't ship built-in IdP integration; vendors won't build it because UX friction loses users. The standard's strongest privacy property is structurally unavailable to consumers.
 
 ---
 
@@ -110,27 +110,27 @@ QUIC (RFC 9000) is replacing TCP+TLS in HTTP/3. RTP-over-QUIC is in active IETF 
 
 ### libwebrtc Is the Dominant Implementation
 
-Google's `libwebrtc` ships in Chrome, Edge, Opera, Brave, Vivaldi, and many native apps (Signal, Discord, Slack, Zoom, MS Teams in some paths, almost every Android/iOS RTC client). The de-facto attack surface for the entire ecosystem. ~1.21M LOC at end-2018, ~3x Space Shuttle flight software. Implements ICE, DTLS-SRTP, all codecs (embedded libvpx, libaom, libopus, libyuv), RTP packetisers/depacketisers, jitter buffers, echo cancellation, noise suppression, JS-exposed PeerConnection API. A bug lands in every browser and dozens of native apps. Patching cascades take months; native apps bundling a snapshot are often year+ behind.
+Google's `libwebrtc` ships in Chrome, Edge, Opera, Brave, Vivaldi, and many native apps (Signal, Discord, Slack, Zoom, MS Teams in some paths, almost every Android/iOS RTC client). The de-facto attack surface for the entire ecosystem. Implements ICE, DTLS-SRTP, all codecs (embedded libvpx, libaom, libopus, libyuv), RTP packetisers/depacketisers, jitter buffers, echo cancellation, noise suppression, JS-exposed PeerConnection API. A bug lands in every browser and dozens of native apps. Patching cascades take months; native apps bundling a snapshot are often year+ behind.
 
 ### Codec-Parser Bug Class
 
 **Every codec is a parser; every parser is a fuzz target** ([[reference-fuzzing-discipline]]).
 
-- **VP8/VP9 (libvpx)**: WebRTC's default video codecs. CVE-2023-5217 (Sept 2023, exploited in wild, Clément Lecigne/Google TAG): heap overflow in VP8 encoding path. CVE-2023-44488 (Oct 2023): VP9 width-mishandling crash.
+- **VP8/VP9 (libvpx)**: WebRTC's default video codecs. CVE-2023-5217 (Sept 2023, exploited in wild, Clément Lecigne/Google TAG): heap overflow in VP8 encoding path. CVE-2023-44488 (Sept 2023): VP9 width-mishandling crash.
 - **H.264 (OpenH264)**: Cisco's open-source decoder; smaller surface than VP9.
 - **AV1 (libaom)**: newer royalty-free codec; less mature, expect higher bug density per LOC.
 - **Opus**: audio codec; comparatively tight C, few CVEs.
 - **AAC**: enterprise paths and SIP/RTP gateways; long CVE history outside WebRTC scope.
 
-Codec-via-attachment surface in messaging apps follows the BLASTPASS image-parsing class in [[reference-browser-js-engine-exploitation]] §7. libwebp CVE-2023-4863 was exploited in the iOS BLASTPASS Pegasus chain (Citizen Lab); the same libwebp ships inside Chromium's WebRTC paths.
+Codec-via-attachment surface in messaging apps follows the BLASTPASS image-parsing class in [[reference-browser-js-engine-exploitation]] §7. The WebP flaw behind libwebp CVE-2023-4863 was first exploited as Apple CVE-2023-41064 in the iOS BLASTPASS Pegasus chain (Citizen Lab); the same libwebp ships inside Chromium's WebRTC paths.
 
 ### CVE-2023-7024 — Heap Overflow in WebRTC
 
-Disclosed Dec 20, 2023. Heap buffer overflow in the Chromium WebRTC component (CVSS 8.8), exploited in the wild — the eighth actively-exploited Chrome 0-day of 2023. Reported by Clément Lecigne and Vlad Stolyarov (Google TAG). Fixed in Chrome 120.0.6099.129. Affected every Chromium-based browser plus native apps using the Chromium-derived WebRTC tree. Full exploit chain not publicly disclosed; TAG reports a commercial spyware vendor used the 0-day. The modern shape: the WebRTC component is a Chrome 0-day farm because every browser carries it and the attack surface is enormous.
+Disclosed Dec 20, 2023. Heap buffer overflow in the Chromium WebRTC component (CVSS 8.8), exploited in the wild — the eighth actively-exploited Chrome 0-day of 2023. Reported by Clément Lecigne and Vlad Stolyarov (Google TAG). Fixed in Chrome 120.0.6099.129. Affected every Chromium-based browser plus native apps using the Chromium-derived WebRTC tree. Full exploit chain not publicly disclosed. The modern shape: the WebRTC component is a Chrome 0-day farm because every browser carries it and the attack surface is enormous.
 
 ### Other Recurring Bug Classes
 
-**libsrtp** (Cisco): smaller codebase but recurring parser bugs in SRTP header handling, RTP extension processing, rekeying (CVE-2017-7246, CVE-2017-7247, CVE-2020-25025, CVE-2022-24750 series). **DTLS handshake parsing**: pre-handshake messages carry attacker-controllable lengths, extensions, cookies; mostly hardened by 2024 but surface remains. **ICE candidate parsing**: SDP candidates are attacker-controlled text; length checks, integer parsing for port numbers, IPv6 parsing are recurring lower-impact (DoS, info-leak) bugs.
+**libsrtp** (Cisco): smaller codebase but recurring parser bugs in SRTP header handling, RTP extension processing, rekeying (e.g., CVE-2013-2139, CVE-2015-6360). **DTLS handshake parsing**: pre-handshake messages carry attacker-controllable lengths, extensions, cookies; mostly hardened by 2024 but surface remains. **ICE candidate parsing**: SDP candidates are attacker-controlled text; length checks, integer parsing for port numbers, IPv6 parsing are recurring lower-impact (DoS, info-leak) bugs.
 
 For variant analysis: CVE-2023-5217, CVE-2023-44488, CVE-2023-7024, CVE-2023-4863, the Project Zero "Adventures in Video Conferencing" Part 1-3 CVE set, "State of State Machines" CVE set, Citizen Lab Pegasus chain analyses.
 
@@ -140,7 +140,7 @@ For variant analysis: CVE-2023-5217, CVE-2023-44488, CVE-2023-7024, CVE-2023-486
 
 ### FaceTime "Family Bug" (CVE-2019-6223, January 2019)
 
-The canonical 0-click eavesdropping bug. Discovered by Grant Thompson, age 14, in Tucson while setting up a group FaceTime call. Adding your own phone number to a Group FaceTime call as a third participant caused FaceTime's state machine to treat the call as accepted, activating the recipient's microphone before they answered. Pressing the lock button additionally activated the front-facing camera. Apple disabled Group FaceTime server-side Jan 28, 2019; patched in iOS 12.1.4 nine days later. Bug existed ~3 months before disclosure. Structural lesson: signalling-state-machine bugs are eavesdropping bugs even without RCE — the canonical example Silvanovich generalised in "The State of State Machines."
+The canonical 0-click eavesdropping bug. Discovered by Grant Thompson, age 14, in Tucson while setting up a group FaceTime call. Adding your own phone number to a Group FaceTime call as a third participant caused FaceTime's state machine to treat the call as accepted, activating the recipient's microphone before they answered. Pressing the lock button additionally activated the front-facing camera. Apple disabled Group FaceTime server-side Jan 28, 2019; patched in iOS 12.1.4 on Feb 7, 2019. Bug existed ~3 months before disclosure. Structural lesson: signalling-state-machine bugs are eavesdropping bugs even without RCE — the canonical example Silvanovich generalised in "The State of State Machines."
 
 ### WhatsApp / NSO Pegasus Chain (CVE-2019-3568, May 2019)
 
@@ -154,7 +154,7 @@ Three findings within ten days during the COVID-19 Zoom surge:
 2. **Beijing key-routing**: encryption keys for North American test calls transmitted from servers in Beijing; SEC filings disclosed 700+ employees at Chinese subsidiaries.
 3. **Waiting room key leak**: encryption keys and live video feeds available to all waiting-room users before host approval.
 
-Zoom CEO publicly apologised April 3. The company paused feature work 90 days, hired Alex Stamos as consultant, delivered AES-256 GCM in May 2020 and true E2EE in October 2020.
+Zoom CEO publicly apologised April 1. The company paused feature work 90 days, hired Alex Stamos as consultant, delivered AES-256 GCM in May 2020 and true E2EE in October 2020.
 
 ### Zoom Installer LPE and Updater Bypass
 
@@ -162,11 +162,11 @@ Wardle, March 2020: deprecated `AuthorizationExecuteWithPrivileges` allowed a lo
 
 ### Zoom XMPP — Silvanovich (January 2022)
 
-Project Zero's audit found two server-side vulnerabilities: buffer overflow in the MMR (Multimedia Router) handling client and server-side XMPP parsing, and an information leak useful against MMR. Notable methodology: when RTP-payload modification failed (Zoom server filters traffic; RTP headers are unencrypted allowing the filter to detect tampering), Silvanovich pivoted to fuzzing the MMR's RTP-parsing code via `LD_PRELOAD` because the binary was not compiled relocatable.
+Project Zero's audit found two vulnerabilities: a buffer overflow (CVE-2021-34423) affecting both Zoom clients and the MMR (Multimedia Router), and an information leak (CVE-2021-34424) useful against MMR servers. Notable methodology: when RTP-payload modification failed (Zoom server filters traffic; RTP headers are unencrypted allowing the filter to detect tampering), Silvanovich pivoted to fuzzing the MMR's RTP-parsing code via `LD_PRELOAD` because the binary was not compiled relocatable.
 
 ### Microsoft Teams WebView2 / Electron Escape
 
-Old Teams ran on Electron with several webview-escape vulnerabilities. The 2022 `ms-teams-rce` chain (Oskar Sve) bypassed webview filtering to load arbitrary preload scripts, gaining nodeJS context. Performed by guest users silently; yielded SSO authorisation tokens for Teams, Skype, Outlook, Office365. Teams 2.0 (June 2023) migrated to Edge WebView2; evergreen-Chromium delivery reduces patch lag for Chromium 0-days but adds new attack surface in WebView2 IPC and host-side .NET interop.
+Old Teams ran on Electron with several webview-escape vulnerabilities. The 2020 `ms-teams-rce` chain (Oskars Vegeris) bypassed webview filtering to load arbitrary preload scripts, gaining nodeJS context. Performed by guest users silently; yielded SSO authorisation tokens for Teams, Skype, Outlook, Office365. Teams 2.0 (GA October 2023) migrated to Edge WebView2; evergreen-Chromium delivery reduces patch lag for Chromium 0-days but adds new attack surface in WebView2 IPC and host-side .NET interop.
 
 ### Slack Huddles and Discord
 
@@ -176,7 +176,7 @@ Discord voice channels use a custom WebRTC-derived stack. Major surface is not v
 
 ### Cross-Platform Pattern: Camera Activation Without Notification
 
-Recurring: state-machine bugs where camera/mic activate without the indicator-light state matching. FaceTime (2019): activate before pickup. Zoom (March 2020, Wardle): library injection in trusted process. WhatsApp 2019 Pegasus: post-exploitation, attackers disable indicators via kernel privilege. Defence: trust the hardware LED only. Apple's Mac green/orange LED is wired to the camera/mic power line and cannot be circumvented in software. Indicator-light-as-software is consistently bypassable.
+Recurring: state-machine bugs where camera/mic activate without the indicator-light state matching. FaceTime (2019): activate before pickup. Zoom (March 2020, Wardle): library injection in trusted process. WhatsApp 2019 Pegasus: post-exploitation, attackers disable indicators via kernel privilege. Defence: trust the hardware LED only. Apple designs the Mac camera indicator so untrusted software, even with kernel privileges, cannot engage the camera without lighting it. Indicator-light-as-software is consistently bypassable.
 
 ---
 
@@ -190,7 +190,7 @@ Historical CVE corpus across Asterisk, FreeSWITCH, Kamailio, OpenSIPS reveals re
 
 ### Toll Fraud and IRSF Economics
 
-Shodan-discoverable Asterisk and FreeSWITCH installations are abundant. 2024 NCC Group audit reported 32% YoY rise in VoIP-specific breaches. CFCA 2023 telecom fraud-loss estimate: $38.95 billion. Most common chain: Shodan/masscan finds exposed `5060/udp`; SIPVicious enumerates extensions; weak/default passwords cracked (extension number used as password is canonical); attacker registers as that extension; calls go to premium-rate international destinations the attacker controls via revenue-share. Victim's PBX is billed.
+Shodan-discoverable Asterisk and FreeSWITCH installations are abundant. CFCA 2023 telecom fraud-loss estimate: $38.95 billion. Most common chain: Shodan/masscan finds exposed `5060/udp`; SIPVicious enumerates extensions; weak/default passwords cracked (extension number used as password is canonical); attacker registers as that extension; calls go to premium-rate international destinations the attacker controls via revenue-share. Victim's PBX is billed.
 
 **IRSF** (International Revenue Share Fraud) is the canonical model. Attacker acquires/partners with a "high-tariff" destination (Caribbean with high termination fees, fake premium-rate ranges in Africa), routes calls through victim's PBX, splits revenue. Attack window is typically a weekend. A single compromised Asterisk can rack up $10K-$100K in fraudulent charges before carriers flag patterns.
 
@@ -212,11 +212,11 @@ A handful of services produce convincing voice clones from seconds of source aud
 
 ### The Arup $25M Deepfake Call (February 2024)
 
-A finance employee at multinational engineering firm Arup, Hong Kong office, was deceived into transferring HK$200M (~US$25.6M) across 15 transactions to five bank accounts. Employee received an initial phishing email purporting to be from the UK CFO, was suspicious, and requested a video call to verify. The video call was held with "several members of staff" — all deepfake recreations built from publicly-available video and audio of the real executives. Satisfied by the visual and audio impersonation, the employee executed the wires. Fraud detected ~1 week later when the employee contacted UK HQ for routine confirmation. Hong Kong police attribution: perpetrators built deepfakes from existing video and audio of online conferences. Sources: [CNN](https://www.cnn.com/2024/02/04/asia/deepfake-cfo-scam-hong-kong-intl-hnk), [Trend Micro](https://www.trendmicro.com/en_us/research/24/b/deepfake-video-calls.html). First publicly-documented multi-channel BEC plus video-deepfake fraud at this scale. Lesson: "verify on a video call" is no longer sufficient.
+A finance employee at multinational engineering firm Arup, Hong Kong office, was deceived into transferring HK$200M (~US$25.6M) across 15 transactions to five bank accounts. Employee received an initial phishing email purporting to be from the UK CFO, was suspicious, and requested a video call to verify. The video call was held with "several members of staff" — all deepfake recreations built from publicly-available video and audio of the real executives. Satisfied by the visual and audio impersonation, the employee executed the wires. Fraud detected when the employee contacted UK HQ. Hong Kong police attribution: perpetrators built deepfakes from existing video and audio of online conferences. Sources: [CNN](https://www.cnn.com/2024/02/04/asia/deepfake-cfo-scam-hong-kong-intl-hnk), [Trend Micro](https://www.trendmicro.com/en_us/research/24/b/deepfake-video-calls.html). First publicly-documented multi-channel BEC plus video-deepfake fraud at this scale. Lesson: "verify on a video call" is no longer sufficient.
 
 ### Vishing 2.0 and Voice-Biometric Bypass
 
-Canonical 2025-2026 patterns: **CEO call to AP/AR clerk** (voice clone + urgency + LinkedIn-derived context); **grandparent scam 2.0** ("I'm in jail/hospital, send bail money," clones built from public TikTok/Instagram); **romance-fraud verification** ("voice/video to prove I'm real"); **customer-support recovery** (impersonate customer to bypass voice-biometric). Q1 2025 deepfake-enabled fraud losses: $200M+ globally (Group-IB). A UK energy firm lost €220,000 in early 2024 to a single synthetic-voice CEO call.
+Canonical 2025-2026 patterns: **CEO call to AP/AR clerk** (voice clone + urgency + LinkedIn-derived context); **grandparent scam 2.0** ("I'm in jail/hospital, send bail money," clones built from public TikTok/Instagram); **romance-fraud verification** ("voice/video to prove I'm real"); **customer-support recovery** (impersonate customer to bypass voice-biometric). Q1 2025 deepfake-enabled fraud losses: $200M+ globally (Resemble AI). A UK energy firm lost €220,000 in 2019 to a single synthetic-voice CEO call.
 
 Banks, brokerages, government services deploy voice biometrics as recognition factor. Default systems were designed against human-mimic, not neural cloning; synthetic voice from ElevenLabs and equivalents consistently bypasses (Group-IB 2024-2025). Defence: replace static voice-biometric with multi-factor — device-binding, behavioural patterns, live-challenge-response — or eliminate voice-biometric entirely. The static-voice-as-password model is broken. Cross-link: [[reference-anti-fraud-abuse-engineering]] §9.
 
@@ -230,7 +230,7 @@ Apple's Personal Voice (announced May 2023, shipped iOS 17) lets users record 15
 
 ### Optical and Acoustic Recovery (Nassi Lineage)
 
-**Visual Microphone** (Davis et al., MIT 2014; lineage's origin): recovers audio from minute vibrations of objects in a high-speed video camera frame — a potato-chip bag filmed through a closed window yields room audio. **Lamphone** (Nassi, Black Hat USA 2020): real-time passive optical sound recovery from a hanging light bulb at up to 25m via telescope + $400 electro-optical sensor. **The Little Seal Bug** (USENIX Security 2023): audio from lightweight reflective objects. **Power-LED cryptanalysis** (Nassi, USENIX Security 2024): standard video of target device's power LED at distance recovers ECDSA keys via subtle voltage-driven brightness fluctuations during crypto operations. **Reflections** in participant glasses or windows are well-known for extracting documents during video calls.
+**Visual Microphone** (Davis et al., MIT 2014; lineage's origin): recovers audio from minute vibrations of objects in a high-speed video camera frame — a potato-chip bag filmed through a closed window yields room audio. **Lamphone** (Nassi, Black Hat USA 2020): real-time passive optical sound recovery from a hanging light bulb at up to 25m via telescope + electro-optical sensor. **The Little Seal Bug** (WOOT 2023): audio from lightweight reflective objects. **Power-LED cryptanalysis** (Nassi, IEEE S&P 2024): standard video of target device's power LED at distance recovers ECDSA keys via subtle voltage-driven brightness fluctuations during crypto operations. **Reflections** in participant glasses or windows are well-known for extracting documents during video calls.
 
 ### Audio-Frequency Side-Channels
 
@@ -248,7 +248,7 @@ Emerging research: **compression-artifact leakage** (codecs compress aggressivel
 
 Traditional telecom (PSTN, SIP trunk) is mandated to provide LI in most jurisdictions: US **CALEA** (1994) requires telcos to maintain a LI interface — SIP-trunk carriers comply via SIPREC (RFC 7245/7866) or proprietary mediation appliances. EU **ETSI LI** standards, per-country implementation. Consumer video conferencing (Zoom, Teams, Meet, WebEx) implements LI as server-side decryption-on-demand. The structural reason "end-to-end encrypted" claims need careful parsing: the platform may have an E2EE "mode" but the default is server-decryptable to enable LI.
 
-If TURN-relay is the path (16% of WebRTC calls per Hancke 2017 telemetry), the TURN operator sees encrypted media stream pass through. Cannot decrypt SRTP (keys negotiated peer-to-peer) but learns IP addresses, timing, bitrate patterns. If the operator also runs signalling, they can substitute SDP fingerprints during offer/answer and mount transparent MITM — unless peers verify out-of-band. A TURN server in hostile jurisdiction is structural wiretap of every call routed through it.
+If TURN-relay is the path, the TURN operator sees encrypted media stream pass through. Cannot decrypt SRTP (keys negotiated peer-to-peer) but learns IP addresses, timing, bitrate patterns. If the operator also runs signalling, they can substitute SDP fingerprints during offer/answer and mount transparent MITM — unless peers verify out-of-band. A TURN server in hostile jurisdiction is structural wiretap of every call routed through it.
 
 ### E2EE Claims vs. Reality
 
@@ -261,11 +261,11 @@ Cross-platform comparison (2026):
 | FaceTime | Yes | n/a | Metadata |
 | iMessage audio | Yes | n/a | Metadata; iCloud backup if enabled |
 | Zoom meetings | No | Yes (paid+free with restrictions) | Audio/video/transcripts unless E2EE on |
-| Microsoft Teams 1:1 | No | Yes (1:1 only) | All call content unless E2EE |
+| Microsoft Teams 1:1 | No | Yes (1:1 calls; meetings with Teams Premium) | All call content unless E2EE |
 | Google Meet | No | Yes (client-side encryption requires customer KMS) | All call content |
 | Slack Huddles | No | No | All Huddle content |
-| Discord voice | No | No | All voice content |
-| Matrix (Element) | Yes (MLS / Megolm) | n/a | Metadata; depends on home-server trust |
+| Discord voice | Yes (DAVE; not Stage channels) | n/a | Metadata |
+| Matrix (Element) | Yes (Olm / Megolm) | n/a | Metadata; depends on home-server trust |
 
 Structural pattern: E2EE on-by-default in messengers built around 1:1 (Signal, WhatsApp, iMessage, FaceTime). E2EE opt-in or unavailable in collaboration/conferencing products. Business reason: E2EE breaks features customers value — recording, transcription, AI summarisation, PSTN dial-in, server-side virtual backgrounds, real-time captioning.
 
@@ -289,7 +289,7 @@ Camera and mic access is permission-gated; Chrome and Firefox prompt on first ac
 
 ### WebRTC IP-Leak Class
 
-The canonical privacy bug: a malicious or compromised website creates a WebRTC PeerConnection (no user consent for connection setup, only for getUserMedia), runs ICE candidate-gathering, and reads local-IP and public-IP candidates from JS-visible PeerConnection state. Bypasses VPNs in the common configuration: VPN clients route layer-3 via tunnel, but the browser's WebRTC stack uses `getsockname()`-style OS APIs to enumerate local interfaces. Both VPN-tunnel IP and underlying physical-interface IP leak. ~23% of VPN users affected as of 2025 (Surfshark telemetry). Defence: browser-level WebRTC-disable (Firefox `media.peerconnection.enabled = false`, uBlock Origin toggle, Brave built-in), or VPN clients blocking local-network access at the OS firewall layer.
+The canonical privacy bug: a malicious or compromised website creates a WebRTC PeerConnection (no user consent for connection setup, only for getUserMedia), runs ICE candidate-gathering, and reads local-IP and public-IP candidates from JS-visible PeerConnection state. Bypasses VPNs in the common configuration: VPN clients route layer-3 via tunnel, but the browser's WebRTC stack uses `getsockname()`-style OS APIs to enumerate local interfaces. Both VPN-tunnel IP and underlying physical-interface IP leak. In a VoidSec (Paolo Stagno) test, 16 of 70 VPN providers (23%) leaked users' IPs via WebRTC. Defence: browser-level WebRTC-disable (Firefox `media.peerconnection.enabled = false`, uBlock Origin toggle, Brave built-in), or VPN clients blocking local-network access at the OS firewall layer.
 
 ### Browser Fingerprinting via WebRTC
 
@@ -310,11 +310,11 @@ SFUs do not need to decrypt media in SRTP if the application supports E2EE via I
 
 The application generates a per-meeting (or per-sender) symmetric key out-of-band. Sender's WebRTC encoder produces a video frame; before it is handed to SRTP, the application uses [Insertable Streams](https://www.w3.org/TR/webrtc-encoded-transform/) to apply an additional encryption layer using SFrame (RFC 9605, August 2024). Double-encrypted frame goes via SRTP to SFU. SFU decrypts the SRTP wrapper but sees only SFrame ciphertext inside, forwards re-wrapped in fresh SRTP. Receiver decrypts SRTP then SFrame.
 
-True E2EE: SFU only ever sees SFrame ciphertext for frame contents. Can read SFrame headers (frame number, sender ID) for forwarding decisions but not frame content. [RFC 9605](https://datatracker.ietf.org/doc/rfc9605/) is payload-agnostic. Jitsi's E2EE implements a variant called JFrame using AES-128-GCM via WebCrypto and PBKDF2 from a meeting passphrase.
+True E2EE: SFU only ever sees SFrame ciphertext for frame contents. Can read SFrame headers (frame number, sender ID) for forwarding decisions but not frame content. [RFC 9605](https://datatracker.ietf.org/doc/rfc9605/) is payload-agnostic. Jitsi's E2EE implements a variant called JFrame using AES-128-GCM, with randomly generated per-participant keys distributed over Olm.
 
 ### SFrame Limitations and MLS
 
-Published analysis (Bhargavan et al., IACR 2021/424) identifies the gap: SFrame does not provide per-sender authentication. Any sender can send media attributed to any other sender — symmetric encryption means any receiver also has the key to encrypt-as-sender. For E2EE multi-party with per-sender authentication, **MLS** (RFC 9420) is required — significantly more complex, with full asynchronous group-key-agreement and post-compromise security. Approved by IETF March 2023; provides forward secrecy, post-compromise security, async group key agreement scaling to thousands, TreeKEM tree giving O(log n) per group operation. Apple announced March 2025 it will support MLS in Apple Messages over RCS. Cross-link: [[reference-cryptography]].
+Published analysis (Isobe, Ito and Minematsu, IACR 2021/424) identifies the gap: SFrame does not provide per-sender authentication. Any sender can send media attributed to any other sender — symmetric encryption means any receiver also has the key to encrypt-as-sender. For E2EE multi-party with per-sender authentication, **MLS** (RFC 9420) is required — significantly more complex, with full asynchronous group-key-agreement and post-compromise security. Approved by IETF March 2023; provides forward secrecy, post-compromise security, async group key agreement scaling to thousands, TreeKEM tree giving O(log n) per group operation. Apple announced March 2025 it will support MLS in Apple Messages over RCS. Cross-link: [[reference-cryptography]].
 
 ### Key Rotation, Recording, Self-Hosted SFU
 
@@ -330,7 +330,7 @@ Self-hosting (Jitsi Videobridge, mediasoup, Janus, BigBlueButton, LiveKit) lets 
 
 ### Unusual Call Patterns (CDR-driven)
 
-For orgs running their own PBX or SIP-trunk systems: **destination country/area-code anomaly** (typical office calls go to a stable set; sudden volume to premium-rate destinations `+881`, `+882`, specific Caribbean codes, `+225`, `+216`, `+211` is the toll-fraud signal); **off-hours outbound volume**; **per-extension volume spike** (10x normal is compromised or misconfigured auto-dialer); **repeated REGISTER attempts** (sequential extension registration is brute-force). Easy to capture from CDR logs — tools: `sec` (Simple Event Correlator), `fail2ban` with SIP regex rules, commercial products (SecAst, Sonus/Ribbon analytics, NetSentry).
+For orgs running their own PBX or SIP-trunk systems: **destination country/area-code anomaly** (typical office calls go to a stable set; sudden volume to premium-rate destinations `+881`, `+882`, specific Caribbean codes, `+225`, `+216`, `+211` is the toll-fraud signal); **off-hours outbound volume**; **per-extension volume spike** (10x normal is compromised or misconfigured auto-dialer); **repeated REGISTER attempts** (sequential extension registration is brute-force). Easy to capture from CDR logs — tools: `sec` (Simple Event Correlator), `fail2ban` with SIP regex rules, commercial products (SecAst, Sonus/Ribbon analytics).
 
 CDRs are the canonical fraud-detection source — calling number, called number (E.164), start/end time, duration, routing path, disposition, per-call cost. A well-instrumented CDR pipeline produces toll-fraud alerts within minutes; many orgs only review CDRs after the carrier bill arrives — by which time fraud has been live for a month.
 
@@ -340,11 +340,11 @@ Alert-worthy: REGISTER with `User-Agent` matching scanner tools (`friendly-scann
 
 ### TURN Traffic Anomaly
 
-Open TURN abuse signals: traffic to destinations outside expected geographic footprint; bytes-relayed per tuple far exceeding voice/video profiles; long-lived allocations with low packet rate (looks like C2 tunnelling); allocations from clients that never establish a peer connection. Defence-in-depth: short-lifetime TURN credentials (5-min), bound to specific call ID, scoped to specific destination. Coturn's `lt-cred-mech` provides this; many deployments use long-lived static credentials which makes abuse trivial.
+Open TURN abuse signals: traffic to destinations outside expected geographic footprint; bytes-relayed per tuple far exceeding voice/video profiles; long-lived allocations with low packet rate (looks like C2 tunnelling); allocations from clients that never establish a peer connection. Defence-in-depth: short-lifetime TURN credentials (5-min), bound to specific call ID, scoped to specific destination. Coturn's TURN REST API (`use-auth-secret` / `static-auth-secret`) provides time-limited credentials; many deployments use long-lived static credentials which makes abuse trivial.
 
 ### AI Voice Detection
 
-Synthetic-voice classifiers attempt to distinguish AI-generated audio from human speech. Open research: ASVspoof Challenge (biennial since 2015). Commercial tools: Adobe Voice Identifier, Pindrop Deep Voice, ElevenLabs AI Speech Classifier. Cat-and-mouse: every new synthesis model defeats the previous detector. As of 2026, detection accuracy for SOTA clones is modest (FP and FN both 5-15%). Detection is part of the answer but cannot be the whole answer. Cross-link: [[reference-detection-engineering]] §3, [[reference-anti-fraud-abuse-engineering]] §9.
+Synthetic-voice classifiers attempt to distinguish AI-generated audio from human speech. Open research: ASVspoof Challenge (biennial since 2015). Commercial tools: Pindrop Deep Voice, ElevenLabs AI Speech Classifier. Cat-and-mouse: every new synthesis model defeats the previous detector. As of 2026, detection accuracy for SOTA clones is modest. Detection is part of the answer but cannot be the whole answer. Cross-link: [[reference-detection-engineering]] §3, [[reference-anti-fraud-abuse-engineering]] §9.
 
 ---
 
@@ -356,7 +356,7 @@ Default to E2EE where the product allows. 1:1: Signal Protocol or equivalent. Mu
 
 ### Display Verifiable Identity
 
-The IdP-integration in RFC 8827/8843 is the strongest model but rarely deployed. For enterprise, an internal IdP (Okta, Azure AD, Google Identity) could issue per-call identity assertions bound to DTLS fingerprints. Pragmatic alternative: display the caller's verified email or display-name from the signed JWT used for meeting access, alongside a "verified by your IdP" badge.
+The IdP-integration in RFC 8827 is the strongest model but rarely deployed. For enterprise, an internal IdP (Okta, Azure AD, Google Identity) could issue per-call identity assertions bound to DTLS fingerprints. Pragmatic alternative: display the caller's verified email or display-name from the signed JWT used for meeting access, alongside a "verified by your IdP" badge.
 
 ### Disable WebRTC IP-Leakage in Privacy-Sensitive Contexts
 
@@ -372,7 +372,7 @@ libwebrtc, libvpx, libwebp, libavif, libaom, libopus, OpenH264 need tracking and
 
 ### Lawful-Intercept Transparency
 
-If your product supports lawful intercept (or your jurisdiction mandates it), disclose it. The transparency-report model (Apple, Google, Microsoft publish annual LI reports) is the consumer-facing standard.
+If your product supports lawful intercept (or your jurisdiction mandates it), disclose it. The transparency-report model (Apple, Google, Microsoft publish LI reports) is the consumer-facing standard.
 
 ### Anti-Voice-Cloning for High-Value Voice Authentication
 
@@ -380,7 +380,7 @@ For any system where a phone or video call authorises a financial transaction, i
 
 ### Recording-Consent and Retention
 
-Explicit consent before recording starts (many jurisdictions — California, EU, parts of Canada — require all-party consent); persistent prominent UI indicator; short default retention (30-90 days); long-term retention requires explicit policy classification; access logging. Treat recordings as sensitive documents. Cross-link: [[reference-privacy-engineering]].
+Explicit consent before recording starts (many jurisdictions — California, EU — require all-party consent); persistent prominent UI indicator; short default retention (30-90 days); long-term retention requires explicit policy classification; access logging. Treat recordings as sensitive documents. Cross-link: [[reference-privacy-engineering]].
 
 ### Code Review Checklist
 
@@ -427,7 +427,7 @@ Universal Link / App Link / deep-link hijacking on mobile can redirect a `tel:` 
 
 ### IETF RFCs
 
-[RFC 3261 SIP](https://datatracker.ietf.org/doc/html/rfc3261), [RFC 3711 SRTP](https://datatracker.ietf.org/doc/html/rfc3711), [RFC 4566/8866 SDP](https://datatracker.ietf.org/doc/html/rfc8866), [RFC 5389/8489 STUN](https://datatracker.ietf.org/doc/html/rfc8489), [RFC 5764 DTLS-SRTP](https://datatracker.ietf.org/doc/html/rfc5764), [RFC 5766/8656 TURN](https://datatracker.ietf.org/doc/html/rfc8656), [RFC 7714 AES-GCM for SRTP](https://datatracker.ietf.org/doc/html/rfc7714), [RFC 8445 ICE](https://datatracker.ietf.org/doc/html/rfc8445), [RFC 8827 WebRTC Security Architecture](https://datatracker.ietf.org/doc/html/rfc8827), [RFC 8843 Trickle ICE](https://datatracker.ietf.org/doc/html/rfc8843), [RFC 9000 QUIC](https://datatracker.ietf.org/doc/html/rfc9000), [RFC 9147 DTLS 1.3](https://datatracker.ietf.org/doc/html/rfc9147), [RFC 9420 MLS](https://datatracker.ietf.org/doc/html/rfc9420), [RFC 9605 SFrame](https://datatracker.ietf.org/doc/rfc9605/), [RFC 9725 WHIP](https://datatracker.ietf.org/doc/rfc9725/).
+[RFC 3261 SIP](https://datatracker.ietf.org/doc/html/rfc3261), [RFC 3711 SRTP](https://datatracker.ietf.org/doc/html/rfc3711), [RFC 4566/8866 SDP](https://datatracker.ietf.org/doc/html/rfc8866), [RFC 5389/8489 STUN](https://datatracker.ietf.org/doc/html/rfc8489), [RFC 5764 DTLS-SRTP](https://datatracker.ietf.org/doc/html/rfc5764), [RFC 5766/8656 TURN](https://datatracker.ietf.org/doc/html/rfc8656), [RFC 7714 AES-GCM for SRTP](https://datatracker.ietf.org/doc/html/rfc7714), [RFC 8445 ICE](https://datatracker.ietf.org/doc/html/rfc8445), [RFC 8827 WebRTC Security Architecture](https://datatracker.ietf.org/doc/html/rfc8827), [RFC 8838 Trickle ICE](https://datatracker.ietf.org/doc/html/rfc8838), [RFC 9000 QUIC](https://datatracker.ietf.org/doc/html/rfc9000), [RFC 9147 DTLS 1.3](https://datatracker.ietf.org/doc/html/rfc9147), [RFC 9420 MLS](https://datatracker.ietf.org/doc/html/rfc9420), [RFC 9605 SFrame](https://datatracker.ietf.org/doc/rfc9605/), [RFC 9725 WHIP](https://datatracker.ietf.org/doc/rfc9725/).
 
 ### W3C Specifications
 

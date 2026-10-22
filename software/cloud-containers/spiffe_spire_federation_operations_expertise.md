@@ -26,7 +26,7 @@ Three load-bearing claims up front:
 
 **SPIFFE** (Secure Production Identity Framework for Everyone) is a CNCF graduated standard that specifies the workload identity format and the Workload API. SPIFFE itself is paper specs — formats, protocols, semantics — and ships nothing runnable.
 
-**SPIRE** (SPIFFE Runtime Environment) is the CNCF graduated reference implementation. SPIRE shipped under the stewardship of **Diogo Mónica** (founding contributor, ex-Docker security lead, then Square/Block), **Evan Gilman** (SPIFFE/SPIRE co-author of *Zero Trust Networks* with Doug Barth), and **Doug Beal** (Solo.io, SPIRE early contributor). **Andrew Harding** is a long-tenured SPIRE maintainer `[unverified specific role tenure]`. **Andres Vega** has been associated with the SPIFFE/CNCF TOC `[unverified specific role]`. Production users referenced in SPIFFE docs include **Bloomberg**, **Stripe**, **ByteDance**, **Pinterest**, and **Anthem** `[unverified specific deployment scale]`.
+**SPIRE** (SPIFFE Runtime Environment) is the CNCF graduated reference implementation. SPIRE maintainers include **Evan Gilman** (co-author of *Zero Trust Networks* with Doug Barth). **Andrew Harding** is a long-tenured SPIRE maintainer `[unverified specific role tenure]`. Production users referenced in SPIFFE docs include **Bloomberg**, **ByteDance**, **Pinterest**, and **Anthem** `[unverified specific deployment scale]`.
 
 **Trust domain:** a top-level identity namespace, written as a DNS-like name (`example.com`, `prod.acme.org`). All SPIFFE IDs in a trust domain share a root certificate authority. The trust domain is the unit of federation — you federate a domain, not individual workloads.
 
@@ -38,9 +38,9 @@ Three load-bearing claims up front:
 - **X.509-SVID:** a short-lived X.509 certificate + private key. Used for mTLS. Default TTL is on the order of an hour; rotated continuously by the SPIRE Agent.
 - **JWT-SVID:** a signed JWT with a SPIFFE ID as the `sub` claim and one or more audiences in the `aud` claim. Used for non-mTLS scenarios (REST APIs, message brokers, JWT-aware service meshes).
 
-**Node attestation** (SPIRE Server validating a SPIRE Agent): cloud-provider attestors include `aws_iid` (AWS Instance Identity Document), `gcp_iit` (GCP Instance Identity Token), `azure_msi` (Azure Managed Service Identity); Kubernetes attestors include `k8s_psat` (Kubernetes Projected Service Account Token, the modern replacement for the deprecated `k8s_sat`); hardware attestors include `tpm_devid` (TPM 2.0 device identity); the bootstrap attestor `join_token` issues a one-time token for manual Agent registration.
+**Node attestation** (SPIRE Server validating a SPIRE Agent): cloud-provider attestors include `aws_iid` (AWS Instance Identity Document), `gcp_iit` (GCP Instance Identity Token), `azure_msi` (Azure Managed Service Identity); Kubernetes attestors include `k8s_psat` (Kubernetes Projected Service Account Token, the replacement for `k8s_sat`, deprecated in SPIRE 1.9.0 and removed in 1.12.0); hardware attestors include `tpm_devid` (TPM 2.0 device identity); the bootstrap attestor `join_token` issues a one-time token for manual Agent registration.
 
-**Workload attestation** (SPIRE Agent validating a workload on the node): `k8s` (validates pods via service-account-projected-token plus pod spec), `docker` (container metadata, image hash, labels), `unix` (UID, GID, binary path, binary hash, cgroup path), `windows`, `systemd`.
+**Workload attestation** (SPIRE Agent validating a workload on the node): `k8s` (identifies the pod from the workload's cgroup membership, then queries the kubelet for pod information), `docker` (container metadata, image hash, labels), `unix` (UID, GID, binary path, binary hash), `windows`, `systemd`.
 
 For the framing-level introduction including the Workload API specification, see `[[reference-zero-trust-workload-identity]]` §4.
 
@@ -65,9 +65,9 @@ Critically: bundles change over time as CAs rotate. Federation is not "exchange 
 
 ## 4. SPIFFE Trust Domain Federation protocol
 
-The SPIFFE Federation specification (standardized roughly 2020 `[unverified specific date]`) defines the bundle-exchange protocol. The core mechanic:
+The SPIFFE Federation specification defines the bundle-exchange protocol. The core mechanic:
 
-- Each trust domain exposes an HTTPS **bundle endpoint**. The default URL convention is `https://<spire-server>/bundle/<trust-domain>` `[unverified exact path convention; SPIRE defaults vary by version]`.
+- Each trust domain exposes an HTTPS **bundle endpoint**. The spec does not constrain the URL path.
 - Consumers fetch the bundle on a refresh schedule.
 - The bundle is a JSON document (SPIFFE-defined format) containing the trust domain's CA roots + JWT-signing public keys + refresh hint.
 
@@ -75,13 +75,13 @@ The SPIFFE Federation specification (standardized roughly 2020 `[unverified spec
 
 1. **`https_web`:** authenticate the bundle endpoint via Web PKI. The bundle endpoint presents a Web-PKI cert (Let's Encrypt, DigiCert, etc.); the consumer validates it against the standard CA bundle. This solves the bootstrap problem by delegating to globally trusted CAs. The drawback: federation root of trust becomes Web PKI — a Web PKI compromise (rogue CA, MITM with a misissued cert) compromises the federation.
 
-2. **`https_spiffe`:** mutual SPIFFE authentication. The bundle endpoint presents a SPIFFE-issued cert; the consumer validates it against an existing trust bundle. This avoids Web-PKI dependency but creates a chicken-and-egg: you need an existing trust bundle to bootstrap. Typically used after an out-of-band initial bundle exchange seeds the first bundle.
+2. **`https_spiffe`:** SPIFFE authentication of the bundle endpoint server (servers MUST NOT require client authentication). The bundle endpoint presents a SPIFFE-issued cert; the consumer validates it against an existing trust bundle. This avoids Web-PKI dependency but creates a chicken-and-egg: you need an existing trust bundle to bootstrap. Typically used after an out-of-band initial bundle exchange seeds the first bundle.
 
-**Bundle refresh:** consumers refresh on schedule. SPIRE default is roughly every 5 minutes `[unverified exact default per release]`. The bundle itself includes a `refresh_hint` field telling consumers when to next poll. Misconfigured or ignored refresh = stale bundles, which is the #1 silent federation failure.
+**Bundle refresh:** consumers refresh on schedule. SPIRE's refresh hint defaults to 5 minutes. The bundle itself includes a `spiffe_refresh_hint` field telling consumers when to next poll. Misconfigured or ignored refresh = stale bundles, which is the #1 silent federation failure.
 
-**FederationsService gRPC interface:** more recent SPIRE versions expose a `FederationsService` gRPC API for programmatic federation management — adding, removing, listing federation relationships from the SPIRE Server `[unverified specific release version]`. This supplants pure config-file-based federation for large deployments.
+**TrustDomain API:** since SPIRE 1.1.0 the SPIRE Server implements the TrustDomain API and related CLI commands (`spire-server federation create`) for programmatic federation management — adding, removing, listing federation relationships from the SPIRE Server. This supplants pure config-file-based federation for large deployments.
 
-**Revocation: no CRL, no OCSP.** SPIFFE explicitly does not use CRLs or OCSP. Revocation is via bundle update — when a CA is rotated out of the bundle, all certs signed by that CA become invalid as soon as consumers refresh. A compromised intermediate forces a root rotation and a bundle update across all federated peers. This is by design (short-lived SVIDs make CRL overhead unjustifiable) but it means the bundle refresh cadence directly bounds revocation latency.
+**Revocation: no CRL, no OCSP.** SPIFFE does not use CRLs or OCSP. Revocation is via bundle update — when a CA is rotated out of the bundle, all certs signed by that CA become invalid as soon as consumers refresh. A compromised intermediate forces a root rotation and a bundle update across all federated peers. This is by design (short-lived SVIDs make CRL overhead unjustifiable) but it means the bundle refresh cadence directly bounds revocation latency.
 
 ---
 
@@ -146,7 +146,7 @@ The aphorism for federation topology: every federation relationship is a long-te
 
 ## 7. Cert lifecycle + rotation across federation
 
-SPIRE handles intra-domain rotation gracefully — Agents rotate Workload API connections continuously, SVID TTLs are short, the SPIRE Server CA rotates on a long schedule (weeks to months). Federation rotation is where it gets interesting.
+SPIRE handles intra-domain rotation gracefully — Agents rotate Workload API connections continuously, SVID TTLs are short, the SPIRE Server CA rotates on a longer schedule (default `ca_ttl` 24h). Federation rotation is where it gets interesting.
 
 **CA rotation strategy.** SPIRE supports overlapping CA validity: the SPIRE Server can hold an old CA and a new CA simultaneously, signing fresh SVIDs with the new CA while old SVIDs (signed by the old CA) remain valid until their TTL expires. The trust bundle exposed to federated peers contains both the old and new CA roots during the overlap window.
 
@@ -164,7 +164,7 @@ SPIRE handles intra-domain rotation gracefully — Agents rotate Workload API co
 
 Node attestation is how the SPIRE Server validates that a SPIRE Agent is who it claims to be. This is foundational — a compromised Agent can request SVIDs for any workload, so Agent identity must be strong.
 
-**`k8s_psat` (Kubernetes Projected Service Account Token).** The modern Kubernetes Agent attestor. The Agent presents a projected SA token issued for a specific audience (the SPIRE Server's SPIFFE ID). The SPIRE Server validates the token via the Kubernetes TokenReview API. Replaces the deprecated `k8s_sat` (legacy non-projected SA tokens, which had no audience binding and were replayable).
+**`k8s_psat` (Kubernetes Projected Service Account Token).** The modern Kubernetes Agent attestor. The Agent presents a projected SA token issued for a specific audience (default `spire-server`). The SPIRE Server validates the token via the Kubernetes TokenReview API. Replaces the deprecated `k8s_sat` (legacy non-projected SA tokens, which had no audience binding and were replayable).
 
 **`aws_iid` (AWS Instance Identity Document).** The Agent presents the EC2 Instance Identity Document plus the signature retrievable from IMDS. The SPIRE Server verifies the signature against AWS's public key. Caveats: requires IMDSv2 to avoid SSRF-driven IID theft; IID is per-instance, not per-process, so a compromised process on the instance can still impersonate the Agent.
 
@@ -176,8 +176,6 @@ Node attestation is how the SPIRE Server validates that a SPIRE Agent is who it 
 
 **`join_token` (manual bootstrap).** A one-time token, generated on the SPIRE Server, embedded in Agent config, consumed once. For bootstrap, lab, demo, or genuinely manual provisioning. Never for production — once consumed, the join token is gone and the Agent's identity is permanently bound to the initial join event with no re-attestation possibility.
 
-**DICE-based node attestation.** Emerging plugin for resource-constrained devices that cannot run a full TPM. DICE (Device Identity Composition Engine) provides a hardware-rooted identity primitive. Cross-link `[[reference-dice-embedded-device-identity]]`.
-
 The operational rule: production deployments use cloud-provider attestors (`aws_iid` / `gcp_iit` / `azure_msi`) or TPM-based attestors. `join_token` is acceptable only for bootstrap.
 
 ---
@@ -186,11 +184,11 @@ The operational rule: production deployments use cloud-provider attestors (`aws_
 
 Workload attestation is how the SPIRE Agent validates that a process on the node is the workload it claims to be. This determines which SPIFFE ID the workload receives.
 
-**Kubernetes (`k8s`) workload attestation.** The Agent reads the workload's projected service-account token (mounted into the pod), validates it via the Kubernetes API, and matches against registration entries based on namespace, service account, pod label, and container image. The dominant pattern. Strength: leverages the API server's authentication. Weakness: a pod-level compromise can read other pods' projected tokens if cgroup isolation is broken.
+**Kubernetes (`k8s`) workload attestation.** The Agent identifies the workload's pod from its cgroup membership, queries the kubelet for information about the pod, and matches against registration entries based on namespace, service account, pod label, and container image. The dominant pattern. Weakness: cgroup membership is only authoritative for unprivileged workloads, since root on the node can change it.
 
 **Docker / containerd attestation.** Identifies the container by image hash, container ID, image labels. Useful for non-Kubernetes containerized environments. Weaker than k8s attestation — image hash matches across deployments, so it does not uniquely identify a specific running container.
 
-**Unix workload attestation.** UID + GID + binary path + binary hash + cgroup path. Used for VM workloads and bare-metal. Binary hash is the strong selector — UID/GID are reusable; path is spoofable; cgroup is environment-dependent.
+**Unix workload attestation.** UID + GID + binary path + binary hash. Used for VM workloads and bare-metal. Binary hash is the strong selector — UID/GID are reusable; path is spoofable.
 
 **Windows attestation.** SID, process path, process binary hash.
 
@@ -198,7 +196,7 @@ Workload attestation is how the SPIRE Agent validates that a process on the node
 
 **Multi-attestor composition.** SPIRE registration entries can require multiple selectors from multiple attestors — e.g., `k8s:ns:payments` AND `unix:path:/usr/bin/api-server` AND `unix:sha256:abc...`. Stronger identity but more brittle (any selector drift breaks attestation).
 
-**Attestation freshness.** SPIRE Agent re-attests workloads on a cadence (default roughly 30 seconds `[unverified exact default]`). Workloads that change identity selectors (e.g., a container restart with a new image hash) get new SVIDs reflecting their new identity. Stale workload attestation is a smaller surface than stale federation bundles but still nonzero.
+**Attestation freshness.** SPIRE Agent re-attests workloads on a cadence. Workloads that change identity selectors (e.g., a container restart with a new image hash) get new SVIDs reflecting their new identity. Stale workload attestation is a smaller surface than stale federation bundles but still nonzero.
 
 The discipline: prefer hash-based selectors (binary hash, image digest) over path or label selectors. Hashes change only when the workload changes; paths and labels can drift.
 
@@ -236,12 +234,12 @@ The discipline: prefer hash-based selectors (binary hash, image digest) over pat
 
 ## 11. 2024-2026 currency
 
-- **SPIRE CNCF graduation** completed around 2024 `[unverified specific graduation date and announcement]`. Graduated status implies governance maturity and production-readiness signaling but does not change the implementation.
-- **SPIFFE Federation API standardization.** The `FederationsService` gRPC interface — programmatic federation management — landed in recent SPIRE releases `[unverified specific release version, likely 1.x in 2023-2024]`. Supplants pure HCL-config federation for large fleets.
-- **SPIRE 1.10+ feature additions.** TPM_DevID GA, improved Federation API surface, expanded plugin ecosystem `[unverified specific releases and dates]`. JWT-SVID DPoP binding has been discussed in SIG-Identity `[unverified status]`.
+- **SPIRE CNCF graduation** was announced September 20, 2022. Graduated status implies governance maturity and production-readiness signaling but does not change the implementation.
+- **SPIFFE Federation API standardization.** The TrustDomain API — programmatic federation management — landed in SPIRE 1.1.0. Supplants pure HCL-config federation for large fleets.
+- **`tpm_devid` node attestor** shipped in SPIRE 1.0.1.
 - **Cloud-native managed SPIRE-adjacent identity.** **AWS IAM Roles Anywhere** can use SPIFFE-compatible X.509 certs as the trust anchor for AWS API authentication, letting non-AWS workloads (or non-AWS clusters) assume IAM roles. **GCP Workload Identity Federation** supports OIDC issuers, and SPIRE can serve as the OIDC issuer of JWT-SVIDs, bridging SPIFFE workload identity to GCP API access. **Azure Workload Identity** is similar. These integrations bridge SPIFFE workload identity to cloud-provider IAM. See `[[reference-cloud-iam]]`.
 - **Service-mesh integrations.** **Istio** consumes SPIFFE IDs for mTLS by default (Istio's `Citadel`/`istiod` issuing component speaks SPIFFE). **Linkerd**, **Consul**, **Cilium service mesh** support SPIFFE-compatible identity. See `[[reference-service-mesh-security]]`.
-- **Commercial / vendor ecosystem.** **Tetrate**, **Solo.io**, and **HashiCorp Boundary** integrate SPIFFE for workload identity. **HPE** (via **Tony Pyne** `[unverified specific contribution]`) and others contribute to upstream SPIRE.
+- **Commercial / vendor ecosystem.** **Tetrate** and **Solo.io** integrate SPIFFE for workload identity. **HPE** and others contribute to upstream SPIRE.
 - **AI-agent workload identity.** The pattern of treating an AI agent process as a first-class SPIFFE workload — issuing per-agent X.509-SVIDs and JWT-SVIDs, scoping tool access to the agent's SPIFFE ID — is emerging. Cross-link `[[reference-zero-trust-workload-identity]]` §13.7 (AI-agent identity) and `[[reference-ai-agent-session-management]]`.
 
 ---

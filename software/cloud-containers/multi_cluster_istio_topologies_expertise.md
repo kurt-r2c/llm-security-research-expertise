@@ -26,7 +26,7 @@ Cross-link map: `[[reference-service-mesh-security]]` (parent), `[[reference-zer
 
 ## 2. The three canonical Istio multi-cluster topologies
 
-Istio's documented multi-cluster patterns reduce to three primary shapes plus combinations. Lin Sun and John Howard (Istio steering committee / Solo.io and Google respectively) have written and presented extensively on the trade-offs; Eric Brewer's CAP-theorem framing applies directly because each topology trades availability, consistency, or partition-tolerance differently for control-plane state.
+Istio's documented multi-cluster patterns reduce to three primary shapes plus combinations. Lin Sun and John Howard (Istio Steering Committee / Technical Oversight Committee, both at Solo.io) have written and presented extensively on the trade-offs; Eric Brewer's CAP-theorem framing applies directly because each topology trades availability, consistency, or partition-tolerance differently for control-plane state.
 
 ### 2.1 Primary-Remote
 
@@ -104,7 +104,7 @@ Treat east-west gateways the way you treat internet-facing ingress:
 - Restrict admin access to gateway pods; no `kubectl exec` without break-glass.
 - Audit gateway config (`Gateway`, `VirtualService`) for accidental TLS-passthrough that exposes upstream services.
 
-Compromise of an east-west gateway = effective bypass of cross-cluster mTLS for traffic transiting that gateway. Christian Posta (Solo.io) has presented on east-west gateway hardening at KubeCon; the threat model resembles a reverse-proxy in a DMZ but with full SPIFFE identity visibility.
+Compromise of an east-west gateway = effective bypass of cross-cluster mTLS for traffic transiting that gateway. The threat model resembles a reverse-proxy in a DMZ but with full SPIFFE identity visibility.
 
 ---
 
@@ -166,7 +166,6 @@ Coordinated rotation discipline:
 Istio's Pilot pushes endpoint lists to Envoy via xDS, specifically EDS. In multi-primary topologies, each Istiod knows the endpoints of remote clusters (via cluster-secret credentials granting cross-cluster API access) and pushes them to its local Envoys.
 
 - **Cluster secrets** are kubeconfigs stored as secrets in `istio-system`, granting Istiod read access to remote clusters' API servers. Compromise of these secrets = read access to all remote services + namespaces. Audit + restrict aggressively.
-- John Howard has documented the cluster-secret pattern; it predates Istio's external-control-plane support and remains the cross-cluster discovery primitive for multi-primary.
 
 ### 5.3 Locality-aware routing
 
@@ -254,7 +253,7 @@ Without this, debugging a cross-cluster authorization failure requires manually 
 
 ### 7.1 Use cases
 
-- **Managed Istio platforms.** Tetrate Service Bridge `[unverified specific feature set as of 2026]`, Solo.io Gloo Mesh, Google Anthos Service Mesh (ASM), AWS App Mesh `[unverified maturity]`, Microsoft Azure Service Mesh `[unverified product status]`. The vendor operates the control plane; the customer operates the data plane.
+- **Managed Istio platforms.** Tetrate Service Bridge `[unverified specific feature set as of 2026]`, Solo.io Gloo Mesh, Google Cloud Service Mesh (formerly Anthos Service Mesh), Microsoft Azure Service Mesh `[unverified product status]`. The vendor operates the control plane; the customer operates the data plane.
 - **Regulated environments.** Data-plane clusters that cannot run control plane due to compliance — e.g., FedRAMP High data-plane cluster, with control plane in a separate management environment.
 - **Multi-tenancy.** One external control plane serves many data-plane clusters across tenants. Logical isolation via per-tenant config namespacing.
 
@@ -276,9 +275,9 @@ Commercial product positioned around multi-cluster management, policy reconcilia
 
 Commercial product with overlapping positioning. Founded by Idit Levine. Includes Gloo Edge (API gateway) and Gloo Mesh (multi-cluster Istio management). Christian Posta and Lin Sun work / have worked at Solo.io and have written extensively on multi-cluster Istio patterns through that lens.
 
-### 7.5 Anthos Service Mesh (GCP) `[unverified current product status]`
+### 7.5 Cloud Service Mesh (GCP; formerly Anthos Service Mesh)
 
-Google's managed Istio. Multi-cluster + GKE-native. The Anthos team has historically been the most Istio-aligned among hyperscaler managed offerings. Eric Brewer's Google-internal advocacy for service mesh as infrastructure is the philosophical anchor here.
+Google's managed Istio. Multi-cluster + GKE-native. The Anthos team has historically been the most Istio-aligned among hyperscaler managed offerings.
 
 ### 7.6 Vendor lock-in is real
 
@@ -300,7 +299,7 @@ In multi-network Ambient deployments, cross-cluster traffic flows: workload → 
 
 ### 8.3 Maturity caveat
 
-Ambient + multi-cluster is research-grade as of 2026 `[unverified specific GA status]`. Sidecar-based multi-cluster patterns have years of production deployment behind them; Ambient cross-cluster patterns are still evolving. Lin Sun's KubeCon talks track Ambient maturity; consult primary sources before committing.
+Ambient multi-network multicluster support reached Beta in Istio 1.29 (February 2026). Sidecar-based multi-cluster patterns have years of production deployment behind them; Ambient cross-cluster patterns are still evolving. Lin Sun's KubeCon talks track Ambient maturity; consult primary sources before committing.
 
 For now: prefer sidecar Istio for production multi-cluster. Pilot Ambient single-cluster first; revisit multi-cluster Ambient when GA milestones land.
 
@@ -405,38 +404,33 @@ Cross-link to `[[reference-cicd-supply-chain]]` for CI integrity.
 
 ### 11.1 HTTP/2 Rapid Reset CVE-2023-44487
 
-Cross-vendor DoS via HTTP/2 stream-reset abuse. Every Envoy-based mesh — Istio, Linkerd, Consul, Cilium with Envoy, Gloo Edge, Anthos Service Mesh — had to patch. Multi-cluster fleets had to coordinate Envoy upgrades across N clusters. Lessons:
+Cross-vendor DoS via HTTP/2 stream-reset abuse. Every Envoy-based mesh — Istio, Consul, Cilium with Envoy, Gloo Edge, Anthos Service Mesh — had to patch. Multi-cluster fleets had to coordinate Envoy upgrades across N clusters. Lessons:
 
 - Cross-cluster patch cadence matters. Lagging clusters were DoS-vulnerable while patched clusters were not.
 - East-west gateways were the highest-priority Envoys to patch (highest exposure).
-- Matt Klein (Envoy) and the Envoy security team coordinated disclosure across vendors.
-
-### 11.2 Istio CVE-2024-9026 `[unverified specifics]`
-
-Istiod response-truncation vulnerability affecting policy push. Primary-remote topologies were particularly affected because remote clusters re-fetch policy from primary, multiplying the per-deployment blast radius. Reinforces the structural fragility of primary-remote.
 
 ### 11.3 HashiCorp + Solo.io + Tetrate + Buoyant 2024-2026 vendor moves
 
 Consolidation in the mesh ecosystem:
 
-- IBM acquired HashiCorp (announced 2024) `[unverified close date]`.
-- Cisco acquired Isovalent (Cilium maintainer) early 2024 `[unverified specific date]`.
-- Buoyant (Linkerd) introduced production-tier paid offering, narrowing the free-tier feature set `[unverified current terms]`.
+- IBM acquired HashiCorp (announced April 2024, closed February 2025).
+- Cisco acquired Isovalent (Cilium maintainer), completing the deal in April 2024.
+- Since February 2024 the Linkerd open-source project no longer ships stable release artifacts; stable releases come from vendors such as Buoyant Enterprise for Linkerd.
 - Tetrate and Solo.io continue as independent vendors.
 
 Multi-vendor service-mesh strategy is harder to sustain as the field consolidates. Some platform teams are committing harder to single-vendor stacks; others are shifting toward Cilium for flatter L3/L4 multi-cluster with selective L7 mesh.
 
 ### 11.4 Cloud-managed multi-cluster mesh maturing
 
-- Google Anthos Service Mesh — multi-cluster, GKE-native, longest-running cloud-managed Istio.
-- AWS service mesh strategy continues to evolve `[unverified specific roadmap]`.
-- Microsoft Azure Service Mesh / Open Service Mesh status `[unverified product lifecycle]`.
+- Google Cloud Service Mesh (formerly Anthos Service Mesh) — multi-cluster, GKE-native, longest-running cloud-managed Istio.
+- AWS ended App Mesh support on September 30, 2026 and points users to Amazon ECS Service Connect.
+- Microsoft archived Open Service Mesh in 2023 and offers an Istio-based service mesh add-on for AKS.
 
 For teams already deep in a single cloud, the managed offering is often the path of least resistance. For multi-cloud or on-prem-plus-cloud, vendor-neutral (self-managed Istio or Tetrate/Solo) is more flexible.
 
 ### 11.5 Cilium Cluster Mesh as alternative
 
-Cilium Cluster Mesh, designed by Thomas Graf and Daniel Borkmann at Isovalent (now Cisco), offers eBPF-native multi-cluster service discovery with optional mTLS. It is operationally lighter than Istio multi-cluster but offers less L7 policy expressiveness.
+Cilium Cluster Mesh (Isovalent, now Cisco) offers eBPF-native multi-cluster service discovery with optional mTLS. It is operationally lighter than Istio multi-cluster but offers less L7 policy expressiveness.
 
 - **Trade-off.** Cilium Cluster Mesh handles cross-cluster service discovery + L3/L4 policy elegantly; L7 policy + cross-cluster authorization is less mature than Istio's `AuthorizationPolicy`.
 - **Migration story.** Some teams running Istio for L7 features evaluate Cilium for L3/L4 + lighter mesh footprint. Hybrid deployments (Cilium for L3/L4, Istio sidecars for L7 on selected workloads) are emerging.
@@ -444,7 +438,7 @@ Cilium Cluster Mesh, designed by Thomas Graf and Daniel Borkmann at Isovalent (n
 
 ### 11.6 Linkerd compare/contrast `[unverified specifics]`
 
-William Morgan and Oliver Gould (Buoyant / Linkerd) designed Linkerd multi-cluster around a simpler model than Istio's: per-service mirror, explicit linking via the `linkerd multicluster link` command, per-service trust anchors. The trade-off is less flexibility but easier operational reasoning. Worth contrasting when designing Istio multi-cluster to understand the design space.
+Linkerd multi-cluster is built around a simpler model than Istio's: per-service mirror, explicit linking via the `linkerd multicluster link` command, a trust anchor shared across clusters. The trade-off is less flexibility but easier operational reasoning. Worth contrasting when designing Istio multi-cluster to understand the design space.
 
 ---
 
@@ -468,7 +462,7 @@ Compromise = cross-cluster mTLS bypass for traffic transiting that gateway. Hard
 
 `AuthorizationPolicy` in cluster A and cluster B can diverge for months without detection. Policy-as-code in git with cross-cluster diff in CI is mandatory, not optional. The cost of detecting drift after a security incident is much higher than the cost of detecting it in CI.
 
-### 12.5 Ambient + multi-cluster is research-grade in 2026
+### 12.5 Ambient + multi-cluster is Beta, not GA, in 2026
 
 Sidecar-based multi-cluster patterns are battle-tested across years of production deployment. Ambient cross-cluster patterns are evolving. Do not bet a regulated production system on Ambient multi-cluster without close vendor (Solo, Tetrate) or upstream-maintainer engagement. Lin Sun and John Howard's KubeCon talks are the closest thing to current authoritative guidance `[unverified specific session content]`.
 

@@ -3,13 +3,12 @@
 
 > **Primary researchers and teams:**
 >
-> - **Juraj Somorovsky** (Ruhr-University Bochum; co-founder Hackmanit GmbH; now Professor at
+> - **Juraj Somorovsky** (Ruhr-University Bochum; now Professor at
 >   Paderborn University). Lead author of "On Breaking SAML: Be Whoever You Want to Be"
 >   (USENIX Security 2012), the canonical XML Signature Wrapping (XSW) paper that surveyed 14
 >   major SAML frameworks and found 11 vulnerable, including Salesforce, Shibboleth, and IBM
 >   XS40. Ongoing research at the JWT, JSON-JWS, and TLS state-machine intersection (the WS-
->   Attacks corpus). The 8-shape XSW taxonomy used by every SAML attack tool descends from
->   this work.
+>   Attacks corpus).
 >   https://www.usenix.org/conference/usenixsecurity12/technical-sessions/presentation/somorovsky
 > - **Jörg Schwenk** (Ruhr-University Bochum, Chair for Network and Data Security). Somorovsky's
 >   doctoral advisor and a co-author on "On Breaking SAML." Long-running SSO research lineage
@@ -20,7 +19,7 @@
 >   Current Practice for OAuth 2.0 Security," BCP 240, January 2025) with Torsten Lodderstedt,
 >   John Bradley, and Andrey Labunets. Author of "A Comprehensive Formal Security Analysis of
 >   OAuth 2.0" (CCS 2016) — the formal-analysis-derived attack catalog that drove the BCP
->   into existence. Editor of the OAuth 2.1 draft work alongside Aaron Parecki.
+>   into existence.
 >   https://datatracker.ietf.org/doc/rfc9700/
 >   https://publ.sec.uni-stuttgart.de/fettkuestersschmitz-ccs-2016.pdf
 > - **Mike Jones** (Self-Issued Consulting; formerly Microsoft Identity Standards Architect).
@@ -35,8 +34,8 @@
 >   the academic SSO literature: their leastprivilege.com and brockallen.com blogs document
 >   the implementation reality of every spec gotcha catalogued below.
 >   https://leastprivilege.com/  https://brockallen.com/
-> - **Vittorio Bertocci** (1972-2023; formerly Auth0 Principal Architect, Microsoft Azure AD
->   Principal Program Manager). Author of "Modern Authentication with Azure Active Directory
+> - **Vittorio Bertocci** (died 2023; formerly Auth0 Principal Architect, Microsoft Azure AD
+>   team). Author of "Modern Authentication with Azure Active Directory
 >   for Web Applications" (Microsoft Press) and host of the "Identity, Unlocked" podcast. The
 >   most-cited practitioner voice for explaining OAuth/OIDC at the level engineers actually
 >   build against. The OAuth JWT-profile access-token spec (RFC 9068) is his work; his
@@ -47,7 +46,7 @@
 >   `mass_assignment` discovery. Homakov's blog is the historical archive of OAuth attack
 >   primitives that the 2025 BCP corpus eventually canonicalized.
 >   http://homakov.blogspot.com/
-> - **Aaron Parecki** (Senior Security Architect, Okta). Maintainer of oauth.net; co-author of
+> - **Aaron Parecki** (Director of Identity Standards, Okta). Maintainer of oauth.net; co-author of
 >   the OAuth 2.1 draft (`draft-parecki-oauth-v2-1`) with Dick Hardt and Torsten Lodderstedt;
 >   author of "OAuth 2.0 Simplified" (the de facto practitioner introduction). The standards-
 >   side counterpart to Bertocci's implementation-side writing.
@@ -68,8 +67,8 @@
 >   abuse, ROADtools / roadtx tooling, the cross-tenant guest-to-admin escalation chain.
 >   The single most-cited practitioner on Entra-specific federation attacks.
 >   https://dirkjanm.io/
-> - **Lewis Ardern** (Staff Security Researcher, Semgrep; formerly Salesforce Lead Security
->   Engineer, Synopsys Associate Principal Consultant). JavaScript and web-app domain expert
+> - **Lewis Ardern** (Staff Security Researcher, Semgrep; formerly Synopsys/Cigital security
+>   consultant). JavaScript and web-app domain expert
 >   driving Semgrep's JWT and OIDC ruleset development; cross-cited in the GraphQL and
 >   prototype-pollution expertise docs in this directory for adjacent web-stack work.
 >   https://github.com/LewisArdern
@@ -233,14 +232,14 @@ dereferenced via backchannel SOAP; more secure but rare), **SOAP binding**
 preferences. SP must trust it — cryptographic root of the federation.
 Unsigned/HTTP metadata fetch enables MITM hostile-key substitution.
 Hardening: pin signing certificate at deployment; HTTPS with strict cert
-validation; require signed metadata (`<MetadataSignature>`); local cache with
+validation; require signed metadata (`<ds:Signature>` on the `EntityDescriptor`); local cache with
 conservative TTLs.
 
 ### Common SAML libraries
 
 `shibboleth-sp` (C++; long XSW patch history), `simplesamlphp` (PHP/Drupal SSO;
 XSW CVEs through 2014), `ruby-saml` and `python3-saml` (OneLogin; 2018
-comment-injection), `python-saml` / `pysaml2` (NextCloud, Saleor, Django),
+comment-injection), `python-saml` / `pysaml2` (Saleor, Django),
 `com.onelogin.saml` / `Spring SAML` (Java), `passport-saml` (Node), `sustainsys/saml2`
 (.NET). **Almost every SAML library accepted unsigned messages by default at
 some point** — the hardening curve was driven by XSW disclosures. Defaults are
@@ -258,8 +257,9 @@ inheritance), canonicalization differentials (C14N divergence). See
 
 ## 3. XML Signature Wrapping — the canonical SAML attack
 
-The Somorovsky 2012 USENIX paper introduced an 8-shape taxonomy of XSW attacks
-against SAML responses. The root cause is universal across implementations: the
+The Somorovsky 2012 USENIX paper classified XSW attacks against SAML messages by
+signing type and by where the evil assertion, original assertion, and signature
+sit in the tree. The root cause is universal across implementations: the
 XML-Signature spec defines verification as "look up the element by ID and check
 its digest"; SAML response processing defines extraction as "walk the tree looking
 for an Assertion element by name." When these two operations resolve to different
@@ -287,48 +287,40 @@ attacker).
 
 ### The 8 attack shapes
 
-From the 2012 paper (recap; full XML samples and library matrix live in
-`xml_parser_differential_expertise.md` §4):
+SAML Raider's XSW1-XSW8 naming (per NetSPI; full XML samples and library
+matrix live in `xml_parser_differential_expertise.md` §4):
 
-1. **Single-element / extension-area injection**: hostile Assertion is placed inside
-   an `<Extensions>` block where the parser walks but the verifier ignores.
-2. **Sibling injection**: hostile Assertion is placed as a sibling to the signed
-   Assertion. Parsers that grab `Assertion[0]` get attacker-controlled subject.
-3. **Adjacent-element injection**: hostile Assertion wraps the signed Assertion's
-   parent. Tree traversal finds the hostile Assertion first.
-4. **Multi-root with assertion duplication**: the XML document has two roots, only
-   the second of which contains the signed Assertion. Implementations with
-   permissive multi-root handling (e.g. some Java DOMs, the `xmldom` JavaScript
-   library — see Kurt's CVE-2022-39353 below) process the wrong root.
-5. **Reference-attribute manipulation**: the signed Assertion's `ID` attribute is
-   duplicated on a hostile element. ID-resolution that returns the first match
-   silently picks the wrong one.
-6. **Transform-based injection**: an `XPath` transform in the signature manifest
-   smuggles a hostile element into what the verifier sees as the signed canonical
-   form. Subtle; relatively rare in production.
-7. **Signed-info wrapping**: the entire `<SignedInfo>` block is wrapped by the
-   attacker, with a `<ds:Reference>` pointing at the original signed element. The
-   verifier checks the original; the wrapper provides the actual context.
-8. **Reference URI manipulation**: the `<ds:Reference URI="">` (empty URI = "the
-   entire document") is exploited by attackers who inject extra material outside
-   the original signature scope. Less powerful than shapes 1-5 but harder to
-   patch.
+1. **XSW1** (Response): unsigned clone of the Response added after the existing
+   signature.
+2. **XSW2** (Response): unsigned clone of the Response added before the existing
+   signature.
+3. **XSW3** (Assertion): unsigned clone of the Assertion added before the
+   existing Assertion.
+4. **XSW4** (Assertion): unsigned clone of the Assertion added after the
+   existing Assertion.
+5. **XSW5** (Assertion): a value in the signed Assertion is changed, and a copy
+   of the original Assertion with its signature removed is added at the end of
+   the message.
+6. **XSW6** (Assertion): as XSW5, but the copy is added after the original
+   signature.
+7. **XSW7** (Assertion): an `Extensions` block carrying a cloned, unsigned
+   Assertion.
+8. **XSW8** (Assertion): an `Object` block carrying a copy of the original
+   Assertion with its signature removed.
 
 ### Worked example: shibboleth XSW patch lineage
 
-Two waves of defenses: 2012-2014 (post-Somorovsky paper, canonicalization
-pipeline rewritten so verified element = processed element; processor walks
-only the validated subtree) and 2014-2018 (comment-injection and namespace-
-confusion defenses; explicit text-node coalescing; forced namespace-declaration
-re-emission during C14N). Defensive pattern: **after `Signature.verify()`, hand
+Two waves of defenses: 2011 (CVE-2011-1411 OpenSAML/IdP XSW fix;
+canonicalization pipeline rewritten so verified element = processed element;
+processor walks only the validated subtree) and 2018 (CVE-2018-0489
+comment-injection fix). Defensive pattern: **after `Signature.verify()`, hand
 the caller a reference to the verified subtree only.** Never let app code
-re-traverse the original document for "the Assertion." Codified in `xmlsec-c`,
-`xml-security-java`, and modern SAML libraries.
+re-traverse the original document for "the Assertion."
 
 ### CVE-2022-39353 as a SAML-relevant primitive
 
-Kurt's CVE-2022-39353 against `@xmldom/xmldom` is the JS-ecosystem XSW shape-4
-(multi-root) primitive. `xmldom` accepted multi-root documents without raising;
+Kurt's CVE-2022-39353 against `@xmldom/xmldom` is the JS-ecosystem multi-root
+primitive. `xmldom` accepted multi-root documents without raising;
 downstream signature verification that processed only the first root could be
 tricked into validating different content. Any Node.js SAML library using
 `@xmldom/xmldom` — including some `passport-saml` deployments — inherited XSW.
@@ -385,8 +377,9 @@ Defense: pin canonicalization at deployment; reject unexpected
 ### Padding-oracle on encrypted assertions
 
 XML-Enc with AES-CBC/PKCS#7 is padding-oracle vulnerable when the SP returns
-distinguishable errors. Somorovsky-Kupser "How to Break XML Encryption —
-Automatically" (WOOT 2015) demonstrated against multiple SAML stacks.
+distinguishable errors. Kupser-Mainka-Schwenk-Somorovsky "How to Break XML Encryption —
+Automatically" (WOOT 2015) found new problems in four of five analyzed Web
+Service implementations, including IBM DataPower and Apache CXF.
 
 Defense: AES-GCM or authenticated modes; avoid XML-Enc CBC.
 
@@ -460,8 +453,7 @@ Both JWTs with `iss`/`aud`/`exp`/`iat`. ID Token's `aud` is the SP's client_id
 Token's `aud` is the resource server (used as bearer in API calls, not for
 SP session). **The single most common OIDC bug**: SP accepts an Access Token
 where an ID Token was expected. Without `token_type`/`aud` validation, an Access
-Token from the same IdP for a different resource server logs the user in. Mike
-Jones has hammered this since 2014; RFC 9700 formalizes the requirement.
+Token from the same IdP for a different resource server logs the user in.
 
 ### The `nonce` claim
 
@@ -498,8 +490,7 @@ three base64url-encoded parts. Each part is an attack surface.
 RFC 7519/7515 define `none` as a valid algorithm for contexts where transport
 guarantees integrity. The attack: send `{"alg":"none"}`, no signature, arbitrary
 claims. RFC 8725 (JWT BCP, 2020) mandates that verifiers maintain an algorithm
-allowlist excluding `none`. As of 2025 this remains the most-cited JWT bug; Snyk's
-2024 audit found it in ~7% of Node.js apps with hand-rolled verification.
+allowlist excluding `none`. As of 2025 this remains the most-cited JWT bug.
 
 Defense: never accept `none`. Use libraries that require the verifier to specify
 the algorithm (`jose@4+`, `pyjwt@2+`, `jjwt` with explicit algorithm).
@@ -532,8 +523,7 @@ Defense: treat `kid` as opaque; whitelist against an enum.
 
 The `jku` (JWKS URL) and `x5u` (X.509 URL) header fields can carry a URL pointing
 to verification keys. Attack: set `jku: "https://attacker.com/jwks.json"`,
-publish attacker keys, sign with matching private key. RFC 9700 recommends
-against honoring these unless URL is in a pre-approved allowlist.
+publish attacker keys, sign with matching private key.
 
 Defense: ignore `jku` and `x5u`; look up keys by `iss` against configured
 discovery URLs.
@@ -541,11 +531,10 @@ discovery URLs.
 ### typ / cty / JWS-JWE confusion
 
 `typ` and `cty` header fields are descriptive but libraries sometimes dispatch
-on them. A 2023 CVE class: JOSE libraries that try JWE decryption when `typ`
-claims JWE then fall back to JWS verification — but the fall-back path skipped
-signature checks. JWS (3 parts) vs JWE (5 parts) auto-detection is another
-attack surface; multiple 2022 CVEs had JWE-formatted tokens processed as
-authenticated JWS.
+on them. JWS (3 parts) vs JWE (5 parts) auto-detection is an attack surface:
+CVE-2022-3102 (jwcrypto) let an attacker substitute a JWE encrypted with the
+signature-validation public key for a signed JWS; CVE-2023-51774 (json-jwt) is
+a sign/encryption confusion bypass.
 
 Defense: pin `typ` and `cty`; use type-specific APIs; don't auto-detect.
 
@@ -616,12 +605,14 @@ Defense: random `state` per request, session-bound, validated on callback.
 PKCE (RFC 7636) binds the authorization code to a client-generated secret.
 Optional PKCE plus an IdP that accepts requests without `code_challenge` lets
 the attacker strip it. Defense: PKCE-required at the IdP for every client.
-RFC 9700 mandates PKCE for all client types.
+RFC 9700 requires PKCE for public clients and recommends it for confidential
+clients.
 
 ### Refresh token theft and binding
 
 Refresh tokens are long-lived; capture = indefinite access-token minting. RFC
-9700 mandates rotation: every use mints a new refresh token and invalidates the
+9700 requires refresh tokens for public clients to be sender-constrained or
+rotated; with rotation, every use mints a new refresh token and invalidates the
 old. Rotation enables replay-detection — double-use means leak or lost response;
 either way, invalidate the token family.
 
@@ -642,15 +633,15 @@ request.
 Variant of state-omission. Attacker captures a legitimate code (leaky referer,
 misconfigured SP) and injects into a victim's callback. Without PKCE+state, the
 SP exchanges the attacker's code for an attacker-identity session. RFC 9700 §4.5
-catalogues five variants.
+covers this attack.
 
 Defense: PKCE + state, both mandatory.
 
 ### Hybrid Flow validation gaps
 
 Hybrid Flow returns code + ID token in the redirect. Client must validate
-signature, `nonce`, `c_hash` (SHA-256 of code), and `at_hash` (SHA-256 of access
-token, if applicable). Each is independent and fail-silent; `c_hash` is the
+signature, `nonce`, `c_hash` (left-most half of the code's hash under the ID Token
+`alg`), and `at_hash` (same, over the access token, if applicable). Each is independent and fail-silent; `c_hash` is the
 most-skipped because tutorials gloss it.
 
 Defense: vetted OIDC client library; don't hand-roll Hybrid flow.
@@ -658,8 +649,8 @@ Defense: vetted OIDC client library; don't hand-roll Hybrid flow.
 ### Implicit Flow token leakage
 
 Returns tokens in URL fragment (`#access_token=…`). Leakage paths: browser
-history, referer headers, extensions, DOM JS, URL cache. RFC 9700 forbids
-Implicit Flow.
+history, referer headers, extensions, DOM JS, URL cache. RFC 9700 says
+clients SHOULD NOT use Implicit Flow.
 
 ### Client Credentials in user-context endpoints
 
@@ -670,11 +661,11 @@ have a privilege bug. Defense: service-context endpoints reject tokens with
 
 ### The Fett-Kuesters-Schmitz formal-analysis result
 
-The 2016 CCS paper formally modeled OAuth 2.0 and surfaced two attack classes
-the working group had not considered: the 307 Redirect Attack and the IdP
-Mix-Up Attack. Mix-up: a multi-IdP client can be confused about which IdP the
+The 2016 CCS paper formally modeled OAuth 2.0 and surfaced four attacks, among
+them the 307 Redirect Attack and the IdP Mix-Up Attack. Mix-up: a multi-IdP client can be confused about which IdP the
 user authenticated against, enabling token swapping across IdPs. Defense:
-`iss` in authorization responses (RFC 9207), mandated by RFC 9700. Many pre-2025
+`iss` in authorization responses (RFC 9207), one of the mix-up defenses
+RFC 9700 requires for clients that use more than one authorization server. Many pre-2025
 implementations lack it.
 
 ---
@@ -690,7 +681,6 @@ with bearer-token auth. Bug classes:
   including admins.
 - **Tenant scoping.** Multi-tenant SaaS that uses bearer token alone (not
   tenant_id) lets a compromised tenant-A token cross-provision into tenant B.
-  The 2023 Okta multi-tenant incident included a SCIM-tenant-scoping flaw.
 - **Attribute mass-assignment.** No whitelist on settable attributes; IdP sets
   `is_admin=true` or similar privileged fields.
 - **Filter injection.** Naive `/Users?filter=…` implementations pass filter
@@ -698,8 +688,7 @@ with bearer-token auth. Bug classes:
 - **Provisioning replay.** `PATCH`/`PUT` non-idempotency leaves accounts in
   stale states on replay.
 
-CVE corpus: Okta SSO Connector (2023, tenant-scoping), Microsoft AAD SCIM
-Gateway (multiple, attribute injection). Pattern: SCIM treated as "internal,"
+Pattern: SCIM treated as "internal,"
 gets less scrutiny, harbors bugs obvious on public endpoints.
 
 Defense: per-tenant SCIM endpoints or mandatory tenant_id token claim;
@@ -733,8 +722,10 @@ decisions. Bypasses:
 - **Token replay across CA boundaries**: low-risk-issued token replayed from
   high-risk context when the resource server doesn't re-evaluate CA at use time.
 - **Device-trust forgery**: compromise of Intune attestation forges compliance.
-- **Service-principal bypass**: CA applies to user accounts, not service
-  principals; compromised SP calls protected APIs without CA.
+- **Service-principal bypass**: CA applies to user accounts; service
+  principals are covered only by CA for workload identities (single-tenant
+  SPs, Workload Identities Premium); an uncovered compromised SP calls
+  protected APIs without CA.
 
 Mollema's PRT research is the dominant CA-bypass path (next).
 
@@ -766,9 +757,9 @@ WS-Fed (SAML 1.1 predecessor for Windows) carries all SAML attack surface plus
 `wreply` URL-validation bugs and `wctx` CSRF. ADFS is the on-prem IdP for AD
 environments pre-Entra; "Golden SAML" (CyberArk Labs, 2017) extracts the ADFS
 signing key to mint arbitrary assertions. PKINIT abuse via compromised ADCS
-mints user certificates that pivot to ADFS tokens. The 2024 Storm-0558 /
-Midnight Blizzard incident chained ADFS weaknesses with stolen Microsoft
-Account signing keys to mint Entra tokens across tenants. Defenses: HSM for
+mints user certificates that pivot to ADFS tokens. The 2023 Storm-0558
+incident used a stolen Microsoft Account (MSA) consumer signing key to forge
+Azure AD (Entra) tokens. Defenses: HSM for
 signing keys; migrate WS-Fed to OIDC.
 
 ### Cross-tenant access (XTA)
@@ -783,17 +774,15 @@ Cross-link: enterprise IAM treatment in `cloud_iam_expertise.md` §4.
 
 ## 10. SSO-vendor-specific attack surface
 
-- **Okta**: pre-2022 admin endpoints had laxer rate limits (bulk enumeration);
-  `sub` claim changed from email to UUID with Okta Identity Engine breaking
-  apps pinned to email-as-sub; 2022 LAPSUS$ (third-party support laptop
-  compromise pivoting to support tooling); 2023 0ktapus / Scatter Spider
+- **Okta**: 2022 LAPSUS$ (third-party support laptop
+  compromise pivoting to support tooling); 2022 0ktapus / 2023 Scatter Spider
   (help-desk social engineering at Okta customers, MFA reset, federation
   bypass).
 - **OneLogin**: 2017 secrets-environment compromise (customer tokens stolen);
   long XSW history in `ruby-saml`/`python-saml`; comment-injection (Duo Labs
   2018).
 - **Ping Identity / PingFederate**: SAML-heavy enterprise default; CVE corpus
-  dominated by configuration footguns; CVE-2022-23712 RCE in PingID Adapter.
+  dominated by configuration footguns.
 - **Auth0**: large free-tier configuration surface; Rules/Hooks are full-app
   JS-execution surfaces with several account-takeover findings; acquired by
   Okta 2021.
@@ -802,8 +791,8 @@ Cross-link: enterprise IAM treatment in `cloud_iam_expertise.md` §4.
   lineage — token-exchange spans multiple trust boundaries and is hard to
   authorize correctly). Cross-link: `distributed_authz_expertise.md` §3.
 - **Newer entrants**: Stytch (passwordless/FIDO2 defaults; narrower but
-  less-battle-tested); WorkOS (SSO-as-a-service; workos.com/blog "SSO
-  footguns" series essential reading); AWS Cognito (heavy customization
+  less-battle-tested); WorkOS (SSO-as-a-service; workos.com/blog "Fun with SAML SSO
+  vulnerabilities and footguns" essential reading); AWS Cognito (heavy customization
   surface; misconfiguration tail — public sign-up, weak password policies,
   exposed user pools).
 
@@ -820,7 +809,7 @@ Cross-link: enterprise IAM treatment in `cloud_iam_expertise.md` §4.
   comparison. Often distributed across functions; workflow-level taint
   (`parse_saml_response` → `set_session_user` without audience check) is more
   accurate than syntactic match.
-- XSW-vulnerable parsers: `defusedxml.disable_entities=False`,
+- XSW-vulnerable parsers: `defusedxml` with `forbid_entities=False`,
   `lxml.etree.XMLParser(huge_tree=True)`, DOM parsers without ID uniqueness.
   Cross-link: `xml_parser_differential_expertise.md` §8.
 
@@ -890,7 +879,7 @@ Cross-link: `detection_engineering_expertise.md` §6;
 
 - Maintain an algorithm allowlist; **never** accept `none`.
 - Use libraries with explicit-algorithm APIs: `jose@4+`, `pyjwt@2+`,
-  `jjwt` with `setSigningKey(...).requireAlgorithm(...)`.
+  `jjwt`.
 - Treat `kid` as opaque; whitelist against known IDs.
 - Ignore `jku` and `x5u` unless explicitly allowlisted.
 - Use proper key management (HSM, KMS) for signing keys.
@@ -993,7 +982,7 @@ repository owners assume privileged roles. Cross-link:
 
 ### "Your IdP is your single point of compromise"
 
-Storm-0558 / Midnight Blizzard demonstrated maximum impact: a single stolen
+Storm-0558 demonstrated maximum impact: a single stolen
 signing key minted tokens for arbitrary tenants for weeks before detection.
 The structural defense isn't "harden more" (Microsoft was at the top of the
 curve); it's diversification: dual-IdP architectures (require valid assertions
@@ -1075,9 +1064,9 @@ is operational hygiene (§12) + IdP-side incident monitoring. Cross-link:
   https://dirkjanm.io/lateral-movement-and-hash-dumping-with-temporary-access-passes-microsoft-entra/
 - Mollema, Dirk-jan. **ROADtools.**
   https://github.com/dirkjanm/roadtools
-- Microsoft. **"Microsoft Threat Intelligence: Midnight Blizzard
-  conducts targeted social engineering over Microsoft Teams."** 2024.
-  https://www.microsoft.com/en-us/security/blog/2024/01/19/midnight-blizzard-guidance-for-responders-on-nation-state-attack/
+- Microsoft. **"Midnight Blizzard: Guidance for responders on
+  nation-state attack."** 2024.
+  https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/
 
 ### Practitioner writing
 

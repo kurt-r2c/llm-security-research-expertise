@@ -24,15 +24,15 @@ Cross-link to `[[reference-threat-modeling-discipline]]` for the parent design-t
 
 The technique has two independent origin streams that converged in the early 2000s.
 
-**Misuse case stream — Sindre and Opdahl.** Guttorm Sindre and Andreas L. Opdahl published "Eliciting security requirements with misuse cases" in *Requirements Engineering Journal* 10(1): 34-44, 2005. This is the canonical paper. They extended UML use case notation with a mirror notation for hostile actors — the misuse case bubble drawn as an inverted (filled-in) oval and the mis-actor as a filled-in stick figure. Sindre and Opdahl had earlier conference papers (REFSQ 2000, TOOLS Pacific 2000) `[unverified specific dates]` developing the notation; the 2005 Requirements Engineering Journal paper is the canonical reference for citation.
+**Misuse case stream — Sindre and Opdahl.** Guttorm Sindre and Andreas L. Opdahl published "Eliciting security requirements with misuse cases" in *Requirements Engineering Journal* 10(1): 34-44, 2005. This is the canonical paper. They extended UML use case notation with a mirror notation for hostile actors — the misuse case bubble drawn as an inverted (filled-in) oval and the mis-actor as a filled-in stick figure. Sindre and Opdahl had earlier conference papers (TOOLS Pacific 2000, REFSQ 2001) developing the notation; the 2005 Requirements Engineering Journal paper is the canonical reference for citation.
 
-**Abuse case stream — McDermott and Fox.** John McDermott and Chris Fox published "Using abuse case models for security requirements analysis" at the Annual Computer Security Applications Conference (ACSAC) in 1999. This pre-dates the Sindre-Opdahl misuse case work by several years. McDermott and Fox treated abuse cases as a broader concept — adversarial interactions with the system, framed at the level of complete attack scenarios rather than specific UML notation. Sindre and Opdahl later differentiated "misuse" (attacker subverts the system) from "abuse" (system used to harm a third party).
+**Abuse case stream — McDermott and Fox.** John McDermott and Chris Fox published "Using abuse case models for security requirements analysis" at the Annual Computer Security Applications Conference (ACSAC) in 1999. This pre-dates the Sindre-Opdahl misuse case work by several years. McDermott and Fox treated abuse cases as a broader concept — adversarial interactions with the system, framed at the level of complete attack scenarios rather than specific UML notation.
 
 **Popularization stream — Alexander and Firesmith.** Ian Alexander published "Misuse cases: use cases with hostile intent" in *IEEE Software* 20(1): 58-66, January-February 2003 — this is the paper that popularized the technique in software-engineering practice and is the most-cited industrial-practice reference. Donald Firesmith published "Security use cases" in *Journal of Object Technology* 2(3): 53-64, May-June 2003, introducing the **security use case** as the positive counterpart that arises when a misuse case is identified — when you write the misuse case "Steal session cookie," you produce the security use case "Validate session cookies with HttpOnly+Secure+SameSite flags and 15-minute idle timeout."
 
-**Standards adoption.** OWASP Top 10 and ASVS implicitly integrate misuse-case thinking — many ASVS V3 (session management), V4 (access control), V5 (validation), V7 (errors and logging), V9 (communications), and V10 (malicious code) controls were authored from misuse-case enumeration `[unverified specific control mapping]`. SAFECode Fundamental Practices for Secure Software Development (3rd edition, 2018) `[unverified specific edition]` includes misuse case analysis in its security requirements practice. NIST SP 800-160 Vol. 1 (Systems Security Engineering, Rev. 1, 2022) `[unverified specific section]` references misuse cases as a technique for security requirements elicitation.
+**Standards adoption.** OWASP Top 10 and ASVS implicitly integrate misuse-case thinking.
 
-**Modern Threat Modeling Manifesto signatories** include practitioners — Adam Shostack, Izar Tarandach, Avi Douglen, Brook Schoenfield — who explicitly cite misuse-case thinking as one of the techniques the Manifesto endorses, alongside STRIDE/PASTA. The Manifesto's four values (humans over methods, communication over checklists, etc.) apply directly to misuse case practice.
+**Threat Modeling Manifesto authors** include practitioners — Adam Shostack, Izar Tarandach, Avi Douglen, Brook Schoenfield. The Manifesto is methodology-agnostic and endorses no specific technique. Its five values (people and collaboration over processes, methodologies, and tools; a culture of finding and fixing design issues over checkbox compliance; etc.) apply directly to misuse case practice.
 
 ---
 
@@ -49,8 +49,6 @@ Sindre and Opdahl extended this with three additions:
 **`threatens` relationship.** A misuse case `threatens` one or more use cases. Drawn as a dashed arrow from the misuse case to the threatened use case. Example: "Steal session cookie" threatens "Authenticate to dashboard."
 
 **`mitigates` relationship.** A use case (specifically a security use case in Firesmith's vocabulary) `mitigates` a misuse case. Drawn as a dashed arrow from the mitigating use case to the misuse case. Example: "Validate session cookie flags" mitigates "Steal session cookie."
-
-Firesmith extended the notation with three more defense relationships: **`prevents`** (the security use case stops the misuse case before it executes), **`detects`** (the security use case identifies that the misuse case is in progress or has occurred), and **`responds`** (the security use case reacts to a detected misuse case). These map approximately to the NIST Cybersecurity Framework verbs (Identify/Protect/Detect/Respond/Recover) and are useful when distinguishing preventive from detective controls during requirements elicitation.
 
 **Diagrammatic convention.** Misuse case diagrams use inverted-color rendering — white bubbles and stick figures on black, or filled-in black on white backgrounds — to make the hostile elements visually pop. In practice, most teams skip the diagram entirely and use structured text (§5). Diagrams help in stakeholder workshops with non-engineers; engineers prefer text in version control.
 
@@ -425,7 +423,7 @@ LLMs are useful for misuse case generation in narrow ways and unhelpful in other
 
 **LLMs are useful for breadth in ideation.** Given a system description, an LLM will generate 100 candidate misuse-case names in minutes. This is faster than a stakeholder workshop. Use LLMs to seed the discovery phase, not to replace it.
 
-**LLMs are poor at depth and grounded steps.** Candidate misuse cases produced by LLMs often lack specific attacker capabilities, skip steps, or invoke fictional primitives ("attacker uses quantum-cryptanalysis to break the key" is a real LLM output `[unverified specific tool]`). Multi-step attacker narratives require human authorship.
+**LLMs are poor at depth and grounded steps.** Candidate misuse cases produced by LLMs often lack specific attacker capabilities, skip steps, or invoke fictional primitives (e.g., "attacker uses quantum-cryptanalysis to break the key"). Multi-step attacker narratives require human authorship.
 
 **Three-pass workflow.** This is the same pattern as `[[reference-threat-modeling-discipline]]` §12:
 
@@ -433,7 +431,7 @@ LLMs are useful for misuse case generation in narrow ways and unhelpful in other
 2. **Filter pass — human filters for plausibility.** Discard science-fiction, discard duplicates, discard the obviously-not-applicable. Keep ~10-15 candidates.
 3. **Depth pass — human adds depth.** Fill in the structured-text template (§5) with specific attacker tools, preconditions, postconditions, multi-step flows. Validate against real attacker capabilities.
 
-**Tooling.** STRIDE-GPT by Matthew Adams `[unverified specific URL]` covers STRIDE-side. Bespoke pytm and Threagile extensions for misuse-case generation exist but are not standardized `[unverified specific tooling]`. Most teams in 2026 use LLM chat-with-the-system-description as the breadth-pass tool and structured templates in version control for the depth pass.
+**Tooling.** STRIDE-GPT by Matthew Adams covers STRIDE-side. Most teams in 2026 use LLM chat-with-the-system-description as the breadth-pass tool and structured templates in version control for the depth pass.
 
 **Honest limitation.** LLMs reproduce well-known attack patterns from their training data. Novel attack ideas — the attacker-creativity that produces zero-days — remain a human contribution. Same finding as `[[reference-ai-red-team-operator-playbook]]` and `[[reference-threat-modeling-discipline]]` §12.
 
@@ -473,7 +471,7 @@ Abuse cases address harms that traditional confidentiality-integrity-availabilit
 
 ## §11 — Persona non grata extension (CMU SEI hTMM)
 
-The Hybrid Threat Modeling Method (hTMM), published by the CMU Software Engineering Institute, integrates persona-non-grata (PNG) thinking with misuse cases and Security Quality Requirements Engineering (SQUARE). The canonical reference is Nancy Mead and Forrest Shull, CMU SEI Technical Note CMU/SEI-2018-TN-002 `[unverified specific document ID]`.
+The Hybrid Threat Modeling Method (hTMM), published by the CMU Software Engineering Institute, integrates persona-non-grata (PNG) thinking with Security Cards and STRIDE. The canonical reference is Nancy Mead, Forrest Shull, et al., CMU SEI Technical Note CMU/SEI-2018-TN-002.
 
 **Persona non grata.** Explicitly named attacker personas. Each PNG has:
 
@@ -554,4 +552,4 @@ Misuse case modeling fails in predictable ways. Naming them up front lets you de
 - `specifications/security-research/SEVERITY_DEFINITION.md` — severity anchoring for misuse-case severity fields.
 - `specifications/security-research/FINDING_ACTIONABILITY_TRIAGE.md` — triage matrix for misuse-case prioritization.
 
-**End of doc.** Next-shift candidates: (a) **security requirements engineering** as its own doc (SQUARE method, SP 800-160, requirements traceability); (b) **attack-tree-vs-misuse-case sibling-discipline doc** (Schneier attack trees pre-date misuse cases and complement them — formal-vs-informal-narrative pairing); (c) **safety-case modeling** as the adjacent-discipline sibling (functional safety / DO-178C / ISO 26262 use safety cases — the same structured-narrative technique applied to safety rather than security).
+**End of doc.** Next-shift candidates: (a) **security requirements engineering** as its own doc (SQUARE method, SP 800-160, requirements traceability); (b) **attack-tree-vs-misuse-case sibling-discipline doc** (Schneier attack trees pre-date misuse cases and complement them — formal-vs-informal-narrative pairing); (c) **safety-case modeling** as the adjacent-discipline sibling (functional safety / ISO 26262 use safety cases — the same structured-narrative technique applied to safety rather than security).

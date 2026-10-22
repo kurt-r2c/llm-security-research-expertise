@@ -37,14 +37,14 @@ The downstream consequence is that "the same AI reviewer that handles source-cod
 
 A reviewer that understands "IaC" but treats it as one language is structurally wrong. The ecosystem fragments into ~8 substrates, each with distinct semantics, drift behavior, and approval surface.
 
-- **Terraform / OpenTofu.** HashiCorp Terraform shipped under MPL 2.0 until August 2023, when HashiCorp moved to the Business Source License (BSL 1.1). The OpenTofu fork (originally OpenTF, hosted by the Linux Foundation) emerged in response and was first released January 2024. IBM acquired HashiCorp April 2024 (announced; closed February 2025 [unverified exact close date]). As of 2026 the practical situation is bifurcated: Terraform Enterprise customers stay on Terraform; many community users moved to OpenTofu; provider ecosystem is largely shared. Reviewers must handle both — module syntax is identical, but the registry endpoints and license posture differ.
+- **Terraform / OpenTofu.** HashiCorp Terraform shipped under MPL 2.0 until August 2023, when HashiCorp moved to the Business Source License (BSL 1.1). The OpenTofu fork (originally OpenTF, hosted by the Linux Foundation) emerged in response and was first released January 2024. IBM acquired HashiCorp April 2024 (announced; closed February 27, 2025). As of 2026 the practical situation is bifurcated: Terraform Enterprise customers stay on Terraform; many community users moved to OpenTofu; provider ecosystem is largely shared. Reviewers must handle both — module syntax is identical, but the registry endpoints and license posture differ.
 - **Pulumi.** Founded 2017. General-purpose programming languages (TypeScript, Python, Go, .NET, Java, YAML) compile to a "deployment plan" via the Pulumi engine. Component resources allow encapsulation; state stored in Pulumi Service or in customer-managed backends (S3, Azure Blob, etc.). The reviewer's challenge: the IaC is *code*, so the reviewer must handle conditional logic, loops, and dynamic resource creation that Terraform's HCL constrains.
 - **AWS CDK and CDKTF.** AWS Cloud Development Kit (TypeScript / Python / Java / Go / .NET) compiles to CloudFormation; CDKTF (CDK for Terraform) compiles to Terraform JSON. Same code-as-IaC challenge as Pulumi.
 - **Crossplane.** Kubernetes-native IaC: cloud resources expressed as Kubernetes Custom Resources (XRs) and Compositions. Drift detection via Kubernetes controllers. The reviewer is reviewing Kubernetes YAML that has cloud-control-plane semantics — both the K8s RBAC surface and the cloud-IAM surface apply simultaneously.
 - **Helm and Kustomize.** Kubernetes package management. Helm charts are templated YAML (Go templates over Kubernetes manifests); Kustomize uses overlays. Both inherit the K8s RBAC, hostPath, privileged-container threat model. Cross-link [[reference-container-k8s-security]] for full coverage.
 - **cdk8s.** AWS-sponsored project for generating Kubernetes manifests from TypeScript / Python / Java / Go. Same code-as-IaC challenge applied to K8s.
 - **Bicep.** Microsoft's DSL over ARM templates. Domain-specific syntax that compiles to JSON ARM. Used primarily in Azure shops. Reviewer must understand resource provider versioning and ARM template semantics.
-- **CloudFormation, ARM (Azure), Deployment Manager (GCP).** Native template languages. Deployment Manager was deprecated by Google in 2023 with a recommended migration to Terraform or Config Connector. CloudFormation remains the canonical AWS substrate; ARM remains the canonical Azure substrate.
+- **CloudFormation, ARM (Azure), Deployment Manager (GCP).** Native template languages. Deployment Manager reached end of support on April 1, 2026, with a recommended migration to Infrastructure Manager (which runs Terraform configurations). CloudFormation remains the canonical AWS substrate; ARM remains the canonical Azure substrate.
 
 Honest distribution-of-use snapshot for 2024-2026: most IaC in active production is still Terraform (Enterprise + OSS + OpenTofu combined), with Pulumi as a meaningful and growing minority and CloudFormation persistent in AWS-only shops. Bicep is dominant in Azure-native organizations. Crossplane and cdk8s remain smaller but high-leverage where adopted. [unverified] precise market-share figures — vendor surveys (HashiCorp State of Cloud Strategy, Pulumi user surveys) are not independent and selection-biased.
 
@@ -54,14 +54,14 @@ Most general-purpose AI reviewers from [[reference-ai-pr-review-platform]] §1 n
 
 | Platform | IaC coverage | Cloud-context-aware | Provenance / attestation | Enterprise SSO/SCIM | Pricing tier |
 |---|---|---|---|---|---|
-| **Snyk IaC / Snyk Cloud** | Terraform, CloudFormation, ARM, K8s YAML, Helm, Kustomize | Yes — Snyk Cloud joins IaC findings to live cloud config for context | Snyk-built rule packs; sigstore / cosign image signing supported on Snyk Container side | SSO + SCIM enterprise | Free → Team → Enterprise (per-developer) |
-| **Wiz Code** | Terraform, CloudFormation, K8s YAML, Helm | Yes — Wiz Code is part of the Wiz Cloud platform; IaC findings join the Security Graph with live cloud context | Sigstore awareness for container build context | SSO + SCIM enterprise | Enterprise-only |
+| **Snyk IaC / Snyk Cloud** | Terraform, CloudFormation, ARM, K8s YAML, Helm, Kustomize | Yes — Snyk Cloud joins IaC findings to live cloud config for context | Snyk-built rule packs; sigstore / cosign image signing supported on Snyk Container side | SSO + SCIM enterprise | Free → Team → Ignite → Enterprise (per-developer) |
+| **Wiz Code** | Terraform, CloudFormation, K8s YAML | Yes — Wiz Code is part of the Wiz Cloud platform; IaC findings join the Security Graph with live cloud context | Sigstore awareness for container build context | SSO + SCIM enterprise | Enterprise-only |
 | **Prisma Cloud Code Security (Bridgecrew)** | Terraform, CloudFormation, ARM, K8s YAML, Helm, Kustomize, Serverless | Yes — Palo Alto's Prisma Cloud joins IaC to live cloud config | Sigstore/cosign for container; provenance via Prisma Cloud platform | Enterprise SSO + SCIM | Enterprise per-asset pricing |
 | **Aqua / Trivy** | Terraform, CloudFormation, K8s YAML, Dockerfile | Partial — Trivy IaC scans without cloud context; Aqua Platform adds runtime context | Trivy supports sigstore verification | Enterprise via Aqua | OSS Trivy + Aqua commercial |
-| **Spectral (Check Point)** | Terraform, CloudFormation, K8s YAML | Limited cloud-context | [unverified] | Enterprise | Acquired by Check Point 2021 |
-| **CodeRabbit** | Terraform / HCL, K8s YAML files reviewed; "experimental" Pulumi support | No structural cloud-context awareness — LLM may pattern-match `0.0.0.0/0` but does not know your VPC topology | None (general AI reviewer) | SSO via paid plan | Free → Pro $24/dev/mo |
+| **Spectral (Check Point)** | Terraform, CloudFormation, K8s YAML | Limited cloud-context | [unverified] | Enterprise | Acquired by Check Point 2022 |
+| **CodeRabbit** | Terraform / HCL, K8s YAML files reviewed | No structural cloud-context awareness — LLM may pattern-match `0.0.0.0/0` but does not know your VPC topology | None (general AI reviewer) | SSO via paid plan | Free → Pro $24/dev/mo |
 | **Greptile** | All file types via LLM; no IaC-specific tooling | No structural cloud-context | None | SSO enterprise | Paid |
-| **Cursor BugBot** | All file types via LLM; no IaC-specific tooling | No structural cloud-context | None | Cursor org plan | Folded into Cursor plans |
+| **Cursor BugBot** | All file types via LLM; no IaC-specific tooling | No structural cloud-context | None | Cursor org plan | Separate Bugbot add-on, not tied to Cursor licenses |
 | **qodo Merge / PR-Agent** | All file types; can be configured with custom prompts for IaC | No native cloud-context (custom prompts only) | Self-hostable | Self-hosted SSO | OSS + paid |
 | **Semgrep Assistant + Semgrep IaC rules** | Terraform, CloudFormation, K8s YAML, Dockerfile via Semgrep IaC rule packs; AI triage on findings | Indirect — Semgrep rules are deterministic; AI layer does triage, not cloud-graph context | Semgrep platform supports SBOM context | SSO + SCIM enterprise | Free → Team → Enterprise |
 | **Open-source feed-ins (Checkov, tfsec, KICS, terrascan, cfn-nag)** | Checkov covers all major IaC types; tfsec is Terraform-only; KICS broad; cfn-nag CloudFormation-only; terrascan multi-cloud | Static-rule-only; not cloud-context | None natively; integrate with sigstore-signed pipelines downstream | N/A | OSS |
@@ -94,7 +94,7 @@ The IaC analogue of npm / PyPI supply-chain attack. Terraform Registry modules a
 - Exfiltrate `data` source contents via the provider — for example, a Terraform provider that reads `data.aws_caller_identity.current` and POSTs the account ID to an attacker endpoint as a "telemetry" call.
 - Use post-plan hooks (where supported) to read state-file contents.
 
-Real reference: typosquatting on the public Terraform Registry has been observed; precise CVE / GHSA enumeration is sparse because the Registry is not a CNA and incidents are rarely reported with stable identifiers. The pattern is well-attested in vendor blog posts from HashiCorp and Snyk. [unverified] specific incident counts.
+Precise CVE / GHSA enumeration for registry-module incidents is sparse because the Registry is not a CNA and incidents are rarely reported with stable identifiers.
 
 Cross-link [[reference-supply-chain-provenance]] §"The four-level ladder" for the SLSA L0-L3 framing applied to IaC modules. The Terraform Registry does not enforce SLSA levels; Pulumi Registry similarly does not. Module-version-pinning (`~> 4.0.5` vs `>= 4.0`) is the load-bearing customer-side defense, and the AI reviewer must flag pin-loosening as a regression.
 
@@ -108,7 +108,7 @@ Terraform state files (`terraform.tfstate`) are the canonical attacker target in
 
 A state-file leak is equivalent to a full cloud-topology disclosure plus several high-value secret leaks. The S3 backend with no encryption, no versioning, no access logging, and `BlockPublicAccess` disabled is the canonical anti-pattern. The Pulumi Service-managed state is encrypted-at-rest by default; the customer-managed-backend variant (S3 / Azure Blob / etc.) inherits the same anti-patterns as Terraform.
 
-The AI reviewer's role here: catch state-backend configuration regressions in PRs. A PR that changes `backend "s3"` config to remove `encrypt = true` or to remove `dynamodb_table` (state locking) is a regression and must be flagged. Most general-purpose reviewers will not catch this.
+The AI reviewer's role here: catch state-backend configuration regressions in PRs. A PR that changes `backend "s3"` config to remove `encrypt = true` or to remove `use_lockfile = true` or the deprecated `dynamodb_table` (state locking) is a regression and must be flagged. Most general-purpose reviewers will not catch this.
 
 ### 4.4 Operator-as-attacker
 
@@ -140,7 +140,7 @@ Each pattern has a canonical Semgrep IaC rule, a Checkov check, and a tfsec/KICS
 As of 2026 the agentic IaC tooling ecosystem is young and the threat surface is correspondingly under-mapped. Three categories worth knowing.
 
 - **HashiCorp Terraform MCP server.** HashiCorp shipped a Model Context Protocol server enabling LLM clients to interact with Terraform state, plans, and modules. The threat shape: an agent with MCP access can read state-file contents via the server interface. A prompt-injection into an agent connected to the Terraform MCP server can exfiltrate state.
-- **Pulumi MCP / Pulumi AI.** Pulumi shipped agentic features in 2024-2025 [unverified exact ship dates] including a "Pulumi AI" code-generation pathway and MCP-style integrations. Same threat surface as the Terraform case.
+- **Pulumi MCP / Pulumi AI.** Pulumi shipped AI features starting April 2023, including a "Pulumi AI" code-generation pathway and MCP-style integrations. Same threat surface as the Terraform case.
 - **AWS Cloud Operations MCP / cloud-control agents.** AWS published cloud-control APIs accessible via MCP for several services. [unverified] specific MCP server coverage as of 2026-05-15. The threat shape generalizes: an agent with cloud-control-API access via MCP is an `iam:*` away from full account compromise.
 
 The structural concern: an AI reviewer that itself uses MCP for "cloud-context lookup" is now part of the agent attack surface. A prompt-injected reviewer can be coerced into calling its own MCP tools to exfiltrate state or to issue control-plane mutations. The CaMeL pattern (privileged-LLM / quarantined-LLM split) from [[reference-agentic-web-capabilities]] is the architectural answer; cross-link [[reference-ai-assisted-coding-tool-security]] §6 for the broader MCP threat-model coverage.
@@ -155,7 +155,7 @@ The failure modes:
 
 - **The plan is misleading.** A resource rename in HCL — for example, renaming `aws_s3_bucket.data` to `aws_s3_bucket.data_v2` — appears in `plan` as `destroy data` + `create data_v2`. With a `moved` block, Terraform recognizes the rename and produces a no-op plan. Without the `moved` block, the bucket and all its contents are destroyed and a new empty bucket is created. The reviewer who reads "destroy + create" as routine refactoring is approving data loss.
 - **The plan does not show all side effects.** Provider-level lifecycle actions — for example, an RDS replacement triggering a snapshot deletion, or a Lambda code update triggering version pinning — are summarized but not detailed. Reviewer must read the resource's `lifecycle` block and the provider's documented behavior.
-- **The plan can lie about timing.** `prevent_destroy = true` blocks `terraform apply` from destroying a resource, but the plan still computes the diff. Reviewer sees a destroy plan that won't execute; CI fails; operator removes the `prevent_destroy` to make CI pass; next apply destroys the resource. The defensive lifecycle config and the reviewer's reading of it must align.
+- **The plan can lie about timing.** `prevent_destroy = true` makes Terraform reject with an error any plan that would destroy the resource. Reviewer sees a plan error; CI fails; operator removes the `prevent_destroy` to make CI pass; next apply destroys the resource. The defensive lifecycle config and the reviewer's reading of it must align.
 - **The plan does not account for drift.** Between plan and apply, the cloud state may have changed. Long-lived plans (Terraform Cloud's "Apply" step delayed by 30 minutes for human review) are particularly at risk.
 
 CI/CD platforms handle this differently:
@@ -273,13 +273,13 @@ Cross-customer leakage in shared-tenancy embedding indexes is the highest-levera
 ### 11.2 Multi-tenant SaaS specifics
 
 - **Embedding-index isolation.** Per-customer or per-organization vector stores. Single shared store across customers is a tenant-isolation failure.
-- **LLM cache key scoping.** Provider-side prompt caching (Anthropic, OpenAI) keyed per organization API key, not per prompt content. Vendor must ensure each customer's reviews use a customer-scoped key.
+- **LLM cache key scoping.** Provider-side prompt caching (Anthropic, OpenAI) matches on the exact prompt prefix and is isolated per organization, not per API key (Anthropic additionally isolates per workspace on the Claude API; Bedrock and Google Cloud are organization-level only). Vendor must ensure each customer's reviews use a customer-scoped key.
 - **Log isolation.** Vendor logs containing PR content must be per-customer-namespaced and access-controlled. Cross-tenant log queries (vendor's internal debugging) must be audited.
 - **Fine-tuning isolation.** If the vendor offers customer-specific fine-tuning ("learn from our team's review preferences"), per-customer LoRA adapters with strict isolation, not shared fine-tuned weights.
 
 ### 11.3 Data residency for IaC analysis
 
-Regulated industries (EU customers under GDPR, US financial services under DORA, US gov under FedRAMP) require data-residency commitments. AI-IaC-review platforms that process IaC content in a US-region LLM endpoint for an EU customer have GDPR exposure. Vendor must offer per-region LLM endpoints (Bedrock in `eu-west-1`, Azure OpenAI in `westeurope`) for EU residency.
+Regulated industries (EU customers under GDPR, EU financial services under DORA, US gov under FedRAMP) require data-residency commitments. AI-IaC-review platforms that process IaC content in a US-region LLM endpoint for an EU customer have GDPR exposure. Vendor must offer per-region LLM endpoints (Bedrock in `eu-west-1`, Azure OpenAI in `westeurope`) for EU residency.
 
 The strictest customers (defense, intelligence community, some critical infrastructure) require self-hosted or air-gapped deployment. Cross-link [[reference-ai-pr-review-platform]] §9 for the self-host trade-offs.
 
@@ -300,7 +300,7 @@ Threat scenarios worth tabletop-ing: a PR-injection into the reviewer exfiltrate
 
 A practical checklist for AppSec leads selecting and onboarding an AI-IaC-review platform. Pair with [[reference-appsec-program-building]] §"Vendor onboarding."
 
-1. **Cloud-context awareness.** Does the platform structurally understand your cloud topology, or does it pattern-match on text? Snyk Cloud / Wiz Code / Prisma Cloud Code Security are structurally context-aware. CodeRabbit / Greptile / Cursor BugBot are text-only.
+1. **Cloud-context awareness.** Does the platform structurally understand your cloud topology, or does it pattern-match on text?
 2. **Plan-output consumption.** Does the platform consume `terraform plan` output (or the Pulumi equivalent) as input, not just the HCL diff? Confirm in pilot, not just in marketing.
 3. **State-file access posture.** Does the platform read your state files? If yes, under what credential, with what access logging? If no, how does it reason about lifecycle changes?
 4. **Human +1 on `apply`.** Confirm the platform's integration model preserves human +1 on `terraform apply` — bot approval cannot satisfy the apply gate.

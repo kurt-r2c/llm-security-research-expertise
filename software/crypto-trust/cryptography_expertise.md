@@ -14,9 +14,9 @@
 >   Another Look series with Koblitz
 > - **Hovav Shacham** (UCSD) — BLS co-inventor, Return-Oriented Programming
 > - **Matthew Franklin** (UC Davis) — Boneh-Franklin IBE, 2013 Gödel Prize
-> - **Victor Shoup** (NYU) — IND-CCA2 formalization, Boneh/Shoup textbook, NTL library
+> - **Victor Shoup** (NYU) — Boneh/Shoup textbook, NTL library
 > - **Niels Ferguson** — Twofish/Skein/Fortuna co-designer, Dual_EC_DRBG backdoor
-> - **Tadayoshi Kohno** (UWashington) — *Cryptography Engineering* co-author, kleptography
+> - **Tadayoshi Kohno** (Georgetown, ex-UWashington) — *Cryptography Engineering* co-author
 >
 > Sources: Stanford ACG publications; ePrint; Boneh/Shoup textbook (toc.cryptobook.us);
 > Another Look series (uwaterloo.ca/~ajmeneze); cryptologie.net; schneier.com; NIST FIPS
@@ -165,7 +165,7 @@ of subkey material (P-array of 18 32-bit words + 4 S-boxes of 256 32-bit words e
 from the fractional hex digits of π, then XORed with the key in a carry-less manner. The expensive
 key schedule is bcrypt's foundation: password hashing cost comes from repeated Blowfish
 re-keying. **64-bit block is the critical weakness:** SWEET32 (2016) demonstrates birthday-bound
-collision attacks at ~2^32 blocks (~256 GB) under the same key — feasible for long-lived TLS
+collision attacks at ~2^32 blocks (~32 GB) under the same key — feasible for long-lived TLS
 sessions. Use 128-bit block ciphers for anything with large data volumes.
 
 **Twofish (Schneier et al., 1998, AES finalist):**
@@ -209,7 +209,7 @@ structural weaknesses.
 
 RSA security rests on the hardness of factoring n = pq. Key points:
 
-**Key sizes:** 1024-bit RSA broken in 2010 estimates (GNFS at academic scale); 2048-bit is
+**Key sizes:** 2048-bit is
 current minimum; 3072-bit for 128-bit security to 2031+; 4096-bit for long-term data.
 
 **The Boneh-Durfee attack:** If the private exponent d < N^0.292, RSA is breakable via LLL
@@ -221,14 +221,14 @@ full-size d; never choose e to make d convenient.
 the plaintext starts with 0x00 0x02 (i.e., is validly padded), an attacker can adaptively query
 ~2^20 ciphertexts to recover the plaintext for any captured ciphertext. This oracle is present
 in any system that returns a different error for "bad padding" vs "decryption failed" — and even
-in timing differences in error handling. David Wong documented Bleichenbacher oracles across
-NSS (CVE-2018-12404), Libgcrypt (CVE-2018-19608), mbedTLS (CVE-2018-16868), Botan
+in timing differences in error handling. David Wong (with Ronen, Gillham, Genkin, Shamir, and Yarom) documented Bleichenbacher oracles across
+NSS (CVE-2018-12404), Mbed TLS (CVE-2018-19608), GnuTLS (CVE-2018-16868), Nettle
 (CVE-2018-16869), and WolfSSL (CVE-2018-16870) in a coordinated disclosure. TLS uses RSA
 for key exchange in pre-1.3 cipher suites; Bleichenbacher enables decryption of any TLS session
 using those cipher suites.
 
-**RSA-OAEP:** Victor Shoup formalized the IND-CCA2 (chosen-ciphertext) security of RSA-OAEP
-in the random oracle model. OAEP padding (RFC 8017) prevents Bleichenbacher-style attacks.
+**RSA-OAEP:** Fujisaki, Okamoto, Pointcheval, and Stern proved the IND-CCA2 (chosen-ciphertext) security of RSA-OAEP
+in the random oracle model, after Victor Shoup showed a gap in the original OAEP proof. OAEP padding (RFC 8017) prevents Bleichenbacher-style attacks.
 Never use PKCS#1 v1.5 for encryption; use OAEP with SHA-256.
 
 **RSA signing:** Use PSS (probabilistic signature scheme), not PKCS#1 v1.5 for signing. PSS
@@ -237,8 +237,8 @@ in certain contexts.
 
 **Timing side-channels on RSA (Boneh/Brumley, USENIX Security 2003):** The first demonstration
 that RSA private key operations could be recovered via timing measurements over a LAN — not
-just local side channels. OpenSSL's square-and-multiply without blinding leaked timing
-information proportional to the weight of the private exponent. This caused OpenSSL to enable
+just local side channels. OpenSSL's sliding-windows CRT exponentiation without blinding leaked timing
+information (Montgomery extra reductions, Karatsuba vs. normal multiplication) that exposed the factorization of the modulus. This caused OpenSSL to enable
 RSA blinding (multiply by a random r^e before decryption, divide by r after) by default. Any
 RSA implementation without blinding on the private key operations is timing-vulnerable.
 
@@ -250,7 +250,7 @@ RSA implementation without blinding on the private key operations is timing-vuln
 
 The elliptic curve DLP (ECDLP) was independently proposed by Neal Koblitz ("Elliptic Curve
 Cryptosystems," *Mathematics of Computation* 48:177, January 1987, submitted October 1985)
-and Victor Miller (Crypto 1985 unpublished). Koblitz acknowledged Miller's preprint.
+and Victor Miller (Crypto 1985 proceedings). Koblitz acknowledged Miller's preprint.
 
 The group: points on E: y² = x³ + ax + b (Weierstrass form) over a prime field Fₚ, with the
 point at infinity O. Group order is approximately p. ECDLP: given P and Q = kP, find k. Best
@@ -266,8 +266,8 @@ number-station process to create discrete logarithm weaknesses only the curve de
 exploit. No concrete attack is known. The concern is structural.
 
 **Curve25519 / Ed25519 (Bernstein, 2006/2011):**
-- Curve25519: x²y² = x² + y² + 1 over GF(2^255 - 19) (twisted Edwards form for Montgomery
-  ladder). Complete addition law (no special cases for point doubling/infinity) → no timing
+- Curve25519: v² = u³ + 486662u² + u over GF(2^255 - 19) (Montgomery form, birationally
+  equivalent to the twisted Edwards curve edwards25519). Complete addition law (no special cases for point doubling/infinity) → no timing
   oracle. Cofactor h=8.
 - Ed25519 (EdDSA on Curve25519): deterministic nonces (nonce = H(private_key_suffix || message)),
   preventing the ECDSA nonce-reuse catastrophe. 64-byte signatures. RFC 8032.
@@ -279,7 +279,7 @@ s₁ - s₂ = k⁻¹(z₁ - z₂) mod n → k = (z₁-z₂)·(s₁-s₂)⁻¹ mo
 This is the Sony PS3 attack (fail0verflow, 2010): the console used a static k. Any implementation
 that reuses a nonce across two ECDSA signatures with the same key leaks the private key
 immediately. Any ECDSA implementation using a weak or biased RNG for nonces is exploitable
-via lattice attacks (Boneh/Venkatesan-style, also documented in Wong's Bordeaux thesis).
+via lattice attacks (Boneh/Venkatesan-style).
 
 **EdDSA eliminates this:** nonce is deterministic from H(private_key_suffix || message).
 No random number generator is involved in signing; the nonce cannot be reused because the
@@ -337,7 +337,7 @@ so that e(H₁(m_n), X_n) compensates for all other terms. Defense: proof of pos
 each signer to prove they hold the corresponding private key), or hash all public keys together.
 BLS requires careful deployment.
 
-**Deployed in:** Ethereum 2.0 (consensus layer validator signatures, ~500K validators
+**Deployed in:** Ethereum 2.0 (consensus layer validator signatures, ~860K validators
 aggregated), Chia Network.
 
 ### Boneh-Franklin Identity-Based Encryption (Crypto 2001)
@@ -396,9 +396,7 @@ once; circuit-specific setups (Groth16) require per-circuit ceremonies but produ
 proofs.
 
 **David Wong's context (O(1) Labs, Mina/Kimchi):** Kimchi is a PLONK-variant with custom gates
-for efficient encoding of cryptographic operations. Wong's work at Aztec (a ZK rollup) focuses
-on the ZK circuit design and the gap between theoretical ZK constructions and the engineering of
-ZK proving systems.
+for efficient encoding of cryptographic operations.
 
 **Verifiable Delay Functions (Boneh, Bonneau, Bünz, Fisch — Crypto 2018):**
 A VDF requires time T to compute f(x) but is fast to verify. Two constructions: (1) iterated
@@ -433,8 +431,6 @@ NOBUS ("Nobody But Us") backdoor construction via composite modulus with smooth 
 Choose p = 2q₁q₂...qₖ + 1 where the qᵢ are attacker-known primes. The DLP modulo each qᵢ
 is easy (Pohlig-Hellman), so CRT reconstructs the full discrete log. The backdoored p looks
 like a safe prime to casual inspection. The attacker can solve any DH instance in that group.
-This paper influenced the Logjam/FREAK analysis and accelerated the industry's shift away
-from custom DH group negotiation to well-known vetted groups (RFC 7919).
 
 ### TLS 1.3: the correct design
 
@@ -461,11 +457,11 @@ Patterns (syntax: each message is a list of tokens):
 - `NN`: no authentication. `→ e / ← e, ee`
 - `KK`: both parties pre-know each other's static keys. `→ e, es, ss / ← e, ee, se`
 - `XX`: mutual authentication, keys transmitted in handshake
-- `IK` (used in Signal's X3DH backbone): initiator knows responder's static key
+- `IK`: initiator knows responder's static key
 
 Properties: mutual authentication, forward secrecy, identity hiding — all explicit from the
 pattern. No ambiguity in what a given pattern provides. Used in WireGuard (IKpsk2), WhatsApp,
-Signal, and many other modern protocols.
+Lightning, and many other modern protocols.
 
 ### Signal Protocol (X3DH + Double Ratchet)
 
@@ -532,8 +528,8 @@ PKCS#7 padding is valid, they recover P_i byte by byte. O(256·n) oracle queries
 Variants: POODLE (SSL 3.0), Lucky 13 (timing oracle), BEAST (chosen-plaintext).
 
 **Bleichenbacher's RSA-PKCS#1 v1.5 oracle:** 2^20 queries to decrypt any captured RSA-encrypted
-message. Variants: ROBOT attack (2018) found in F5, Citrix, Cisco, Erlang, Android. David Wong
-found five independent Bleichenbacher oracles in separate TLS libraries in a single disclosure.
+message. Variants: ROBOT attack (2018) found in F5, Citrix, Cisco, Erlang. David Wong
+and co-authors (the CAT paper) broke seven of nine TLS implementations tested in a single disclosure.
 
 **Countermeasure:** Constant-time rejection of any padding failure; return the same error
 regardless of where in the padding verification the failure occurred; take the same time
@@ -566,13 +562,13 @@ nonce, DH ephemeral) is broken if the RNG is predictable. Historical failures:
   private keys recoverable
 - Dual_EC_DRBG (NSA, 2004): see below
 
-**Dual_EC_DRBG (Schneier/Ferguson, Crypto 2007 rump; Shumow/Ferguson):**
+**Dual_EC_DRBG (Shumow/Ferguson, Crypto 2007 rump):**
 The NIST standardized RNG uses two elliptic curve points P and Q. If P = e·Q (known to the
-designer), then outputs reveal 2^15 bits of internal state per 256-bit output block, allowing
+designer), then about 32 bytes of output allow
 full state recovery and prediction of all future outputs. The P/Q relationship was identified
-by Niels Ferguson and Dan Shumow at the Crypto 2007 rump session. NSA documents (Snowden,
-2013) confirmed NSA paid RSA Security $10M to make Dual_EC_DRBG the default in BSafe.
-Juniper Networks used Dual_EC_DRBG with the original NSA-specified P/Q; an attacker
+by Niels Ferguson and Dan Shumow at the Crypto 2007 rump session. Reuters (December
+2013) reported NSA paid RSA Security $10M to make Dual_EC_DRBG the default in BSafe.
+Juniper Networks used Dual_EC_DRBG with its own Q value rather than the NSA default Q; an attacker
 (attributed to a nation-state) later changed Q to a different value, creating a second
 backdoor that even the NSA couldn't exploit but the attacker could — the "cascading backdoor"
 that Schneier documented in 2015/2021.
@@ -589,8 +585,8 @@ The still-deployed broken list:
 - **RC4:** Statistical biases in the first 256 bytes, long-term key stream biases. Forbidden in
   TLS (RFC 7465).
 - **DES/3DES:** 56-bit DES: exhaustive search. 3DES: SWEET32 birthday attack on 64-bit block
-  at ~2^32 blocks (~256 GB).
-- **RSA < 2048 bits:** Factored with commodity cloud compute.
+  at ~2^32 blocks (~32 GB).
+- **RSA < 2048 bits:** 512-bit keys factored with commodity cloud compute.
 - **Static DH / ECDH without ephemeral:** No forward secrecy. Compromise of server private key
   decrypts all past sessions.
 
@@ -613,9 +609,9 @@ FIPS standards effective August 14, 2024 (Federal Register
 ### ML-KEM (FIPS 203) — Key Encapsulation Mechanism
 
 Formerly CRYSTALS-Kyber. Security: Module Learning With Errors (MLWE). Three parameter sets:
-- **ML-KEM-512:** 128-bit classical / ~100-bit PQ security. Public key 800B, ciphertext 768B.
-- **ML-KEM-768:** 192-bit classical / ~128-bit PQ. Public key 1184B, ciphertext 1088B.
-- **ML-KEM-1024:** 256-bit classical / ~160-bit PQ. Public key 1568B, ciphertext 1568B.
+- **ML-KEM-512:** NIST security category 1 (~AES-128). Public key 800B, ciphertext 768B.
+- **ML-KEM-768:** NIST security category 3 (~AES-192). Public key 1184B, ciphertext 1088B.
+- **ML-KEM-1024:** NIST security category 5 (~AES-256). Public key 1568B, ciphertext 1568B.
 
 ML-KEM-768 is the recommended general-purpose choice. The scheme generates shared secrets via a
 CPA-secure PKE (lattice-based encryption) hardened to CCA2-secure KEM via Fujisaki-Okamoto
@@ -632,11 +628,11 @@ challenge c = H(μ, w₁), attempt to produce z = y + cS₁ such that z and w - 
 short; abort and retry if not. This abort-retry makes timing non-constant — implementations
 must be careful to avoid timing leakage on the abort rate.
 
-Public key ~1312 bytes, signature ~2420 bytes (ML-DSA-65), much larger than Ed25519.
+Public key ~1952 bytes, signature ~3309 bytes (ML-DSA-65), much larger than Ed25519.
 
 ### SLH-DSA (FIPS 205) — Hash-Based Signature (conservative backup)
 
-Formerly SPHINCS+. Pure hash-based — security rests only on hash function collision resistance.
+Formerly SPHINCS+. Pure hash-based — security rests only on hash function properties (second-preimage resistance and pseudorandomness).
 No algebraic structure to attack. Performance: slow signing (~milliseconds), moderate
 verification, large signatures (~8-50KB depending on parameter set). Recommended as a backup
 for scenarios where lattice cryptography assumptions are broken. SLH-DSA-SHA2-128f/128s/etc.
@@ -663,7 +659,7 @@ active for long-lived sensitive data.
 
 ## 12. The Another Look Critique: What Security Proofs Actually Guarantee
 
-Neal Koblitz and Alfred Menezes's "Another Look" series (~15 papers, 2004–2019) identified
+Neal Koblitz and Alfred Menezes's "Another Look" series (2004–2019) identified
 specific categories of overclaiming in the crypto literature:
 
 **1. Random oracle model proofs ≠ instantiatable security.**
@@ -680,10 +676,9 @@ published proofs have slack of this magnitude. Without tight reductions, concret
 selection based on the proof is unreliable.
 
 **3. The HMQV controversy (2007).**
-Koblitz and Menezes published an analysis of HMQV (a provably secure variant of MQV) finding
+Menezes published an analysis of HMQV (a provably secure variant of MQV) finding
 attacks in the Canetti-Krawczyk model that recovered static private keys under specific
-conditions. The community response was hostile (Goldreich called it "snobbery at its purest"
-before retracting). This episode illustrates that:
+conditions. The community response was hostile. This episode illustrates that:
 - Peer review of security proofs is difficult and errors persist in published work
 - Community social dynamics can impede legitimate critique
 - The correct response to a claimed attack is technical engagement, not dismissal
@@ -701,7 +696,7 @@ evidence of security, not as guarantees. For any deployed cryptosystem, verify:
 
 ### Dual_EC_DRBG: the anatomy of a standards-body backdoor
 
-The Dual Elliptic Curve Deterministic Random Bit Generator was standardized by NIST (SP 800-90A,
+The Dual Elliptic Curve Deterministic Random Bit Generator was standardized by NIST (SP 800-90,
 2006) with parameters specifying curve points P and Q. Niels Ferguson and Dan Shumow presented
 at Crypto 2007 rump session that if log_P(Q) is known, each 256-bit DRBG output block reveals
 sufficient state to predict all future outputs (~2^15 remaining search space). The P/Q
@@ -711,7 +706,7 @@ relationship was not published.
 the NIST standard and paid RSA Security $10M to make it the default in the BSafe toolkit.
 
 **The Juniper cascade (2015, revisited 2021):** Juniper ScreenOS used Dual_EC_DRBG. An attacker
-(widely attributed to China's MSS, though not formally attributed) replaced Q with a different
+(reported by Bloomberg in 2021 as China-linked APT 5, though not formally attributed) replaced Q with a different
 value, creating a second backdoor usable only by the attacker — exploiting the exact backdoor
 structure that Ferguson/Shumow identified, but with a different Q. This demonstrates:
 - A backdoor in a standardized component is an attack surface for any adversary who understands
@@ -737,21 +732,21 @@ is no downgrade path.
 ### Boneh/Shoup "A Graduate Course in Applied Cryptography" (toc.cryptobook.us)
 
 ~900 pages, three parts:
-- **Part I (Chapters 1–8):** Symmetric crypto — stream ciphers (PRG/PRF), block ciphers (PRP),
-  modes of operation, data integrity (MACs/hash functions), authenticated encryption, odds and
-  ends (format-preserving, disk encryption, nonce-misuse resistant AE)
-- **Part II (Chapters 9–16):** Public key crypto — TDF and RSA, public-key encryption (El Gamal,
-  Cramer-Shoup), digital signatures, identification and entity authentication, fast primitives
-  (elliptic curves, DLP, hashing to curves), key exchange
-- **Part III (Chapters 17–26):** Advanced — lattice crypto (SIS/LWE/Ring-LWE), digital cash and
-  blockchains, protocols (MPC, ZK proofs), advanced signature schemes
+- **Part I (Chapters 1–9):** Secret key cryptography — encryption, stream ciphers, block ciphers,
+  chosen plaintext attacks, message integrity (universal hashing, collision-resistant hashing),
+  authenticated encryption
+- **Part II (Chapters 10–17):** Public key cryptography — public key tools, public-key encryption,
+  chosen-ciphertext security, digital signatures, fast signatures from one-way functions, elliptic
+  curves and pairings, attacks on number-theoretic assumptions, post-quantum crypto from lattices
+- **Part III (Chapters 18–23):** Protocols — identification and login, sigma protocols,
+  zero-knowledge, authenticated key exchange, threshold cryptography, secure multi-party computation
 
 Rigorous treatment with full security definitions and proofs. The standard graduate cryptography
 reference alongside Katz/Lindell.
 
 ### David Wong's "Real-World Cryptography" (Manning, 2021)
 
-16 chapters, two tracks — symmetric and asymmetric — then protocols and advanced topics.
+16 chapters in two parts: primitives, then protocols.
 Uniquely: each chapter opens with "what problem does this solve?" framing. Covers TLS 1.3, Noise,
 Signal, HPKE, PQC, ZK proofs, MPC, FHE. No prerequisites beyond basic programming. The correct
 book for an engineer who needs to use cryptography correctly rather than construct proofs.
@@ -774,15 +769,15 @@ Engineering focus. Distinctive contributions:
 
 | Tool / Resource | Author(s) | Purpose |
 |----------------|-----------|---------|
-| **NTL (Number Theory Library)** | Victor Shoup | C++ library for arbitrary-precision arithmetic, lattice algorithms (LLL), ZK proofs — research and implementation standard |
+| **NTL (Number Theory Library)** | Victor Shoup | C++ library for arbitrary-precision arithmetic, lattice algorithms (LLL) — research and implementation standard |
 | **SageMath** | Community | Computer algebra system; standard for cryptographic research and attack implementation |
-| **mimoo/RSA-and-LLL-attacks** | David Wong | SageMath implementations of Wiener, Boneh-Durfee, Coppersmith attacks; 833 stars |
+| **mimoo/RSA-and-LLL-attacks** | David Wong | SageMath implementations of Boneh-Durfee and Coppersmith attacks; 840 stars |
 | **CryptoHack** | Community | CTF-style platform for learning cryptography by breaking intentionally vulnerable constructions |
 | **toc.cryptobook.us** | Boneh/Shoup | Free ~900-page graduate cryptography textbook |
 | **Handbook of Applied Cryptography** | Menezes/van Oorschot/Vanstone | Free reference; Chapter 4 (public key parameters), Chapter 11 (digital signatures) — still accurate for classical primitives |
 | **Signal Protocol (libsignal)** | Signal Foundation | Reference X3DH + Double Ratchet implementation |
-| **BLAKE3** | O'Day et al. | Fastest general-purpose cryptographic hash; Merkle tree structure; use for non-keyed hashing where speed matters |
-| **Disco** | David Wong (ePrint 2019/180) | Noise + STROBE: two-primitive (Keccak only) protocol framework |
+| **BLAKE3** | O'Connor et al. | Fastest general-purpose cryptographic hash; Merkle tree structure; use for non-keyed hashing where speed matters |
+| **Disco** | David Wong (ePrint 2019/180) | Noise + STROBE: two-primitive (Curve25519 + Keccak) protocol framework |
 | **bls-signatures / blst** | IETF / Supranational | BLS signature library (used in Ethereum 2.0); production BLS implementation |
 
 ---
@@ -819,11 +814,11 @@ National Security Systems
 - 2033: exclusive use in browsers, servers, cloud services; legacy applications updated/replaced
 - 2035: all NSS quantum-resistant
 
-CNSA 2.0 specifies ML-KEM-1024, ML-DSA-87, SLH-DSA-SHA2-256s, and AES-256 (no AES-128). It
+CNSA 2.0 specifies ML-KEM-1024, ML-DSA-87, LMS/XMSS (firmware/software signing), SHA-384/512, and AES-256 (no AES-128). It
 does NOT permit hybrid stacks for compliance — pure PQ algorithms only. This is a deliberate
 break from the broader-internet "hybrid during transition" stance.
 
-For the lattice/hash family construction details, alternative-family backups (HQE, classic
+For the lattice/hash family construction details, alternative-family backups (HQC, classic
 McEliece), and the migration sequencing across symmetric/asymmetric/protocol layers, see
 `post_quantum_cryptography_expertise.md`.
 
@@ -847,7 +842,8 @@ of attempted decryption. Note this preserves the original document's framing: hy
 transition tool, not an end state.
 
 **Browser/server deployment status (2024-2026):**
-- Chrome 124+ (2024-Q2) ships X25519Kyber768 / X25519MLKEM768 by default with `KyberKEX` flag.
+- Chrome 124 (April 2024) shipped X25519Kyber768Draft00 by default; Chrome 131 (November 2024)
+  switched to X25519MLKEM768.
 - Firefox 132+ supports hybrid PQC on TLS 1.3.
 - Cloudflare turned X25519MLKEM768 on for all their edges in 2024-2025
   ([Cloudflare PQC announcement](https://blog.cloudflare.com/post-quantum-for-all/)).
@@ -864,8 +860,7 @@ Cloudflare and Firefox 118 in 2023; broader rollout 2024
 Russia began blocking ECH in late 2024; censoring states treat ECH as adversarial because
 it removes the SNI metadata they had been using for selective filtering
 ([PETS FOCI 2025 paper](https://www.petsymposium.org/foci/2025/foci-2025-0016.pdf)).
-ECH is still draft-25 as of this writing — not yet a numbered RFC — but the wire format is
-considered stable.
+ECH was published as RFC 9849 (March 2026).
 
 **HPKE (RFC 9180, February 2022)** has matured from a primitive into infrastructure. ECH uses
 HPKE; the IETF Messaging Layer Security (MLS, RFC 9420) protocol uses HPKE for sender-key
@@ -896,8 +891,8 @@ ML-KEM reference and library implementations. KyberSlash1 affects the `poly_toms
 procedure; KyberSlash2 affects `poly_compress` and `polyvec_compress`. Both stem from
 secret-dependent division operations whose timing on platforms with non-constant-time
 integer division (notably Arm Cortex-A7 and Arm Cortex-M4) leaks bits of the secret key.
-Practical: secret keys recovered in minutes (KyberSlash2) to hours (KyberSlash1) on the
-Raspberry Pi 2 ([eprint 2024/1049](https://eprint.iacr.org/2024/1049),
+Practical: KyberSlash1 key recovery demonstrated on a Raspberry Pi 2 and KyberSlash2 on an
+Arm Cortex-M4 ([eprint 2024/1049](https://eprint.iacr.org/2024/1049),
 [kyberslash.cr.yp.to](https://kyberslash.cr.yp.to/faq.html)). Affected the official Kyber
 reference, pq-crystals/kyber, mlkem-native, kudelskisecurity/crystals-go, and others;
 patches landed January-March 2024.
@@ -907,20 +902,19 @@ not the algorithm alone. The Kyber reference C code was written in C with patter
 clang and gcc compile to constant-time code on x86_64 but NOT on Arm cores with variable-
 latency division. Any new primitive needs constant-time verification on every target ISA.
 
-**Hertzbleed lineage (S&P 2022, continuing 2023-2025):** DVFS-induced frequency variation
+**Hertzbleed lineage (USENIX Security 2022, continuing 2023-2025):** DVFS-induced frequency variation
 leaks computation-dependent timing information without any explicit power-measurement
 interface ([hertzbleed.com](https://www.hertzbleed.com/);
 [IEEE Micro 2023](https://dl.acm.org/doi/abs/10.1109/MM.2023.3274619)). The original 2022
 result broke SIKE; 2023 follow-up extended to "constant-time" ECDSA and Classic McEliece
 implementations. IEEE S&P 2025 work demonstrates 5x-faster Hertzbleed-style attacks on
-modern Intel CPUs even in the absence of frequency-side-channel leakage, broadening the
-attack to programs beyond cryptography and to GPU computations
+modern Intel CPUs even in the absence of frequency-side-channel leakage
 ([Hertzbleed continued lineage, S&P 2025](https://www.hertzbleed.com/)). The structural
 defense — fixing CPU frequency — is rarely available in practice; the operational defense
 is masking secret-dependent operations.
 
 **Spectre-class continuing research:** Spectre/Meltdown variants continued to surface
-through 2024-2025 (RetBleed, Inception/Phantom, BHI, Reptar, GhostRace). All affect
+from 2022 onward (RetBleed, Inception/Phantom, BHI, Reptar, GhostRace). All affect
 microarchitectural timing channels rather than cryptographic primitives directly, but
 their impact on cryptographic key custody — particularly for keys held in process memory
 during signing or KEM-decapsulation — is the operational concern. Mitigation discipline:
@@ -936,7 +930,7 @@ continues. Catalog of representative 2024-2026 CVEs in the major cryptographic l
 
 **OpenSSL** ([advisory feed](https://openssl-library.org/news/vulnerabilities/)):
 - **CVE-2024-12797 (HIGH):** RFC 7250 raw public key authentication bypass — TLS/DTLS
-  connections using raw public keys vulnerable to MITM. Affects OpenSSL 3.x.
+  connections using raw public keys vulnerable to MITM. Affects OpenSSL 3.2–3.4.
 - **CVE-2025-15467 (HIGH):** Stack buffer overflow in CMS AuthEnvelopedData parsing.
   Crafted AEAD parameters trigger out-of-bounds write BEFORE any authentication or tag
   verification — pre-auth memory corruption is the worst-case shape for a crypto library.
@@ -954,18 +948,16 @@ pattern (Wong, Section 10.2) has been followed by intermittent re-disclosure of 
 side-channel and parsing issues in 2024-2025. The defensive practitioner posture: any
 library implementing PKCS#1 v1.5 decryption at all is a Bleichenbacher liability surface
 until proven constant-time and constant-error against the full corpus of historical
-oracle variants (Bleichenbacher 1998, Klima-Pokorny-Rosa 2003, ROBOT 2018,
-[Cheng-Liu et al. CHES 2024]).
+oracle variants (Bleichenbacher 1998, Klima-Pokorny-Rosa 2003, ROBOT 2018).
 
-**libsodium** continues its conservative posture: no PKCS#1 v1.5, no CBC, no static
-DH/ECDH, default APIs are AEAD-only and use Curve25519/Ed25519. The libsodium CVE rate
+**libsodium** continues its conservative posture: no PKCS#1 v1.5, no CBC, default APIs are AEAD-only and use Curve25519/Ed25519. The libsodium CVE rate
 remains close to zero through 2024-2026 — a deliberate consequence of removing optionality
 that history shows is dangerous. Use libsodium for new application-layer encryption work
 unless you have specific reason to use a different library.
 
 **BoringSSL / Google Tink:** Google's curated TLS stack and high-level crypto API,
-respectively, have continued the "no-options dangerous API" approach. Tink 1.10+ added
-ML-KEM and ML-DSA support; BoringSSL added X25519MLKEM768 in 2024.
+respectively, have continued the "no-options dangerous API" approach. Tink supports
+ML-DSA and SLH-DSA in C++ and Go; BoringSSL added X25519MLKEM768 in 2024.
 
 **Library-side defense pattern:** prefer (a) AEAD-only APIs (libsodium, Tink, age),
 (b) protocol-level libraries (rustls, HPKE implementations) over raw primitive libraries.
@@ -976,7 +968,7 @@ authenticated channel" libraries — the surface area difference is the explanat
 
 **Signal — PQXDH (September 2023):** Signal's first PQ step. PQXDH augments the X3DH
 session-establishment protocol by computing a shared secret that combines (a) X25519 key
-agreement and (b) CRYSTALS-Kyber (later ML-KEM-768) encapsulation, then mixes both into
+agreement and (b) CRYSTALS-Kyber encapsulation, then mixes both into
 the session root key
 ([signal.org/blog/pqxdh](https://signal.org/blog/pqxdh/);
 [PQXDH specification](https://signal.org/docs/specifications/pqxdh/pqxdh.pdf)).
@@ -1048,8 +1040,7 @@ provider-operated, customer-isolated — has converged across all three majors.
 
 **PKCS#11 v3.1:** Approved as OASIS Standard in 2023, with implementation rollouts through
 2024-2025 ([OASIS PKCS #11 v3.1 spec](https://docs.oasis-open.org/pkcs11/pkcs11-spec/v3.1/csd01/pkcs11-spec-v3.1-csd01.html)).
-v3.1 extends the Cryptoki API for post-quantum mechanisms (ML-KEM, ML-DSA), AEAD modes,
-and additional Edwards-curve coverage. Most cloud HSM and on-prem HSM vendors are at v3.1
+ML-KEM and ML-DSA mechanisms arrive in v3.2 (v3.1 added LMS/HSS). Most cloud HSM and on-prem HSM vendors are at v3.1
 parity through 2025.
 
 **TEE-backed key custody:** Confidential computing platforms (Intel TDX, AMD SEV-SNP,
@@ -1090,12 +1081,12 @@ Etsi/IQC QSC 2024 workshop produced the standardization paper
    using RSA-1024 anywhere?" audits.
 
 **CBOM ecosystem tooling (2024-2026):** sbomify, Checkmarx, QuSecure, Sandbox AQ, IBM
-Crypto Discovery, AnchorMyne, and others build crypto-inventory scanners on top of the
+Crypto Discovery, and others build crypto-inventory scanners on top of the
 CBOM schema. The integration model: CI pipeline produces SBOM+CBOM artifacts on every
 build; an inventory store maintains organizational view; alerts fire on
 deprecated-algorithm introduction.
 
-**NIST SP 1800-38** (preliminary draft series, 2024-2025) provides the NCCoE migration
+**NIST SP 1800-38** (preliminary draft series, 2023) provides the NCCoE migration
 playbook integrating CBOM with the broader cryptographic-modernization workflow. The
 SP 1800-38B document is the inventory-and-discovery sub-workflow.
 
@@ -1107,14 +1098,11 @@ trust lessons remain live. 2024-2026 developments in RNG-adjacent territory:
 - **NIST SP 800-90 series** continues as the standardized DRBG framework (HMAC_DRBG,
   CTR_DRBG, Hash_DRBG; Dual_EC_DRBG officially deprecated and removed).
 - **Intel CET / RDRAND posture:** RDRAND and RDSEED remain reachable on x86-64 but the
-  practitioner default since the 2019-2020 "RDRAND returns deterministic stream after
-  power-state transition" issues is to use RDRAND as one of multiple entropy sources, not
+  practitioner default since the 2019 AMD bug in which RDRAND returned a fixed value after
+  suspend/resume is to use RDRAND as one of multiple entropy sources, not
   as the sole source. Linux kernel's getrandom(2) blends RDRAND with /dev/urandom seeding;
   this hybrid posture is the right default.
-- **Yarrow → Fortuna lineage** (Section 14) continues in production. Recent: Fortuna-style
-  reseeding with explicit entropy accumulation is now the architectural baseline in
-  systemd-cryptsetup, libsodium randombytes, and most modern PRNG-based key generation
-  paths.
+- **Yarrow → Fortuna lineage** (Section 14) continues in production.
 - **Hardware RNG quality controversies:** No new Dual_EC-magnitude incident has emerged
   publicly in 2024-2026. The continuing concern is opaque vendor-specific TRNG cores
   (especially in cheap embedded SoCs) where statistical testing is the only validation

@@ -12,12 +12,11 @@
 >   went on to define the **applied pi-calculus** with Cédric Fournet, the symbolic
 >   substrate underlying ProVerif. Burrows (Google) co-designed the AltaVista index
 >   and Chubby lock service after his BAN-era work at DEC SRC.
-> - **Bruno Blanchet** (Inria Paris, head of PROSECCO until its rename) — author of
+> - **Bruno Blanchet** (Inria Paris, head of PROSECCO) — author of
 >   both **ProVerif** (symbolic model, 2001+) and **CryptoVerif** (computational
 >   model, 2006+). The canonical practitioner-researcher in this field: both tools
 >   have been used to verify TLS 1.3, Signal, WireGuard, and dozens of other
->   real-world protocols. Teaches the *SECURE* course on protocol proofs at MPRI;
->   2026 PC member for IEEE CSF.
+>   real-world protocols. Co-teaches the MPRI 2-30 course on protocol proofs.
 > - **Cas Cremers** (CISPA Helmholtz Center for Information Security; Professor of
 >   Computer Science, Saarland University) and **David Basin** (Information Security
 >   Group head, Department of Computer Science, ETH Zürich) — Tamarin Prover
@@ -25,16 +24,16 @@
 >   they built the multiset-rewriting prover that has become the working tool for
 >   stateful real-world protocols. Basin + Cremers + Sasse + Dreier received the
 >   2026 **Levchin Prize for Real-World Cryptography** for Tamarin.
-> - **Karthikeyan Bhargavan** (Cryspen co-founder and CRO; formerly *directeur de
+> - **Karthikeyan Bhargavan** (Cryspen co-founder and Chief Research Scientist; formerly *directeur de
 >   recherche* at Inria Paris and head of PROSECCO) — leader of the **miTLS** and
 >   **HACL\*** projects; ERC Grant recipient for the formal-methods work that
 >   directly shaped the TLS 1.3 design. Co-author of the Triple Handshake attack
 >   (2014), the SLOTH cross-protocol-collision attack (2016), and the verified
->   record-layer paper for TLS 1.3 (CCS 2017).
+>   record-layer paper for TLS 1.3 (S&P 2017).
 > - **Antoine Delignat-Lavaud** (Microsoft Research Cambridge; formerly Inria) —
 >   key contributor to **Project Everest** (the verified HTTPS stack: F\*,
 >   miTLS-F\*, EverCrypt, EverParse) and TLS 1.3 standards work at the IETF. Now
->   focused on Confidential Compute Framework (CCF) protocol design at Microsoft.
+>   focused on Confidential Consortium Framework (CCF) protocol design at Microsoft.
 > - **Catherine Meadows** (US Naval Research Laboratory, Center for High Assurance
 >   Systems; head of the Formal Methods Section) — principal developer of the
 >   **NRL Protocol Analyzer (NPA)** in the late 1980s, one of the first tools to
@@ -52,10 +51,9 @@
 >   and others, they built the probabilistic relational Hoare logic (pRHL) that
 >   underlies computer-aided cryptographic proofs. EasyCrypt is the canonical
 >   tool for fully computational game-hopping proofs of real schemes.
-> - **Nadim Kobeissi** (Symbolic Software, Paris; Alan Turing Institute external
->   researcher) — author of **Verifpal** (2019), the practitioner-oriented
+> - **Nadim Kobeissi** (Symbolic Software, Paris) — author of **Verifpal** (2019), the practitioner-oriented
 >   protocol verifier modeled on ProVerif but with a syntax tailored to engineers
->   and pedagogy. Cryptocat designer (2011-2019). PhD *Formal Verification for
+>   and pedagogy. Cryptocat designer (launched 2011). PhD *Formal Verification for
 >   Real-World Cryptographic Protocols and Implementations* (2018).
 > - **Daniel Fett + Ralf Küsters + Guido Schmitz** (Stuttgart / Trier) — authors
 >   of the **Web Infrastructure Model (WIM)** and *A Comprehensive Formal
@@ -104,12 +102,11 @@ man-in-the-middle attack using FDR
 omits the responder's identity, letting an intruder interleave two
 sessions and convince B it shares a key with A. The fix
 (Needham-Schroeder-Lowe) adds B's identity. 17 years of human review
-missed it; an automated refinement checker found it in minutes. Founding
+missed it; an automated refinement checker found it. Founding
 parable of automated protocol verification.
 
 **Kerberos v4** had ticket-replay and timestamp-only freshness flaws;
-v5 addressed most. **MS-CHAPv1** had hash-chunk-isolation flaws reducing
-work factor from 2^56 to 3×2^21 parallel. **WEP** combined a 24-bit IV
+v5 addressed most. **MS-CHAPv1** had hash-chunk-isolation flaws. **WEP** combined a 24-bit IV
 with RC4 in a polynomial-time-recoverable way (Fluhrer-Mantin-Shamir
 2001). **Triple Handshake** on TLS (Bhargavan et al. 2014) exploited
 unbound resumption. **DROWN, FREAK, Logjam, POODLE, BEAST, CRIME,
@@ -211,8 +208,8 @@ both.
 
 ### Soundness theorems — bridging
 
-Abadi-Rogaway 2000 (*Reconciling Two Views of Cryptography*, J.
-Cryptology) showed that under certain conditions, symbolic equivalence
+Abadi-Rogaway (*Reconciling Two Views of Cryptography*, IFIP TCS 2000;
+J. Cryptology 2002) showed that under certain conditions, symbolic equivalence
 implies computational indistinguishability. Seminal result was for
 symmetric encryption against passive adversaries; Cortier-Warinschi,
 Backes-Pfitzmann, Comon-Cortier extended to active adversaries and
@@ -349,8 +346,7 @@ sequential composition.
 
 TLS 1.3 (PROSECCO papers 2014-2018, Bhargavan-Blanchet-Kobeissi S&P
 2017); Signal Protocol handshake and ratchet (Kobeissi-Bhargavan-
-Blanchet EuroS&P 2017, alongside CryptoVerif); OPAQUE PAKE during CFRG
-selection; X3DH; many others.
+Blanchet EuroS&P 2017, alongside CryptoVerif); X3DH; many others.
 
 Note: the Fett-Küsters-Schmitz OAuth/OIDC line (CCS 2016, see
 `saml_federation_expertise.md` §5) used their own Web Infrastructure
@@ -410,7 +406,7 @@ guidance.
 
 ### Real wins
 
-- **TLS 1.3.** Cremers, Horvat, Hoyland, Jacomme, van der Merwe (S&P
+- **TLS 1.3.** Cremers, Horvat, Hoyland, Scott, van der Merwe (CCS
   2017) modeled the TLS 1.3 draft 21 in Tamarin and found and fixed
   issues prior to standardization. See
   https://tamarin-prover.com/publications.html.
@@ -419,21 +415,20 @@ guidance.
   Identified missing security goals in the 3GPP standard; found that
   certain goals are violated without additional assumptions; led to
   3GPP-side updates.
-- **EMV chip-and-PIN.** Basin, Sasse, Schaller, Toro-Pozo, *The EMV
+- **EMV chip-and-PIN.** Basin, Sasse, Toro-Pozo, *The EMV
   Standard: Break, Fix, Verify* (S&P 2021, arXiv:2006.08249;
-  https://emvrace.github.io/). Found and demonstrated PIN-bypass
-  attacks on Visa, V Pay, Mastercard, Maestro; built a proof-of-concept
+  https://emvrace.github.io/). Found and demonstrated a PIN-bypass
+  attack on Visa contactless cards; built a proof-of-concept
   Android relay app. Mastercard rolled out brand-mixup defenses
   post-disclosure.
 - **WireGuard.** Donenfeld and Milner, *Formal Verification of the
   WireGuard Protocol* (2018,
   https://www.wireguard.com/papers/wireguard-formal-verification.pdf).
-  Hötzendorfer et al., *A Unified Symbolic Analysis of WireGuard* (NDSS
+  Lafourcade, Mahmoud, Ruhault, *A Unified Symbolic Analysis of WireGuard* (NDSS
   2024, https://www.ndss-symposium.org/wp-content/uploads/2024-364-paper.pdf).
 - **Noise Framework.** Kobeissi-Nicolas-Bhargavan *Noise Explorer*
-  (https://eprint.iacr.org/2018/766.pdf) used both Tamarin and Verifpal
-  alongside ProVerif to generate symbolic models for all 53 Noise
-  patterns from the spec.
+  (https://eprint.iacr.org/2018/766.pdf) generated ProVerif models to
+  analyze 50 Noise handshake patterns.
 - **Signal Protocol post-quantum.** *Formal Verification of a Post-quantum
   Signal Protocol with Tamarin* (VECoS 2023,
   https://link.springer.com/chapter/10.1007/978-3-031-49737-7_8).
@@ -606,8 +601,7 @@ many models translate. Distinguishing design choices:
   applied-cryptography material) now use Verifpal as the first
   formal-verification exposure.
 - **Used by industry.** Google, Zoom, Bosch listed among Verifpal
-  adopters (Symbolic Software self-report). The Cure53-audit pipeline
-  occasionally produces Verifpal models alongside text reports.
+  adopters (Symbolic Software self-report).
 
 ### Weaknesses
 
@@ -622,9 +616,7 @@ many models translate. Distinguishing design choices:
 
 - **Signal Protocol.** Multiple Verifpal models of X3DH / Double Ratchet
   published.
-- **BBS+ signatures.** Selective-disclosure credential analysis.
 - **Noise Framework** patterns (alongside ProVerif and Tamarin).
-- **WireGuard** subset analyses.
 
 ### When to reach for Verifpal
 
@@ -675,9 +667,9 @@ spec-vs-code gap.
 
 ### Coq, FCF, Rocq Prover
 
-Andrew Appel's Princeton group developed FCF (Foundational Cryptography
-Framework) in Coq; Adam Petcher used it for HMAC and TLS-record-layer
-proofs. Coq (now Rocq Prover) is also used directly — see Adam
+Adam Petcher and Greg Morrisett (Harvard) developed FCF (Foundational
+Cryptography Framework) in Coq; Petcher used it for HMAC and
+searchable-symmetric-encryption proofs. Coq (now Rocq Prover) is also used directly — see Adam
 Chlipala's *Fiat Cryptography* for elliptic-curve arithmetic. Highest
 expertise barrier, most flexibility.
 
@@ -710,7 +702,7 @@ not as post-hoc audit — is the TLS 1.3 effort, 2014-2018. After a decade
 of TLS-1.x attacks (BEAST, CRIME, Lucky 13, FREAK, Triple Handshake,
 POODLE), the IETF TLS WG was receptive to formal-methods input. Each
 major draft was analyzed by multiple formal-verification teams in
-parallel; RFC 8446 (March 2018) has more formal-verification artifacts
+parallel; RFC 8446 (August 2018) has more formal-verification artifacts
 attached to it than any previous IETF protocol.
 
 ### Tools applied
@@ -718,8 +710,7 @@ attached to it than any previous IETF protocol.
 - **ProVerif** — handshake symbolic analysis (PROSECCO Inria; Bhargavan-
   Blanchet-Kobeissi S&P 2017,
   https://bblanche.gitlabpages.inria.fr/publications/BhargavanBlanchetKobeissiSP2017.pdf).
-- **Tamarin** — Cremers-Horvat-Hoyland-Jacomme-van der Merwe (S&P 2017);
-  Hirschi-Schmidt for downgrade.
+- **Tamarin** — Cremers-Horvat-Hoyland-Scott-van der Merwe (CCS 2017).
 - **CryptoVerif** — record layer computational proof with concrete
   security bound.
 - **miTLS-F\*** — verified reference implementation closing the spec-vs-
@@ -733,8 +724,7 @@ attached to it than any previous IETF protocol.
   flagged subtle binding issues; PSK binders mechanism in RFC 8446 is
   the response.
 - **Downgrade protection** — the downgrade-sentinel bytes in
-  `server_random` are a direct consequence of cross-protocol-collision
-  analyses (SLOTH, Bhargavan-Leurent 2016).
+  `server_random`.
 - **Cross-mode issues** between full handshake and resumption.
 
 ### Lessons
@@ -766,22 +756,21 @@ https://eprint.iacr.org/2016/1013.pdf; *J. Cryptology* 2020) — first
 comprehensive computational analysis of X3DH + Double Ratchet, treating
 ratchet state as a "tree" of forking sessions. Concurrent ProVerif
 work: Kobeissi-Bhargavan-Blanchet ProScript (EuroS&P 2017). Post-
-quantum extension: VECoS 2023 Tamarin analysis informed Signal's PQXDH
-and Triple Ratchet migrations.
+quantum extension: VECoS 2023 Tamarin analysis of a post-quantum Signal
+variant (X3DH + Double Ratchet).
 
 ### Noise Framework
 
-Trevor Perrin's Noise (https://noiseprotocol.org/noise.html) — 53 named
-handshake patterns. Kobeissi-Nicolas-Bhargavan *Noise Explorer* (eprint
-2018/766) auto-generated ProVerif and Verifpal models for all patterns.
+Trevor Perrin's Noise (https://noiseprotocol.org/noise.html). Kobeissi-Nicolas-Bhargavan *Noise Explorer* (eprint
+2018/766) auto-generated ProVerif models for all patterns.
 WireGuard, Lightning, WhatsApp IM all use Noise.
 
 ### WireGuard
 
 Donenfeld-Milner 2018 Tamarin proof; Lipp-Blanchet-Bhargavan EuroS&P
-2019 CryptoVerif computational proof; Hötzendorfer et al. NDSS 2024
-*Unified Symbolic Analysis* re-confirmed security under updated threat
-model.
+2019 CryptoVerif computational proof; Lafourcade-Mahmoud-Ruhault NDSS 2024
+*Unified Symbolic Analysis* found an anonymity flaw and proved a
+proposed fix.
 
 ### 5G AKA
 
@@ -794,12 +783,12 @@ rather than design flaws.
 
 ### EMV chip-and-PIN
 
-Basin, Sasse, Schaller, Toro-Pozo, *The EMV Standard: Break, Fix, Verify*
+Basin, Sasse, Toro-Pozo, *The EMV Standard: Break, Fix, Verify*
 (S&P 2021, arXiv:2006.08249, https://emvrace.github.io/). Tamarin model
 of the entire EMV family. Found practical PIN-bypass on Visa Credit/
-Debit/Electron/V Pay, Mastercard Credit, Maestro; built working Android
-relay-attack PoC. Mastercard rolled out brand-mixup defenses;
-Visa-side issues partially open. Canonical "formal verification finds
+Debit/Electron/V Pay (Mastercard Credit and Maestro via the follow-up
+Card Brand Mixup attack, USENIX Security 2021); built working Android
+relay-attack PoC. Mastercard rolled out brand-mixup defenses. Canonical "formal verification finds
 attacks that industry audits missed."
 
 ### Helios / Belenios e-voting
@@ -813,20 +802,19 @@ Helios family. Belenios extension at CSF 2018.
 Fett, Küsters, Schmitz, *A Comprehensive Formal Security Analysis of
 OAuth 2.0* (CCS 2016, arXiv:1601.01229) used the Web Infrastructure
 Model (applied-pi tailored to HTTP semantics). Found multiple attacks
-against RFC 6749. The OpenID Connect (CSF 2017) and FAPI (2018) follow-
+against RFC 6749. The OpenID Connect (CSF 2017) and FAPI (S&P 2019) follow-
 ups applied the same methodology. RFC 9700 (OAuth 2.0 Security BCP) is
 in significant part the operationalization of these findings. Extended
 treatment in `saml_federation_expertise.md` §5.
 
 ### WebAuthn / FIDO2, Bluetooth, Estonian i-voting
 
-Hu et al. *Towards a Formal Foundation of Web Authentication* (POPL
-2024) informed WebAuthn Level 3 governance. Cremers et al. Tamarin
-analysis of Bluetooth LE Secure Connections (eprint 2023) found
-protocol-level issues post-KNOB (USENIX Security 2019). Estonian
-i-voting (Springall et al., 2014-2020) showed voting privacy holds
-under stated assumptions but operational-security assumptions are more
-fragile than the protocol spec suggests.
+Claverie et al. Tamarin
+analysis of Bluetooth key agreement (ESORICS 2023) found
+pairing-confusion attacks post-KNOB (USENIX Security 2019). Estonian
+i-voting (Springall et al., CCS 2014) found serious architectural
+limitations and procedural gaps under an insider/state-attacker threat
+model.
 
 ### Real-world pattern
 
@@ -864,7 +852,7 @@ microarchitectural state. See `hardware_side_channels_expertise.md`.
 
 The protocol model assumes isolation. Real deployments compose: TLS
 over TCP under HTTP, OAuth over TLS over HTTP. SLOTH (Bhargavan-Leurent
-2016) exploited MD5/SHA-1 collisions across TLS+IKE+SSH simultaneously.
+2016) exploited MD5/SHA-1 collisions across TLS+IKE+SSH.
 DROWN used SSLv2 oracles against TLS channels. Cross-protocol modeling
 is possible but rarely done.
 
@@ -894,8 +882,8 @@ Every formal-verification claim is parameterized. Common gotchas:
 
 ### Quantum-adversary capabilities
 
-Most current tools are classical-adversary-only. Squirrel, EasyPQC, and
-Tamarin's PQ extensions add quantum modeling; field is in transition.
+Most current tools are classical-adversary-only. Squirrel (PQ-Squirrel) and
+EasyPQC add quantum modeling; field is in transition.
 See `cryptography_expertise.md` for the PQC roadmap.
 
 ### Agent-protocol formal verification (emerging)
@@ -965,8 +953,7 @@ Pool of Tamarin modelers is in the low thousands globally; EasyCrypt
 proof authors in the low hundreds. For new efforts: hire one PhD-trained
 formal-methods person to mentor engineers along Verifpal → ProVerif →
 Tamarin; engage consultancies (Cryspen, Symbolic Software, Trail of Bits)
-for major work; send engineers to Tamarin Summer School (CISPA/ETH) or
-CryptoVerif training (Inria).
+for major work.
 
 Modern verification workflows resemble normal CI: `.spthy` (Tamarin) or
 `.pv` (ProVerif) files version-controlled alongside spec; build target
@@ -999,7 +986,7 @@ Symbolic-model PQ verification substitutes quantum-resistant primitives
 (ML-KEM, ML-DSA) in the symbolic algebra and re-runs analysis — catches
 structural issues, misses quantum-specific subtleties. Computational-model
 PQ verification (EasyPQC, Squirrel-PQ) explicitly models quantum adversary
-with QROM access. Bhargavan group's CryptoVerif PQ-TLS hybrid work (CSF
+with QROM access. Blanchet-Jacomme CryptoVerif PQ-TLS/SSH hybrid work (CSF
 2024) is canonical. Operational pattern: Tamarin first for symbolic
 composition; CryptoVerif/EasyCrypt for hybrid IND-CCA/EUF-CMA under
 classical + PQ hardness. See `cryptography_expertise.md` for PQC primitives.
@@ -1101,7 +1088,7 @@ boot) is its own field. See `hardware_side_channels_expertise.md`,
 - Bhargavan, Blanchet, Kobeissi, *Verified Models and Reference
   Implementations for the TLS 1.3 Standard Candidate*, IEEE S&P 2017,
   https://bblanche.gitlabpages.inria.fr/publications/BhargavanBlanchetKobeissiSP2017.pdf.
-- Cremers, Horvat, Hoyland, Jacomme, van der Merwe, *A Comprehensive
+- Cremers, Horvat, Hoyland, Scott, van der Merwe, *A Comprehensive
   Symbolic Analysis of TLS 1.3*, CCS 2017.
 - Bhargavan et al., *Implementing and Proving the TLS 1.3 Record
   Layer*, IEEE S&P 2017,
@@ -1109,7 +1096,7 @@ boot) is its own field. See `hardware_side_channels_expertise.md`,
 - Basin, Dreier, Hirschi, Radomirović, Sasse, Stettler, *A Formal
   Analysis of 5G Authentication*, CCS 2018, arXiv:1806.10360;
   https://people.inf.ethz.ch/rsasse/pub/5G-CCS18.pdf.
-- Basin, Sasse, Schaller, Toro-Pozo, *The EMV Standard: Break, Fix,
+- Basin, Sasse, Toro-Pozo, *The EMV Standard: Break, Fix,
   Verify*, IEEE S&P 2021, arXiv:2006.08249;
   https://emvrace.github.io/.
 - Donenfeld, Milner, *Formal Verification of the WireGuard Protocol*
@@ -1122,7 +1109,7 @@ boot) is its own field. See `hardware_side_channels_expertise.md`,
   *Journal of Cryptology* 2020); https://eprint.iacr.org/2016/1013.pdf.
 - Kobeissi, Bhargavan, Blanchet, *Automated Verification for Secure
   Messaging Protocols and their Implementations*, EuroS&P 2017.
-- Hötzendorfer et al., *A Unified Symbolic Analysis of WireGuard*, NDSS
+- Lafourcade, Mahmoud, Ruhault, *A Unified Symbolic Analysis of WireGuard*, NDSS
   2024,
   https://www.ndss-symposium.org/wp-content/uploads/2024-364-paper.pdf.
 - Kobeissi, Nicolas, Bhargavan, *Noise Explorer: Fully Automated
@@ -1152,9 +1139,8 @@ boot) is its own field. See `hardware_side_channels_expertise.md`,
 - RFC 8446 (TLS 1.3, 2018); RFC 9700 (OAuth 2.0 Security BCP); Noise
   Protocol Framework spec (https://noiseprotocol.org/noise.html).
 - 3GPP TS 33.501 (5G AKA, post-Basin/Dreier/Hirschi/Sasse/Stettler).
-- EMV Specifications post-Basin/Sasse/Schaller/Toro-Pozo (Mastercard
+- EMV Specifications post-Basin/Sasse/Toro-Pozo (Mastercard
   brand-mixup defenses).
-- FIDO Alliance WebAuthn Level 3 (increasing formal-analysis references).
 
 ### Cross-references within this corpus
 

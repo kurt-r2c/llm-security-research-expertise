@@ -10,6 +10,8 @@ Staff-level domain reference guides for security research and secure code review
 
 ## Layout
 
+`skills/` holds Claude Code skills; see [`skills/README.md`](skills/README.md).
+
 `software/static_analysis/` holds `marp_expertise.md` (Marp slide-deck authoring).
 
 `software/` holds the domain guides, grouped by category:
