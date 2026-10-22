@@ -1,0 +1,125 @@
+{
+ "arm": "K2",
+ "repo": "pyjwt-jws",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.02030148,
+ "trace": {
+  "tools": {
+   "Read": 11,
+   "Glob": 1,
+   "Grep": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/expertise/INDEX.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/expertise/cases/06-token-alg-from-header.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/expertise/cases/07-token-kid-lookup.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/expertise/cases/12-ssrf-resolve-then-fetch.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/expertise/cases/19-secret-compare-timing.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/r/jwt/api_jws.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/r/jwt/api_jwt.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/r/jwt/algorithms.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/r/jwt/jwks_client.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/r/jwt/api_jwk.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-w4efbsqr/r/jwt/jwks_client.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "jwt-jwks-kid-refetch-amplification",
+    "file": "jwt/jwks_client.py",
+    "line": 203,
+    "claim": "An unauthenticated attacker can force a blocking outbound JWKS fetch on every request by sending tokens with random kid values, because a kid miss triggers get_signing_keys(refresh=True) with no rate limit or negative caching. This is an availability and amplification issue, not an authentication bypass.",
+    "source": "The kid field in the unverified token header, read at jwks_client.py:224-226 via decode_token with verify_signature=False.",
+    "sink": "Blocking HTTP request to the configured JWKS URI in fetch_data (jwks_client.py:117-121), triggered by get_signing_key refresh=True at jwks_client.py:203.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 224,
+      "note": "get_signing_key_from_jwt decodes the header without verifying the signature"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 226,
+      "note": "kid from the header is passed to get_signing_key"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 198,
+      "note": "get_signing_keys() served from cache or fetched"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 199,
+      "note": "match_kid finds no key for the attacker kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 203,
+      "note": "cache miss triggers get_signing_keys(refresh=True), bypassing the cache"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 153,
+      "note": "get_jwk_set calls fetch_data when data is None"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 117,
+      "note": "urllib request to self.uri, blocking, with timeout"
+     }
+    ],
+    "guards_checked": "kid is only compared for equality in match_kid (jwks_client.py:242) and never interpolated into a URL or path. The JWKS URI is application-configured, not token-derived. Its scheme is restricted to http/https (jwks_client.py:77-82). Signature verification runs after key lookup, so this is reachable pre-authentication. No negative cache or refresh rate limit exists."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "jwt-claim-validation-non-jwt-exceptions",
+    "file": "jwt/api_jwt.py",
+    "line": 506,
+    "claim": "Claim validation calls int() on signed-payload claim values but catches only ValueError, so values such as exp=Infinity (OverflowError) or iat=[1] (TypeError) escape as non-jwt exceptions. Access is still denied (fail-closed), so this is an error-handling inconsistency rather than a bypass, and it requires a validly signed token.",
+    "source": "Claim values in the payload, parsed by json.loads at api_jwt.py:298, which accepts Infinity/NaN and arrays by default. Reaching this path requires a token whose signature verifies.",
+    "sink": "int(payload[...]) in _validate_iat (api_jwt.py:477), _validate_nbf (api_jwt.py:492), and _validate_exp (api_jwt.py:506), each catching only ValueError.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 298,
+      "note": "_decode_payload json.loads accepts Infinity/NaN and non-numeric JSON types"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 267,
+      "note": "_jws.decode_complete verifies the signature before claims are validated"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 277,
+      "note": "_validate_claims invoked on the verified payload"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 410,
+      "note": "_validate_exp called when exp is present and verify_exp is set"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 506,
+      "note": "int(payload['exp']) raises OverflowError for inf or TypeError for list, not caught by except ValueError at line 507"
+     }
+    ],
+    "guards_checked": "Signature verification runs first (api_jwt.py:267), so the attacker must already hold a validly signed token. The failure raises an exception and grants no access. Non-numeric strings and NaN are caught as ValueError and converted to DecodeError (api_jwt.py:507-510)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

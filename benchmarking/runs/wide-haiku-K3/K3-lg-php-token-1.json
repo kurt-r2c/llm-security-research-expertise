@@ -1,0 +1,143 @@
+{
+ "arm": "K3",
+ "repo": "lg-php-token",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "98497172",
+ "status": "success",
+ "gen_cost": 0.0064639499999999996,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ke011037/r/reset.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "reset_password_loose compares the stored reset token with loose '==' and no type check, so a non-string token (e.g. JSON boolean true) or PHP 'magic hash' numeric strings can match and let the caller set any account's password. Conditional on the caller passing an unvalidated value; no caller exists in this repo.",
+    "source": "$token parameter of reset_password_loose (reset.php:2), reachable from an untrusted reset request if the caller passes JSON-decoded values unvalidated. $email selects the row.",
+    "sink": "UPDATE users SET pw = ... WHERE email = ... (reset.php:5-6)",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 2,
+      "note": "$token accepted with no type or format validation"
+     },
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "row fetched by email via PDO quote (safe) - returns stored token"
+     },
+     {
+      "file": "reset.php",
+      "line": 4,
+      "note": "$row['token'] == $token: with $token === true, any non-empty stored token compares equal; with stored NULL and $token === '' also equal; numeric-looking '0e...' strings compare equal to each other"
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "password replaced with attacker-chosen $new for that email"
+     }
+    ],
+    "guards_checked": "SQL: $db->quote on email (lines 3,6) - SAFE. Token: '==' with no type check (line 4) - BROKEN. Only one row fetched; no ownership/expiry check. No caller in repo to verify input type.",
+    "repro": "Call reset_password_loose($db, 'victim@example.com', true, 'attacker-pw') when a resets row exists for victim with a non-empty token. Line 4 evaluates true == 'abc123' as true, and the password is changed. Equivalent via JSON {\"token\": true}."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. reset.php:3 and :6 use $db->quote on $email, which blocks SQL injection but is not a token check. reset.php:4 compares with loose == and no type check, and nothing between line 2 and line 5 validates $token. The only other function, reset_password (reset.php:12-20), uses hash_equals with (string) cast, but no caller of either function exists in the repo.",
+    "reason": "The trace matches the code: $token is unvalidated at reset.php:2, the loose comparison at reset.php:4 gates the password update at reset.php:5-6, and no effective guard exists in the function, so a non-string token such as true would pass. Whether an anonymous attacker can supply that value cannot be decided because the repo contains no caller of reset_password_loose to show how $token arrives."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "Single-use and expiry are not enforced on reset tokens: the resets row is read but never deleted or marked used, and no created/expiry timestamp is checked, so a valid token can be replayed indefinitely. May be handled outside this file; unverified.",
+    "source": "$token and $email supplied to reset_password / reset_password_loose (reset.php:2, 12).",
+    "sink": "Password update (reset.php:5-6 and 15-16).",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "SELECT token FROM resets WHERE email=... - no expires_at / used column in query"
+     },
+     {
+      "file": "reset.php",
+      "line": 14,
+      "note": "hash_equals match (strict version) then reset proceeds"
+     },
+     {
+      "file": "reset.php",
+      "line": 15,
+      "note": "UPDATE users; no DELETE FROM resets / UPDATE resets SET used"
+     },
+     {
+      "file": "reset.php",
+      "line": 17,
+      "note": "return true; reset row survives"
+     }
+    ],
+    "guards_checked": "Token equality only (lines 4, 14). No expiry, no consume-on-use, no rate limit in this file. Schema for resets table not in repo, so enforcement elsewhere cannot be ruled out.",
+    "repro": "Obtain a valid reset token once (e.g. from a leaked reset email or log); call reset_password(...) again later with same email and token; the second call still succeeds because the row was never consumed or expired."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. reset.php:3 and :13 are bare SELECTs with no expires_at or used filter; reset.php:4 and :14 are the only checks, token equality; nothing deletes or marks the row used before the return at reset.php:7 and :17. A directory-wide grep finds no other reference to the resets table, no DELETE, and no expiry logic.",
+    "reason": "Every line in the trace matches the code (SELECT at reset.php:3/13, hash_equals at reset.php:14, UPDATE users at reset.php:5-6/15-16, return true at reset.php:17), and nothing in the repo consumes or expires the resets row, so a token that has already been captured once can be replayed indefinitely. The attacker must already hold a valid token, so this is a replay weakness that depends on prior token exposure, not an unauthenticated takeover, and the table schema and any out-of-repo cleanup job are not visible here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "reset.php",
+    "line": 14,
+    "claim": "reset_password accepts an empty token when the stored token is also empty (hash_equals('', '') is true), so a reset row with an empty or unset token lets anyone with the email set the password. Requires such rows to exist in the resets table; not verifiable from this repo.",
+    "source": "$token parameter (reset.php:12); stored value from resets.token (reset.php:13).",
+    "sink": "Password update (reset.php:15-16).",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 13,
+      "note": "fetches stored token; no check that it is non-empty"
+     },
+     {
+      "file": "reset.php",
+      "line": 14,
+      "note": "hash_equals(stored, (string)$token): null/false/'' cast to '' and match stored ''"
+     },
+     {
+      "file": "reset.php",
+      "line": 15,
+      "note": "password overwritten"
+     }
+    ],
+    "guards_checked": "No non-empty check on stored or supplied token. Cast (string) at line 14 normalises null/false to '' rather than rejecting them.",
+    "repro": "Row resets(email='victim@example.com', token='') exists; call reset_password($db,'victim@example.com', '', 'attacker-pw') or with null/false as $token; line 14 returns true and the password changes."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. There is no non-empty check on $row['token'] or $token; the (string) cast at reset.php:14 only normalises null/false to '' and does not reject them. The only condition is `$row &&` at reset.php:14, which passes when a resets row exists.",
+    "reason": "The trace is accurate: at reset.php:14, hash_equals('', '') returns true for an empty stored token and a null/false/'' supplied token, and reset.php:15-16 then overwrite the password, so the flaw is real if such a row exists. The repo contains no code that writes to the resets table (the only file is reset.php), so whether an empty-token row can exist, and therefore whether an anonymous attacker can reach this, cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00669706
+}

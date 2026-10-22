@@ -1,0 +1,102 @@
+{
+ "arm": "A",
+ "repo": "py-mirror",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0049847,
+ "trace": {
+  "tools": {
+   "Bash": 2,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ejc2i1r2/r/mirror.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "Unanchored suffix allowlist lets an attacker-chosen hostname such as evilexample.com pass the check on /mirror, so the server fetches an arbitrary attacker-controlled or internal host (e.g. a DNS name resolving to 169.254.169.254 or 127.0.0.1). The response leaks only len(r.text), a weak oracle usable for internal host and port probing.",
+    "source": "mirror.py:11 \u2014 query parameter `url: str` on the unauthenticated GET /mirror route",
+    "sink": "mirror.py:16 \u2014 httpx.AsyncClient.get(url), outbound request issued with the caller-supplied URL",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "Attacker supplies `url` as a query parameter; no auth dependency on the route"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "host = urlparse(url).hostname, e.g. 'evilexample.com' for 'http://evilexample.com/'"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "host.endswith(\"example.com\") is True for 'evilexample.com' because there is no dot boundary; the check passes"
+     },
+     {
+      "file": "mirror.py",
+      "line": 15,
+      "note": "A fresh AsyncClient is created with default settings"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "c.get(url) sends the request to the attacker-chosen host and port; the full original URL is used, not the parsed host"
+     },
+     {
+      "file": "mirror.py",
+      "line": 17,
+      "note": "Only len(r.text) is returned to the caller"
+     }
+    ],
+    "guards_checked": "(1) Host check at line 13 is a bare endswith('example.com') with no leading dot, so it matches attacker-registrable names like 'evilexample.com'. It is the only host restriction. (2) No scheme restriction: httpx accepts only http/https, so file:// and gopher-style schemes are not reachable, but http:// to internal targets is. (3) No port restriction: 'http://evilexample.com:<port>/' passes, enabling internal port probing. (4) No private/loopback/link-local IP check and no resolved-IP check, so DNS rebinding or a name resolving to an internal address is not blocked. (5) Redirects: httpx AsyncClient does not follow redirects by default, so an allowed host cannot 302 to an internal target. Recheck if the httpx version or the client options change. (6) ALLOWED_SUFFIX = '.example.com' at line 7 is defined but never used, which suggests the intended dot-boundary check was dropped. (7) Caveat: the attacker must control DNS for a registrable name that ends in 'example.com' (e.g. 'evilexample.com'), which is realistic. Plain example.com subdomains belong to the IANA-reserved example.com zone and are not attacker-controllable."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only host check is mirror.py:13, `host.endswith(\"example.com\")`, which has no dot boundary and so accepts \"evilexample.com\". ALLOWED_SUFFIX (mirror.py:7) is defined but never used. No scheme, port, or resolved-IP check exists. httpx.AsyncClient() at mirror.py:15 uses default settings, so redirects are not followed and the redirect bypass is not possible.",
+    "reason": "The `url` query parameter on the unauthenticated GET /mirror route (mirror.py:11) reaches `c.get(url)` at mirror.py:16 after only the bare `endswith(\"example.com\")` test at mirror.py:13, which passes for attacker-registrable hosts like evilexample.com. Every trace line matches the file, and the response leaks only len(r.text) (mirror.py:17)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "mirror.py",
+    "line": 12,
+    "claim": "Possible parser differential between urllib.parse.urlparse (used for the check) and httpx's own URL parser (used for the request). An input whose authority urlparse reads as example.com but httpx reads as another host could pass the check and reach an arbitrary host. Not verified: I could not run the parsers, so this is a lead only.",
+    "source": "mirror.py:11 \u2014 query parameter `url`",
+    "sink": "mirror.py:16 \u2014 c.get(url) with httpx's parser",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "urlparse splits netloc only on '/', '?', '#', so 'http://evil.com\\\\@example.com/' gives hostname 'example.com' (rsplit on '@'), which passes the check"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "httpx may parse the same string with a different authority (for example treating the backslash or '#' differently), so the request could go to evil.com"
+     }
+    ],
+    "guards_checked": "Host allowlist at line 13 is the only guard. Whether httpx's parser disagrees with urlparse on these inputs is unverified. Running the parsers was blocked by a permission prompt, so this needs a local test before it is treated as exploitable."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is mirror.py:13, `host.endswith(\"example.com\")`. That is a suffix match with no dot boundary, so it does not close the finding. The candidate's parser-differential theory is not needed: `http://evilexample.com/` gives urlparse hostname \"evilexample.com\", which passes the check, and mirror.py:16 `c.get(url)` requests that host.",
+    "reason": "The source is the unauthenticated `url` query parameter (mirror.py:11), it reaches the request at mirror.py:16, and the only guard at mirror.py:13 is a suffix check that accepts attacker-registrable domains like evilexample.com, so SSRF to an attacker-chosen host is confirmed. The candidate's line-16 parser-differential claim is still unverified and should be dropped or tested separately, but the finding stands on the simpler suffix bypass. Note that the candidate's description of line 13 as an \"allowlist\" is loose, since it is a suffix check."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004580020000000001
+}

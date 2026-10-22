@@ -1,0 +1,67 @@
+{
+ "arm": "A",
+ "repo": "mx-py-clean",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.0393501,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 11,
+    "claim": "The user identity used for every authorization decision is taken straight from a client-supplied HTTP header. The name suggests an upstream proxy verifies it, but the app does not check a signature, a shared secret or the request origin. If the proxy does not strip or overwrite this header, or if the app can be reached directly, any caller can impersonate any user. That includes the owner of a file, which bypasses the ACL and allows deleting or renaming other users' files.",
+    "source": "The attacker sets the request header `X-Session-User-Verified: <victim-or-owner-id>`. The precondition is that the app is reachable without a front proxy that strips and re-sets this header.",
+    "sink": "The `del STORE[fid]` delete at views.py:18 and the `f[\"name\"] = ...` rename at views.py:27, both gated by `is_allowed`/`ensure_allowed`.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "before_request sets g.user = request.headers.get('X-Session-User-Verified'), with no authentication"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "delete_file passes g.user to ensure_allowed"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "is_allowed checks the forged user string against resource['grants'], so a spoofed owner name passes"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "The file is deleted"
+     },
+     {
+      "file": "views.py",
+      "line": 25,
+      "note": "rename_file uses the same is_allowed check with the same spoofed identity"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "The file name is overwritten"
+     }
+    ],
+    "guards_checked": "Only two files exist in the directory, so there is no proxy config, middleware, signature check or session validation. The only controls are the ACL checks in acl.py, and they trust g.user. A missing header gives None, which does not match a normal grants key, so unauthenticated callers without a forged header are denied. Not checked: deployment-level header stripping, which is outside the code."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in code. ensure_allowed (acl.py:8-10) aborts 403 and is_allowed (acl.py:5) is tested at views.py:25, but both trust the client-supplied g.user. No signature, secret or origin check exists.",
+    "reason": "views.py:11 sets g.user straight from the X-Session-User-Verified request header, and the ACL checks at acl.py:5 (called from views.py:17 and views.py:25) only compare that string to the grants, so any caller who knows a granted user id can reach the delete at views.py:18 and the rename at views.py:27; the only remaining unknown is whether a front proxy strips the header at deployment, which the code doesn't show."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "ACL check is_allowed/ensure_allowed (acl.py:4-10) is enforced with the result tested (views.py:17 aborts, views.py:25 returns 403). Identity comes from trusted upstream middleware, per the maintainer.",
+    "reason": "The trace lines are accurate (views.py:11,17,18,25,27; acl.py:5), but the maintainer states request identity such as g.user is set by trusted upstream middleware. The header at views.py:11 is therefore the verified-session channel and not attacker-controlled, so the spoofing premise is a deployment assumption and not a code flaw."
+   }
+  }
+ ],
+ "verify_cost": 0.0365895,
+ "verify_facts_cost": 0.0377227
+}

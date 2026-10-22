@@ -1,0 +1,103 @@
+{
+ "arm": "C",
+ "repo": "cl-py-authz",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00666455,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-oexa6npf/r/notes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Existence oracle: an authenticated user can tell whether a note ID exists. A missing ID raises KeyError (HTTP 500), while an existing note the caller cannot view returns 403. The same split applies to PUT /n/<nid> (line 34) and POST /n/<nid>/share (line 43).",
+    "source": "Attacker-controlled <nid> path parameter on any authenticated request (routes at lines 25, 32, 41); attacker needs only a valid session that sets g.user.",
+    "sink": "Dictionary lookup NOTES[nid] (lines 27, 34, 43) with no existence check, so the response status reveals whether the key exists before the authorization check runs.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 25,
+      "note": "GET /n/<nid> route accepts attacker-chosen nid"
+     },
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "n = NOTES[nid] raises KeyError for unknown IDs, before any authorization check, producing a 500"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view(g.user, n) runs only for existing notes; unauthorized existing notes yield abort(403)"
+     },
+     {
+      "file": "notes.py",
+      "line": 13,
+      "note": "abort(403) is the only non-200 status produced for existing notes"
+     }
+    ],
+    "guards_checked": "Authorization is enforced per object (can_view/require_view, lines 7-13), so no direct content leak. There is no 404 handler or try/except in this file. The status split is visible here, but a global Flask errorhandler elsewhere could mask it, which this file does not show. Impact is limited to note-ID enumeration, and only if IDs are guessable (e.g. sequential)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. Authorization is only per-object: can_view/require_view (notes.py:7-13) and can_edit/require_edit (notes.py:16-22). No 404 handler, try/except, or existence check guards the lookup at notes.py:27, 34, or 43. The directory contains only notes.py, so no global Flask errorhandler exists to mask the KeyError-to-500 versus abort(403) split.",
+    "reason": "The bare dict lookup NOTES[nid] at notes.py:27 raises KeyError (HTTP 500) for unknown IDs, while an existing note the caller cannot view hits abort(403) via require_view at notes.py:28 and :13, so any authenticated user can enumerate note IDs; the same pattern holds at notes.py:34 and :43."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "Business-logic gap: sharing is append-only with no revocation path. An owner can grant access but cannot remove it, and POST /share with arbitrary JSON values appends unbounded, unvalidated entries (duplicates and non-string types are accepted).",
+    "source": "Owner-authenticated POST to /n/<nid>/share with a request.json['user'] value of any JSON type.",
+    "sink": "n[\"shared\"].append(...) at line 45, which is later trusted for persistent read access by can_view at line 8.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "POST /n/<nid>/share route"
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit gates to owner only"
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "append of unvalidated request.json['user'] to shared list; no dedupe, no type check, no removal route exists anywhere in the file"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view grants read to any value in shared with no expiry or revocation check"
+     }
+    ],
+    "guards_checked": "Owner-only gate (require_edit, lines 20-22 and 44). The shared list only grants read, because write (line 35) uses can_edit, which checks owner only. No mass assignment on write (line 37 sets body only). The risk is that an owner's revocation intent cannot be enforced in this code, and a removed user keeps read access. A malformed or huge list is an owner-driven self-DoS at worst. Severity is low."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22, called at notes.py:44) restricts POST /n/<nid>/share to the note owner, and can_view (notes.py:8) only compares the requesting user against the list with `in`, so unusual values cause no crash or privilege change.",
+    "reason": "The trace lines match (notes.py:8, 41, 44, 45), and the only actor who can reach the append at notes.py:45 is the owner via require_edit (notes.py:44), who already controls the note's sharing; no lower-privilege role gains access, so the missing revocation and unvalidated entries are a functional gap rather than a security vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00451059
+}

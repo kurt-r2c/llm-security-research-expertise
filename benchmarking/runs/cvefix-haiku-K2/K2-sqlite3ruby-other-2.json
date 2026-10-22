@@ -1,0 +1,182 @@
+{
+ "arm": "K2",
+ "repo": "sqlite3ruby-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.03622797,
+ "trace": {
+  "tools": {
+   "Read": 8,
+   "Glob": 2,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/r/ext/sqlite3/database.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/r/ext/sqlite3/statement.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/r/ext/sqlite3/backup.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/r/ext/sqlite3/aggregator.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/r/ext/sqlite3/sqlite3_ruby.h",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/r/ext/sqlite3/exception.c",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-9hzgscpp/r/ext/sqlite3/exception.h"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "ext/sqlite3/database.c",
+    "line": 839,
+    "claim": "Ruby exceptions raised inside SQLite callbacks (collation comparator, authorizer, busy handler, trace, aggregator finalize) are not caught by rb_protect, so they longjmp through sqlite3_step's C frames with no cleanup. A comparator that raises on attacker-written row text leaves the connection and VDBE state inconsistent.",
+    "source": "Attacker-written row text passed as a_str/b_str to the collation comparator (database.c:827-829)",
+    "sink": "rb_funcall(comparator, \"compare\") at database.c:839, unprotected, inside sqlite3_step",
+    "trace": [
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 142,
+      "note": "sqlite3_step runs the query"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 816,
+      "note": "rb_comparator_func invoked by SQLite for COLLATE comparisons"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 839,
+      "note": "rb_funcall to application comparator, no rb_protect"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 841,
+      "note": "NUM2INT on comparator return value, can also raise"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 143,
+      "note": "errinfo re-raise path is never reached because the longjmp bypasses it"
+     }
+    ],
+    "guards_checked": "rb_protect used only at ext/sqlite3/aggregator.c:47 and ext/sqlite3/database.c:581 (rb_sqlite3_func). No protection on collation, authorizer (database.c:738), busy handler (database.c:365), trace (database.c:328), or aggregator finalize set_sqlite3_func_result (aggregator.c:164). rb_str_export_to_enc (database.c:835-836) does not raise. Exploit requires an application comparator that raises on the input; not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "ext/sqlite3/database.c",
+    "line": 422,
+    "claim": "statement_timeout= ignores the configured milliseconds. The progress callback never reads stmt_timeout, so any statement executing more than about 2000 VM steps is interrupted with SQLITE_INTERRUPT regardless of the configured value.",
+    "source": "Application-supplied ms value to statement_timeout= (database.c:437-442); not attacker-settable",
+    "sink": "Progress callback interrupt decision at database.c:422-423",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 442,
+      "note": "stmt_timeout stored but never read"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 445,
+      "note": "progress handler installed with n=1000"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 419,
+      "note": "first callback sets stmt_deadline, returns 0"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 422,
+      "note": "second callback: now > deadline, returns 1 (interrupt)"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 82,
+      "note": "deadline reset only on prepare"
+     }
+    ],
+    "guards_checked": "None relevant. Logic error in the timeout computation; the configured duration is never compared."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "ext/sqlite3/statement.c",
+    "line": 143,
+    "claim": "step() treats any non-nil rb_errinfo() as a callback exception. Ruby's $! is non-nil inside rescue/ensure, so a successful step called from a rescue block re-raises the rescued exception, discards the rows, and clears $!.",
+    "source": "Ruby $! (ec->errinfo) set by an exception the application is handling, e.g. an attacker-triggered validation error",
+    "sink": "rb_exc_raise of the stale exception at statement.c:147-149, plus rb_set_errinfo(Qnil) at statement.c:148",
+    "trace": [
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 142,
+      "note": "sqlite3_step returns SQLITE_ROW normally"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 143,
+      "note": "rb_errinfo() != Qnil because caller is inside rescue"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 148,
+      "note": "clears $!"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 149,
+      "note": "re-raises the unrelated exception"
+     }
+    ],
+    "guards_checked": "No check distinguishes a callback exception from an unrelated $!. Relies on Ruby C-API semantics; not executed. Ruby-level execute wrappers are not in the tree."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "ext/sqlite3/database.c",
+    "line": 945,
+    "claim": "execute_batch2 returns text truncated at the first embedded NUL (rb_str_new_cstr), while step() returns the full length-delimited value. Attacker-stored text such as 'admin\\0x' reads back as 'admin' through exec_batch.",
+    "source": "Attacker-written text containing a NUL byte, stored in full by SQLite",
+    "sink": "Row values returned by exec_batch to the application (database.c:943-945, 962-964)",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 943,
+      "note": "hash_callback_function: rb_str_new_cstr(data[i]) truncates at NUL"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 962,
+      "note": "regular_callback_function: same truncation"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 994,
+      "note": "exec_batch drives sqlite3_exec with these callbacks"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 168,
+      "note": "contrast: step uses sqlite3_column_bytes, no truncation"
+     }
+    ],
+    "guards_checked": "None in the binding. Impact depends on the application using execute_batch2 for lookups or authorization; not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

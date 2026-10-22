@@ -1,0 +1,120 @@
+{
+ "arm": "P",
+ "repo": "php-feed",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.006417279999999999,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-7mne6t34/r/import.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated POST 'feed' parameter is passed to file_get_contents, so any remote client can make the server fetch an arbitrary URL. Only strlen of the response is echoed, so this is blind SSRF with a length oracle. file:// is also accepted by the wrapper.",
+    "source": "import.php:11 - $_POST['feed'], supplied by any remote client. The only gate is REQUEST_METHOD === 'POST' and isset($_POST['feed']). No session or admin check.",
+    "sink": "import.php:12 - file_get_contents($_POST['feed']), an outbound HTTP/HTTPS/FTP request or local stream read chosen by the attacker.",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 2,
+      "note": "session_start() runs, but nothing on this branch checks the session."
+     },
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Branch entered for any POST with a feed field. No require_admin, no scheme or host allowlist, no private-IP check."
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "Raw attacker string passed to file_get_contents, which fetches it and follows redirects by default."
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "Only strlen of the body is echoed. Blind SSRF with a length side channel."
+     },
+     {
+      "file": "import.php",
+      "line": 14,
+      "note": "exit."
+     }
+    ],
+    "guards_checked": "None on the path. No parse_url or scheme/host allowlist, no check for loopback, RFC1918 or link-local addresses such as 169.254.169.254, no redirect re-validation, no timeout or size cap. Exploitability assumes allow_url_fopen is enabled, the PHP default; the repo does not set it."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. import.php:11 gates only on REQUEST_METHOD === 'POST' and isset($_POST['feed']). require_admin() (import.php:4-9) is defined but not called on this branch; it runs only at line 18 under set_webhook. The value goes unvalidated into file_get_contents at line 12, and only strlen of the result is echoed at line 13.",
+    "reason": "import.php:11-12 passes the unauthenticated $_POST['feed'] straight to file_get_contents with no session, admin, scheme, or host check, and import.php:13 echoes only the length, so the trace holds as a blind SSRF with a length oracle. The file:// claim is also consistent with PHP's file_get_contents, though http(s) fetches depend on allow_url_fopen, as the candidate notes."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "An admin-authenticated POST set_webhook value is passed to curl_init and curl_exec, so an admin can make the server issue requests to arbitrary URLs. The response body is discarded, so the request is blind. Lower severity because the caller must be admin.",
+    "source": "import.php:19 - $_POST['set_webhook'], supplied by a client with an admin session. The admin gate is require_admin() at import.php:18, which checks only that $_SESSION['is_admin'] is non-empty.",
+    "sink": "import.php:20-22 - curl_init($hook) and curl_exec($ch), an outbound request to the attacker-chosen URL.",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch entered when set_webhook is present."
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() called; exits 403 if is_admin is empty (lines 4-9)."
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "POST value copied to $hook with no validation."
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the target URL."
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec runs the request. RETURNTRANSFER is set but the body is discarded."
+     },
+     {
+      "file": "import.php",
+      "line": 23,
+      "note": "Prints ok and exits."
+     }
+    ],
+    "guards_checked": "Session flag check only. The flag is set outside this file, so how it is assigned could not be verified. No URL validation. CURLOPT_FOLLOWLOCATION is not set, so redirects are not followed. libcurl still accepts schemes such as gopher://, file:// and dict://."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 and its call at import.php:18. It checks only that $_SESSION['is_admin'] is non-empty, so it is not a closing guard. The source is still admin-only.",
+    "reason": "Every trace line (import.php:17-23) matches the code, but the value reaching curl_init at import.php:19-20 comes from $_POST['set_webhook'], which is reachable only after require_admin() at import.php:18 passes, so the source is admin-only and not controllable by an unauthenticated or low-privilege attacker. The candidate itself rates this as lower severity for that reason. Whether the is_admin flag can be set by a low-privilege user depends on code outside this file, which I could not check, so that remains an open question rather than a confirmed path."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.003909579999999999
+}

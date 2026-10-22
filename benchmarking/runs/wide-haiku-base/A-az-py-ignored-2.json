@@ -1,0 +1,104 @@
+{
+ "arm": "A",
+ "repo": "az-py-ignored",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.00457897,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-ylxn83yc/r/docs.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "DOC-1",
+    "file": "docs.py",
+    "line": 19,
+    "claim": "PUT /doc/<doc_id> overwrites the body of any document for any authenticated user. The edit-permission check is computed and discarded, so it never blocks the write.",
+    "source": "Attacker-controlled doc_id path parameter (docs.py:17) and request.json[\"body\"] (docs.py:20). Precondition: the attacker can reach the route with some g.user value, including a user who is not an owner or editor. Authentication is set outside this file and is not visible here.",
+    "sink": "doc[\"body\"] = request.json[\"body\"] at docs.py:20, an unconditional write to document content.",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 17,
+      "note": "update_doc(doc_id) handles PUT /doc/<doc_id> with no authorization decorator."
+     },
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "doc = DOCS[doc_id] loads any document by ID with no ownership filter."
+     },
+     {
+      "file": "docs.py",
+      "line": 19,
+      "note": "can_edit(g.user, doc) is called but its boolean result is not checked, so nothing aborts."
+     },
+     {
+      "file": "docs.py",
+      "line": 20,
+      "note": "The request body is written into the document unconditionally."
+     },
+     {
+      "file": "docs.py",
+      "line": 21,
+      "note": "Returns ok=True, so the unauthorized write succeeds silently."
+     }
+    ],
+    "guards_checked": "can_edit (docs.py:7-8) returns the correct owner-or-editor result, but its return value is discarded at line 19. There is no abort(403) on this path, no login_required or similar decorator in this file, and no check on g.user itself. The sibling route update_title (docs.py:24-29) calls require_edit at line 27, which aborts with 403, so the title endpoint is protected and the body endpoint is not."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "can_edit (docs.py:7-8) computes the correct owner-or-editor result, but line 19 calls it as a bare statement and discards the bool, so nothing aborts. require_edit (docs.py:11-13) would abort(403), but it is not called on the body path. No decorator, before_request hook, or ownership check on update_doc (docs.py:16-21) exists in this file. The only control is the sibling update_title route, which calls require_edit at docs.py:27.",
+    "reason": "The handler at docs.py:17-21 loads any document by ID (line 18) and writes request.json[\"body\"] (line 20) after a bare can_edit(g.user, doc) call at line 19 whose result is never tested, so any authenticated user with a valid g.user can overwrite any body; the title route at docs.py:27 uses require_edit and aborts, which shows the intended check was missed here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "DOC-2",
+    "file": "docs.py",
+    "line": 18,
+    "claim": "An unknown doc_id raises an unhandled KeyError, which Flask turns into a 500. This is low-severity information leakage and a minor availability issue, not an authorization bypass.",
+    "source": "Attacker-controlled doc_id path parameter (docs.py:17), in update_doc or update_title.",
+    "sink": "DOCS[doc_id] dict lookup at docs.py:18 and docs.py:26. An uncaught exception returns a 500, and with debug mode enabled it can expose a traceback.",
+    "trace": [
+     {
+      "file": "docs.py",
+      "line": 17,
+      "note": "doc_id comes directly from the URL."
+     },
+     {
+      "file": "docs.py",
+      "line": 18,
+      "note": "DOCS[doc_id] raises KeyError when the ID is missing."
+     },
+     {
+      "file": "docs.py",
+      "line": 26,
+      "note": "Same pattern in update_title."
+     }
+    ],
+    "guards_checked": "No existence check and no DOCS.get() returning 404. The dict lookup is not an injection sink. Whether debug mode is enabled is not visible in this file."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. There is no existence check or DOCS.get() 404 path at docs.py:18 or docs.py:26. The only checks come after the lookup: can_edit/require_edit at docs.py:19 and docs.py:27. Those run only after DOCS[doc_id] has already succeeded.",
+    "reason": "The trace is accurate: doc_id comes from the URL (docs.py:17), and DOCS[doc_id] at docs.py:18 and docs.py:26 raises an uncaught KeyError for an unknown ID before any permission check runs, so the request becomes a 500. The attacker can be anonymous, since the lookup precedes all authorization logic. Impact is low: it is an existence oracle (unknown IDs 500, known IDs return 403 to non-editors) plus availability noise, and the traceback exposure depends on debug mode, which this file does not show. Separately, docs.py:19 calls can_edit() as a bare statement and discards its bool, so update_doc (PUT /doc/<id>) has no authorization at all. That is a real, more serious authorization bypass, but it is not what DOC-2 claims, so it should be reported as its own finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00412231
+}

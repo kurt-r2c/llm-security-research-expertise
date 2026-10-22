@@ -1,0 +1,106 @@
+{
+ "arm": "D",
+ "repo": "php-feed",
+ "rep": 3,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.1092926,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 2,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mszpbd4n/r/import.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mszpbd4n/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF: any visitor can make the server fetch an arbitrary URL. The response body is not echoed, but its byte length is returned, which leaks reachability and size and allows port and host probing. file_get_contents also accepts non-HTTP wrappers such as file://, php://, ftp:// and gopher-like schemes if enabled, and HTTP redirects are followed by default. Severity: HIGH (no auth, no allowlist). The length-only response keeps it from being a full-read SSRF.",
+    "source": "$_POST['feed'] (POST body parameter, import.php:11-12)",
+    "sink": "file_get_contents($_POST['feed']) at import.php:12",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Entry gate checks only REQUEST_METHOD === 'POST' and isset($_POST['feed']); there is no authentication check"
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "$xml = file_get_contents($_POST['feed']); the attacker-controlled value is passed directly as the URL"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "echo strlen($xml); returns the response length to the caller, giving an oracle for internal host and port reachability and for content size"
+     }
+    ],
+    "guards_checked": "No scheme restriction, hostname allowlist, IP/CIDR blocklist or redirect control. require_admin() is defined at import.php:4 but is NOT called on this path (it runs before the webhook branch only). session_start() does not enforce auth. No allow_url_fopen or stream-context restrictions are set in the file."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "import.php:11-13 passes unauthenticated $_POST['feed'] straight to file_get_contents and echoes strlen($xml), with no auth, scheme or host validation (require_admin() is only called at import.php:18 on the separate webhook branch)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-only blind SSRF: an authenticated admin can set an arbitrary URL that the server requests with cURL. The URL is not validated, so it can reach RFC-1918, loopback or cloud metadata (169.254.169.254) targets. Per the skill's rules, an admin gate does not close SSRF to internal and metadata targets, so it is retained at MEDIUM. The response is not returned (blind), and cURL does not follow redirects by default. Note: cURL also accepts non-HTTP schemes such as gopher:// and file:// unless restricted.",
+    "source": "$_POST['set_webhook'] (POST body parameter, import.php:17,19)",
+    "sink": "curl_init($hook) / curl_exec($ch) at import.php:20-22",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "if (isset($_POST['set_webhook'])) enters the branch"
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() is called, which requires $_SESSION['is_admin'] to be truthy and otherwise returns 403"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook']; the value is taken unvalidated"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the target URL"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec($ch) dispatches the request immediately; only 'ok' is echoed, so the SSRF is blind"
+     }
+    ],
+    "guards_checked": "require_admin() session check at import.php:18 (verified; it exits with 403 for non-admins). No allowlist, scheme restriction (CURLOPT_PROTOCOLS) or IP blocking. CURLOPT_FOLLOWLOCATION is not set, so redirects are not followed. The code does not show that the admin role implies OS-level access, so the admin gate downgrades the finding to MEDIUM but does not close it."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:18 (session is_admin check, 403 and exit otherwise). It is an authorization gate, not a URL allowlist. No host or scheme validation exists.",
+    "reason": "The trace matches import.php:17-22, but the sink at import.php:20 is only reachable after require_admin() at import.php:18, so the URL comes from an admin-only input and not from an unauthenticated or low-privilege attacker (nothing in the code sets $_SESSION['is_admin'] either). The separate unauthenticated file_get_contents($_POST['feed']) at import.php:12 is a different finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0604992
+}

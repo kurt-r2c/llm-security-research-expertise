@@ -1,0 +1,70 @@
+{
+ "arm": "P",
+ "repo": "h3-go-substr",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00439205,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6jow3q3g/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches an attacker-supplied URL. Its only check is a substring match for \"example.io\", so any URL containing that text anywhere (query, fragment, path) is fetched, including internal and link-local addresses. The default client also follows redirects, so a trusted-looking URL can bounce to an internal target. The response body is copied back to the attacker, so the SSRF is non-blind.",
+    "source": "main.go:31 raw := r.FormValue(\"logo\") -- the \"logo\" query or form parameter, supplied by any unauthenticated HTTP client (the server listens on :8081, main.go:44, with no auth).",
+    "sink": "main.go:36 http.Get(raw) using http.DefaultClient, with the response streamed back via io.Copy(w, resp.Body) at main.go:38.",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 43,
+      "note": "/logo is registered on the default mux, reachable without auth."
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw is read directly from the request via FormValue, so it is fully attacker-controlled. The string is never parsed as a URL before the check."
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "Validation is strings.Contains(raw, \"example.io\"). It is not a hostname check. A URL such as http://10.0.0.5/?example.io or http://169.254.169.254/latest/meta-data/?example.io passes, because the marker sits in the query string, while the request goes to the internal host."
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) parses raw itself. It accepts any http or https scheme and any host or IP, with no private-address or loopback block. Redirects are followed (up to 10 by default), so a host that passes the check can 30x-redirect to an internal address."
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy streams the internal response body to the requester, so the attacker reads the target's content directly."
+     }
+    ],
+    "guards_checked": "Only the strings.Contains check at main.go:32. There is no url.Parse, no Hostname comparison, no scheme allow-list, no IP-range denylist, no DNS pinning, no redirect restriction (the client at line 36 is the default, not the noRedirect-configured client used in cdn()), and no timeout. The substring check does not constrain the destination host at all."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is strings.Contains(raw, \"example.io\") at main.go:32, a substring match that does not constrain the parsed host. No url.Parse, hostname comparison, scheme restriction, IP denylist, or redirect restriction exists on the /logo path. Line 36 uses the default http.Get, which follows redirects.",
+    "reason": "The attacker-controlled value at main.go:31 (r.FormValue(\"logo\")) reaches http.Get at main.go:36 after only the substring check at main.go:32, so a URL like http://10.0.0.5/?example.io passes and the internal response is streamed back via io.Copy at main.go:38; the handler is registered without auth at main.go:43 on :8081 (main.go:44). Every trace line checked matches the code. The unrelated trusted-host check on /cdn (main.go:20) does not apply to this handler."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0022021500000000004
+}

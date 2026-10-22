@@ -1,0 +1,232 @@
+{
+ "arm": "A",
+ "repo": "lmdeploy-deserialization",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.02392399,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 7,
+   "Read": 8,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/vl/media/connection.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/serve/processors/multimodal.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/serve/utils/server_utils.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/serve/proxy/proxy.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/serve/proxy/proxy.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/serve/proxy/proxy.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-uzisy7w8/r/lmdeploy/serve/proxy/proxy.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "proxy-nodes-auth-bypass-credential-leak",
+    "file": "lmdeploy/serve/proxy/proxy.py",
+    "line": 492,
+    "claim": "[high] Auth middleware skips all paths starting with '/nodes', so an unauthenticated client can register an arbitrary node URL on the proxy. The proxy then forwards later /v1 requests, including the client's Authorization header, to that node.",
+    "source": "Unauthenticated POST /nodes/add with attacker-chosen url and status.models (proxy.py:492-503). Precondition: proxy started with api_keys, so the middleware is installed (proxy.py:925-927).",
+    "sink": "proxy.py:390 forward_raw_request_stream_generate posts the victim's request body with headers from proxy.py:450-451 (all headers except Host, including Authorization) to the attacker-registered node_url.",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/utils/server_utils.py",
+      "line": 90,
+      "note": "skip_prefixes includes '/nodes'"
+     },
+     {
+      "file": "lmdeploy/serve/utils/server_utils.py",
+      "line": 125,
+      "note": "auth skipped when url_path starts with '/nodes'"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 492,
+      "note": "/nodes/add has no auth beyond validate_json_request"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 165,
+      "note": "non-empty status.models forces direct registration; no reachability or identity check"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 167,
+      "note": "attacker node stored in self.nodes"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 573,
+      "note": "victim POST /v1/chat/completions"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 387,
+      "note": "_prepare_headers copies Authorization"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 390,
+      "note": "session.post to attacker node with client headers and body"
+     }
+    ],
+    "guards_checked": "Auth middleware (bypassed by /nodes prefix); validate_json_request (content-type check only, not read in full); CORS (not an auth control); no allowlist or signature on node registration. Not verified: node-selection logic in get_node_url (proxy.py:251), so routing to the attacker node is plausible rather than proven."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "proxy-nodes-unauth-cluster-terminate",
+    "file": "lmdeploy/serve/proxy/proxy.py",
+    "line": 540,
+    "claim": "[high] Unauthenticated callers can terminate every registered backend node. GET /nodes/terminate_all and POST /nodes/terminate call terminate_node, which sends GET {node}/terminate to each backend.",
+    "source": "Unauthenticated GET /nodes/terminate_all or POST /nodes/terminate (proxy.py:526-527, 540-541), via the same /nodes auth bypass.",
+    "sink": "proxy.py:194 requests.get(f'{node_url}/terminate') for each node, with no timeout; proxy.py:215 loops over all nodes.",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/utils/server_utils.py",
+      "line": 90,
+      "note": "'/nodes' bypasses auth"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 540,
+      "note": "terminate_node_all has no auth check"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 210,
+      "note": "terminate_all_nodes iterates all nodes"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 194,
+      "note": "GET {node}/terminate per node, no timeout"
+     }
+    ],
+    "guards_checked": "Auth middleware (bypassed). Backend-side gate: management.py:45 only honors /terminate when allow_terminate_by_client is set, so the call only succeeds on nodes that opted in. The proxy-side endpoint has no such gate."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "media-url-dns-rebinding-ssrf",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 79,
+    "claim": "[medium] The SSRF guard resolves the hostname and checks is_global, but requests resolves it again. A DNS name that returns a public IP for the check and an internal IP for the fetch bypasses the block on private, loopback and link-local targets.",
+    "source": "Any API client supplies image_url/video_url/audio_url with an http(s) URL whose hostname the attacker controls (serve/processors/multimodal.py:156-164, 168-179).",
+    "sink": "connection.py:83 client.get(parsed.url) performs a fresh DNS lookup and connects to whatever IP it returns.",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/processors/multimodal.py",
+      "line": 162,
+      "note": "user URL reaches load_from_url"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 79,
+      "note": "_is_safe_url(parsed.url) resolves via getaddrinfo and checks is_global"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 41,
+      "note": "first DNS resolution (validation)"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 83,
+      "note": "second DNS resolution inside requests; no IP pinning"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 93,
+      "note": "response body returned to media decoder"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (:71); hostname required (:73); allowed_media_domains (:75), optional and default None means any host is allowed; is_global check on all resolved IPs (:45-50); manual redirect handling with re-validation each hop (:69-90, max 3). Redirect checks are sound. The TOCTOU between the two DNS lookups is not guarded."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "media-url-local-file-read",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 130,
+    "claim": "[medium] The media loader accepts local filesystem paths and file:// URLs from API input with no path restriction. This gives any API client a file-existence oracle and lets them have arbitrary local files decoded as image, video or audio.",
+    "source": "API client sets image_url/video_url/audio_url to an absolute path, relative path, or file:///... (serve/processors/multimodal.py:162, 170, 177, 182).",
+    "sink": "connection.py:130-131 os.path.exists(url) or os.path.exists(url_spec.path) leads to _load_file_url, then Path and media_io.load_file (image.py:31-35, video_loader.py:117-127, audio.py:48-49, time_series.py:31+).",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/processors/multimodal.py",
+      "line": 162,
+      "note": "user-supplied string passed to load_from_url"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 123,
+      "note": "scheme check routes only http/https and data"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 130,
+      "note": "file: scheme or any existing raw path is accepted"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 115,
+      "note": "netloc+path joined into an arbitrary Path"
+     },
+     {
+      "file": "lmdeploy/vl/media/image.py",
+      "line": 32,
+      "note": "open(file_path, 'rb') reads the whole file"
+     }
+    ],
+    "guards_checked": "allowed_media_domains (connection.py:75) applies only to the HTTP branch, so it does not restrict file access. No root-directory confinement or path allowlist. The only check is that the path exists."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "zmq-rpc-unauthenticated-pickle",
+    "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+    "line": 305,
+    "claim": "[low] The multiprocess engine RPC deserializes every incoming message with pickle.loads over an unauthenticated ZMQ socket. Any local process that can reach the random localhost port gets code execution in the engine process.",
+    "source": "Any process on the same host that connects to the ROUTER port bound at zmq_rpc.py:123-126.",
+    "sink": "zmq_rpc.py:305 pickle.loads(request_data); client side at zmq_rpc.py:447, 451, 572.",
+    "trace": [
+     {
+      "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+      "line": 123,
+      "note": "address = 'tcp://localhost'"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+      "line": 126,
+      "note": "bind_to_random_port; port discoverable by a local process"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/mp_engine/zmq_rpc.py",
+      "line": 305,
+      "note": "pickle.loads on untrusted socket data"
+     }
+    ],
+    "guards_checked": "Bind to localhost only, plus a code comment warning against external exposure. No message authentication (HMAC/CURVE) and no restricted unpickler. The disagg path (engine_conn.py:76-85) already moved from pickle to JSON. Not checked: mp_executor.py:182 also calls pickle.loads, which was not traced."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

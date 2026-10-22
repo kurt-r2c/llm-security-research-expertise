@@ -1,0 +1,104 @@
+{
+ "arm": "C",
+ "repo": "php-feed",
+ "rep": 3,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.1751576,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-vrjo21hb/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-vrjo21hb/r/import.php",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-vrjo21hb/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF. The POST parameter `feed` is passed unvalidated to file_get_contents(). Any URL or PHP stream wrapper is accepted, including http, https, ftp, file, php://, phar://, data:// and gopher-like targets. The attacker can make the server request internal hosts and cloud metadata such as http://169.254.169.254/latest/meta-data/. The response body is not returned, only strlen($xml), so this is a blind or semi-blind SSRF. Response size and timing still allow port and host probing and internal service discovery, and a request with side effects can be fired at an internal endpoint. phar:// can also trigger deserialization on older PHP.",
+    "source": "$_POST['feed'] (HTTP POST body, any remote client)",
+    "sink": "file_get_contents($_POST['feed']) at import.php:12",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Branch taken on any POST request that has a `feed` parameter. There is no authentication or authorization check on this branch."
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "The raw attacker string is passed directly to file_get_contents(), which fetches URLs and stream wrappers."
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "strlen of the fetched content is echoed back, giving the attacker a size oracle. Failures return false, so strlen is 0 or an error, and the difference separates reachable from unreachable targets."
+     }
+    ],
+    "guards_checked": "There is no scheme or host allowlist, no private-IP or DNS-resolution check, no redirect restriction and no wrapper restriction. require_admin() is defined but is not called on this path. session_start() does not gate access. Nothing between source and sink restricts the URL."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "import.php:11-13 passes $_POST['feed'] straight to file_get_contents() and echoes strlen() with no auth, allowlist, or scheme check; require_admin() (import.php:4) is only called at line 18 on a different branch, and no other files include or prepend a guard."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated SSRF. The POST parameter `set_webhook` is passed unvalidated to curl_init() and curl_exec(). libcurl follows its default protocol set, which includes file://, gopher://, dict://, ftp:// and ldap://. This allows requests to internal services and cloud metadata, and gopher:// allows raw TCP payloads to Redis, memcached and similar services. Redirects are not followed by default because CURLOPT_FOLLOWLOCATION is unset. The response is not returned, so this is blind SSRF. Severity is reduced because it requires an admin session. It is still exploitable by a malicious tenant admin or through a compromised admin session or CSRF, since no CSRF token is checked.",
+    "source": "$_POST['set_webhook'] (HTTP POST body, requires $_SESSION['is_admin'])",
+    "sink": "curl_init($hook) with curl_exec($ch) at import.php:20-22",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch taken when the POST parameter set_webhook is present."
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks $_SESSION['is_admin'] and returns 403 otherwise. This is the only guard."
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "The attacker-supplied value is assigned to $hook with no validation."
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets CURLOPT_URL to the attacker value."
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec() performs the request. CURLOPT_PROTOCOLS is not restricted."
+     }
+    ],
+    "guards_checked": "The admin check in require_admin() is an authorization guard only. It is not a destination guard. There is no scheme restriction (CURLOPT_PROTOCOLS), no host or IP allowlist, no DNS-pinning check, and no CSRF token. CURLOPT_FOLLOWLOCATION is not set, so redirects are not followed, but the initial URL is fully attacker-controlled."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 and :18 (authorization only). There is no destination validation, no CSRF token, and no CURLOPT_PROTOCOLS.",
+    "reason": "The trace matches the code (import.php:17-22), but the sink at import.php:20 is reachable only after require_admin() at import.php:18 passes. That makes the source admin-only, not controllable by an unauthenticated or low-privilege attacker. The CSRF angle is only a possible path to it, since no CSRF token is checked and modern SameSite defaults may block it anyway. A separate, unauthenticated SSRF exists at import.php:12 (`file_get_contents($_POST['feed'])`), but it is a different finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.066825
+}

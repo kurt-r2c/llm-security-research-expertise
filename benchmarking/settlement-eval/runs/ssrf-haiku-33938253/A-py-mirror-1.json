@@ -1,0 +1,107 @@
+{
+ "arm": "A",
+ "repo": "py-mirror",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.006403510000000001,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Read": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-5i_nmc3d/r/mirror.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "GET /mirror fetches an attacker-supplied URL. The host check is a bare suffix match (endswith 'example.com') with no dot boundary, and the resolved IP is never checked. An attacker can register a lookalike domain such as evilexample.com, point it at an internal or link-local address (127.0.0.1, 10.x, 169.254.169.254), and the server will request it.",
+    "source": "mirror.py:11 - 'url: str' query parameter on GET /mirror (attacker-controlled)",
+    "sink": "mirror.py:16 - 'await c.get(url)' (httpx.AsyncClient, server-side outbound request)",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "url is taken straight from the query string; no scheme, port, or IP restriction"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "host = urlparse(url).hostname or '' - hostname is lowercased but otherwise used as-is"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "host.endswith('example.com') matches 'evilexample.com' (no leading dot), so an attacker-owned lookalike domain passes"
+     },
+     {
+      "file": "mirror.py",
+      "line": 15,
+      "note": "a new AsyncClient is created with no address filtering"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "c.get(url) requests the original string; DNS resolves at request time, so the check does not bind to the IP actually contacted (DNS rebinding also works)"
+     },
+     {
+      "file": "mirror.py",
+      "line": 17,
+      "note": "only len(r.text) is returned, so this is a response-length oracle rather than a full body read-back"
+     }
+    ],
+    "guards_checked": "(1) Hostname suffix check, line 13: bypassed by any attacker-registered domain ending in 'example.com' without a dot boundary, and by DNS resolving to a private or metadata IP because the IP is never checked. (2) Scheme: not restricted, but httpx only speaks http/https, so file:// and similar are unreachable. (3) Redirects: httpx.AsyncClient defaults to follow_redirects=False, so a redirect from an allowed host to an internal host is not followed. This holds for the default config and would break if follow_redirects=True were set. (4) Port: unrestricted. (5) Credentials in URL: urlparse().hostname takes the part after the last '@', so userinfo tricks like 'https://example.com@evil.com' fail the check; not exploitable here."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is `host.endswith(\"example.com\")` at mirror.py:13, which has no dot boundary and is not a closing guard. `ALLOWED_SUFFIX` (mirror.py:7) is defined but never used. No IP or resolved-address check exists, and the request at mirror.py:16 uses the original URL string.",
+    "reason": "The `url` query parameter (mirror.py:11) reaches `c.get(url)` (mirror.py:16) on an unauthenticated route, and the only check at mirror.py:13 is a bare `endswith(\"example.com\")` that accepts an attacker-registered `evilexample.com` resolving to 127.0.0.1 or 169.254.169.254; the trace matches the code, and httpx's default follow_redirects=False at mirror.py:15 does not block this direct request."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-1b",
+    "file": "mirror.py",
+    "line": 12,
+    "claim": "Possible parser differential between urllib.parse.urlparse (used for the check) and httpx's URL parser (used for the request). urlparse splits netloc only on '/', '?', and '#', so a backslash in the authority is not a delimiter. Input like 'http://evil.com\\@example.com/' would then yield hostname 'example.com' for the check, while httpx may connect to 'evil.com'. Not verified: the sandbox denied running the test, and the httpx version is unknown.",
+    "source": "mirror.py:11 - 'url' query parameter (attacker-controlled)",
+    "sink": "mirror.py:16 - 'await c.get(url)'",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "urlparse(url).hostname computes the host used for the check"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "endswith check runs on that host and would pass"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "httpx parses the same raw string independently and may choose a different host"
+     }
+    ],
+    "guards_checked": "Host suffix check at line 13 only. No normalization, no reparse of the URL, and no check on the URL httpx actually uses."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only mirror.py:13, `host.endswith(\"example.com\")`, which is a suffix check and does not close the finding. No exact hostname set check, no anchored match, and no re-check of the URL httpx actually requests.",
+    "reason": "The `url` query parameter (mirror.py:11) reaches `c.get(url)` (mirror.py:16) and is gated only by the unanchored suffix test at mirror.py:13, so `http://evilexample.com/` passes the check and is fetched, which is a direct SSRF bypass without any parser differential. The candidate's specific backslash-differential mechanism (lines 12 and 16) is unproven because httpx's parser behavior cannot be checked from the readable files, but that part does not affect the verdict."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00470189
+}

@@ -1,0 +1,93 @@
+{
+ "arm": "B",
+ "repo": "inj-py-sql",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.050390500000000005,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.py",
+    "line": 12,
+    "claim": "SQL injection in /search: the q parameter is interpolated into the SQL string with an f-string. An attacker can break out of the LIKE literal and run UNION SELECT queries. This can read any table in shop.db, such as users or credentials tables, and can leak the schema through sqlite_master.",
+    "source": "request.args.get('q') (app.py:11), unauthenticated HTTP query parameter",
+    "sink": "db.execute(f\"SELECT id, name FROM products WHERE name LIKE '%{term}%'\") at app.py:12",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 11,
+      "note": "term = request.args.get('q', '') takes raw user input"
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "term is embedded directly in the SQL text with an f-string, with no parameterization or escaping"
+     },
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "Query results are returned to the caller as JSON, so injected UNION output is exfiltrated"
+     }
+    ],
+    "guards_checked": "There is no input validation, no parameter binding, no authentication and no WAF or middleware on the route. The other two routes use '?' placeholders, so this route is the only one affected. sqlite3.execute rejects multiple statements, so stacked queries are not possible, but UNION-based extraction still works."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:11 reads q from request.args and app.py:12 puts it straight into the SQL f-string with no parameterization, auth or middleware, and app.py:13 returns the rows as JSON, so UNION extraction works. Only /product and /by-owner (app.py:18, 25) use placeholders."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:11 reads q from request.args and app.py:12 interpolates it into the LIKE literal with an f-string. The route at app.py:9-10 has no auth decorator or validation, and app.py:13 returns the rows as JSON, so UNION-based extraction works. The other two routes use '?' placeholders (app.py:18, 25)."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.py",
+    "line": 22,
+    "claim": "Missing authentication and authorization on /by-owner. The owner value is a client-supplied identifier with no session or identity check. Any anonymous caller can list any owner's products by passing that owner's name, which allows enumeration and IDOR-style access. This is a candidate finding. It matters only if owner-scoped data is meant to be private.",
+    "source": "request.args.get('owner') (app.py:24), unauthenticated HTTP query parameter",
+    "sink": "db.execute('SELECT id, name FROM products WHERE owner = ?', (owner,)) at app.py:25, which returns another owner's rows",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "owner is taken from the query string and is not tied to an authenticated principal"
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "The query filters on the attacker-chosen owner and is safely parameterized, but there is no ownership check"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "Rows are returned to the caller"
+     }
+    ],
+    "guards_checked": "The file has no login, session, token or decorator-based auth anywhere. The query is parameterized, so there is no SQL injection on this route. I found no rate limiting. The data may be intended to be public, which makes this finding plausible rather than confirmed."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none (query at app.py:25 is parameterized, which only blocks SQL injection; no auth exists anywhere in app.py)",
+    "reason": "The trace at app.py:22-26 is accurate and the route is anonymous with no auth guard, but the unauthenticated /search (app.py:9-13) and /product/<pid> (app.py:16-19) routes already expose the same products table, so nothing in the code shows owner-scoped data is meant to be private and the finding can't be settled without that intent."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "The trace matches app.py:22-26 and the route has no auth check, but nothing in the code shows whether products are owner-private (the sibling /search at app.py:12 and /product/<pid> at app.py:18 are equally unauthenticated and list the same data), so whether this is a real IDOR can't be decided from this code."
+   }
+  }
+ ],
+ "verify_cost": 0.0578484,
+ "verify_facts_cost": 0.0593231
+}

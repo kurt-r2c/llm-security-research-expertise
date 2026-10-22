@@ -1,0 +1,93 @@
+{
+ "arm": "B",
+ "repo": "mx-php-csrf",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.05552069999999999,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "actions.php",
+    "line": 16,
+    "claim": "transfer_funds calls check_csrf(), which only returns a boolean, instead of verify_csrf(), which exits with 403. The return value is discarded, so the CSRF check is never enforced. A cross-site forged POST moves money from the victim's account.",
+    "source": "Attacker-hosted page that auto-submits a cross-origin POST to the transfer endpoint with arbitrary amt and to values. The victim's session cookie is sent with it, and the token is missing or wrong.",
+    "sink": "UPDATE acct SET bal = bal - ? / bal + ? at lines 17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 4,
+      "note": "check_csrf returns bool and does not abort"
+     },
+     {
+      "file": "actions.php",
+      "line": 16,
+      "note": "return value ignored, so execution continues with an invalid token"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debits the victim's account, id from $_SESSION['uid']"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credits the attacker-chosen $_POST['to']"
+     }
+    ],
+    "guards_checked": "Compared with update_profile at line 22, which correctly uses verify_csrf. No SameSite cookie setting, Origin/Referer check or re-authentication is present in this file. Prepared statements prevent SQL injection but do not help here."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf() at actions.php:4-6 returns a bool, but its result is discarded at line 16. verify_csrf() at lines 8-13, which does exit with 403, is only used in update_profile at line 22. There is no SameSite cookie setting, Origin/Referer check or re-authentication anywhere in the repo.",
+    "reason": "actions.php:16 calls check_csrf() as a bare statement, so a forged cross-site POST still reaches the debit and credit at actions.php:17-18. Only browser default SameSite=Lax behaviour might partly mitigate this, and that is not a reliable control."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:4-6) returns a bool and does not abort; its result is discarded at line 16. No SameSite, Origin/Referer or re-auth check exists in the directory.",
+    "reason": "actions.php:16 calls check_csrf() as a bare statement, so a forged cross-site POST proceeds to the debit at line 17 and the credit at line 18, unlike update_profile at line 22, which uses the aborting verify_csrf."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "Business-logic flaw: transfer_funds does not validate the amount, the recipient or the sender's balance, and the two updates are not in a transaction. An authenticated user can send a negative amt to pull funds out of any account id they supply in `to` and credit their own account. They can also overdraw, or send a non-numeric or zero-length amt. A failure between the two statements leaves the debit applied without the credit.",
+    "source": "Authenticated user's POST fields amt (e.g. -1000) and to (victim account id)",
+    "sink": "UPDATE acct SET bal = bal - ? / bal + ? at lines 17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "bal = bal - (-1000) increases the sender's balance by $_POST['amt'] with no sign or range check"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "bal = bal + (-1000) decreases the arbitrary $_POST['to'] account, with no existence, ownership or self-transfer check"
+     }
+    ],
+    "guards_checked": "No numeric, positive or maximum check on amt. No bal >= amt check or CHECK constraint is visible in this file. No transaction or row lock. No check that $_SESSION['uid'] is set. A CSRF check exists but is bypassed per F1."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf() at actions.php:16 only returns a bool and the result is discarded, so it blocks nothing. Nothing validates amt, to, or the balance, and there is no transaction. verify_csrf (which does exit) is used only in update_profile.",
+    "reason": "actions.php:17-18 bind raw $_POST['amt'] and $_POST['to'] into the debit and credit UPDATEs with no sign, balance, recipient or transaction check, and the bare check_csrf() call at line 16 has its result ignored, so a negative amt moves funds out of the victim account."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only check_csrf() at actions.php:16, a bare call whose boolean result is discarded, so it blocks nothing. There is no validation of amt, to or balance, and no transaction.",
+    "reason": "actions.php:17-18 run both UPDATEs with raw $_POST['amt'] and $_POST['to'], so a negative amt debits the victim and credits the caller. The only guard, check_csrf at line 16, returns false without aborting and its result is ignored, and no session or uid check precedes the updates."
+   }
+  }
+ ],
+ "verify_cost": 0.06842619999999999,
+ "verify_facts_cost": 0.0654447
+}

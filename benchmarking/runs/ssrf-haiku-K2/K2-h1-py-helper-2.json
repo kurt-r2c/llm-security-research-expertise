@@ -1,0 +1,159 @@
+{
+ "arm": "K2",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.00630203,
+ "trace": {
+  "tools": {
+   "Read": 5,
+   "Glob": 1,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-23mfj8ur/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-23mfj8ur/r/views.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-23mfj8ur/r/validators.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-23mfj8ur/expertise/cases/04-url-validate-reparse.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-23mfj8ur/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 fetches any user-supplied URL server-side. The only check is the URL scheme, so internal hosts and cloud metadata endpoints are reachable, and the response body is returned to the caller (reflected SSRF). Redirects are also followed.",
+    "source": "views.py:19 request.args.get(\"url\") (attacker-controlled query parameter)",
+    "sink": "views.py:22 requests.get(url, timeout=5) with default allow_redirects=True; body returned via jsonify at views.py:22",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken from request.args, no normalization"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) called as the only guard"
+     },
+     {
+      "file": "validators.py",
+      "line": 6,
+      "note": "is_http_url defined as urlparse(url).scheme in (http, https); no hostname or IP check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) connects to any host, follows 3xx redirects to internal addresses, and returns .text[:200] to the caller"
+     }
+    ],
+    "guards_checked": "Scheme allow-list only (validators.py:6-7). No hostname allow-list, no private/loopback/link-local/metadata IP block, no allow_redirects=False, no port restriction, no authentication on the route. Not a decoy: the scheme check does not address destination."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /fetch2. views.py:20 is_http_url is scheme-only (validators.py:6-7). The stronger is_safe_url (validators.py:10-18, private/loopback/link-local/reserved IP check, used with allow_redirects=False at views.py:12-14) is not applied to /fetch2.",
+    "reason": "The url comes from request.args at views.py:19 with no authentication on the route, the only check at views.py:20 is a scheme test (validators.py:7), and views.py:22 calls requests.get with default allow_redirects=True and returns .text[:200] to the caller, so internal hosts, metadata endpoints, and redirect targets are reachable."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch is guarded by is_safe_url, which resolves the hostname and rejects private, loopback, link-local and reserved addresses. The fetch then resolves the hostname again, so a DNS-rebinding attacker can return a public address to the check and an internal address (e.g. 127.0.0.1 or 169.254.169.254) to the connection. This is the check-then-use pattern from case 12.",
+    "source": "views.py:11 request.args.get(\"url\") (attacker-controlled; attacker controls DNS for the hostname)",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False) performs a fresh DNS lookup at connect time",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url from request.args"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) called"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse(url) yields scheme and hostname"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(hostname) lookup #1; result checked at lines 15-17 only"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "private/loopback/link-local/reserved check on the lookup #1 answers"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url) performs lookup #2 inside urllib3 and connects to whatever address it returns; no IP pinning"
+     }
+    ],
+    "guards_checked": "Scheme check (validators.py:12); hostname required (validators.py:12); IP class check on all getaddrinfo answers (validators.py:14-17); allow_redirects=False (views.py:14), which blocks redirect-based escape. Not guarded: DNS answer is not pinned between check and connect. Exploitability depends on the attacker controlling DNS with a short TTL, so severity is medium."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only an IP-class check at validators.py:14-18 (is_private/loopback/link_local/reserved on getaddrinfo answers) and scheme/hostname checks at validators.py:12. None of these is a closing guard under the rubric (no exact hostname allowlist, anchored match, or scheme plus strict host membership). allow_redirects=False at views.py:14 does not stop DNS rebinding. The DNS answer is not pinned between validators.py:14 and the connect inside views.py:14.",
+    "reason": "The trace matches the code: views.py:11 reads the URL from request.args, views.py:12 calls is_safe_url, validators.py:14 resolves the hostname, and views.py:14 calls requests.get(url), which resolves it again and connects with no IP pinning. The only check is an IP-class filter at validators.py:16, which is not a closing guard under the rubric, so the finding stands. Severity is arguably medium because exploitation needs attacker-controlled DNS with a short TTL. Separately, views.py:22 (/fetch2) has no IP check at all and is a plainer SSRF, though it is not the candidate under review."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-3",
+    "file": "validators.py",
+    "line": 11,
+    "claim": "Possible parser differential: is_safe_url validates the hostname using urllib3-independent urlparse, but requests.get re-parses the raw URL with urllib3. If the two disagree on the host (for example on backslashes, userinfo, or characters that urlparse strips), a URL that passes the check may connect to an internal host. Not verified: I could not execute code in this session.",
+    "source": "views.py:11 request.args.get(\"url\")",
+    "sink": "views.py:14 requests.get(url) (urllib3 parse of the raw string)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "raw url string from request"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse(url).hostname used for the check"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "getaddrinfo on the urlparse hostname"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get parses the same raw string with a different parser and may choose a different host"
+     }
+    ],
+    "guards_checked": "Same as SSRF-2. Confirmed by reading only that the check and the client use different parsers. Needs a test with the installed requests/urllib3 version to confirm or rule out. Lower confidence than SSRF-1 and SSRF-2."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "No hostname allowlist or anchored match. The only check is a resolve-then-reject on private/loopback/link-local/reserved IPs at validators.py:14-17, which is not one of the closing guards, and views.py:14 passes the raw url to requests.get with allow_redirects=False.",
+    "reason": "All cited lines exist and match the description (views.py:11, views.py:14, validators.py:11, validators.py:14), and the source is attacker-controlled via request.args at views.py:11. Whether urlparse (validators.py:11) and requests/urllib3 (views.py:14) pick different hosts for inputs like backslashes or userinfo depends on the installed requests/urllib3 versions and cannot be decided by reading the code, and the candidate itself says it was never tested, so the differential is unconfirmed."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006237200000000001
+}

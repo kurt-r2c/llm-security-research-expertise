@@ -1,0 +1,105 @@
+{
+ "arm": "K3",
+ "repo": "node-avatar",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.00725171,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-s20q0_t4/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "Unauthenticated SSRF on POST /profile/avatar: the attacker-supplied avatarUrl is fetched server-side by axios. The only check is that the string starts with 'https://', which constrains the scheme, not the destination. There is no host allowlist and no block on private, loopback, or link-local addresses. Axios follows redirects by default, so an https URL can redirect the server to plain-http internal endpoints. The response body is not returned (blind SSRF); the caller gets only the byte length.",
+    "source": "server.js:10 req.body.avatarUrl (route at server.js:9, no auth)",
+    "sink": "server.js:14 axios.get(url, { responseType: \"arraybuffer\" })",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "app.post('/profile/avatar') is registered with no authentication middleware"
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl, taken directly from the request body"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "validation: typeof url === 'string' and url.startsWith('https://'); scheme only, no host or IP check"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "await axios.get(url, ...) fetches the attacker-chosen URL; redirects are followed by default (follow-redirects, maxRedirects 5), which permits https-to-http redirects"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "res.json({ bytes: img.data.length }) returns only the response size (blind SSRF oracle)"
+     }
+    ],
+    "guards_checked": "Type check (server.js:11): enforced. startsWith('https://') (server.js:11): enforced but scheme-only. Not present anywhere: host allowlist, private/loopback/link-local IP block, redirect restriction (maxRedirects 0 or per-hop validation), DNS-rebinding protection, auth on the route. No package.json, so the axios version and redirect default are inferred, not pinned."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only a scheme-only check at server.js:11 (typeof string and url.startsWith(\"https://\")), which does not close the finding. No host allowlist, private/loopback/link-local IP block, redirect restriction, or auth on the route anywhere in server.js.",
+    "reason": "The route at server.js:9 has no auth, the URL comes from req.body.avatarUrl at server.js:10, the only check at server.js:11 constrains scheme but not destination, and server.js:14 fetches it with axios.get while server.js:15 returns the response byte length. The redirect-to-http and axios version details are inferred since there is no package.json, but the core SSRF does not depend on them."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "server.js",
+    "line": 20,
+    "claim": "UNCERTAIN, low severity: on GET /users/:id, encodeURIComponent does not encode '.', so id='..' produces the path /v1/users/.., which normalizes to /v1/ on the fixed users.internal:8080 host. This reaches a different endpoint on the same internal service only; the host cannot be changed. Whether axios normalizes dot segments depends on the Node/axios version and is not verified.",
+    "source": "server.js:18-19 req.params.id, passed through encodeURIComponent",
+    "sink": "server.js:20 axios.get(`${USER_SVC}/v1/users/${id}`)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 18,
+      "note": "app.get('/users/:id') is registered with no authentication middleware"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "id = encodeURIComponent(req.params.id); dots are not encoded, so '..' passes through"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "URL built from the constant USER_SVC (server.js:7) plus the id; host is fixed, path can traverse to /v1/ if dot segments are normalized"
+     }
+    ],
+    "guards_checked": "USER_SVC is a constant host (server.js:7): enforced. encodeURIComponent (server.js:19): enforced for '/', '?', '#'; does not handle '.' dot segments. No auth on route. Host and scheme cannot be attacker-controlled."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "server.js:7 fixes the host and scheme to http://users.internal:8080, so the attacker cannot choose the host. server.js:19 encodeURIComponent encodes '/', so the attacker cannot add path segments. Only a whole-segment '..' or '.' survives, which reaches /v1/ or /v1/users/ on the same fixed host.",
+    "reason": "The trace at server.js:18-20 is accurate and req.params.id is attacker-controlled, but the host and scheme are constant (server.js:7, 20) and encodeURIComponent (server.js:19) blocks '/' so the only traversal left is to /v1/ or /v1/users/ on the same internal service, which is not an SSRF to a new target; the candidate itself rates it low and leaves axios normalization unverified."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00466298
+}

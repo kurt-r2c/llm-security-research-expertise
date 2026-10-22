@@ -1,0 +1,189 @@
+{
+ "arm": "A",
+ "repo": "fastify-static",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "22d7688e",
+ "status": "success",
+ "gen_cost": 0.019378950000000002,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 4,
+   "ToolSearch": 1,
+   "WebFetch": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qf86mlhb/r/index.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qf86mlhb/r/lib/dirList.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qf86mlhb/r/lib/errors.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qf86mlhb/r/package.json"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "index.js",
+    "line": 152,
+    "claim": "Wildcard static route handler calls pumpSendToReply without await or return, so any rejection from @fastify/send becomes an unhandled promise rejection that can crash the Node process. Likely reachable with a NUL byte in the URL. Unverified: @fastify/send behaviour could not be checked because WebFetch permission was denied and no node_modules are installed. Verdict: PLAUSIBLE.",
+    "source": "Attacker-controlled request URL path, e.g. GET /static/%00 (wildcard route, default config).",
+    "sink": "Unhandled promise rejection from pumpSendToReply's `await send(...)` at index.js:302, which is not awaited at index.js:152.",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 141,
+      "note": "wildcard route handler (non-async, returns undefined)"
+     },
+     {
+      "file": "index.js",
+      "line": 144,
+      "note": "getPathnameForSend(req.raw.url, ...) takes raw URL"
+     },
+     {
+      "file": "index.js",
+      "line": 764,
+      "note": "decodeURI turns %00 into NUL; the only try/catch (763-775) covers decode errors, not send errors"
+     },
+     {
+      "file": "index.js",
+      "line": 773,
+      "note": "decodedPathname containing \\0 is returned as the pathname"
+     },
+     {
+      "file": "index.js",
+      "line": 152,
+      "note": "pumpSendToReply(req, reply, pathname, root) is fire-and-forget"
+     },
+     {
+      "file": "index.js",
+      "line": 302,
+      "note": "await send(request.raw, encodeURI(pathnameForSend), options). encodeURI gives %00, which send decodes back to NUL, then fs.stat with NUL throws, which is not caught here"
+     }
+    ],
+    "guards_checked": "Dotfile/dotdot checks (index.js:262, 769) do not reject NUL. The try/catch at index.js:763-775 only catches decodeURI errors. pumpSendToReply has no try/catch around send. The errorHandler (index.js:88-95) is never reached because the promise is not returned. Fastify does not install an unhandledRejection handler."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "index.js",
+    "line": 56,
+    "claim": "Dotfiles are allowed by default (`opts.dotfiles ??= 'allow'`), so any dotfile inside the static root (for example .env, .git/config, .npmrc) is served over HTTP unless the operator sets dotfiles to 'deny' or 'ignore'. Secure-default concern; exploitable only if secrets or VCS metadata sit under root.",
+    "source": "Attacker-controlled request path naming a dotfile, e.g. GET /static/.env or /static/.git/config.",
+    "sink": "Response body from send() for a dotfile inside root (index.js:302 sendOptions.dotfiles at index.js:63).",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 56,
+      "note": "opts.dotfiles ??= 'allow' default"
+     },
+     {
+      "file": "index.js",
+      "line": 63,
+      "note": "dotfiles passed to sendOptions"
+     },
+     {
+      "file": "index.js",
+      "line": 302,
+      "note": "send serves the dotfile when dotfiles === 'allow'"
+     }
+    ],
+    "guards_checked": "Non-leading '..' traversal is blocked (index.js:262, 769), so this is not a traversal. Root containment is enforced by send. Only dotfile-name filtering is absent. In the non-wildcard branch glob uses `dot: opts.serveDotFiles` (index.js:169), which is a different option name, so dotfiles are not registered as routes there (stricter, but inconsistent)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lib/dirList.js",
+    "line": 25,
+    "claim": "extendedFolderInfo walks the directory tree recursively on every listing request with no depth limit, no cache and no cycle detection. fs.stat follows symlinks, so a directory symlink cycle inside root makes the walk fan out until ENAMETOOLONG. Attacker can request the listing repeatedly for CPU and I/O exhaustion. Requires list.extendedFolderInfo to be enabled and a symlink or very large tree under root.",
+    "source": "Attacker-controlled HTTP GET to a directory route with list enabled, e.g. GET /static/ with `list: { extendedFolderInfo: true, format: 'json', jsonFormat: 'extended' }`.",
+    "sink": "Unbounded recursive fs.readdir/fs.stat in _getExtendedInfo (lib/dirList.js:27, 33, 41).",
+    "trace": [
+     {
+      "file": "index.js",
+      "line": 306,
+      "note": "directory listing branch when opts.list is set"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 124,
+      "note": "dirList.send"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 80,
+      "note": "dirList.list"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 100,
+      "note": "getExtendedInfo called for each subdirectory when options.extendedFolderInfo is true"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 41,
+      "note": "recursive _getExtendedInfo with no depth or visited-set limit"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 33,
+      "note": "fs.stat follows symlinks, so cycles are not detected"
+     }
+    ],
+    "guards_checked": "Per-entry stat errors are caught (dirList.js:34-36), so ENAMETOOLONG ends a branch rather than crashing. fastq concurrency is limited to cpus-1. No authentication or rate limiting exists in this library. Listing requires opt-in configuration."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "lib/dirList.js",
+    "line": 162,
+    "claim": "Directory listing passes raw filenames (`name`) and encoded hrefs to the user-supplied render function with no HTML escaping in the library. If the render template does not escape, an attacker who can create files with HTML in their names (e.g. in an upload directory) gets stored XSS on the listing page. Consumer-side responsibility; low severity.",
+    "source": "Filename on disk created by an attacker (e.g. via upload into the listed directory), e.g. `<img src=x onerror=alert(1)>.txt`.",
+    "sink": "options.render(...) output, rendered as HTML by the consumer's template (lib/dirList.js:150-153, 153 sets text/html).",
+    "trace": [
+     {
+      "file": "lib/dirList.js",
+      "line": 80,
+      "note": "dirList.list reads raw filenames via fs.readdir"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 97,
+      "note": "entry.name = raw filename"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 162,
+      "note": "htmlInfo returns name: entry.name unescaped"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 150,
+      "note": "options.render receives the unescaped names"
+     },
+     {
+      "file": "lib/dirList.js",
+      "line": 153,
+      "note": "reply.type('text/html').send(html)"
+     }
+    ],
+    "guards_checked": "href is encodeURI-encoded (lib/dirList.js:167), which does not cover name. The library does not escape name. Whether the output is escaped depends entirely on the consumer's render function."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

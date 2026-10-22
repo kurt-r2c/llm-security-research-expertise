@@ -1,0 +1,180 @@
+{
+ "arm": "A",
+ "repo": "lg-py-negative",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.05092630000000001,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "/transfer does not validate that amount is positive. A negative amount passes the balance check and reverses the transfer, so the attacker takes funds from any victim account.",
+    "source": "Authenticated user's JSON body: {\"to\": \"<victim>\", \"amount\": -1000000}",
+    "sink": "BAL[g.user] -= amount and BAL[to] += amount (bank.py:13-14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to and amount are read from request.json with no type or range validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < amount is false for a negative amount, so the check passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "BAL[g.user] -= negative increases the attacker's balance"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] += negative decreases the victim's balance, with no consent from the victim"
+     }
+    ],
+    "guards_checked": "/withdraw has an amount <= 0 check but /transfer does not. No auth, ownership or limit checks on the recipient. The victim only has to exist in BAL. The attacker can then call /withdraw to cash out."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /transfer; only the balance check at bank.py:11, which a negative amount passes. The amount <= 0 check exists only in /withdraw (bank.py:21).",
+    "reason": "bank.py:11 only tests BAL[g.user] < amount, which is false for a negative amount, so bank.py:13-14 add to the attacker's balance and subtract from the victim's, with no positivity check like the one at bank.py:21."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /transfer (only BAL[g.user] < amount at bank.py:11, which a negative amount passes); /withdraw has amount <= 0 check at bank.py:21 but it is not applied to /transfer",
+    "reason": "bank.py:11-14 accepts a negative amount unchecked, so BAL[g.user] -= amount credits the attacker and BAL[to] += amount debits any existing victim, and any authenticated user can then cash out via /withdraw (bank.py:21-23)."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "The balance check and the debit are not atomic (TOCTOU race), and BAL is unsynchronized global state. Concurrent requests can each pass the check and overdraw the account or double-spend.",
+    "source": "Many concurrent POST /transfer or /withdraw requests from one user, each with amount <= balance",
+    "sink": "BAL[g.user] -= amount (bank.py:13 and bank.py:23)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "check BAL[g.user] < amount"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "the debit happens in a separate step with no lock or transaction, so a threaded WSGI server can interleave requests"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "/withdraw has the same check-then-act pattern"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "the debit happens in a separate step with no lock"
+     }
+    ],
+    "guards_checked": "No locks, no atomic DB transaction, and no idempotency keys. The race is only exploitable under a threaded or multi-worker server. Under multiple processes BAL is also not shared, so state is inconsistent."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 checks BAL[g.user] < amount and bank.py:13 debits it, and bank.py:21 and bank.py:23 repeat the pattern, all with no lock or transaction, so concurrent requests from an authenticated user on a threaded server can each pass the check and overdraw. The window is small under the GIL, which lowers practical exploitability but doesn't remove the race."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 and bank.py:21 check BAL[g.user] and bank.py:13 and bank.py:23 debit it as separate unlocked steps on a global dict, so concurrent requests from an authenticated user can interleave under a threaded server and overdraw the account."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 14,
+    "claim": "The recipient is not validated. A nonexistent account raises KeyError after the sender has already been debited, so the funds are lost and the request fails with a 500.",
+    "source": "JSON body {\"to\": \"nonexistent\", \"amount\": N}",
+    "sink": "BAL[to] += amount (bank.py:14) after BAL[g.user] -= amount (bank.py:13)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to is attacker-controlled"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender is debited first"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] raises KeyError, leaving state inconsistent. The debit is not rolled back."
+     }
+    ],
+    "guards_checked": "No existence check on the recipient and no rollback. The impact is mainly integrity or availability for the caller, plus unhandled-exception 500s. It also affects mutated state if the exception is later handled."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:13 debits g.user before bank.py:14 does BAL[to] += amount, which raises KeyError for an unknown recipient. Nothing checks that the recipient exists or rolls back the debit, so the sender's funds are lost and Flask returns a 500. The attacker only needs to be an authenticated user making a transfer. The impact is self-inflicted loss and an unhandled 500, so severity is low."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:13 debits BAL[g.user] before bank.py:14 runs BAL[to] += amount, which raises KeyError for an unknown recipient. Nothing checks that the recipient exists or rolls back the debit (only the sender-balance check at bank.py:11 exists), so any authenticated user can lose their own funds and get a 500. Bank.py:11 also lets negative amounts through, which is a separate issue."
+   }
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "g.user is never set in this code, and there is no authentication or authorization layer. If no external before_request hook sets it, every request fails. If a hook sets it from untrusted input, the identity is spoofable. Amount type is also unvalidated, since strings, NaN or floats cause a TypeError or precision issues.",
+    "source": "Any unauthenticated HTTP client",
+    "sink": "The balance mutations in transfer and withdraw",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "g.user is read but never assigned in this file"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "the same applies in withdraw"
+     }
+    ],
+    "guards_checked": "Searched the only file in the directory (bank.py) for before_request, auth decorators and login. None were found. This depends on code outside the audited directory, so it is lower confidence."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 and :21 do read g.user, and nothing in bank.py (the only file) sets it, but whether it is spoofable depends on code outside the directory; without a hook, g.user raises AttributeError and the request returns 500 with no balance change."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "No in-file guard. Identity comes from trusted upstream middleware outside this directory, per the project facts. The only in-file checks are the balance and amount>0 checks in withdraw at bank.py:21.",
+    "reason": "The lines exist (bank.py:11, 21), but the maintainer states g.user is set by trusted upstream middleware, so the missing-auth and spoofing claim fails, and non-numeric amounts only cause a TypeError, which gives a 500 with no balance change (bank.py:11). Separately, transfer has no amount > 0 check (bank.py:11-14), so a negative amount moves money from the recipient to the caller; that is a distinct bug this finding does not describe."
+   }
+  }
+ ],
+ "verify_cost": 0.1128742,
+ "verify_facts_cost": 0.1139924
+}

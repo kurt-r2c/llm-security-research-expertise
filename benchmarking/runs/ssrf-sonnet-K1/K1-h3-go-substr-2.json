@@ -1,0 +1,109 @@
+{
+ "arm": "K1",
+ "repo": "h3-go-substr",
+ "rep": 2,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "851c79bd",
+ "status": "success",
+ "gen_cost": 0.050272000000000004,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-zw6nn1lj/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-logo-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches an attacker-supplied URL after only a substring check for \"example.io\" on the raw string. An unauthenticated attacker can make the server request internal hosts, loopback or cloud metadata and read the response, for example http://169.254.169.254/latest/meta-data/?x=example.io or http://evil.com/example.io. Redirects are followed by the default client, so an attacker-hosted URL containing example.io can redirect to internal addresses. The full response body is returned, so this is full-read SSRF.",
+    "source": "r.FormValue(\"logo\") (query or form parameter on GET/POST /logo)",
+    "sink": "http.Get(raw) at main.go:36, with the response body copied to the client at main.go:38",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "/logo is registered with no auth middleware"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw := r.FormValue(\"logo\"), attacker-controlled"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "strings.Contains(raw, \"example.io\") runs on the raw string, not the parsed host, so it is bypassed by a path, query, fragment, userinfo or subdomain such as example.io.evil.com"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) uses the default client: any scheme the transport supports, redirects followed, no private/loopback/link-local IP blocking"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy(w, resp.Body) returns the fetched content to the attacker"
+     }
+    ],
+    "guards_checked": "Only the substring check at line 32. No URL parsing, no scheme or host allowlist, no IP validation, no redirect restriction (default http.Get follows up to 10 redirects), and no authentication on the route."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": false,
+    "guard_found": "Only strings.Contains(raw, \"example.io\") at main.go:32 (substring on the raw string, not a closing guard). The strict parsed-hostname allowlist is in the separate /cdn handler (main.go:20), not in /logo.",
+    "reason": "The one trace error is that /logo is registered at main.go:43, not :42 (line 42 is /cdn); apart from that, main.go:31 takes r.FormValue(\"logo\"), main.go:32 only does a substring check, and main.go:36 http.Get(raw) with the default redirect-following client streams the body back at main.go:38, so the SSRF is real despite the off-by-one citation, and no auth middleware exists."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-cdn-nil-resp",
+    "file": "main.go",
+    "line": 25,
+    "claim": "Not an SSRF. The /cdn handler is safe: it parses the URL once, requires u.Hostname() to be exactly cdn.example.io, fetches the same u.String(), and disables redirects. The ignored error at line 25 can cause a nil dereference at line 26 if the fetch fails, which is a robustness bug and not SSRF.",
+    "source": "r.FormValue(\"u\")",
+    "sink": "c.Get(u.String())",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "url.Parse of the attacker input"
+     },
+     {
+      "file": "main.go",
+      "line": 20,
+      "note": "exact-match allowlist on the parsed Hostname()"
+     },
+     {
+      "file": "main.go",
+      "line": 24,
+      "note": "client with CheckRedirect returning ErrUseLastResponse, so redirects are not followed"
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "fetches the same parsed URL string that was validated"
+     }
+    ],
+    "guards_checked": "Exact hostname allowlist on the parsed URL, the validator and fetcher share one parse, and redirects are disabled. The attacker cannot reach an internal host. Residual: the scheme is not restricted, but the host is fixed to the trusted CDN."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact set membership on parsed u.Hostname() against {\"cdn.example.io\"} (main.go:20), same u.String() fetched (main.go:25), redirects disabled via ErrUseLastResponse (main.go:12,24)",
+    "reason": "The source r.FormValue(\"u\") (main.go:15) is attacker-controlled, but main.go:20 enforces exact hostname membership on the parsed URL, which main.go:25 then fetches unchanged with redirects disabled (main.go:24), so there is no SSRF. The only real defect on this path is the ignored error causing a nil dereference at main.go:26, which is a robustness bug. The separate /logo handler (main.go:32, substring check) is weak but is outside this finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0663208
+}

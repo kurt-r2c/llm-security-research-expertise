@@ -1,0 +1,88 @@
+{
+ "arm": "D",
+ "repo": "az-py-swallow",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.014051649999999999,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Bash": 1,
+   "Read": 2,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-cl2o_8tn/r/admin.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-cl2o_8tn/r/.claude/skills/security-research/triage/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "admin.py",
+    "line": 20,
+    "claim": "The POST /admin/users/<uid>/ban handler wraps require_admin in a broad except Exception with no re-raise or return, so the 403 from abort(403) is swallowed and do_ban(uid) runs for non-admin callers, returning {\"ok\": true}. Severity HIGH; becomes CRITICAL if upstream middleware gives anonymous requests a dict g.user.",
+    "source": "Authenticated non-admin caller (any request where g.user is a dict with falsy is_admin) sending POST to /admin/users/<uid>/ban with an arbitrary uid in the URL path (admin.py:14-15).",
+    "sink": "do_ban(uid) at admin.py:20 (protected account-ban operation; a stub in this repo).",
+    "trace": [
+     {
+      "file": "admin.py",
+      "line": 14,
+      "note": "Route POST /admin/users/<uid>/ban registered; uid taken from the URL path."
+     },
+     {
+      "file": "admin.py",
+      "line": 17,
+      "note": "require_admin(g.user) called; g.user is populated by upstream middleware not present in this repo."
+     },
+     {
+      "file": "admin.py",
+      "line": 10,
+      "note": "require_admin checks user.get('is_admin'); falsy for a non-admin."
+     },
+     {
+      "file": "admin.py",
+      "line": 11,
+      "note": "abort(403) raises werkzeug Forbidden, a subclass of Exception."
+     },
+     {
+      "file": "admin.py",
+      "line": 18,
+      "note": "except Exception catches Forbidden; no raise or return, so execution falls through."
+     },
+     {
+      "file": "admin.py",
+      "line": 19,
+      "note": "log.warning records the failed check and g.user.get('name'); if g.user is unset this raises AttributeError and do_ban is not reached."
+     },
+     {
+      "file": "admin.py",
+      "line": 20,
+      "note": "do_ban(uid) executes unconditionally."
+     },
+     {
+      "file": "admin.py",
+      "line": 21,
+      "note": "jsonify(ok=True) returns HTTP 200 to the non-admin caller."
+     }
+    ],
+    "guards_checked": "require_admin (admin.py:9-11) is correct but its abort is caught by the caller, so it fails open. methods=['POST'] restricts only the verb; no CSRF token check is visible in this file. g.user unset causes AttributeError at line 19, which blocks the bypass only for requests without a user. No decorator, blueprint or before_request in this file enforces the admin role. The sibling unban handler (lines 24-28) calls require_admin without the wrapper and is not affected. Semgrep was not run (Bash disabled); upstream g.user middleware was not reviewed because it is not in the repository."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective. require_admin (admin.py:9-11) does abort(403), but the call at admin.py:17 sits inside try/except Exception (admin.py:16-19) with no re-raise or return, so the 403 is swallowed and do_ban(uid) runs at admin.py:20. The unban handler (admin.py:24-28) calls require_admin unwrapped and is not affected. No before_request or decorator in this repo enforces admin. Upstream g.user middleware is not in the repo; if g.user is unset, line 17 raises AttributeError, line 19 raises again, and do_ban is never reached, so the bypass needs g.user to be a dict.",
+    "reason": "The trace matches admin.py:14-21 exactly: require_admin's abort(403) at admin.py:11 is caught by the bare `except Exception` at admin.py:18 with no re-raise, so do_ban(uid) at admin.py:20 runs and jsonify returns ok=True for any authenticated caller whose g.user is a dict with a falsy is_admin. The only residual uncertainty is the upstream auth middleware, which is not in this repo."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0025786700000000004
+}

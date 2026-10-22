@@ -1,0 +1,205 @@
+{
+ "arm": "K3",
+ "repo": "lg-py-negative",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "98497172",
+ "status": "success",
+ "gen_cost": 0.00827607,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Read": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-b4i0ai3e/r/bank.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 13,
+    "claim": "Negative amount in /transfer lets any caller steal from any account: no amount>0 check, so a negative amount debits the victim and credits the caller.",
+    "source": "bank.py:9-10 request.json['amount'] / ['to'] (unauthenticated POST /transfer)",
+    "sink": "bank.py:13-14 BAL[g.user] -= amount; BAL[to] += amount",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 7,
+      "note": "POST /transfer route, no auth decorator"
+     },
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount taken from JSON body unvalidated"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < -100 is False, so no abort"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "caller balance increases by 100"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "victim balance decreases by 100"
+     }
+    ],
+    "guards_checked": "Only the insufficient-funds check at line 11. The amount<=0 check exists only on /withdraw (line 21), not on /transfer."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": false,
+    "guard_found": "none on /transfer. The only check is the insufficient-funds test at bank.py:11 (`if BAL[g.user] < amount: abort(400)`), which does not reject negative amounts. The amount<=0 check is at bank.py:21, on /withdraw only. No auth decorator or middleware exists in the directory; bank.py is the only file, and g.user is never assigned in it.",
+    "reason": "The trace misdescribes bank.py:11 as `BAL[g.user] < -100`; the code is `BAL[g.user] < amount`, so the stated 100-unit behavior is wrong, though the underlying flaw is real: a negative `amount` at bank.py:10/13-14 passes the check and moves funds from `to` to the caller, with no lower-bound validation on /transfer. Exploitability depends on `g.user` being set by authentication that is not present in this directory, so the attacker-role question is unresolved; a corrected finding (negative amount, no auth visible in this directory) would be the one to re-verify."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 21,
+    "claim": "NaN/Infinity amounts bypass balance and positivity checks on /withdraw and /transfer, permanently corrupting balances and disabling the insufficient-funds check for the account.",
+    "source": "bank.py:20 and bank.py:10 request.json['amount'] (json accepts NaN/Infinity literals)",
+    "sink": "bank.py:23 BAL[g.user] -= amount (also bank.py:13-14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 20,
+      "note": "amount parsed from JSON; NaN accepted"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "nan<=0 is False and BAL<nan is False, so no abort"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "balance set to NaN; subsequent BAL<amount checks are always False"
+     }
+    ],
+    "guards_checked": "amount<=0 and BAL<amount comparisons at lines 11 and 21; neither handles non-finite floats. No isfinite check anywhere in the repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only checks are bank.py:11 (BAL[g.user] < amount) and bank.py:21 (amount <= 0 or BAL[g.user] < amount). Neither rejects NaN: NaN <= 0 and BAL < NaN are both False, so the abort never fires. No isfinite/isnan check and no allow_nan/parse_constant handling exists in the repo (Grep). Only bank.py exists in the directory.",
+    "reason": "The NaN path is real: request.json[\"amount\"] at bank.py:20 (and :10) accepts the NaN literal via Python's json, bank.py:21 passes because NaN comparisons are False, and bank.py:23 (and :13-14 on /transfer) sets the balance to NaN, so later BAL[...] < amount checks are always False. Caveat: the candidate's Infinity half is wrong, since bank.py:21 and :11 abort for +Infinity when the balance is finite, so only NaN bypasses; and g.user is never set in this repo, so reachability depends on an auth layer not included here (the flaw is still real for any authenticated caller, and /transfer lets the attacker NaN-poison another account via bank.py:14)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 7,
+    "claim": "No authentication or authorization: g.user is read at lines 11, 13, 21, 23 but never assigned anywhere in the repo, and no before_request hook or auth decorator exists on either route.",
+    "source": "unauthenticated HTTP caller on POST /transfer (bank.py:7) and POST /withdraw (bank.py:18)",
+    "sink": "bank.py:11,13,21,23 BAL[g.user] reads/writes",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 7,
+      "note": "/transfer route with no auth decorator"
+     },
+     {
+      "file": "bank.py",
+      "line": 18,
+      "note": "/withdraw route with no auth decorator"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "identity g.user consumed without being set"
+     }
+    ],
+    "guards_checked": "Grep for g.user, before_request, login, token, auth across the repo found only the four reads. Unseen deployment wrapper that might set g.user was not available for reading."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in the repo: bank.py:7 and bank.py:18 are plain @app.route decorators with no auth decorator or before_request hook, and the only g.user references are bank.py:11, 13, 21, 23. No file in the repo assigns g.user.",
+    "reason": "The trace is accurate and an anonymous caller can reach /transfer (bank.py:7) and /withdraw (bank.py:18), but as shipped g.user is never set, so each request raises AttributeError at bank.py:11 or bank.py:21 and no balance changes; whether this is exploitable depends on an unseen deployment hook that sets g.user from an unauthenticated source, which this repo does not show."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "bank.py",
+    "line": 14,
+    "claim": "Non-atomic transfer: sender is debited at line 13 before recipient lookup at line 14, so an unknown 'to' raises KeyError and the debited funds are lost.",
+    "source": "bank.py:9 request.json['to'] unvalidated",
+    "sink": "bank.py:13-14 debit before credit",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to taken from JSON unvalidated"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender debited"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] raises KeyError for unknown account; sender loss persists, HTTP 500"
+     }
+    ],
+    "guards_checked": "No existence check on 'to' and no rollback or ordering of debit after credit."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. bank.py:9 takes `to` from request.json with no validation; bank.py:11 checks only the sender's balance, not that `to` exists; no try/except, rollback, or before_request guard appears in bank.py. The `g.user` auth source is not in the directory, but that affects only who can reach the route, not the flaw.",
+    "reason": "bank.py:13 debits BAL[g.user] before bank.py:14 does BAL[to] += amount on a plain dict, so an unknown `to` raises KeyError after the debit with nothing to undo it, and the claim matches the code. Caveat: the attacker is any authenticated user with a balance and the only loss falls on their own funds, so this is a correctness/atomicity bug with little security impact."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "bank.py",
+    "line": 23,
+    "claim": "Check-then-act race on balances: check and debit are separate steps with no lock, so concurrent requests can overdraw an account (plausible; depends on server threading).",
+    "source": "concurrent POST /withdraw (bank.py:18) or /transfer (bank.py:7) requests",
+    "sink": "bank.py:23 (and 13) debit after check at 21 (and 11)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "balance check"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "debit, no lock between check and debit"
+     }
+    ],
+    "guards_checked": "No lock or atomic update in the file. app.run() is not in the repo, so the threading mode of the deployed server is unknown; flask dev server defaults to threaded=True."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. No lock, transaction, or atomic update protects the check at bank.py:21 and the debit at bank.py:23 (or bank.py:11 and 13 in /transfer). The only controls are the `amount <= 0` and balance checks, which are the check itself, not a guard against concurrency.",
+    "reason": "The trace is accurate: the balance check at bank.py:21 and the unlocked debit at bank.py:23 are separated by no synchronization, so the race is real if requests run concurrently. Whether it is exploitable depends on how the app is served (threads, gunicorn workers, or processes), and app.run() or the WSGI config is not in the repo, and g.user is never set in this file, so the attacker's role and the threading mode cannot be confirmed from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01136595
+}

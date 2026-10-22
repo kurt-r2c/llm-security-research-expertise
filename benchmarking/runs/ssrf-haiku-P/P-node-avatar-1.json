@@ -1,0 +1,113 @@
+{
+ "arm": "P",
+ "repo": "node-avatar",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.0054884899999999995,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qcfdgng6/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar makes a server-side GET to an attacker-supplied URL. The only check is that the string starts with 'https://'. axios follows redirects by default and nothing disables that, so an attacker can host an https URL that 302-redirects to an http:// URL on internal or link-local addresses (e.g. http://169.254.169.254/, http://users.internal:8080/, http://localhost:<port>/). The https prefix check is applied only to the initial URL, so the redirect target is never validated.",
+    "source": "server.js:10 - req.body.avatarUrl, taken directly from the unauthenticated JSON body of POST /profile/avatar (no auth middleware anywhere in the file).",
+    "sink": "server.js:14 - axios.get(url, { responseType: 'arraybuffer' }) issues the outbound request, with no maxRedirects: 0, no allow-list, no private-IP/loopback/link-local block, and no timeout.",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "Route registered as POST /profile/avatar; no authentication or rate limiting in front of it."
+     },
+     {
+      "file": "server.js",
+      "line": 5,
+      "note": "express.json() parses the request body; avatarUrl is any JSON value."
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl, attacker-controlled, unvalidated."
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "Only check: typeof url === 'string' && url.startsWith('https://'). Does not parse the URL, so userinfo tricks, IP literals, localhost, and private ranges all pass. Case-sensitive, which is fine. Rejects with 400 otherwise."
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) sends the request. Node axios uses follow-redirects, which follows up to 5 redirects by default, including https->http scheme changes. The attacker's https host responds with a 3xx Location pointing at an http:// internal target, and the server fetches it."
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "Response body is not returned; only img.data.length is sent back. So the attacker gets a blind SSRF: they cannot read the body, but can observe response size, status/timing via the response, and side effects of GET requests to internal services. Metadata or internal JSON cannot be exfiltrated directly through this route."
+     }
+    ],
+    "guards_checked": "(1) Protocol check at line 11 is string-prefix only; it does not constrain the host, IP, port, or any redirect target. (2) TLS certificate verification (axios default) stops a direct https:// request to an internal host unless that host has a publicly valid certificate, so the direct https path to private addresses is weak; the redirect-to-http path is the strong one. (3) No allow-list, no DNS resolution check, no private-IP filter, no maxRedirects restriction, no timeout, and no response size limit. (4) encodeURIComponent is not used here; not applicable. The repo has no package.json, so the axios version is unknown. The redirect behavior described is the documented default for axios on Node, but I could not verify it against a pinned version.",
+    "repro": "1) Attacker hosts https://attacker.example/r that returns 302 Location: http://169.254.169.254/latest/meta-data/ (or http://users.internal:8080/v1/users/1). 2) POST /profile/avatar with {\"avatarUrl\":\"https://attacker.example/r\"} to port 3000. 3) Server requests the internal URL; response is {bytes: N}. Size or status differences act as a blind oracle. Impact on IMDS depends on whether IMDSv1 is enabled; IMDSv2 needs a PUT token that a GET-only redirect cannot supply.",
+    "verdict_note": "Also observed on the same line: if axios rejects (connection refused, timeout, non-2xx), there is no try/catch and this is an async Express 4 handler, so the rejection is unhandled. On Node 15+ that crashes the process. An attacker can therefore crash the service by pointing avatarUrl at a closed port. This is availability impact tied to the same sink, not a separate SSRF path. Also, no maxContentLength is set, so a large remote body is buffered in memory."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is server.js:11, `typeof url !== \"string\" || !url.startsWith(\"https://\")`, a scheme-prefix check that does not constrain host, IP, or redirect targets. No allow-list, private-IP block, or maxRedirects: 0 appears anywhere in server.js, and there is no auth middleware (only express.json() at server.js:5).",
+    "reason": "server.js:10 takes req.body.avatarUrl from an unauthenticated POST route (server.js:9), and it reaches axios.get at server.js:14 after only a startsWith('https://') check at server.js:11, so an https URL that 302-redirects to an http:// internal target is fetched. Every line cited in the trace matches the file. The one detail that is off is the redirect count: the trace says axios follows up to 5 redirects, but axios's default maxRedirects is higher (21 in recent versions). That does not change the verdict, since redirects are followed by default either way, and the axios version is unpinned because there is no package.json."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2-dropped-note",
+    "file": "server.js",
+    "line": 20,
+    "claim": "Not an SSRF finding. GET /users/:id fixes the host to USER_SVC (server.js:7) and encodes the param with encodeURIComponent (server.js:19), so the attacker cannot change host, port, or scheme and cannot inject '/', '?', or '#'. Dot segments ('..') are not encoded and can change the path on users.internal (e.g. to /v1/), but that stays on the same internal host and is a path-traversal issue, not SSRF.",
+    "source": "server.js:18-19 req.params.id",
+    "sink": "server.js:20 axios.get to fixed USER_SVC host",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 18,
+      "note": "route param"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "encodeURIComponent"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "fixed host string concatenation"
+     }
+    ],
+    "guards_checked": "Constant host, encodeURIComponent on the path segment. Remaining issue is only same-host path manipulation.",
+    "repro": "Not applicable as SSRF."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "server.js:19 encodeURIComponent on the path segment; the host is fixed by the constant USER_SVC at server.js:7, so attacker input cannot change host, port, or scheme. No hostname check is needed because the host never comes from input.",
+    "reason": "The sink at server.js:20 uses the constant host from server.js:7, and the only attacker input (req.params.id at server.js:18) lands in the path segment after encodeURIComponent at server.js:19, so it cannot redirect the request to another host; any \"..\" path traversal stays on users.internal, which is a path issue, not SSRF. The candidate's trace matches the file exactly (lines 7, 18, 19, 20)."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00421897
+}

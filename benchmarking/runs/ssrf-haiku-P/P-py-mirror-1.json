@@ -1,0 +1,75 @@
+{
+ "arm": "P",
+ "repo": "py-mirror",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00422496,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-y7raf6nt/r/mirror.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "The /mirror endpoint fetches any URL whose hostname merely ends with the string 'example.com', so an attacker can register a domain such as 'attackerexample.com' (or 'x.attackerexample.com') and point its DNS at an internal address (e.g. 127.0.0.1, 10.x, 169.254.169.254). The server then issues a GET to that internal address and returns the response length.",
+    "source": "mirror.py:11 \u2014 query parameter `url: str` on GET /mirror, supplied by any HTTP client that can reach the service (no auth in this file).",
+    "sink": "mirror.py:16 \u2014 `await c.get(url)` via httpx.AsyncClient (outbound server-side HTTP request to an attacker-chosen host).",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "url taken from the query string; no normalisation or allow-list beyond line 13"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "host = urlparse(url).hostname \u2014 the hostname the check is applied to"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "check is `host.endswith(\"example.com\")` \u2014 no leading dot, so 'attackerexample.com' passes. The intended ALLOWED_SUFFIX = \".example.com\" (line 7) is defined but never used, which indicates the dot-boundary check was intended and omitted."
+     },
+     {
+      "file": "mirror.py",
+      "line": 15,
+      "note": "fresh httpx.AsyncClient with default settings: no custom resolver, no pinning of the resolved IP, so DNS for the attacker's domain is resolved at request time and can return an internal address (DNS rebinding not required)."
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "c.get(url) issues the request. httpx's default follow_redirects=False, so the initial request is the only hop; a 3xx to an internal address is not followed."
+     },
+     {
+      "file": "mirror.py",
+      "line": 17,
+      "note": "response body is read in full (r.text) and only its length is returned, so the attacker gets a limited oracle (body length / success vs. exception) rather than the body."
+     }
+    ],
+    "guards_checked": "(1) Scheme: not checked, but httpx only speaks http/https, so non-HTTP schemes fail. (2) Hostname suffix check at line 13: flawed \u2014 no dot boundary, so any registrable domain ending in 'example.com' passes. (3) Direct IP literals (e.g. http://127.0.0.1/) are rejected at line 13 because they don't end in 'example.com'; this blocks the trivial case but not domain-based routing to internal IPs. (4) Redirects: not followed (httpx default), which limits redirect-based bypasses. (5) No private/link-local/loopback IP blocking, no DNS resolution check, no port restriction, no response-size limit, no auth on the route. (6) /ping (line 23) uses a hardcoded URL and is not a finding. Possible parser-differential between urlparse (line 12) and httpx's own URL parser (line 16) for userinfo/backslash forms such as 'http://127.0.0.1\\@example.com' was considered but not verified \u2014 no httpx version is pinned in the repo and I did not execute it, so treat it as an unverified hypothesis rather than a finding."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is mirror.py:13 `host.endswith(\"example.com\")`, which has no dot boundary, so it is not a closing guard. ALLOWED_SUFFIX (mirror.py:7) is never used, and no allow-list, IP/private-range block, or DNS check exists elsewhere in the file.",
+    "reason": "The query parameter `url` (mirror.py:11) is unauthenticated, and the hostname check at mirror.py:13 uses `endswith(\"example.com\")` without a leading dot, so an attacker-registered domain like `attackerexample.com` passes and the request is sent at mirror.py:16 to whatever address that domain resolves to, including internal addresses, with the length of the response returned at mirror.py:17."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00230376
+}

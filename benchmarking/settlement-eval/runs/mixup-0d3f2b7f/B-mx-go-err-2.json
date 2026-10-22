@@ -1,0 +1,124 @@
+{
+ "arm": "B",
+ "repo": "mx-go-err",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.0570004,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.go",
+    "line": 26,
+    "claim": "dropTable ignores the error returned by Authorize, so the 'dba' role check is never enforced. Any caller that reaches the handler can run DROP TABLE.",
+    "source": "Any HTTP client calling /admin/drop with an arbitrary 't' form value, with or without the 'dba' role.",
+    "sink": "runSQL(\"DROP TABLE \" + r.FormValue(\"t\")) at api.go:27",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 44,
+      "note": "/admin/drop is registered with no auth middleware"
+     },
+     {
+      "file": "api.go",
+      "line": 25,
+      "note": "userFrom does an unchecked type assertion on the context value"
+     },
+     {
+      "file": "api.go",
+      "line": 26,
+      "note": "Authorize returns an error for non-dba users, but the result is discarded"
+     },
+     {
+      "file": "api.go",
+      "line": 27,
+      "note": "Execution continues and the unsanitized table name is concatenated into the DROP TABLE statement"
+     }
+    ],
+    "guards_checked": "Authorize is called but its error is not checked, unlike in vacuum (api.go:33-36), which does enforce it. There is no middleware, no input validation and no table allowlist. The SQL is built by string concatenation, so injection is also possible. For example, t=\"x; DROP TABLE users\" gives stacked statements, depending on the driver. runSQL is a stub here."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Authorize's error is discarded at api.go:26, but nothing in the code sets the \"user\" context value, so the nil type assertion in userFrom (api.go:22) panics at api.go:25 before the ignored check or the sink.",
+    "reason": "The ignored Authorize error at api.go:26 is a real bug, but in this code, api.go:22 asserts a \"user\" context value that nothing sets (the only match for \"user\" or WithValue is that line). The assertion on nil panics at api.go:25, so runSQL at api.go:27 is never reached. The panic is a 500/connection abort, not a DROP. This refutes the exploit as stated: it only becomes exploitable if some auth middleware outside this code populates the context, and that is not in the code available."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: Authorize (api.go:13-20) returns an error for non-dba users, but dropTable calls it as a bare statement at api.go:26 and discards the result. The route at api.go:44 has no middleware, and there is no allowlist or parameterization on the table name.",
+    "reason": "api.go:26 discards Authorize's error, so any authenticated user lacking 'dba' reaches runSQL(\"DROP TABLE \" + r.FormValue(\"t\")) at api.go:27 with an unvalidated table name, unlike vacuum, which checks the error at api.go:33-36."
+   }
+  },
+  {
+   "finding": {
+    "file": "api.go",
+    "id": "F2",
+    "line": 27,
+    "claim": "The table name from the request is concatenated directly into SQL (SQL injection). Combined with F1, no privilege is needed.",
+    "source": "r.FormValue(\"t\"), which is attacker-controlled",
+    "sink": "runSQL(\"DROP TABLE \" + t)",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 27,
+      "note": "r.FormValue(\"t\") is concatenated into the SQL string with no validation or identifier quoting"
+     }
+    ],
+    "guards_checked": "No allowlist or identifier validation. The only authorization check is the ineffective one at api.go:26. runSQL is a stub, so the actual driver behaviour on multiple statements is unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 returns an error, but the result is discarded as a bare statement, so it never blocks. There is no allowlist, quoting or parameterization on the table name. The /admin/drop route (api.go:44) has no middleware. userFrom (api.go:22) only reads the user from the context and does no check.",
+    "reason": "api.go:27 concatenates r.FormValue(\"t\") into \"DROP TABLE \" and runs it, and the Authorize result at api.go:26 is ignored (unlike the checked call at api.go:33), so any caller who reaches the handler can inject; runSQL (api.go:41) is a stub, so multi-statement driver behaviour is unverified, but an arbitrary table drop is already possible."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 returns an error that is discarded, so it is ineffective. There is no allowlist, quoting or parameterization of the table name.",
+    "reason": "api.go:27 concatenates r.FormValue(\"t\") into \"DROP TABLE \" + ..., and the only guard at api.go:26 discards Authorize's error. Any authenticated user can therefore reach /admin/drop (api.go:44) and inject arbitrary table names or SQL; whether extra statements run depends on the driver, but the identifier injection itself is not blocked."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "api.go",
+    "line": 22,
+    "claim": "userFrom does an unchecked type assertion on the context value. If no upstream middleware sets \"user\", the assertion panics, so any unauthenticated request to the admin routes triggers a panic. net/http recovers from it per request, which makes it a minor DoS or error-noise issue. No authentication middleware is present in this codebase.",
+    "source": "Unauthenticated request to /admin/drop or /admin/vacuum",
+    "sink": "r.Context().Value(\"user\").(*User) type assertion",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 44,
+      "note": "Routes are registered without auth middleware"
+     },
+     {
+      "file": "api.go",
+      "line": 22,
+      "note": "The type assertion panics when the value is nil"
+     }
+    ],
+    "guards_checked": "No comma-ok check and no authentication layer in this code. The context key is a plain string, so it could collide with other packages. A middleware outside this codebase may set it."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "api.go:22 does an unchecked `.(*User)` assertion, and api.go:44-45 register the routes with no middleware that sets \"user\", so an anonymous request panics and net/http recovers per request, which matches the claim's \"minor\" severity. Separate, more serious bugs exist that the finding doesn't cover: api.go:26 discards Authorize's result, and api.go:27 concatenates r.FormValue(\"t\") into SQL."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Trusted upstream middleware (outside this directory, per project facts) populates the \"user\" context value, so the assertion at api.go:22 does not see nil. net/http also recovers handler panics per request.",
+    "reason": "The lines match the trace (api.go:22 does the unchecked assertion and api.go:44-45 register the routes), but the finding depends on the upstream middleware not setting the user. The maintainer states that middleware does set it, so api.go:22 doesn't panic for requests that reach it, and even a panic would be recovered per request. Separately, api.go:26 discards Authorize's result and api.go:27 concatenates input into SQL. Those are different findings and don't change this verdict."
+   }
+  }
+ ],
+ "verify_cost": 0.097002,
+ "verify_facts_cost": 0.0927705
+}

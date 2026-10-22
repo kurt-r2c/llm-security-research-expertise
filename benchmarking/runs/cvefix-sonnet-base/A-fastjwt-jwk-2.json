@@ -1,0 +1,139 @@
+{
+ "arm": "A",
+ "repo": "fastjwt-jwk",
+ "rep": 2,
+ "model": "sonnet",
+ "suite": "cvefix",
+ "config_id": "5cef589f",
+ "status": "success",
+ "gen_cost": 0.182496,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 6,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-04_ouxst/r/src/verifier.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-04_ouxst/r/src/crypto.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-04_ouxst/r/src/decoder.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-04_ouxst/r/src/utils.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-04_ouxst/r/src/signer.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-04_ouxst/r/src/index.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/verifier.js",
+    "line": 117,
+    "claim": "The verifier cache only applies exp/nbf/maxAge limits when the payload has a numeric iat. A signed token with exp but no iat is cached for the full cacheTTL (default 10 minutes) and is accepted from the cache after it has expired.",
+    "source": "A validly signed token that has `exp` but no `iat`, presented to a verifier with caching enabled. The attacker only needs to replay a token they hold, for example a short-lived token that has since expired.",
+    "sink": "Cache-hit return in verify() at verifier.js:376-377, which returns the payload as authenticated without re-running verifyToken().",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 426,
+      "note": "On first successful verification, cacheSet() stores the payload."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 117,
+      "note": "hasIat is false when iat is missing, so the whole block that reads exp, nbf and maxAge is skipped."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 133,
+      "note": "cacheValue[2] is 0, so it is set to clockTimestamp + clockTolerance + cacheTTL, which ignores exp."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "Later calls look the token up in the cache."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 368,
+      "note": "With min == 0 and now <= max the check passes, so the expired token is returned. The decoder and verifyToken() are never run."
+     }
+    ],
+    "guards_checked": "validateClaimDateValue only runs on a cache miss. The cache TTL is capped at cacheTTL (600s default), so the window is bounded, but a token with exp = T+60s stays accepted until about T+600s. nbf is ignored in the same way. A token that has iat is handled correctly."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/verifier.js",
+    "line": 311,
+    "claim": "Claim validators for allowedIss, allowedAud, allowedSub, allowedJti, allowedNonce and maxAge are silently skipped when the claim is absent from the token. A validly signed token that omits `iss` or `aud` passes an issuer or audience restriction unless the integrator also lists the claim in requiredClaims.",
+    "source": "A validly signed token from the same key, for example one issued for another service or purpose, that omits iss, aud or iat.",
+    "sink": "verifyToken() returns the payload as accepted with no iss/aud check applied (verifier.js:304-323).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 293,
+      "note": "requiredClaims is the only place absence is enforced, and it is optional."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 311,
+      "note": "`if (!(claim in payload)) continue` skips the validator when the claim is missing."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 624,
+      "note": "The aud, iss and other validators are registered only to check values that are present."
+     }
+    ],
+    "guards_checked": "Signature and algorithm checks still apply. requiredClaims can close the gap but is not defaulted from the allowed* options. The same applies to exp: tokens with no exp never expire unless exp is listed in requiredClaims."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/verifier.js",
+    "line": 272,
+    "claim": "Fail-open when the verifier key is empty. If the key option is '' or null with a non-none algorithms list such as ['HS256'], the signature check is skipped. A forged token with a valid alg header and an empty signature is accepted.",
+    "source": "An attacker-built token such as base64url({alg:HS256}).payload. (empty signature). The precondition is a misconfigured key, for example an unset or empty SECRET environment variable.",
+    "sink": "verifyToken() accepts the payload without any signature verification.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 506,
+      "note": "typeof '' is 'string' and typeof null is 'object', so the key type check passes."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 514,
+      "note": "`key &&` is falsy, so key detection and preparation are skipped and the user-supplied algorithms list is kept."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 272,
+      "note": "hasKey is false (empty string is falsy)."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 276,
+      "note": "`!hasKey && signature` is false because the signature is empty, so no error is thrown."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "`signature && !verifySignature(...)` short-circuits on the empty signature, and header.alg HS256 is in allowedAlgorithms."
+     }
+    ],
+    "guards_checked": "With no algorithms option, allowedAlgorithms is [] and every alg is rejected, so that configuration is safe. A non-empty key requires a signature (line 274). A key function path checks the resolved key. The createVerifier constructor does not reject an empty key."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

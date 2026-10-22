@@ -1,0 +1,238 @@
+{
+ "arm": "K1",
+ "repo": "kinopenapi-auth",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.10747806000000001,
+ "trace": {
+  "tools": {
+   "Glob": 4,
+   "Grep": 6,
+   "Read": 9,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/middleware.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/req_resp_decoder.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/validate_request.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/ghsa_mmfr_pmjx_hw9w_test.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/validate_request_input.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/internal.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/validation_handler.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/validation_error_encoder.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g4pneef3/r/openapi3filter/req_resp_encoder.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1026,
+    "claim": "Unauthenticated query strings can force roughly 160 KB or more of allocation and ~10k loop iterations per distinct attacker-chosen key on a deepObject object parameter with additionalProperties array; the per-array gap cap at line 990 bounds each array but not the total across keys.",
+    "source": "Query string of a route with a deepObject object query parameter whose schema has additionalProperties of type array (or nested arrays). Attacker supplies many distinct keys of the form p[kN][9999]=1 within the default ~1MB request-line/header limit.",
+    "sink": "make([]any, len(arr)) at req_resp_decoder.go:1026, reached once per attacker key, with len(arr)=max+1 up to 10000 (sliceMapToSlice fills nils at 993-1000).",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 79,
+      "note": "ValidateRequest iterates operation parameters; security is checked first (lines 45-59), so this path is reached on any route that is public or whose AuthenticationFunc passes"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 181,
+      "note": "ValidateParameter -> decodeStyledParameter for the query parameter"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 686,
+      "note": "urlValuesDecoder.DecodeObject deepObject branch collects every p[...] query key"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 722,
+      "note": "makeObject(props, schema) called with all attacker keys"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1055,
+      "note": "buildResObj object case iterates objectParams keys and calls buildResObj for each under additionalProperties"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1013,
+      "note": "array case: deepGet gives the index map for that key"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 990,
+      "note": "gap check bounds max+1-len(m) to 10000 per array node only; a single index 9999 passes"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1026,
+      "note": "resultArr allocated with len(arr)=10000 for every attacker key; then 1027-1035 loops 10000 times calling buildResObj"
+     }
+    ],
+    "guards_checked": "maxSliceMapToSliceGap (req_resp_decoder.go:964,990) limits size per array node only. No aggregate limit on number of keys or total allocation. No recover in Middleware (middleware.go:119-167) or ValidateRequest. Go net/http MaxHeaderBytes (1MB) bounds input size, not amplification (~14 bytes of input produce ~160 KB+). Estimates are from reading the code and were not measured."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 929,
+    "claim": "Conflicting deepObject (or form-explode) keys such as p[a]=1&p[a][b]=2 cause an unchecked type assertion panic in deepSet. Go map iteration order is random, so the panic happens only in some orderings; the other ordering silently drops the nested value.",
+    "source": "Unauthenticated query string on a route with an object-typed deepObject query parameter: ?p[a]=1&p[a][b]=2. Form-explode variant: a key containing %1F (decodes to the \\x1F delimiter), e.g. ?a=1&a%1Fb=2.",
+    "sink": "m = m[key].(map[string]any) at req_resp_decoder.go:929 with no comma-ok check, when m[\"a\"] is the string \"1\".",
+    "trace": [
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 686,
+      "note": "deepObject propsFn builds props with keys \"a\" and \"a\\x1Fb\" (line 703)"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 722,
+      "note": "DecodeObject calls makeObject(props, schema)"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 938,
+      "note": "makeObject ranges over props, a Go map with random iteration order"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 945,
+      "note": "deepSet(mobj, [\"a\"], \"1\") then deepSet(mobj, [\"a\",\"b\"], \"2\") in the bad order"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 929,
+      "note": "m[\"a\"] is string \"1\"; the assertion panics"
+     }
+    ],
+    "guards_checked": "makeObject has no conflict check (contrast the explicit check at req_resp_decoder.go:1499 in decodeSchemaConstructs, which is not on this path). No recover anywhere in the package, and none in Middleware. The panic occurs before schema validation, so the schema cannot prevent it. The test suite has no case for conflicting keys (grep of *_test.go). Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "openapi3filter/validate_request.go",
+    "line": 105,
+    "claim": "Options.RejectWhenRequestBodyNotSpecified is bypassed by a chunked request body. net/http sets ContentLength to -1 for chunked requests, so the check ContentLength > 0 is false and the body is accepted.",
+    "source": "Any client that sends a body with Transfer-Encoding: chunked to an operation that declares no requestBody, when the option is enabled.",
+    "sink": "Protected operation: the rule that rejects bodies the spec does not declare, enforced by the ContentLength > 0 check at line 105.",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 92,
+      "note": "requestBody is nil for this operation, so ValidateRequestBody is skipped"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 105,
+      "note": "guard is input.Request.ContentLength > 0; chunked requests have ContentLength == -1, so the guard does not fire"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 117,
+      "note": "no other body check; ValidateRequest returns nil and the handler receives the body"
+     }
+    ],
+    "guards_checked": "Only this check governs the case. ValidateRequestBody is not reached because requestBody is nil. Relies on net/http ContentLength semantics for chunked server requests; not executed. Impact depends on whether the handler reads the body."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "openapi3filter/req_resp_decoder.go",
+    "line": 1192,
+    "claim": "Integer parameters are parsed with strconv.ParseInt base 0, so leading-zero octal, 0x, 0o, 0b and underscores are accepted. The validator's maximum check then uses a different value than the decimal value a base-10 handler sees; e.g. ?limit=010 validates as 8 against maximum 9, but a base-10 handler gets 10.",
+    "source": "Client-controlled integer query, path, header or cookie parameter, e.g. ?limit=010, on an operation whose schema has maximum (or any numeric bound).",
+    "sink": "Schema bound check (maximum) in ValidateParameter, which the handler's bound is meant to mirror. The handler then re-parses the raw value in decimal.",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 181,
+      "note": "ValidateParameter -> decodeStyledParameter"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 510,
+      "note": "urlValuesDecoder.DecodePrimitive returns the raw string '010'"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1170,
+      "note": "parsePrimitive -> parsePrimitiveCase"
+     },
+     {
+      "file": "openapi3filter/req_resp_decoder.go",
+      "line": 1192,
+      "note": "strconv.ParseInt(raw, 0, 64): base 0 gives octal, so '010' -> 8 (line 1186 has the same base-0 call for int32)"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 250,
+      "note": "schema.VisitJSON(int64(8)) runs; openapi3/schema.go:1197-1198 routes int64 to visitJSONNumber, so maximum 9 passes"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 183,
+      "note": "the handler receives the raw query value, not the parsed value; a base-10 parse yields 10, which violates maximum 9"
+     }
+    ],
+    "guards_checked": "No check of the raw string's syntax against the OpenAPI integer grammar (decimal digits with optional sign). openapi3/schema.go NaN/Inf guard checked and is not related. Exploitability depends on the integrator parsing with base 10 (strconv.Atoi / ParseInt(s,10,..)) and relying on the spec bound. Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "openapi3filter/validate_request.go",
+    "line": 453,
+    "claim": "Request bodies are fully buffered with io.ReadAll before the authentication function is called, and again for body validation, with no size limit. An unauthenticated client on a secured route can force memory proportional to body size before any auth decision.",
+    "source": "Unauthenticated client sending an arbitrarily large body to a route that has security requirements.",
+    "sink": "io.ReadAll(input.Request.Body) at validate_request.go:453 (security path, before AuthenticationFunc at line 497) and io.ReadAll(req.Body) at validate_request.go:276 (body validation).",
+    "trace": [
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 53,
+      "note": "ValidateRequest calls ValidateSecurityRequirements first"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 449,
+      "note": "validateSecurityRequirement reads the entire body when the request has one"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 497,
+      "note": "AuthenticationFunc runs only after the full body is buffered"
+     },
+     {
+      "file": "openapi3filter/validate_request.go",
+      "line": 276,
+      "note": "ValidateRequestBody reads the body again on the normal path, with no MaxBytesReader or limit"
+     }
+    ],
+    "guards_checked": "No size limit in the library. Only a caller-side wrapper (http.MaxBytesReader or a server-level limit) would bound this. The auth step runs after the body read by design, so it is not a bypass. Low severity; it is a resource-limit gap."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

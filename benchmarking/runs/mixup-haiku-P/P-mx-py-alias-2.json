@@ -1,0 +1,135 @@
+{
+ "arm": "P",
+ "repo": "mx-py-alias",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "395c9743",
+ "status": "success",
+ "gen_cost": 0.00331255,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-atvdk8tq/r/acl.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-atvdk8tq/r/views.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 18,
+    "claim": "Authorization check on DELETE /files/<fid> is a no-op: require_allowed (alias of acl.is_allowed, which returns a bool and never aborts) is called without using its return value, so any caller, including one with no grant, can delete any file in STORE.",
+    "source": "HTTP header X-Session-User-Verified read into g.user at views.py:12 (attacker-controlled; nothing in this repo verifies or sets it). Also the fid path parameter at views.py:16.",
+    "sink": "views.py:19 del STORE[fid] \u2014 destructive deletion of a stored file.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user taken straight from request header; no verification in this repo"
+     },
+     {
+      "file": "views.py",
+      "line": 16,
+      "note": "delete_file(fid) route handler"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "f = STORE[fid] loaded"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "require_allowed(g.user, f, 'delete') imported as is_allowed (views.py:4); return value discarded, so no abort/raise happens even when denied"
+     },
+     {
+      "file": "acl.py",
+      "line": 4,
+      "note": "is_allowed returns a boolean; it does not call abort"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "del STORE[fid] executes unconditionally"
+     }
+    ],
+    "guards_checked": "before_request sets g.user only (no auth). is_allowed returns False for unlisted users, but the result is ignored at views.py:18. Contrast rename_file at views.py:26, which uses ensure_allowed (acl.py:8-10, calls abort(403)) and is correct. Confirmed by comparing the two handlers line by line: the alias rename hides the bug because the name looks like an enforcing call."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. views.py:4 aliases acl.is_allowed (acl.py:4-5, returns a bool, never aborts) as require_allowed, and views.py:18 calls it as a bare statement with its result discarded. views.py:19 then runs del STORE[fid] unconditionally. The only other control, views.py:10-12 before_request, copies the header into g.user with no verification. The helper that does enforce, ensure_allowed (acl.py:8-10, aborts with 403), is used only by rename_file at views.py:26.",
+    "reason": "The delete handler at views.py:18 discards the bool from is_allowed (acl.py:4-5) instead of calling ensure_allowed (acl.py:8-10), so views.py:19 deletes the file for any g.user, including one with no grant. An anonymous or low-privilege caller can reach this, since the identity in views.py:12 is not verified in this repo; an upstream authenticating proxy, if one exists, is not visible here, and the missing enforcement is a bug either way."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "views.py",
+    "line": 12,
+    "claim": "Caller identity is taken from a client-supplied header named 'Verified' with no code in the repo that verifies it, so any client can impersonate any user listed in the grants map (acl.py:5) by sending that user's name in the header.",
+    "source": "HTTP request header X-Session-User-Verified (views.py:12), fully attacker-controlled unless an upstream proxy strips and sets it. The repo contains no proxy config or signature check.",
+    "sink": "Authorization decision in acl.py:5 (grants lookup) used by views.py:26 (rename, write) and views.py:18 (delete, which is already bypassed by F1).",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user = request.headers.get('X-Session-User-Verified')"
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "ensure_allowed(g.user, f, 'write')"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "grants.get(user) keyed only on the header value"
+     }
+    ],
+    "guards_checked": "No signature, session cookie, or token validation anywhere in the repo. The header name suggests an upstream verifier that is not part of this repository, so this is a precondition to confirm with the deployment, not a confirmed exploit. If the proxy does not strip client-supplied values, this is exploitable."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None in the repo. views.py:12 reads the header with no signature, cookie, or token check, and acl.py:5 keys grants solely on that value. ensure_allowed (acl.py:8-10) does abort(403) when the check fails, and views.py:26 does not discard that result, so it is a real gate, but it only compares the attacker-supplied name. The only possible upstream control, a proxy that strips and sets X-Session-User-Verified, is not in this repo.",
+    "reason": "The trace matches the code (views.py:12 \u2192 views.py:26 \u2192 acl.py:5), and nothing in the repo validates the header, but whether a client can reach this depends on whether an upstream proxy at deployment strips and sets X-Session-User-Verified, which this repo cannot show. Minor correction: the header is X-Session-User-Verified, not 'Verified' as the claim says."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "views.py",
+    "line": 17,
+    "claim": "Unknown fid raises KeyError instead of returning 404 on both DELETE and rename handlers, causing unhandled 500 responses. Low severity; it is a robustness issue, not a security boundary.",
+    "source": "fid URL path segment (views.py:16, 24).",
+    "sink": "STORE[fid] lookup at views.py:17 and views.py:25.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "f = STORE[fid] with no membership check"
+     }
+    ],
+    "guards_checked": "No try/except or STORE.get. Included for completeness only; it does not affect the authorization outcome."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only pre-handler hook is load_user at views.py:10-12, which reads a header and does not check membership or abort. The lookups at views.py:17 and views.py:25 are bare STORE[fid] with no try/except or STORE.get, so an unknown fid raises KeyError before require_allowed (line 18) or ensure_allowed (line 26) runs.",
+    "reason": "The trace is accurate: views.py:17 and views.py:25 both do a bare STORE[fid] lookup with no prior check, so any requester (including anonymous, since load_user at views.py:11-12 does not block) who sends DELETE /files/<unknown> or POST /files/<unknown>/rename triggers an unhandled KeyError that Flask turns into a 500. This is a real but low-severity robustness issue, not an authorization bypass, so the candidate's own severity assessment holds."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00746368
+}

@@ -1,0 +1,164 @@
+{
+ "arm": "A",
+ "repo": "cl-py-authz",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.0056520500000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-j0ydrafj/r/notes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "Sharing is irrevocable: no route removes a user from note['shared'], so a sharee keeps read access indefinitely.",
+    "source": "Owner's POST /n/<nid>/share with request.json['user'] (notes.py:41-46)",
+    "sink": "can_view grants read access via 'user in note[\"shared\"]' (notes.py:8), enforced in read() at notes.py:28",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "share() route registered for POST /n/<nid>/share"
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit limits sharing to owner"
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "user appended to n['shared'] with no removal path"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view returns True for any user still in shared list"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "read() calls require_view, granting access indefinitely"
+     }
+    ],
+    "guards_checked": "require_edit (owner-only share, notes.py:44) prevents sharee escalation; can_edit (notes.py:17) keeps writes owner-only. No revoke/unshare route exists (routes at lines 25, 32, 41 only). Does not prevent revocation gap."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22, called at notes.py:44) limits sharing to the owner; can_view (notes.py:7-8) and require_view (notes.py:11-13) enforce read access in read() (notes.py:28). None of these blocks the claimed effect, but the claimed effect is not an authorization bypass.",
+    "reason": "The trace matches notes.py:8, 28, 44 and 45, and no unshare route exists in notes.py, so the revocation gap is real. But the attacker is a sharee who holds only the read access the owner deliberately granted at notes.py:45, so no one gains power they should not have; the missing revoke feature is a design weakness to report at lower severity, not an exploitable vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Note-existence oracle: a missing note ID raises KeyError (500) while an existing but unauthorized note returns 403, letting an attacker enumerate valid note IDs.",
+    "source": "Attacker-supplied <nid> in GET/PUT/POST /n/<nid>",
+    "sink": "NOTES[nid] lookup (notes.py:27, :34, :43) versus abort(403) in require_view/require_edit (notes.py:13, :22)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "read(): NOTES[nid] raises KeyError for unknown nid -> HTTP 500"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view -> abort(403) for existing note the caller cannot view (notes.py:13)"
+     }
+    ],
+    "guards_checked": "403 path correctly denies content; response code differs between missing and forbidden notes, enabling enumeration. No 404 handling present."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. No control makes a missing note and a forbidden note look the same: NOTES[nid] at notes.py:27 raises KeyError before require_view runs, and require_view at notes.py:11-13 calls abort(403). No errorhandler or 404 mapping exists in the directory, so a missing ID yields 500 and an existing unauthorized ID yields 403.",
+    "reason": "The lines match the trace, and notes.py:27 vs notes.py:13 would give distinct responses (500 vs 403), but g.user, read at notes.py:28, is never assigned in the provided directory (only notes.py exists, and grep finds no g.user setter or before_request), so if no auth middleware sets it, the existing-note path also raises AttributeError and returns 500, collapsing the oracle; whether the oracle exists depends on auth code outside this directory, which I cannot read."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "notes.py",
+    "line": 29,
+    "claim": "Any user who can view a note receives its full sharing list, exposing co-sharee usernames and the owner field to sharees.",
+    "source": "Authorized viewer calling GET /n/<nid>",
+    "sink": "jsonify(n) returns owner and shared fields (notes.py:29)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read() route handler"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view passes for sharee"
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "jsonify(n) serializes full note including 'shared' list"
+     }
+    ],
+    "guards_checked": "View authorization enforced (notes.py:28); no field filtering before serialization."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the view check at notes.py:28 (require_view -> can_view at notes.py:7-8, which aborts with 403 on failure). Nothing filters the note's fields before serialization at notes.py:29, so the owner and shared fields go out to any user who passes that check.",
+    "reason": "The trace matches the code: read() at notes.py:26 calls require_view at line 28, which only gates access, and jsonify(n) at line 29 serializes the whole note including owner and shared. An authenticated sharee passes that check, so they receive the co-sharee list; this is a low-severity information disclosure that depends on whether the team considers the member list confidential to sharees."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "share() accepts any JSON value as the user, with no existence check, deduplication, or length cap, so repeated POSTs grow the shared list without bound and may store non-string values.",
+    "source": "Owner's request.json['user'] in POST /n/<nid>/share (notes.py:45)",
+    "sink": "n['shared'].append(...) (notes.py:45)",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit gates to owner"
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "unvalidated request.json['user'] appended to shared list"
+     }
+    ],
+    "guards_checked": "Owner-only access (notes.py:44). No type validation, dedup, or size limit."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit at notes.py:44, defined at notes.py:20-22 (aborts 403 unless can_edit, i.e. note[\"owner\"] == user). Only the owner reaches line 45.",
+    "reason": "The trace is accurate (notes.py:44 gates via require_edit, notes.py:45 appends request.json[\"user\"] unvalidated), but only the note's owner can reach it (notes.py:17, 20-22, 44), and the owner already has full control over their own note's shared list, so the unbounded growth or non-string values grant no one else any access or power and do not constitute a vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.008636989999999999
+}

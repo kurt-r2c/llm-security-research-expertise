@@ -1,0 +1,74 @@
+{
+ "arm": "P",
+ "repo": "az-py-swallow",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.00466245,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-j0qmr05i/r/admin.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "admin-ban-authz-bypass",
+    "file": "admin.py",
+    "line": 16,
+    "claim": "The POST /admin/users/<uid>/ban handler swallows the admin check's 403 and then performs the ban anyway, so any request whose g.user is a non-admin user can ban any uid. The unban route (lines 24-28) enforces the check correctly.",
+    "source": "Attacker-controlled HTTP POST to /admin/users/<uid>/ban. uid comes from the URL path (admin.py:15). Caller identity is g.user, which is populated outside this file; the repo has no before_request hook or decorator. Precondition: an authenticated non-admin user (g.user is a dict with is_admin falsy).",
+    "sink": "do_ban(uid) at admin.py:20, the protected account-ban state change. Its body is a stub (`pass`, admin.py:31-32), so the present impact is the broken authorization decision, not an observable ban.",
+    "trace": [
+     {
+      "file": "admin.py",
+      "line": 15,
+      "note": "uid taken from URL path with no validation"
+     },
+     {
+      "file": "admin.py",
+      "line": 17,
+      "note": "require_admin(g.user) called inside try"
+     },
+     {
+      "file": "admin.py",
+      "line": 11,
+      "note": "non-admin: abort(403) raises werkzeug Forbidden"
+     },
+     {
+      "file": "admin.py",
+      "line": 18,
+      "note": "except Exception catches Forbidden (HTTPException subclasses Exception); it only logs a warning and does not re-raise or return"
+     },
+     {
+      "file": "admin.py",
+      "line": 20,
+      "note": "do_ban(uid) runs unconditionally after the swallowed 403"
+     },
+     {
+      "file": "admin.py",
+      "line": 21,
+      "note": "returns {ok: true} to the non-admin caller"
+     }
+    ],
+    "guards_checked": "require_admin does raise on non-admin (admin.py:10-11), but the caller swallows it (admin.py:16-19). There is no decorator, before_request, or other auth guard in the repo. unban (admin.py:26-27) calls require_admin outside any try, so it is correctly guarded. Side note: if g.user is unset, line 19 `g.user.get` raises AttributeError outside any try, giving a 500 and no ban, so the bypass requires g.user to be set. Severity is high once do_ban is implemented; today it is a stub."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. require_admin (admin.py:9-11) does abort(403), but its exception is swallowed by the bare `except Exception` at admin.py:18-19, which only logs and falls through to do_ban(uid) at admin.py:20. The repo contains only admin.py, so there is no before_request hook, decorator, or other auth guard. unban (admin.py:26) is correctly unguarded by any try block.",
+    "reason": "Every trace line matches the code: require_admin aborts with 403 at admin.py:11, the `except Exception` at admin.py:18 swallows the werkzeug Forbidden, and do_ban(uid) still runs at admin.py:20, so any authenticated caller with a non-admin g.user reaches the ban decision. The impact is latent because do_ban is a `pass` stub at admin.py:31-32, and g.user is populated outside this repo, so the precondition is assumed rather than verified here."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00231696
+}

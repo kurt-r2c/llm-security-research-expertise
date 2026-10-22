@@ -1,0 +1,315 @@
+{
+ "arm": "A",
+ "repo": "pyjwt-algs",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.02906089,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3895o636/r/jwt/api_jws.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3895o636/r/jwt/api_jwt.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3895o636/r/jwt/algorithms.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3895o636/r/jwt/jwks_client.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3895o636/r/jwt/api_jwk.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3895o636/r/jwt/jwk_set_cache.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-3895o636/r/jwt/utils.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "jwt/api_jwt.py",
+    "line": 298,
+    "claim": "[low] _decode_payload catches only ValueError, so a RecursionError from a deeply nested payload escapes unhandled from get_signing_key_from_jwt, which parses the payload with signature verification disabled.",
+    "source": "Unauthenticated token payload segment, passed to get_signing_key_from_jwt(token) in jwt/jwks_client.py:282.",
+    "sink": "json.loads(decoded['payload']) at jwt/api_jwt.py:298; RecursionError is not a PyJWTError subclass.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 280,
+      "note": "decode_token(token, options={'verify_signature': False}) - no signature check on this path"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 370,
+      "note": "decode() -> decode_complete() with verify_signature False"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 275,
+      "note": "payload = self._decode_payload(decoded) runs regardless of verify_signature"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 298,
+      "note": "json.loads on attacker-controlled bytes; deep nesting raises RecursionError"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 299,
+      "note": "except ValueError does not match RecursionError, so it propagates"
+     }
+    ],
+    "guards_checked": "Signature verification is skipped on this path. The header parser does catch RecursionError (jwt/api_jws.py:360), so the handling is inconsistent. No payload size limit. Impact: apps that catch PyJWTError to return 401 get an unhandled exception (typically 500) from one unauthenticated request."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "jwt/jwks_client.py",
+    "line": 140,
+    "claim": "[medium, when cache_keys=True] The lru_cache wrapper on get_signing_key has no TTL, so a key removed from the JWKS (revoked or rotated out) keeps verifying tokens in that process until it is evicted by 16 other kids.",
+    "source": "A token whose kid matches a previously cached key, signed with that key's private half (e.g. a leaked or revoked key).",
+    "sink": "Signature verification with the stale PyJWK at jwt/api_jws.py:416-417 and 432.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 140,
+      "note": "cache_keys=True wraps self.get_signing_key with lru_cache(maxsize=max_cached_keys)"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 282,
+      "note": "get_signing_key_from_jwt delegates to the cached get_signing_key(kid)"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 246,
+      "note": "Cache hit returns the old key; the JWKS is never consulted, so the removal is not seen"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 432,
+      "note": "alg_obj.verify succeeds with the revoked key"
+     }
+    ],
+    "guards_checked": "Documented in the docstring (jwt/jwks_client.py:69-72, 'no time-based expiration'). Default is cache_keys=False. Only LRU eviction removes entries. Exploitation needs possession of the revoked key's private half."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "jwt/jwks_client.py",
+    "line": 251,
+    "claim": "[low] The refresh cooldown only applies when jwk_set_cache is set. With cache_jwk_set=False, each token with an unknown kid triggers two outbound JWKS HTTP fetches before any signature check, which is an unauthenticated request-amplification path against the JWKS endpoint.",
+    "source": "The kid header of an unauthenticated token, read in get_signing_key_from_jwt (jwt/jwks_client.py:280-282).",
+    "sink": "Outbound HTTP via urllib opener.open in fetch_data (jwt/jwks_client.py:156-162), called twice per unknown kid.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 282,
+      "note": "get_signing_key(header.get('kid')) with attacker-chosen kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 247,
+      "note": "get_signing_keys() -> get_jwk_set(): cache is None, so fetch_data runs (first fetch)"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 251,
+      "note": "cooling_down requires self.jwk_set_cache is not None, so it is False here"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 258,
+      "note": "get_signing_keys(refresh=True) issues a second fetch for the same unknown kid"
+     }
+    ],
+    "guards_checked": "Cooldown is documented as bypassed when cache_jwk_set=False (jwt/jwks_client.py:66-67). Cooldown is on by default when the cache is enabled. The timeout is 30s. Signature validation happens only after lookup."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "jwt/algorithms.py",
+    "line": 765,
+    "claim": "[low] ECDSA verify accepts high-S signatures. For any valid (r, s), an attacker can derive (r, n-s), which verifies and yields a distinct token string with identical claims, bypassing any replay or denylist keyed on the raw token or signature.",
+    "source": "The signature segment of an attacker-held token.",
+    "sink": "ECAlgorithm.verify returns True for the malleated signature (jwt/algorithms.py:777-778).",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 432,
+      "note": "alg_obj.verify(signing_input, prepared_key, signature)"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 767,
+      "note": "raw_to_der_signature(sig, key.curve) splits r and s with only a length check"
+     },
+     {
+      "file": "jwt/utils.py",
+      "line": 87,
+      "note": "Length check only; no range check on s or low-S normalization"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 777,
+      "note": "public_key.verify(der_sig, msg, ECDSA(...)) accepts both s and n-s"
+     }
+    ],
+    "guards_checked": "Canonical base64url round-trip (jwt/api_jws.py:338-339). Exact length check (utils.py:87-88). Curve check (algorithms.py:716-725). None of these stop malleability. Impact requires the app to key replay protection on the token string or signature rather than jti or claims. Not exploitable against the signature itself."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "jwt/api_jwt.py",
+    "line": 568,
+    "claim": "[low] The iss claim is not checked when the issuer argument is omitted (fail-open), while aud fails closed when audience is omitted (api_jwt.py:522-527). Apps that forget issuer= accept tokens from any issuer whose signature validates under the configured key.",
+    "source": "The iss claim of a signed token from another issuer that shares key material with the verifier.",
+    "sink": "Token acceptance in decode() with verify_iss=True but no issuer argument.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 412,
+      "note": "if options['verify_iss']: self._validate_iss(payload, issuer)"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 568,
+      "note": "if issuer is None: return - the check is skipped silently"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 522,
+      "note": "Contrast: _validate_aud raises InvalidAudienceError when audience is None and the token has aud"
+     }
+    ],
+    "guards_checked": "verify_iss defaults to True, but it is a no-op without an issuer argument. Exploitation needs multiple issuers sharing a key or JWKS. Configuration-dependent."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "jwt/api_jws.py",
+    "line": 425,
+    "claim": "[low] Minimum key length is only a warning by default (enforce_minimum_key_length defaults to False). Short HMAC secrets, or RSA keys under 2048 bits, are accepted, enabling offline brute force of captured tokens.",
+    "source": "Operator-chosen secret length. An attacker needs only a captured token signed with HS256/384/512.",
+    "sink": "HMAC sign and verify with a short key (jwt/api_jws.py:204-211 encode; 425-432 verify).",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 60,
+      "note": "Default options: enforce_minimum_key_length False"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 204,
+      "note": "encode: check_key_length result only triggers warnings.warn unless enforced"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 425,
+      "note": "verify: same warn-only behavior"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 482,
+      "note": "HMAC check_key_length returns a message below digest_size, which is only warned on"
+     }
+    ],
+    "guards_checked": "InsecureKeyLengthWarning is emitted. Empty HMAC keys are rejected (algorithms.py:349-350). JWK-shaped and PEM/DER/SSH keys are rejected as HMAC secrets (algorithms.py:352-438)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "jwt/api_jws.py",
+    "line": 416,
+    "claim": "[low] The PyJWS(algorithms=...) instance allowlist is not enforced for PyJWK keys. A caller that restricts the instance to asymmetric algorithms but passes algorithms=['HS256'] with an oct PyJWK can verify HMAC tokens.",
+    "source": "Token header alg, which must equal the PyJWK's algorithm_name, plus a caller-supplied algorithms list that includes HS256.",
+    "sink": "alg_obj = key.Algorithm; verify with the HMAC algorithm (api_jws.py:416-423, 432), bypassing self._algorithms.",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 45,
+      "note": "Instance _valid_algs computed from the constructor allowlist"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 50,
+      "note": "Non-allowlisted algorithms are removed from self._algorithms"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 402,
+      "note": "Only the caller-supplied algorithms list is checked here"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 411,
+      "note": "PyJWK branch requires alg == key.algorithm_name"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 416,
+      "note": "key.Algorithm used directly, not through the instance allowlist"
+     }
+    ],
+    "guards_checked": "alg must match the PyJWK's algorithm_name (api_jws.py:411). The caller must list HS256 explicitly in algorithms. Requires a mismatch between the instance policy and the per-call list."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F8",
+    "file": "jwt/jwks_client.py",
+    "line": 162,
+    "claim": "[low] The JWKS fetch reads the full response with no size limit and restricts only the URI scheme, not host or address. If the uri is ever built from attacker input, as the comment at jwks_client.py:101-104 anticipates, this becomes SSRF plus memory exhaustion.",
+    "source": "The uri argument to PyJWKClient, and the response body from that endpoint.",
+    "sink": "opener.open(r, timeout=...) and json.load(response) at jwks_client.py:162-163.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 105,
+      "note": "Scheme check only: http or https"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 158,
+      "note": "_NoRedirectHandler prevents redirects"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 162,
+      "note": "Request to the caller-supplied URI with no host or IP allow-listing"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 163,
+      "note": "json.load reads the entire body with no byte cap"
+     }
+    ],
+    "guards_checked": "Scheme check (jwks_client.py:105-110). Redirects disabled (jwks_client.py:20-30). Timeout 30s default. The library itself does not derive uri from the token, so exploitation requires the caller to do so."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

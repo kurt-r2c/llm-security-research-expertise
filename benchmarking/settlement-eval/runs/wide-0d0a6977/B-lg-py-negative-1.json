@@ -1,0 +1,144 @@
+{
+ "arm": "B",
+ "repo": "lg-py-negative",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.05853069999999999,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "/transfer never validates that amount is positive. A negative amount passes the balance check and reverses the transfer, so the caller takes money from any other account. Self-transfer is also unrestricted. /withdraw does check amount <= 0, so this check is missing only here.",
+    "source": "Authenticated user's JSON body field `amount` (e.g. -1000) and `to` (victim account)",
+    "sink": "BAL[g.user] -= amount; BAL[to] += amount (bank.py:13-14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to = request.json['to'] taken from the request without validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount = request.json['amount'] taken from the request with no type or sign validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < amount is false for negative amount, so the check passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "BAL[g.user] -= (-X) credits the attacker"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] += (-X) debits the victim with no consent"
+     }
+    ],
+    "guards_checked": "Only the balance check at line 11 exists. There is no amount > 0 check, unlike withdraw at line 21. There is no check on the recipient and no authorization from the victim. No type validation: float, NaN, or bool values are accepted."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the balance check `BAL[g.user] < amount` at bank.py:11. It is false for negative amounts, so it doesn't block them. There is no amount > 0 check, no type check, and no recipient or consent check. No before_request hook or decorator exists in the file. g.user is never set in this file, so authentication is presumably handled elsewhere. Even so, any authenticated user can reach the route.",
+    "reason": "bank.py:11 only tests `BAL[g.user] < amount`, which passes for a negative amount, so lines 13-14 credit the caller and debit `to`. The `amount <= 0` guard exists only in /withdraw at bank.py:21."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the balance check at bank.py:11 (BAL[g.user] < amount, abort(400)); no amount > 0 check, no type validation, no recipient restriction. No decorators or other middleware in this directory.",
+    "reason": "bank.py:11 only checks BAL[g.user] < amount, which a negative amount always fails to trigger, so bank.py:13-14 credit the caller and debit the victim, while /withdraw at bank.py:21 has the missing amount <= 0 check; any authenticated user can reach it."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "Check-then-act race on balances with no lock or atomic update. Concurrent requests can each pass the balance check before any deduction, so the attacker overdraws or double-spends. The same pattern exists in /withdraw at line 21.",
+    "source": "Multiple simultaneous POST /transfer or /withdraw requests from the same user",
+    "sink": "BAL[g.user] -= amount (bank.py:13, 23) on a shared global dict",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "Balance read and compared"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "Deduction happens later, non-atomically, so other threads can interleave"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "Same TOCTOU in withdraw, with the check at line 21 and the deduction at line 23"
+     }
+    ],
+    "guards_checked": "No lock, transaction, or atomic operation. BAL is an in-process global dict, so multi-threaded or multi-worker deployments are affected. The window is narrow under the CPython GIL but real."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 checks BAL[g.user] < amount and bank.py:13 deducts it, and withdraw does the same at bank.py:21 and 23, with no lock or atomic update. Concurrent requests from one authenticated user in a threaded worker can interleave, but the window is only a few bytecodes under the GIL. Separate worker processes each have their own BAL, which is a different problem."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11-13 and 21-23 check BAL[g.user] and then subtract it in separate bytecode steps with no lock or atomic update. Any authenticated user can send concurrent requests to a threaded or multi-worker server and overdraw. The window is narrow under the GIL, and with multiple workers each process has its own BAL, which is a separate consistency problem."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "No authentication is set up. g.user is read but nothing in the app (no before_request or auth decorator) sets it. If an upstream layer populates it from a client-controlled value, there is no verification here. The endpoints also don't check that `to` exists or that the user has an account, and lookups use unguarded dict indexing.",
+    "source": "Any unauthenticated client; depends on how g.user is populated outside this file",
+    "sink": "BAL[g.user] and BAL[to] on the balance store (bank.py:11-14, 21-23)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 7,
+      "note": "/transfer route has no auth decorator"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "g.user used as identity without being set or verified in this file"
+     },
+     {
+      "file": "bank.py",
+      "line": 18,
+      "note": "/withdraw is likewise unprotected"
+     }
+    ],
+    "guards_checked": "Searched the only source file. There is no before_request, login_required, or session handling. Impact depends on out-of-tree middleware. In this file alone, requests would raise AttributeError (500) rather than succeed, so this is a conditional finding."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 and :21 read g.user and bank.py:7/:18 have no auth decorator, but nothing in this file (the only source file) ever sets g.user, so every request raises AttributeError (500); whether it is exploitable depends on out-of-tree code that populates g.user, which I can't see."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Identity (g.user) is set by trusted upstream middleware per the project facts. Nothing in bank.py itself sets or checks it.",
+    "reason": "The trace lines are accurate (bank.py:7, 11, 18), but the \"no authentication\" claim fails because g.user is set by trusted upstream middleware, and the unguarded BAL[g.user] and BAL[to] lookups at bank.py:11-14 and 21-23 only raise KeyError (a 500), which is robustness rather than a security flaw. Separately, /transfer has no `amount <= 0` check (bank.py:11-14) unlike /withdraw (bank.py:21), so a negative amount lets a user pull funds from another account. That is a different finding from F3."
+   }
+  }
+ ],
+ "verify_cost": 0.09098640000000001,
+ "verify_facts_cost": 0.0904934
+}

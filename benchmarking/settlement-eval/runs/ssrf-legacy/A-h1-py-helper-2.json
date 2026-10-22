@@ -1,0 +1,95 @@
+{
+ "arm": "A",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.0473619,
+ "findings": [
+  {
+   "finding": {
+    "id": "1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 fetches an arbitrary user-supplied URL. The only check is a scheme check, so an attacker can reach internal services, localhost and cloud metadata (http://169.254.169.254/). Redirects are followed, which also lets an attacker bounce through an external redirector. The response body (first 200 chars) is returned to the caller, so this is a full-read SSRF.",
+    "source": "request.args.get('url') in fetch2 (views.py:19)",
+    "sink": "requests.get(url, timeout=5) at views.py:22 (allow_redirects defaults to True)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) is the only guard"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "checks only that the scheme is http or https, with no host or IP validation"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) with redirects enabled; response text returned in JSON"
+     }
+    ],
+    "guards_checked": "is_http_url checks scheme only. There is no host or IP allowlist or denylist, no redirect restriction and no DNS resolution check. Not effective against SSRF."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (is_http_url at validators.py:7 is a scheme-only check; no auth or middleware exists in the code)",
+    "reason": "views.py:19 takes the url from request.args, the only guard is the scheme-only is_http_url (validators.py:7), and views.py:22 calls requests.get(url) with redirects on and returns the first 200 characters of the body, so it is a full-read SSRF."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch validates the URL with is_safe_url, which resolves the hostname via getaddrinfo and rejects private, loopback, link-local and reserved IPs. requests.get then resolves the hostname again independently. An attacker-controlled DNS server can return a public IP for the check and an internal IP (e.g. 127.0.0.1 or 169.254.169.254) for the fetch (DNS rebinding / TOCTOU, with a TTL of 0). This is a lower-confidence bypass of an otherwise reasonable control. Redirects are disabled, so redirect-based bypass is not possible.",
+    "source": "request.args.get('url') in fetch (views.py:11)",
+    "sink": "requests.get(url, timeout=5, allow_redirects=False) at views.py:14",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) called"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo resolves the hostname, first resolution"
+     },
+     {
+      "file": "validators.py",
+      "line": 15,
+      "note": "each resolved IP checked against private, loopback, link-local and reserved ranges"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get re-resolves the hostname, second resolution, and connects to whatever IP is returned"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (http/https), hostname present, all resolved IPs checked against private/loopback/link-local/reserved, allow_redirects=False. Missing: pinning the validated IP for the connection. Only exploitable via DNS rebinding."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Scheme allowlist plus getaddrinfo IP-range blocklist (validators.py:12-17) and allow_redirects=False (views.py:14). None of these pins the validated IP, and there is no hostname allowlist.",
+    "reason": "The url comes from request.args (views.py:11), is_safe_url resolves the host once (validators.py:14), and requests.get re-resolves it at views.py:14 with no IP pinning, so a DNS-rebinding TOCTOU remains. One small trace slip: the range check is at validators.py:16, not line 15, which only parses the IP."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0659937
+}

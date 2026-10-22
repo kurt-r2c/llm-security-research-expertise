@@ -1,0 +1,57 @@
+{
+ "arm": "A",
+ "repo": "mx-go-err",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.04002710000000001,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.go",
+    "line": 26,
+    "claim": "dropTable ignores the error returned by Authorize, so the 'dba' role check is never enforced. Any caller who passes the upstream authentication that sets the user in context can drop arbitrary tables. The table name is also concatenated into the SQL string, which allows SQL injection.",
+    "source": "Any authenticated user (without the dba role) sending a request to /admin/drop with form value t. The t value is fully attacker-controlled.",
+    "sink": "runSQL(\"DROP TABLE \" + r.FormValue(\"t\")) at api.go:27, a destructive SQL operation built by string concatenation.",
+    "trace": [
+     {
+      "file": "api.go",
+      "line": 44,
+      "note": "/admin/drop is registered to dropTable with no middleware."
+     },
+     {
+      "file": "api.go",
+      "line": 25,
+      "note": "userFrom(r) gets the user from the request context."
+     },
+     {
+      "file": "api.go",
+      "line": 26,
+      "note": "Authorize(u, \"dba\") returns a forbidden error, but the return value is discarded."
+     },
+     {
+      "file": "api.go",
+      "line": 27,
+      "note": "Execution continues to runSQL with the attacker-controlled table name concatenated into the statement."
+     }
+    ],
+    "guards_checked": "The Authorize result is not checked here. By contrast, vacuum (api.go:33-36) does check it and returns 403. There is no input validation or allowlist on t and no parameterization. No middleware is visible. userFrom does an unchecked type assertion, so an unauthenticated request with no user in context panics rather than being rejected, and net/http recovers from the panic per request."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 returns an error, but the result is discarded. There is no middleware, allowlist or parameterization. userFrom (api.go:22) only does an unchecked type assertion, which panics when no user is set. That panic is a side effect, not an authorization control.",
+    "reason": "api.go:26 discards the error from Authorize, whereas vacuum checks it at api.go:33-36. api.go:27 then concatenates the attacker-controlled r.FormValue(\"t\") into the DROP TABLE statement, so any caller with a user in context, regardless of role, reaches the destructive SQL. The only caveat is that this file contains nothing that sets the user in context, so exploitation depends on the upstream authentication the finding assumes."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Authorize(u, \"dba\") at api.go:26 exists but its returned error is discarded; no middleware, allowlist or parameterization on t.",
+    "reason": "api.go:26 calls Authorize as a bare statement and discards the forbidden error, so any user set by upstream middleware reaches api.go:27 and runs DROP TABLE with the attacker-controlled form value t concatenated into the SQL, unlike vacuum at api.go:33-36, which checks the error."
+   }
+  }
+ ],
+ "verify_cost": 0.0405217,
+ "verify_facts_cost": 0.0346602
+}

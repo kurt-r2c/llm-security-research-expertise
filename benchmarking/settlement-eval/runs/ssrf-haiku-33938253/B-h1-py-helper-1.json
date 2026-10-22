@@ -1,0 +1,175 @@
+{
+ "arm": "B",
+ "repo": "h1-py-helper",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.009016399999999999,
+ "trace": {
+  "tools": {
+   "Bash": 4,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": []
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 fetches any attacker-supplied URL after checking only the scheme. Internal hosts, loopback and cloud metadata endpoints are reachable, and redirects are followed, so a public URL can redirect to an internal target. Unauthenticated.",
+    "source": "views.py:19 request.args.get(\"url\") (attacker-controlled query parameter)",
+    "sink": "views.py:22 requests.get(url, timeout=5) (default allow_redirects=True)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "GET /fetch2 route registered; no auth decorator"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken verbatim from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "only validation: is_http_url(url)"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "is_http_url returns urlparse(url).scheme in (http, https); hostname, IP and port are never checked"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get follows redirects by default, so the destination is not re-validated after a 3xx"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "response body returned to the caller, truncated to 200 chars (read-back channel)"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (http/https) only. No hostname, private/loopback/link-local IP or port check. No redirect restriction. 5s timeout limits duration, not destination."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. views.py:20 applies only is_http_url, and validators.py:7 checks just the scheme (http/https) with no hostname, IP, or port check. views.py:22 calls requests.get(url, timeout=5) with no allow_redirects=False, so redirects are followed. The stricter is_safe_url (validators.py:10-18) is used only by /fetch at views.py:12, not by /fetch2.",
+    "reason": "The url comes unauthenticated from request.args at views.py:19, passes only the scheme check at views.py:20 / validators.py:7, and is fetched at views.py:22 with redirects enabled and the first 200 chars of the body returned, so internal, loopback, and metadata hosts are reachable, including via a public-URL redirect."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch validates the resolved IP (rejecting private, loopback, link-local and reserved ranges) but resolves DNS a second time when making the request. A DNS-rebinding attacker (short-TTL record returning a public IP first, then 127.0.0.1 or 169.254.169.254) can pass the check and reach an internal address. Redirects are disabled, which closes the redirect route but not rebinding. Unauthenticated. Confidence medium; not exercised live.",
+    "source": "views.py:11 request.args.get(\"url\", \"\") (attacker-controlled query parameter)",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 9,
+      "note": "GET /fetch route; no auth"
+     },
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken verbatim from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) called as the guard"
+     },
+     {
+      "file": "validators.py",
+      "line": 12,
+      "note": "scheme must be http/https and hostname must be non-empty"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(hostname, port or 443): first DNS resolution, result checked"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "ip.is_private / is_loopback / is_link_local / is_reserved rejected; returns True only if all results pass"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get re-resolves the hostname via the system resolver; validated IP is not pinned to the connection"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "allow_redirects=False blocks redirect pivoting, but not rebinding"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "first 200 chars of response body returned to the caller"
+     }
+    ],
+    "guards_checked": "Scheme allowlist; non-empty hostname; getaddrinfo IP check covering private, loopback, link-local and reserved ranges (IPv4-mapped IPv6 caught by is_private on Python versions where ::ffff:0:0/96 is in the private list); allow_redirects=False. Not checked: TOCTOU between validation and connect (DNS rebinding) and connection IP pinning."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only validators.py:12-18 (is_safe_url): scheme allowlist, non-empty hostname, and a getaddrinfo IP-range check (is_private/is_loopback/is_link_local/is_reserved). The IP-range check is not one of the closing guards (it is not exact hostname membership, a full-string anchored match, or scheme plus strict host membership). views.py:14 allow_redirects=False blocks redirects only. No IP pinning between validators.py:14 and views.py:14.",
+    "reason": "The query parameter at views.py:11 reaches requests.get at views.py:14 with no auth, and the only check (validators.py:14-18) resolves DNS once and never pins the validated IP, so a DNS-rebinding response can pass the check and then connect to an internal address. Note that the check does block direct private/loopback literals (getaddrinfo on \"127.0.0.1\" returns that IP and is rejected), so exploitation depends on rebinding, which the candidate did not exercise live."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-3",
+    "file": "validators.py",
+    "line": 12,
+    "claim": "Unverified, low-confidence candidate: /fetch validates the host with urllib.parse.urlparse but fetches with requests/urllib3, which may split some URLs at different host boundaries (e.g. backslash before '@', or '#@'). If the parsers disagree, is_safe_url can approve a host that the request sends to an internal address. Not confirmed: the parser-differential test was denied approval.",
+    "source": "views.py:11 request.args.get(\"url\")",
+    "sink": "views.py:14 requests.get(url) (host chosen by urllib3 parsing)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "attacker-supplied URL string"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse(url) used to extract .hostname for validation"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "getaddrinfo on the urlparse hostname"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests/urllib3 parses the same string independently and connects to its own host"
+     }
+    ],
+    "guards_checked": "Same as SSRF-2. Not tested; needs a check of urllib3/requests host parsing against urlparse on the target Python version."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "validators.py:12-17 rejects non-http(s) schemes and any hostname that resolves (validators.py:14) to a private, loopback, link-local, or reserved IP. This is a resolution-based check, not exact hostname set membership or an anchored match, so it does not meet the closing-guard standard. Nothing else in the /fetch path (views.py:9-14) validates the URL. The /fetch path does pass allow_redirects=False (views.py:14).",
+    "reason": "Every code line in the trace is present and accurate (views.py:11, 14; validators.py:11, 14), and the source is attacker-controlled via the query string (views.py:11). The parser-differential step depends on how urllib3/requests splits URLs like backslash-before-@ or '#@' compared with urllib.parse.urlparse (views.py:14 vs validators.py:11), and that library behavior can't be checked from the files in this directory. Without testing it, I can't confirm or refute the mismatch."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006572360000000001
+}

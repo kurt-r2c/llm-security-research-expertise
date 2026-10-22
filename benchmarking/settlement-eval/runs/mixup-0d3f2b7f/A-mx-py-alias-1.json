@@ -1,0 +1,103 @@
+{
+ "arm": "A",
+ "repo": "mx-py-alias",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.0420869,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 18,
+    "claim": "Broken authorization on DELETE. views.py imports the boolean predicate `is_allowed` under the alias `require_allowed`, and delete_file ignores its return value. The 'delete' permission check therefore never blocks anything, and any caller, including an unauthenticated one, can delete any file.",
+    "source": "Any HTTP client sending DELETE /files/<fid> with any X-Session-User-Verified value, or none, and any known fid",
+    "sink": "del STORE[fid] (views.py:19)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 4,
+      "note": "`from acl import is_allowed as require_allowed` imports the bool-returning predicate under a name that looks like an enforcing check"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "require_allowed(g.user, f, \"delete\") returns False for an unauthorized user, but the result is discarded and nothing aborts"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "del STORE[fid] runs unconditionally"
+     },
+     {
+      "file": "acl.py",
+      "line": 9,
+      "note": "ensure_allowed, which calls abort(403), is the enforcing function, and it is not used here. rename_file at views.py:26 does use it."
+     }
+    ],
+    "guards_checked": "The only authorization control on the path is the discarded is_allowed result. There is no ensure_allowed call, no other decorator or middleware check, and before_request does no rejection. Missing-key behaviour: STORE[fid] raises KeyError, giving a 500 and so an existence oracle, but this is not a guard."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: is_allowed (acl.py:4) returns a bool, and its result is discarded at views.py:18; before_request load_user (views.py:11-12) only reads a header and never rejects.",
+    "reason": "views.py:18 calls require_allowed, which is the bool-returning is_allowed (acl.py:4-5, imported at views.py:4), as a bare statement, so del STORE[fid] at views.py:19 runs for any caller, including one with no header, unlike rename_file's ensure_allowed (views.py:26, acl.py:8-10), which aborts with 403."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none: the only check is is_allowed (aliased require_allowed), a bool predicate whose result is discarded at views.py:18; the only global hook, before_request load_user, only sets g.user",
+    "reason": "views.py:18 calls the bool-returning is_allowed (acl.py:4-5, imported as require_allowed at views.py:4) as a bare statement, so `del STORE[fid]` at views.py:19 runs for any caller, unlike rename_file at views.py:26, which uses the aborting ensure_allowed (acl.py:8-10)."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "views.py",
+    "line": 12,
+    "claim": "Identity is taken directly from a client-supplied request header (X-Session-User-Verified) with no session, signature or token validation. Unless a trusted front proxy strips and sets this header, which this code does not show, any client can impersonate any user named in a resource's grants. This also bypasses the otherwise-working check in rename_file.",
+    "source": "The X-Session-User-Verified HTTP request header, fully attacker-controlled",
+    "sink": "ensure_allowed(g.user, f, \"write\") at views.py:26, then the mutation f[\"name\"] = ... at views.py:27 (also the F1 delete path)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user = request.headers.get(\"X-Session-User-Verified\") is set with no verification"
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "g.user is passed to ensure_allowed as the trusted identity"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "The grants lookup is keyed on the attacker-chosen user string, so supplying a granted username passes the check"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "The rename is applied"
+     }
+    ],
+    "guards_checked": "No authentication decorator, no signature or HMAC check, and no stripping of the header in the app. A proxy outside this code might strip or set the header, which cannot be confirmed from this repo, so this is plausible but unconfirmed."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "ensure_allowed (acl.py:8-10) aborts 403 when the user lacks the grant and is called correctly at views.py:26. It trusts g.user, and nothing in the repo validates or strips the header.",
+    "reason": "Trace is accurate: views.py:12 sets g.user straight from the client header, and acl.py:5 looks up grants by that string, so a spoofed granted username passes ensure_allowed at views.py:26 and reaches the rename at views.py:27. Whether this is exploitable depends on a trusted front proxy that overwrites the \"Verified\" header, which this repo (only acl.py and views.py) neither shows nor rules out."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "ensure_allowed at acl.py:8-10 aborts 403 when grants lack the action, and rename_file uses it correctly at views.py:26. Identity comes from the X-Session-User-Verified header, which the maintainer facts say is populated by trusted upstream middleware.",
+    "reason": "The trace lines match (views.py:12, 26, 27 and acl.py:5), but the finding only works if clients can forge the header at views.py:12, and the maintainer facts say request identity such as g.user comes from trusted upstream middleware. The header name (\"Verified\") fits a proxy-set value. The rename check at views.py:26 is a working guard (acl.py:9-10 aborts), so there is no independent flaw here. The delete path (views.py:18) is a separate issue because it discards the bool result."
+   }
+  }
+ ],
+ "verify_cost": 0.06630920000000001,
+ "verify_facts_cost": 0.0692497
+}

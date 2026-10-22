@@ -1,0 +1,90 @@
+{
+ "arm": "A",
+ "repo": "php-feed",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.0439186,
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF (and local file read): the POST parameter 'feed' is passed directly to file_get_contents(), which accepts http(s)://, ftp://, file://, php:// and other wrappers. The response length is echoed, giving a blind/oracle channel for internal URLs and local files. No auth, scheme/host allowlist, or private-IP blocking.",
+    "source": "$_POST['feed'] (any unauthenticated client)",
+    "sink": "file_get_contents($_POST['feed'])",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Only checks REQUEST_METHOD === POST and isset($_POST['feed']); no auth"
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "User-controlled value passed to file_get_contents() as URL/path"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "strlen of fetched body echoed to attacker, confirming reachability and content size"
+     }
+    ],
+    "guards_checked": "require_admin() is defined but not called on this path. No scheme allowlist, host allowlist, DNS/IP resolution check, or redirect restriction. allow_url_fopen is assumed enabled (PHP default)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "import.php:11-13 passes unauthenticated $_POST['feed'] straight to file_get_contents() and echoes strlen of the result, with no auth or URL/host/scheme validation (require_admin() at line 4 is only called at line 18 for the unrelated set_webhook branch)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-only SSRF: the 'set_webhook' POST parameter is used as the URL for curl_init()/curl_exec() and is requested immediately. No scheme or host validation, so an admin (or an attacker who has a session with is_admin, e.g. via XSS/CSRF since no CSRF token is checked) can make the server request internal services such as cloud metadata or localhost. Lower severity because of the admin gate.",
+    "source": "$_POST['set_webhook'] (authenticated admin session; no CSRF token)",
+    "sink": "curl_init($hook) / curl_exec($ch)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch entered when set_webhook is present"
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks $_SESSION['is_admin']"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook'] with no validation"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the target URL"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec() performs the request server-side"
+     }
+    ],
+    "guards_checked": "require_admin() (session is_admin) is enforced. There is no URL scheme/host allowlist, no private-IP blocking, no CSRF protection, and CURLOPT_PROTOCOLS / CURLOPT_FOLLOWLOCATION are not restricted. The response is not returned to the caller (blind SSRF)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() session is_admin check (import.php:4-9, 18). There is no URL validation, and no CSRF token.",
+    "reason": "The trace is accurate (import.php:17-22), but the sink at import.php:20 is only reachable after require_admin() at import.php:18. An unauthenticated or low-privilege attacker therefore cannot control the URL. The CSRF and XSS routes to an admin session are speculative, and nothing in the code shows them."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.06339249999999999
+}

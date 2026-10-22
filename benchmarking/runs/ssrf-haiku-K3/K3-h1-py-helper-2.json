@@ -1,0 +1,116 @@
+{
+ "arm": "K3",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.0069051699999999995,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-k1b2jvzy/r/views.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-k1b2jvzy/r/validators.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F2",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 fetches any user-supplied http/https URL with no network-target validation (no hostname, IP, or private-range check) and follows redirects, enabling SSRF to loopback, link-local (169.254.169.254), and internal hosts.",
+    "source": "views.py:19 request.args.get(\"url\") (unauthenticated query parameter)",
+    "sink": "views.py:22 requests.get(url, timeout=5) with default allow_redirects=True",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url read from query string, unauthenticated"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url() called; only a scheme check"
+     },
+     {
+      "file": "validators.py",
+      "line": 6,
+      "note": "is_http_url defined as urlparse(url).scheme in (http, https); no host/IP check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get fetches URL, redirects followed, first 200 bytes of body returned to caller"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (validators.py:7) enforced but does not restrict host. No hostname/IP/private-range check on path. Redirects followed, so a public URL can 302 to an internal target after the check. No auth on route."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. views.py:20 applies only is_http_url, which is a scheme-only check (validators.py:7). The host-checking is_safe_url (validators.py:10-18) is called only by /fetch at views.py:12, not by /fetch2. views.py:22 calls requests.get with default allow_redirects=True, so redirects are followed.",
+    "reason": "The url at views.py:19 comes from an unauthenticated query parameter and reaches requests.get at views.py:22 after only the scheme check at views.py:20 / validators.py:7, with redirects followed and the first 200 characters of the body returned, so /fetch2 is SSRF-exploitable. The candidate's \"200 bytes\" is really 200 characters of text, a minor wording issue that does not change the verdict."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch validates the target IP with a separate DNS lookup (validators.py:14) and then fetches with requests.get, which resolves the hostname again and does not pin the IP. A DNS-rebinding response can pass the check and then reach internal addresses.",
+    "source": "views.py:11 request.args.get(\"url\") (unauthenticated query parameter)",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url read from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) gate; return value enforced"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "first DNS resolution via socket.getaddrinfo(hostname, port)"
+     },
+     {
+      "file": "validators.py",
+      "line": 15,
+      "note": "every returned address checked with ipaddress"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "private, loopback, link-local, reserved addresses rejected"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get performs a second, independent DNS resolution; IP not pinned, so a TTL-0 rebinding answer can return an internal IP"
+     }
+    ],
+    "guards_checked": "Return value of is_safe_url enforced (views.py:12). All returned addresses checked (validators.py:14-17). allow_redirects=False blocks redirect bypass (views.py:14). Mapped IPv6 treated as private by ipaddress module (not verified against a specific Python version). Not enforced: DNS pinning, so check and fetch use different resolutions."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. views.py:12 gates on is_safe_url's return value, but validators.py:14-18 is an IP-range check on a DNS resolution, not hostname membership, anchored match, or scheme plus host allowlist, so it does not close the finding. Nothing pins the resolved IP: views.py:14 calls requests.get(url) with the raw hostname, which resolves again. allow_redirects=False (views.py:14) only blocks redirects, not rebinding.",
+    "reason": "The source is the unauthenticated query parameter at views.py:11, the only gate is the DNS-based is_safe_url check at views.py:12 / validators.py:14-18, and requests.get at views.py:14 performs an independent, unpinned second resolution, so a rebinding answer can pass the check and reach an internal address. Minor caveats: the check resolves with port parsed.port or 443 while the fetch uses the scheme default, which doesn't change the DNS answer; and the IPv4-mapped IPv6 handling claim is unverified but not needed for the verdict."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004284830000000001
+}

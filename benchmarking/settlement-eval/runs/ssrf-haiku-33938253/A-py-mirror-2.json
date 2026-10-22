@@ -1,0 +1,73 @@
+{
+ "arm": "A",
+ "repo": "py-mirror",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00504774,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-if_scqfg/r/mirror.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "The /mirror endpoint fetches an attacker-supplied URL. The only host check is a bare suffix match (endswith 'example.com' with no leading dot), so any registrable domain ending in 'example.com' passes, e.g. 'evilexample.com' or 'attacker-example.com'. Nothing checks the resolved IP, so a passing name can resolve to 127.0.0.1, RFC1918 space, or 169.254.169.254. The response length is returned to the caller, so this is a blind/side-channel SSRF.",
+    "source": "mirror.py:11 (url query parameter, attacker-controlled)",
+    "sink": "mirror.py:16 await c.get(url) via httpx.AsyncClient",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "url: str taken from the query string, unconstrained"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "host = urlparse(url).hostname or '' extracts the hostname"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "if not host.endswith('example.com'): bare suffix check, no leading dot, so 'evilexample.com' passes. ALLOWED_SUFFIX at line 7 ('.example.com') is defined but unused"
+     },
+     {
+      "file": "mirror.py",
+      "line": 15,
+      "note": "httpx.AsyncClient created with default settings"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "c.get(url) requests the original, unvalidated URL string; name is resolved by the server, so DNS can point to internal addresses"
+     },
+     {
+      "file": "mirror.py",
+      "line": 17,
+      "note": "returns only len(r.text), limiting the data leak to response length"
+     }
+    ],
+    "guards_checked": "Hostname suffix check at line 13: present but insufficient (matches evilexample.com, attacker-example.com). Scheme: not checked, but httpx only handles http/https so file:// fails. Resolved IP / private-range / metadata-address blocking: absent. Redirects: httpx does not follow them by default in current versions, which blocks redirect-based bypass; this depends on version (older httpx followed redirects by default). Port restriction: absent. /ping (lines 20-24) uses a hardcoded URL and is not a sink. Unverified: urlparse vs httpx parser differentials (e.g. backslash or @ tricks such as 'http://evil.com\\@example.com') were not tested and depend on the installed httpx version."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the bare suffix check at mirror.py:13 (`host.endswith(\"example.com\")`), which does not close the finding: it accepts evilexample.com and attacker-example.com. No IP, private-range, metadata, scheme, or port restriction exists, and ALLOWED_SUFFIX at mirror.py:7 is unused.",
+    "reason": "The url query parameter (mirror.py:11) is unauthenticated attacker input, urlparse().hostname (mirror.py:12) yields \"evilexample.com\" for a hostile URL, which passes the suffix check at mirror.py:13, and c.get(url) at mirror.py:16 fetches it with default settings, returning only len(r.text) at mirror.py:17, so the SSRF is blind. The trace matches the file exactly; the httpx parser-differential part of the claim was not needed to confirm it."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00226788
+}

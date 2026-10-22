@@ -1,0 +1,81 @@
+{
+ "arm": "C",
+ "repo": "py-mirror",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01913447,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Bash": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8vrhsp6f/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8vrhsp6f/r/mirror.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8vrhsp6f/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-8vrhsp6f/expertise/software/language-footguns/python_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-mirror-1",
+    "file": "mirror.py",
+    "line": 16,
+    "claim": "/mirror fetches an arbitrary attacker-supplied URL. The host check at line 13 is an unanchored suffix match (endswith(\"example.com\")), so any attacker-registrable domain such as evilexample.com passes. The server then GETs the original, unmodified URL, and the attacker controls DNS for that domain, so the target can be an internal or metadata IP, not only an external host.",
+    "source": "mirror.py:11 \u2014 `url: str` query parameter of the unauthenticated GET /mirror route",
+    "sink": "mirror.py:16 \u2014 `await c.get(url)` on httpx.AsyncClient, using the raw string",
+    "trace": [
+     {
+      "file": "mirror.py",
+      "line": 11,
+      "note": "url is taken directly from the query string (attacker-controlled)"
+     },
+     {
+      "file": "mirror.py",
+      "line": 12,
+      "note": "host = urlparse(url).hostname or \"\" \u2014 validation parses with urllib.parse"
+     },
+     {
+      "file": "mirror.py",
+      "line": 13,
+      "note": "`if not host.endswith(\"example.com\")` \u2014 no leading dot and no exact match, so \"evilexample.com\" passes"
+     },
+     {
+      "file": "mirror.py",
+      "line": 15,
+      "note": "new httpx.AsyncClient() with default settings"
+     },
+     {
+      "file": "mirror.py",
+      "line": 16,
+      "note": "c.get(url) re-sends the original string, so the fetcher re-parses it and resolves DNS itself; the check is on the hostname string before resolution"
+     },
+     {
+      "file": "mirror.py",
+      "line": 17,
+      "note": "response is reduced to len(r.text) \u2014 the body is not returned, so the attacker gets a length oracle, not the content"
+     },
+     {
+      "file": "mirror.py",
+      "line": 7,
+      "note": "ALLOWED_SUFFIX = \".example.com\" is defined but never used; the dot-anchored suffix the author evidently intended is not what line 13 checks"
+     }
+    ],
+    "guards_checked": "(1) Hostname allowlist at line 13: unanchored endswith, so it bypasses with attacker-owned names ending in example.com; it is also a string check before DNS, so attacker DNS can resolve to any IP, including RFC1918, loopback, and 169.254.169.254. (2) Scheme: no explicit check, but a hostless URL such as file:///... gives hostname None and is rejected at line 13; httpx only dispatches http/https. Not exploitable. (3) Redirects: httpx.AsyncClient defaults to follow_redirects=False, so a redirect off example.com is not followed. Not exploitable by this route. (4) Userinfo/fragment tricks like http://example.com@attacker.com/ give hostname attacker.com and are rejected. (5) Port is unchecked, so any port on the chosen host is reachable. (6) Authentication: none on /mirror, so any remote caller can trigger it. Unverified: a urlparse-vs-httpx host divergence (e.g. backslash in userinfo) could bypass line 13 entirely; I could not run httpx locally to confirm, so this is a candidate only. The /ping route at lines 20-24 uses a hardcoded URL and has no source, so it is not a finding.",
+    "repro": "Attacker controls DNS for evilexample.com (A record to 169.254.169.254, or 10.x / 127.0.0.1). Request: GET /mirror?url=http://evilexample.com/latest/meta-data/ . Line 13 passes because the hostname ends with \"example.com\"; line 16 fetches the internal address; the response length is returned. Expected correct behaviour: 400, since evilexample.com is not a subdomain of example.com. Not run against a live service."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is mirror.py:13, `host.endswith(\"example.com\")`, which is an unanchored suffix match and does not close the finding. ALLOWED_SUFFIX (mirror.py:7) is defined but never used. No middleware, auth, or other validation exists in mirror.py.",
+    "reason": "The `url` query parameter (mirror.py:11) is unauthenticated and reaches `c.get(url)` (mirror.py:16) unchanged after a suffix-only host check (mirror.py:13), so an attacker-registered host like evilexample.com passes and the server fetches an attacker-chosen internal address. Every trace line matches the file, and the response leaks only `len(r.text)` (mirror.py:17), so this is a length oracle rather than full content disclosure."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00235132
+}

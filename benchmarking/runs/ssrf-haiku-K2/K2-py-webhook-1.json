@@ -1,0 +1,117 @@
+{
+ "arm": "K2",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "970d5782",
+ "status": "success",
+ "gen_cost": 0.005217629999999999,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-r47x8ka_/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-r47x8ka_/r/app.py",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-r47x8ka_/expertise/cases/04-url-validate-reparse.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-r47x8ka_/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches an arbitrary attacker-supplied URL server-side and returns the status and first 500 bytes of the body to the caller, with no validation.",
+    "source": "request.args.get(\"url\") at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 14,
+      "note": "preview() is a public Flask route with no auth decorator"
+     },
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "url query parameter read with no checks"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "passed directly to requests.get, which follows redirects by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status_code and resp.text[:500] returned to the caller"
+     }
+    ],
+    "guards_checked": "None. No scheme, host, IP, port, or redirect check on this path. Attacker can reach localhost, link-local (169.254.169.254), or internal hosts and read up to 500 bytes of the response."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:15-17 has no scheme, host, IP, port, or redirect check. The only host check in the file is app.py:23-25 in /partner, which is a separate route and does not apply to preview().",
+    "reason": "The `url` query parameter is read unauthenticated at app.py:15 and passed straight to requests.get at app.py:16 (which follows redirects by default), and the status and first 500 bytes of the body are returned at app.py:17, with no closing guard on the /preview path. The trace's line 14 is the `def preview()` line rather than the `@app.route` decorator at line 13, but the claim about it is still accurate."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks only the initial URL's hostname against an allowlist, then fetches the original URL with redirects enabled, so an allowed host can redirect the server to an internal address.",
+    "source": "request.args.get(\"url\") at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26 (allow_redirects defaults to True)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 21,
+      "note": "partner() is a public Flask route"
+     },
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "url query parameter read"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "hostname extracted via urlparse(target).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "400 returned if hostname not in ALLOWED_HOSTS (api.partner.example, cdn.partner.example)"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) follows 3xx Location headers without re-validation"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "only status_code returned, so the attacker gets a status oracle rather than the body"
+     }
+    ],
+    "guards_checked": "Hostname allowlist at app.py:23-25 only. No scheme check, port check, resolved-IP check, DNS pinning, or allow_redirects=False. Redirect bypass is sufficient on its own. A concrete urllib.parse vs urllib3 parser differential was not confirmed and is not claimed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the hostname allowlist at app.py:23-25 (exact set membership on urlparse(target).hostname). It runs once on the initial URL. Nothing re-validates after redirects, and there is no allow_redirects=False on the requests.get at app.py:26.",
+    "reason": "The `url` query parameter (app.py:22) is attacker-controlled on an unauthenticated public route, and app.py:26 issues `requests.get(target, timeout=5)` with redirects enabled by default, so an allowlisted host returning a 3xx to an internal address is followed past the check at app.py:24. Impact is limited to a status-code oracle (app.py:27), which is a blind SSRF rather than a full read, but the bypass itself is real."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0038839100000000004
+}

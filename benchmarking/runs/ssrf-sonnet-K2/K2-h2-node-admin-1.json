@@ -1,0 +1,102 @@
+{
+ "arm": "K2",
+ "repo": "h2-node-admin",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "c6805ce7",
+ "status": "success",
+ "gen_cost": 0.05380750000000001,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g0qbv2t1/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g0qbv2t1/r/routes.js",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g0qbv2t1/expertise/cases/12-ssrf-resolve-then-fetch.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g0qbv2t1/expertise/cases/04-url-validate-reparse.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "1",
+    "file": "routes.js",
+    "line": 20,
+    "claim": "Unauthenticated SSRF: the public webhook-test endpoint POSTs to an attacker-supplied URL with no validation of scheme, host or resolved IP. Axios follows redirects by default. The response status is returned to the caller, which gives a blind oracle for internal services.",
+    "source": "req.body.callback (POST /hooks/test, on the `pub` router with no auth middleware)",
+    "sink": "axios.post(req.body.callback, { ping: true }) at routes.js:20",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 19,
+      "note": "pub.post('/hooks/test') handler. `pub` has no requireAdmin or other auth."
+     },
+     {
+      "file": "routes.js",
+      "line": 20,
+      "note": "req.body.callback is passed straight to axios.post. Nothing checks scheme, hostname, private or link-local IPs (e.g. 169.254.169.254, localhost) or redirects."
+     },
+     {
+      "file": "routes.js",
+      "line": 21,
+      "note": "r.status is returned in the JSON response, so the caller learns whether the internal target responded."
+     }
+    ],
+    "guards_checked": "No allow-list, no URL parsing, no IP or DNS check, no maxRedirects:0 and no auth on the `pub` router. requireAdmin is applied only to the `admin` router. How the routers are mounted is not visible in this directory, so the route may sit under another auth layer, but nothing in this code enforces one."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "routes.js:19-21 shows the `pub` router handler passing req.body.callback straight to axios.post (routes.js:20) and returning r.status, and requireAdmin is only applied to `admin` (routes.js:12), so no validation or auth guard exists; mounting isn't visible, but nothing in the code enforces one."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "2",
+    "file": "routes.js",
+    "line": 15,
+    "claim": "SSRF from an admin-only diagnostics endpoint: a fully attacker-controlled URL is fetched with no host, IP or scheme restrictions, and the status is returned. Severity is lower because the route requires an admin session, but it can still reach cloud metadata and internal services, and a compromised or low-trust admin can pivot through it.",
+    "source": "req.query.url (GET /diagnostics/fetch)",
+    "sink": "axios.get(req.query.url) at routes.js:15",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) gates the router on req.session.role === 'admin'."
+     },
+     {
+      "file": "routes.js",
+      "line": 14,
+      "note": "GET /diagnostics/fetch handler."
+     },
+     {
+      "file": "routes.js",
+      "line": 15,
+      "note": "req.query.url is passed unvalidated to axios.get, which follows redirects."
+     },
+     {
+      "file": "routes.js",
+      "line": 16,
+      "note": "r.status is returned to the caller."
+     }
+    ],
+    "guards_checked": "requireAdmin (routes.js:7-10) is the only guard, and it is an authorization check, not a destination check. There is no URL allow-list, private-IP blocking or redirect restriction. It is not bypassed here, but it is the sole barrier."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "requireAdmin (routes.js:7-10, applied at routes.js:12) restricts the route to req.session.role === \"admin\". It is an authorization check, not a destination check, so there is no URL, host or scheme validation.",
+    "reason": "The trace is accurate (routes.js:12-16), but the axios.get(req.query.url) sink at routes.js:15 is only reachable by an admin session through requireAdmin (routes.js:8). An unauthenticated or low-privilege attacker cannot control the URL, so the source check fails. The separate unauthenticated sink at routes.js:20 (/hooks/test) is a different finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.057324299999999995
+}

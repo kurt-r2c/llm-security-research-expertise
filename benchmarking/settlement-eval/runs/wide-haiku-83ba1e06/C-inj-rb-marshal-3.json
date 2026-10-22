@@ -1,0 +1,94 @@
+{
+ "arm": "C",
+ "repo": "inj-rb-marshal",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01106782,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 2,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-oatwt1tq/r/app.rb",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-oatwt1tq/expertise/software/language-footguns/ruby_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.rb",
+    "line": 6,
+    "claim": "Unauthenticated Marshal deserialization of attacker-supplied bytes in POST /restore gives remote code execution.",
+    "source": "HTTP POST parameter params[:state] (app.rb:6), attacker-controlled, reachable by any client that can reach the app.",
+    "sink": "Marshal.load(Base64.decode64(...)) at app.rb:6, which runs marshal_load/_load/init_with callbacks on any class named in the byte stream.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 5,
+      "note": "post \"/restore\" route accepts any unauthenticated POST."
+     },
+     {
+      "file": "app.rb",
+      "line": 6,
+      "note": "params[:state] is Base64-decoded and passed directly to Marshal.load."
+     },
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "state.inspect returns the reconstructed object's representation to the caller, giving the attacker an output channel."
+     }
+    ],
+    "guards_checked": "No authentication or authorization in app.rb. No HMAC or signature on the state blob. No class allowlist (Marshal.load has none). No size limit or content-type check. Rack::Protection defaults do not cover request-body deserialization. Nothing in this file restricts the route. Exploitability depends on Ruby/RubyGems version and loaded gems; not runtime-verified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.rb:5 is an unauthenticated post \"/restore\" route with no before filter, no auth helper, and no signature or HMAC check on the blob. app.rb:6 calls Marshal.load directly on Base64.decode64(params[:state]) with no class allowlist, size limit, or content-type check. app.rb:7 returns state.inspect to the caller, which gives an output channel. Nothing in app.rb or the Sinatra defaults prevents the call.",
+    "reason": "The POST /restore route at app.rb:5 is anonymous, and app.rb:6 passes attacker-controlled params[:state] straight into Marshal.load with no guard, so unsafe deserialization is reachable. The RCE part is not proven here: it depends on gadget classes in the loaded gems, which the candidate itself notes was not runtime-verified, so the confirmed defect is unsafe deserialization with RCE as the likely impact."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.rb",
+    "line": 12,
+    "claim": "POST /import reflects attacker-controlled JSON object keys into an HTML-typed response without escaping, giving reflected XSS.",
+    "source": "Request body (app.rb:11), attacker-controlled JSON. Object key names are attacker-chosen strings.",
+    "sink": "Response body at app.rb:12 (data.keys.join(\",\")), returned under Sinatra's default text/html content type.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 10,
+      "note": "post \"/import\" matches the route."
+     },
+     {
+      "file": "app.rb",
+      "line": 11,
+      "note": "JSON.parse(request.body.read) returns a Hash with attacker-chosen string keys. JSON.parse does not instantiate objects, so this is not a deserialization issue."
+     },
+     {
+      "file": "app.rb",
+      "line": 12,
+      "note": "data.keys.join(\",\") returns raw key strings as the body with no escaping and no explicit Content-Type."
+     }
+    ],
+    "guards_checked": "No explicit Content-Type (Sinatra defaults to text/html;charset=utf-8). No HTML escaping (escape_html not used). Rack::Protection XSSHeader sets only the legacy X-XSS-Protection header and does not sanitize the body. JsonCsrf does not apply to text/html. Cross-site delivery is possible via a text/plain HTML form whose name/value split yields valid JSON, so the victim browser can navigate to the reflected response in the app origin without a CSRF token. Not runtime-verified."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None in app.rb: no escape_html, no explicit Content-Type, no auth on the route (app.rb:10-13). The directory has no Gemfile or config.ru, so Sinatra's default Rack::Protection settings cannot be read. Sinatra's default HttpOrigin check (unverified here) would reject cross-site POSTs carrying a foreign Origin header, which is the only route to a victim browser on this POST-only endpoint.",
+    "reason": "The trace matches app.rb:10-12 and the body is reflected under text/html, but the cross-site delivery path depends on Sinatra's default Rack::Protection (HttpOrigin) being active, which is not in the available code (app.rb:12 is the only sink line), so this cannot be decided from the files here."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00611037
+}

@@ -1,0 +1,142 @@
+{
+ "arm": "K2",
+ "repo": "lg-php-token",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "254f349e",
+ "status": "success",
+ "gen_cost": 0.005918689999999999,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Glob": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-4wwojkuu/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-4wwojkuu/r/reset.php",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-4wwojkuu/expertise/cases/19-secret-compare-timing.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "RESET-1",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "reset_password_loose compares the stored reset token with `==` against an untrusted $token. PHP loose comparison lets a non-string $token authenticate: boolean true equals any non-empty stored string, so a reset can succeed without knowing the token. Numeric-looking tokens can also match via type juggling (\"0e...\" == \"0e...\").",
+    "source": "$token parameter of reset_password_loose (line 2). Attacker-controlled if the caller passes request input without string-typing it, e.g. JSON-decoded `\"token\": true` or `\"token\": 0`. The caller is not in this repo, so the precondition is unverified.",
+    "sink": "Authentication decision at line 4 (`$row['token'] == $token`), followed by the password overwrite at lines 5-6 for the email the attacker names.",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 2,
+      "note": "Function takes $token untyped; no type coercion at entry"
+     },
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "Fetches stored token for $email via $db->quote; row may be false if none exists"
+     },
+     {
+      "file": "reset.php",
+      "line": 4,
+      "note": "`if ($row && $row['token'] == $token)`: loose ==, so true == 'anystring' is true and numeric strings compare numerically"
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "Overwrites users.pw with password_hash($new) for the attacker-chosen email"
+     }
+    ],
+    "guards_checked": "Checked: $row truthiness (lines 4) rejects a missing row only. Checked: $db->quote on $email (lines 3, 6), which prevents SQL injection but not this auth bypass. No type check, no hash_equals, no strict ===. The sibling reset_password() at line 14 uses hash_equals with (string) cast, which is the correct pattern, so the loose variant is the weak one."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Only `$row` truthiness at reset.php:4 (rejects a missing reset row). No type check, strict ===, or hash_equals on the loose path. $db->quote at lines 3, 5-6 prevents SQL injection only. The sibling reset_password() at reset.php:14 uses hash_equals with a (string) cast, but it is a separate function and does not guard reset_password_loose.",
+    "reason": "The trace matches the code: reset.php:4 uses loose `==` on `$row['token'] == $token` and reset.php:5-6 overwrites the password, so `true == 'anystring'` (PHP 8) and numeric-string juggling (PHP <8, or \"0e...\" hashes) would pass the check. Whether an attacker can reach it depends on a caller that is not in this directory (only reset.php exists), so the untrusted, untyped `$token` precondition cannot be confirmed or refuted from the available code."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "RESET-2",
+    "file": "reset.php",
+    "line": 7,
+    "claim": "A reset token is never consumed or expired. On success (lines 7 and 17) the resets row is left in place, and the query at lines 3 and 13 has no expiry condition. A leaked or previously issued token can be replayed to reset the password again at any later time.",
+    "source": "$token and $email, attacker-supplied. The precondition is possession of a previously valid token for an email, from a leaked reset link, mail-log exposure, or an earlier reset the attacker observed.",
+    "sink": "Protected operation: the password overwrite at lines 5-6 and 15-16, which is authorized only by the token match.",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "Query selects token for the email with no created_at/expires_at filter"
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "Password is updated on success"
+     },
+     {
+      "file": "reset.php",
+      "line": 7,
+      "note": "Returns true without DELETE or UPDATE of the resets row, so the token stays valid"
+     },
+     {
+      "file": "reset.php",
+      "line": 13,
+      "note": "reset_password repeats the same query with no expiry filter"
+     },
+     {
+      "file": "reset.php",
+      "line": 17,
+      "note": "Again returns true without invalidating the token"
+     }
+    ],
+    "guards_checked": "Checked: nothing in this file deletes, marks used, or expires the token. Expiry or single-use may be enforced by the caller or by a DB trigger or job that is not in this repo, so this is unverified. Within this code, no control exists."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in the repo. reset.php:3 and :13 select the token with no created_at/expires_at filter, and no DELETE or UPDATE of the resets row appears anywhere in the file. The only check is the token comparison at reset.php:4 (==) and :14 (hash_equals), which gates the password write but does not consume or expire the token. The repo contains only reset.php, so a DB trigger or cleanup job outside the repo is unverifiable, but nothing in this code enforces single use or expiry.",
+    "reason": "Every trace line matches the code: the token query at reset.php:3 and :13 has no expiry filter, the password is overwritten at :5-6 and :15-16, and the function returns true at :7 and :17 without deleting or marking the resets row, so a previously valid token stays usable for a later reset. The attacker must already hold a token for the target email, such as a leaked reset link, which is a real but bounded precondition."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "RESET-3",
+    "file": "reset.php",
+    "line": 14,
+    "claim": "No attempt limiting or lockout on reset-token guessing. Both functions return false with no counter, delay, or logging, so an attacker can brute-force the token online for an email if its entropy is low.",
+    "source": "$token, attacker-supplied, repeatable without limit.",
+    "sink": "Authentication decision at line 14 (reset_password) and line 4 (reset_password_loose), which gates the password overwrite.",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 13,
+      "note": "Each call issues a fresh SELECT for the email"
+     },
+     {
+      "file": "reset.php",
+      "line": 14,
+      "note": "hash_equals compares the candidate; a mismatch returns false at line 19 with no throttling"
+     }
+    ],
+    "guards_checked": "Checked: hash_equals gives a constant-time comparison, so timing leaks are not the concern here. No rate limit, lockout, or attempt counter exists in this file. Token length and entropy are not visible here, so exploitability depends on the token generator, which is not in the repo. Rated as plausible only."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None in reset.php. reset_password at reset.php:14 uses hash_equals, which is a constant-time comparison and not a throttle. The mismatch path at reset.php:19 returns false with no counter, delay, or lockout. The repo contains only reset.php, so no rate limiter, lockout, or token generator is visible.",
+    "reason": "The trace is accurate: reset.php:13-14 issues a fresh SELECT and compares the candidate token on every call, and reset.php:19 returns false with no throttling. Anonymous attackers can reach it, but whether online guessing is feasible depends on token entropy at the generator (not in the repo) and on any rate limiting at the HTTP or framework layer (also not in the repo), so the finding cannot be decided from this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006229460000000001
+}

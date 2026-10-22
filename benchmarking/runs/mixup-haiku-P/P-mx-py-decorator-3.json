@@ -1,0 +1,129 @@
+{
+ "arm": "P",
+ "repo": "mx-py-decorator",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "395c9743",
+ "status": "success",
+ "gen_cost": 0.00523011,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-6_xm6mft/r/routes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "routes.py",
+    "line": 34,
+    "claim": "/settings/email is reachable without authentication: it uses @login_optional instead of @login_required, so an anonymous POST calls set_email with uid None and performs the account email change.",
+    "source": "Any anonymous HTTP client sending POST /settings/email (no session cookie needed).",
+    "sink": "set_email(g.uid, \"new@example.org\") at routes.py:37 (account email modification).",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 35,
+      "note": "@login_optional applied to change_email instead of @login_required"
+     },
+     {
+      "file": "routes.py",
+      "line": 22,
+      "note": "login_optional sets g.uid = session.get(\"uid\") -> None for anonymous callers and never aborts"
+     },
+     {
+      "file": "routes.py",
+      "line": 37,
+      "note": "set_email(None, \"new@example.org\") runs for the anonymous caller"
+     }
+    ],
+    "guards_checked": "login_optional (routes.py:19-25) enforces nothing; no abort(401), no uid validation, no CSRF check, no reauthentication. set_email body is a stub (routes.py:48-49), so real impact depends on its unseen implementation. Severity high if helper writes by uid."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. routes.py:19-25 login_optional only sets g.uid = session.get(\"uid\") and never aborts; routes.py:35 applies it to change_email, unlike routes.py:42, where change_password uses login_required. No CSRF, reauthentication, or uid check appears between routes.py:36 and routes.py:37.",
+    "reason": "The trace is accurate: routes.py:35 applies login_optional, which at routes.py:22 leaves g.uid as None for anonymous callers, and routes.py:37 still calls set_email(g.uid, ...) with no check, so any anonymous POST reaches the call. The impact is not verified, because set_email at routes.py:48-49 is a stub (`pass`) and the real effect depends on its unseen implementation."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "routes.py",
+    "line": 41,
+    "claim": "/settings/password sets the account password to the fixed literal \"hunter2\" for any request carrying a valid session, ignoring the request body; combined with missing CSRF protection this enables account takeover via cross-site request.",
+    "source": "Cross-site request from attacker page causing victim's browser to send the victim's session cookie (precondition: SameSite not Lax/Strict, or no SameSite set). Request body is never read.",
+    "sink": "set_password(g.uid, \"hunter2\") at routes.py:44 (account password modification).",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 42,
+      "note": "@login_required applied; checks session presence only"
+     },
+     {
+      "file": "routes.py",
+      "line": 11,
+      "note": "login_required tests \"uid\" in session"
+     },
+     {
+      "file": "routes.py",
+      "line": 13,
+      "note": "g.uid taken from session"
+     },
+     {
+      "file": "routes.py",
+      "line": 44,
+      "note": "set_password(g.uid, \"hunter2\") - fixed literal password, request input unused"
+     }
+    ],
+    "guards_checked": "login_required (session presence only). No CSRF token or Origin/Referer check, no password re-entry, no body validation in this file. SESSION_COOKIE_SAMESITE not visible in repo. Severity high: attacker knows resulting password."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "login_required (routes.py:8-16) checks session presence only (abort(401) on failure); no CSRF token or Origin/Referer check anywhere in routes.py.",
+    "reason": "The handler at routes.py:41-45 sets the password to the fixed value \"hunter2\" (routes.py:44) after only a session-presence check (routes.py:11-13) with no CSRF protection, so a cross-site POST carrying the victim's session cookie succeeds; exploitability depends on the cookie's SameSite setting, which the repo does not show, and set_password (routes.py:52-53) is a stub in this repo.</reason>\n"
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "routes.py",
+    "line": 44,
+    "claim": "Hardcoded literal values for account modification: password \"hunter2\" (line 44) and email \"new@example.org\" (line 37) are written into source; the handlers never use request input, so the endpoints cannot perform the operation their names imply and the password literal violates the no-hardcoded-credentials policy.",
+    "source": "Source code literals; no external input.",
+    "sink": "set_password and set_email calls at routes.py:37 and routes.py:44.",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 37,
+      "note": "email literal \"new@example.org\" passed to set_email"
+     },
+     {
+      "file": "routes.py",
+      "line": 44,
+      "note": "password literal \"hunter2\" passed to set_password"
+     }
+    ],
+    "guards_checked": "None applicable; values are constants. Likely placeholder code, but flagged because it is a fixed password in source and the handlers ignore request input."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "login_required (routes.py:8-16) gates change_password (routes.py:41-45), but it only checks that a session uid exists and does not stop the hardcoded call. change_email (routes.py:34-38) uses login_optional, so anonymous requests reach it, though g.uid is None there. No input validation or CSRF check is visible on either route.",
+    "reason": "The trace is accurate: routes.py:44 passes the literal \"hunter2\" to set_password and routes.py:37 passes \"new@example.org\" to set_email, with no request input used. Any logged-in user reaches the password call via /settings/password (routes.py:41-45), so the hardcoded credential is reachable, though set_email and set_password are no-op stubs (routes.py:48-53), which limits the current impact to a policy violation and a latent risk."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.007378760000000001
+}

@@ -1,0 +1,110 @@
+{
+ "arm": "P",
+ "repo": "h1-py-helper",
+ "rep": 3,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "483a88ad",
+ "status": "success",
+ "gen_cost": 0.04659050000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-5ehsqlxx/r/validators.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-5ehsqlxx/r/views.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "Unauthenticated SSRF in /fetch2. The user-supplied URL is only checked for an http/https scheme. Nothing blocks loopback, private or link-local hosts such as 169.254.169.254 or localhost. Redirects are followed by default, so they are also not restricted. The first 200 characters of the response body are returned to the caller, so the attacker can read internal responses.",
+    "source": "HTTP query parameter `url` (request.args.get) on GET /fetch2, supplied by any remote client",
+    "sink": "requests.get(url, timeout=5) at views.py:22",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken from request.args with no sanitisation"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) is the only check"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "is_http_url only tests urlparse(url).scheme in (http, https); there is no host or IP check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) with redirects enabled; body is returned in the JSON response"
+     }
+    ],
+    "guards_checked": "is_http_url is a scheme check only. There is no host or IP filtering, no allowlist and no redirect restriction. There is no authentication on the route."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "views.py:19-22 passes request.args[\"url\"] through only is_http_url (validators.py:7, a scheme-only check) and then calls requests.get(url, timeout=5) with default redirects and returns the first 200 characters of the body, with no auth or host filtering on the route."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "Possible SSRF in /fetch through a DNS rebinding TOCTOU. is_safe_url resolves the hostname with socket.getaddrinfo and rejects private, loopback, link-local and reserved IPs. requests.get then resolves the hostname again independently. An attacker-controlled DNS server can return a public IP on the first lookup and an internal IP (e.g. 127.0.0.1 or 169.254.169.254) on the second, which bypasses the check. The validated IP is not pinned for the actual connection. Confidence is lower than F1 because it needs attacker-controlled DNS with a short TTL. I did not confirm that IPv4-mapped IPv6 addresses (::ffff:x.x.x.x) are rejected, and that depends on the Python version.",
+    "source": "HTTP query parameter `url` (request.args.get) on GET /fetch, supplied by any remote client",
+    "sink": "requests.get(url, timeout=5, allow_redirects=False) at views.py:14",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from request.args"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) called"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "first DNS resolution via getaddrinfo, used only for the check"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "IP class check; the resolved IP is discarded afterwards"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get resolves the hostname again, so the connection IP can differ from the checked IP"
+     }
+    ],
+    "guards_checked": "The scheme is limited to http/https and a hostname is required. All resolved IPs are checked against private, loopback, link-local and reserved ranges. allow_redirects=False blocks redirect-based bypass. There is no IP pinning, and the check does not guard against a second DNS answer."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none closing: scheme http/https + hostname required (validators.py:12), resolved-IP class check (validators.py:14-17), allow_redirects=False (views.py:14); none pins the validated IP, and there is no hostname allowlist",
+    "reason": "views.py:11 takes an attacker-controlled url, validators.py:14-16 resolves and checks the IPs and then discards them, and requests.get at views.py:14 resolves the hostname again, so a rebinding DNS server can return a public IP for the check and an internal IP for the connection. The only guards are a scheme check and an IP-class check, and neither is a closing guard."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0611149
+}

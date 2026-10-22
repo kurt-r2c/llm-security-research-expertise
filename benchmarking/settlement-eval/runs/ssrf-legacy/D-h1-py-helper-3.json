@@ -1,0 +1,117 @@
+{
+ "arm": "D",
+ "repo": "h1-py-helper",
+ "rep": 3,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.1140922,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-gg_oh2rv/r/views.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-gg_oh2rv/r/validators.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-gg_oh2rv/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "HIGH: /fetch2 fetches a fully user-controlled URL. The only check is a scheme check (http/https). There is no host allowlist and no IP filtering, and requests follows redirects by default. An attacker can reach loopback, RFC-1918 hosts and cloud metadata (169.254.169.254) and read the first 200 bytes of the response. An external server that redirects to an internal address also works.",
+    "source": "request.args.get(\"url\") at views.py:19 (HTTP query parameter on the public Flask route /fetch2)",
+    "sink": "requests.get(url, timeout=5) at views.py:22 (redirects followed, response body returned in JSON)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url = request.args.get(\"url\", \"\") (attacker-controlled)"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) is called; it only checks that the scheme is http or https"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "urlparse(url).scheme in (\"http\", \"https\") is a scheme-only check and does not restrict the host"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url, timeout=5) with default allow_redirects=True; the first 200 characters of the body are returned to the caller"
+     }
+    ],
+    "guards_checked": "is_http_url (validators.py:6-7) is scheme-only, so it does not close the finding. No hostname allowlist, no IP or CIDR filtering and no redirect restriction on this path. I found no authentication or authorization decorator on the route, and the repo contains no in-repo egress config."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (is_http_url at validators.py:7 is scheme-only; no host allowlist, IP filtering, or redirect restriction on /fetch2; no auth decorator)",
+    "reason": "views.py:19 takes the url from request.args, validators.py:7 only checks the scheme, and views.py:22 calls requests.get(url, timeout=5) with redirects enabled and returns the first 200 characters of the body, so there is no closing guard (the safe /fetch route at views.py:12-14 uses is_safe_url, but /fetch2 does not)."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "MEDIUM (lower confidence): /fetch blocks private, loopback, link-local and reserved IPs, but only with a denylist check that resolves DNS separately from the request. validators.py:14 resolves the hostname with getaddrinfo and checks the resulting IPs. requests.get at views.py:14 then resolves the hostname again, so a DNS-rebinding hostname (short TTL, or alternating public and internal answers) passes the check and then connects to an internal IP. No hostname allowlist exists. Redirects are disabled, which closes the redirect route. The response body is still returned.",
+    "source": "request.args.get(\"url\") at views.py:11 (HTTP query parameter on the public Flask route /fetch)",
+    "sink": "requests.get(url, timeout=5, allow_redirects=False) at views.py:14",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url = request.args.get(\"url\", \"\") (attacker-controlled)"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) is called"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse(url) parses the URL; the scheme must be http or https and a hostname must be present"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(hostname, port) is the first DNS resolution, used only for the check"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "Denylist check on is_private, is_loopback, is_link_local and is_reserved; the check passes if the first lookup returns a public IP"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url, ...) performs a second, independent DNS resolution at connect time (TOCTOU), so the connection can go to an internal address"
+     }
+    ],
+    "guards_checked": "Scheme restriction and a resolved-IP denylist (validators.py:12-17). allow_redirects=False closes the redirect bypass, and there is no manual Location re-fetch. The check is not a strict hostname allowlist and the resolved IP is not pinned to the connection, so the DNS-rebinding window remains. Possible urlparse versus requests parsing differentials were not confirmed and are not claimed. No authentication on the route."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Scheme restriction plus resolved-IP denylist (validators.py:12-17) and allow_redirects=False (views.py:14); no hostname allowlist and no IP pinning, so none of these closes the finding.",
+    "reason": "The url comes from request.args at views.py:11, is checked only by a separate getaddrinfo denylist at validators.py:14-16, and requests.get at views.py:14 resolves the hostname again, so DNS rebinding can bypass the check."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.063737
+}

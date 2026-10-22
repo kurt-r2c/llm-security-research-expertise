@@ -1,0 +1,120 @@
+{
+ "arm": "D",
+ "repo": "h3-go-substr",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.014924990000000003,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Bash": 1,
+   "Read": 4,
+   "Glob": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-xij0bb1g/r/.claude/skills/security-research/infrastructure/SKILL.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-xij0bb1g/r/.claude/skills/security-research/triage/SKILL.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-xij0bb1g/r/main.go",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-xij0bb1g/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "/logo fetches any attacker-supplied URL that merely contains the substring 'example.io', following redirects and returning the response body to the unauthenticated caller. This is HIGH SSRF.",
+    "source": "main.go:31 r.FormValue(\"logo\") from an unauthenticated GET /logo query or body parameter",
+    "sink": "main.go:36 http.Get(raw) using DefaultClient, which follows redirects; body returned via io.Copy at main.go:38",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 45,
+      "note": "ListenAndServe(\":8081\") binds all interfaces, so this is public ingress"
+     },
+     {
+      "file": "main.go",
+      "line": 43,
+      "note": "/logo routed to logo handler"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "attacker-controlled logo parameter read"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "substring check strings.Contains(raw, \"example.io\") passes if the string appears in the query, e.g. http://169.254.169.254/latest/meta-data/?example.io"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) dispatches the full attacker URL without parsing or host validation"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy returns the internal response body to the attacker (not blind SSRF)"
+     }
+    ],
+    "guards_checked": "Host check: substring only, not exact hostname membership (fails per ssrf skill). Redirects: not disabled (DefaultClient follows, so attacker host can 302 to metadata or RFC-1918). Scheme: not restricted (Go client only accepts http/https). Auth: none on route. IP/CIDR blocking: none. Repro: curl -s 'http://<host>:8081/logo?logo=http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data%2F%3Fexample.io' (Validation Tier 0). Impact depends on what the host can reach; cannot be confirmed from code alone."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": false,
+    "guard_found": "none. The only check is the substring test at main.go:32, which the rules say does not close the finding. Redirects are not restricted: main.go:36 uses http.Get, which uses DefaultClient and follows redirects. No scheme, host, or IP filtering exists, and the route has no auth.",
+    "reason": "The sink is real: main.go:31 reads the unauthenticated `logo` parameter, main.go:32 only checks that it contains \"example.io\", main.go:36 fetches it with http.Get (which follows redirects), and main.go:38 copies the response body back to the caller. trace_ok is false on a single cited line: the trace places ListenAndServe(\":8081\") at main.go:45, but it is at main.go:44 (line 45 is the closing brace). That off-by-one does not change the substance, so the verdict stands, but the trace as written is not exact."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-CLOSED-cdn",
+    "file": "main.go",
+    "line": 20,
+    "claim": "/cdn handler is NOT a finding: exact hostname allowlist on u.Hostname() (main.go:20), same parsed URL is requested (main.go:15, 25), and redirects are blocked via noRedirect (main.go:12, 24). Residual: any port/path on cdn.example.io; public DNS of that host not verifiable from code.",
+    "source": "main.go:15 r.FormValue(\"u\")",
+    "sink": "main.go:25 c.Get(u.String())",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "url.Parse of attacker input"
+     },
+     {
+      "file": "main.go",
+      "line": 20,
+      "note": "exact membership in trusted map on Hostname()"
+     },
+     {
+      "file": "main.go",
+      "line": 24,
+      "note": "CheckRedirect returns http.ErrUseLastResponse"
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "request to allowlisted host only"
+     }
+    ],
+    "guards_checked": "Exact hostname set membership before dispatch; no parser differential; redirects not followed."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact hostname set membership on the parsed URL: main.go:20 `trusted[u.Hostname()]` against `{\"cdn.example.io\"}` (main.go:10), returning 403 otherwise. Redirects are also blocked by `noRedirect` returning http.ErrUseLastResponse (main.go:12, 24).",
+    "reason": "The trace matches the code: r.FormValue(\"u\") (main.go:15) is attacker-controlled, but main.go:20 requires an exact match of u.Hostname() against cdn.example.io, and main.go:24 stops redirects, so the request at main.go:25 can only reach that allowlisted host, which closes the SSRF. The only residual (any port or path on cdn.example.io) is not an SSRF to an unintended target."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00422799
+}

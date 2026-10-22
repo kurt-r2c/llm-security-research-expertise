@@ -1,0 +1,268 @@
+{
+ "arm": "A",
+ "repo": "pyjwt-crypto",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.03254474,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "Grep": 1,
+   "Write": 1,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mvdho1ax/r/jwt/api_jws.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mvdho1ax/r/jwt/api_jwt.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mvdho1ax/r/jwt/algorithms.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mvdho1ax/r/jwt/jwks_client.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mvdho1ax/r/jwt/api_jwk.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mvdho1ax/r/jwt/jwk_set_cache.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-mvdho1ax/r/jwt/utils.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "JWT-1",
+    "file": "jwt/api_jwt.py",
+    "line": 452,
+    "claim": "When the caller passes subject=, a token that has no sub claim is accepted. The subject check is skipped entirely when sub is absent, so the caller's required-subject constraint is not enforced. Severity: low to medium, and only reachable with a token signed by a trusted key that lacks sub.",
+    "source": "Token payload with no 'sub' claim, signed by a key the verifier trusts (attacker-controlled only if they hold that key or a sibling token type that shares it).",
+    "sink": "Caller-enforced subject check in _validate_sub (api_jwt.py:452-454), which the caller relies on to authorize the subject.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 420,
+      "note": "verify_sub is on by default, so _validate_sub runs"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 446,
+      "note": "if 'sub' not in payload: return, before the subject argument is looked at"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 452,
+      "note": "the subject comparison is reached only when sub exists"
+     }
+    ],
+    "guards_checked": "verify_sub default (420); isinstance(sub, str) check (449-450) only runs when sub exists; signature verification must pass first (api_jws.py:277-285). Missing-sub with a required subject is not rejected. Note: the upstream PyJWT behaves the same way, so this is a parity gap, not a regression."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-2",
+    "file": "jwt/jwks_client.py",
+    "line": 213,
+    "claim": "An unauthenticated token with a random kid forces a synchronous, unthrottled refetch of the JWKS endpoint on every call (get_signing_key -> get_signing_keys(refresh=True)). That is outbound-request amplification against the IdP and a per-request latency hit, with a 30s default timeout.",
+    "source": "JWT 'kid' header, read unverified by get_signing_key_from_jwt (attacker-controlled).",
+    "sink": "Outbound HTTP fetch of the JWKS URI in fetch_data (jwks_client.py:135), reached from the forced refresh at jwks_client.py:218.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 239,
+      "note": "kid read from unverified header"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 241,
+      "note": "calls get_signing_key(header.get('kid'))"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 213,
+      "note": "first lookup, uses cache"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 218,
+      "note": "no match -> get_signing_keys(refresh=True), bypasses the JWK Set cache"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 168,
+      "note": "get_jwk_set calls fetch_data when data is None"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 135,
+      "note": "blocking network request, timeout default 30 (jwks_client.py:39)"
+     }
+    ],
+    "guards_checked": "Only the URI scheme is checked (jwks_client.py:90-95) and redirects are blocked (17-27). No rate limit, no negative caching of misses, no minimum refresh interval. lru_cache on get_signing_key (115) does not cache exceptions, so repeated misses always refetch."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-3",
+    "file": "jwt/jwks_client.py",
+    "line": 115,
+    "claim": "With cache_keys=True, get_signing_key is wrapped in an lru_cache with no TTL. A key removed from the JWKS (rotated out or revoked after compromise) keeps verifying tokens for that kid until it is evicted by 16 other kids. The JWK Set lifespan does not apply on this path.",
+    "source": "Token with a kid that was once valid and has since been removed from the JWKS.",
+    "sink": "Cached PyJWK returned by get_signing_key (jwks_client.py:226) and used for signature verification.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 113,
+      "note": "cache_keys=True enables the LRU wrapper"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 115,
+      "note": "lru_cache(maxsize=max_cached_keys)(self.get_signing_key), no expiry"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 57,
+      "note": "docstring documents 'no time-based expiration'"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 226,
+      "note": "returned key is used for verification downstream"
+     }
+    ],
+    "guards_checked": "The JWK Set TTL (lifespan) is only consulted in get_jwk_set, which the LRU hit skips. Only the LRU size bounds retention. Documented design, but it is a real revocation gap for compromised keys."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-4",
+    "file": "jwt/api_jws.py",
+    "line": 416,
+    "claim": "For a PyJWK key, the algorithm is taken from key.Algorithm (the global default table), not from the instance's restricted self._algorithms / _valid_algs. A PyJWS built with algorithms=[...] therefore accepts other algorithms when verifying with a PyJWK, so the constructor-level allowlist is bypassed. Only the per-call algorithms argument still applies. Impact depends on the caller relying on the constructor allowlist.",
+    "source": "Token header 'alg' (attacker-controlled) plus any PyJWK the verifier holds, for example an oct key with alg HS256.",
+    "sink": "Signature verification via key.Algorithm.verify (api_jws.py:416-432), bypassing the PyJWS(algorithms=...) restriction set up at api_jws.py:44-52.",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 44,
+      "note": "constructor prunes self._algorithms to the allowlist"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 395,
+      "note": "algorithms = [key.algorithm_name] when the caller passes none"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 402,
+      "note": "alg must be in the (per-call) algorithms list"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 411,
+      "note": "alg must equal key.algorithm_name"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 416,
+      "note": "alg_obj = key.Algorithm, the global table. No check against self._valid_algs"
+     }
+    ],
+    "guards_checked": "Per-call algorithms (402) and PyJWK alg binding (411-415) are enforced. Constructor allowlist is not consulted on the PyJWK branch. Non-PyJWK keys do use get_algorithm_by_name, which is restricted (api_jws.py:420). The default jwt.decode path is unaffected because _jws has no allowlist."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-5",
+    "file": "jwt/api_jwk.py",
+    "line": 82,
+    "claim": "A JWK with alg 'none' raises NotImplementedError, which is not a PyJWTError and is not caught. One such key in a JWKS makes PyJWKSet construction raise and takes down key lookup for the whole set (availability failure). Requires attacker control of the JWKS response (MITM or IdP compromise).",
+    "source": "JWKS response body (jwks_client.py:136) containing a key with \"alg\": \"none\".",
+    "sink": "NoneAlgorithm.from_jwk raises NotImplementedError (algorithms.py:306-309) during PyJWK construction, which propagates out of PyJWKSet.__init__.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 136,
+      "note": "untrusted JWKS JSON parsed"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 173,
+      "note": "PyJWKSet.from_dict(data)"
+     },
+     {
+      "file": "jwt/api_jwk.py",
+      "line": 152,
+      "note": "PyJWK(key) per entry"
+     },
+     {
+      "file": "jwt/api_jwk.py",
+      "line": 83,
+      "note": "self.Algorithm.from_jwk(...) for NoneAlgorithm"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 308,
+      "note": "NoneAlgorithm.from_jwk raises NotImplementedError"
+     },
+     {
+      "file": "jwt/api_jwk.py",
+      "line": 84,
+      "note": "except ValueError only, so NotImplementedError escapes"
+     },
+     {
+      "file": "jwt/api_jwk.py",
+      "line": 153,
+      "note": "except PyJWTError only, so the exception escapes PyJWKSet.__init__"
+     }
+    ],
+    "guards_checked": "alg is looked up in get_default_algorithms (api_jwk.py:76), so 'none' is accepted there. The only exception handling is ValueError (api_jwk.py:84) and PyJWTError (api_jwk.py:153). No verification bypass: NoneAlgorithm.verify returns False (algorithms.py:300-301) and alg must match the key."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "JWT-6",
+    "file": "jwt/api_jwt.py",
+    "line": 477,
+    "claim": "Claim type errors from int() are not normalized. Only ValueError is caught, so a TypeError (e.g. exp: null or [1]) or OverflowError (e.g. exp: Infinity, which json accepts by default) escapes as a non-PyJWTError. This is a crash / 500 path, not a bypass, and it fails closed.",
+    "source": "Payload claim value iat / nbf / exp. Attacker-controlled only when signature verification is off, or when the token is signed by a trusted issuer that emits malformed claims.",
+    "sink": "int(payload[...]) at api_jwt.py:477 (iat), 492 (nbf), 506 (exp), with only ValueError handled.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 403,
+      "note": "iat check runs when the claim is present and verify_iat is on"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 477,
+      "note": "int(payload['iat']) with except ValueError only"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 409,
+      "note": "exp check similarly"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 506,
+      "note": "int(payload['exp']), TypeError/OverflowError escape"
+     }
+    ],
+    "guards_checked": "Presence checks (403, 406, 409); ValueError is handled (478, 493, 507); the signature must verify first on the default path (api_jws.py:277-285). Result: an uncaught exception, so callers that catch only PyJWTError see a 500 rather than a clean rejection."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

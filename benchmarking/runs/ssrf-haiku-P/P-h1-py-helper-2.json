@@ -1,0 +1,126 @@
+{
+ "arm": "P",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00615999,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-sgruj15i/r/views.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-sgruj15i/r/validators.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 forwards an unvalidated user-supplied URL to requests.get with redirects enabled; only the URL scheme is checked, so internal hosts, loopback, and cloud metadata endpoints are reachable and the first 200 bytes of the response are returned to the caller.",
+    "source": "views.py:19 request.args.get(\"url\") (remote client, query string)",
+    "sink": "views.py:22 requests.get(url, timeout=5) \u2014 server-side outbound HTTP request; response body returned in JSON",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken from query string, no normalization"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url called as the only guard"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "is_http_url checks only urlparse(url).scheme in (http, https); no host/IP check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get called with same unvalidated url; allow_redirects defaults to True so 3xx to internal targets are followed"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "first 200 chars of body reflected in response"
+     }
+    ],
+    "guards_checked": "Scheme allowlist only (validators.py:7). No host, IP-range, port, or redirect restriction. Name is_http_url suggests more than it checks."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None on the /fetch2 path. views.py:20 calls is_http_url, which at validators.py:7 checks only urlparse(url).scheme in (\"http\", \"https\"). No host, IP, or redirect check precedes requests.get at views.py:22, and it uses default allow_redirects. The stronger is_safe_url (validators.py:10-18) is imported at views.py:4 but is not called on /fetch2. The /fetch route at views.py:12 and :14 does use it with allow_redirects=False, so that route is not affected.",
+    "reason": "The attacker-controlled url at views.py:19 reaches requests.get at views.py:22 after only a scheme check (validators.py:7 via views.py:20), with no host or IP restriction and redirects followed by default, and the first 200 bytes of the response are returned at views.py:22."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch validates the destination by resolving the hostname once, then fetches the URL with requests.get which resolves it again. A DNS-rebinding domain can return a public IP at check time and an internal IP at connect time, bypassing the private/loopback/link-local/reserved check.",
+    "source": "views.py:11 request.args.get(\"url\") (remote client, query string)",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False) \u2014 server-side outbound request; response body returned in JSON",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) called as guard"
+     },
+     {
+      "file": "validators.py",
+      "line": 12,
+      "note": "scheme must be http/https and hostname must be non-empty"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(hostname, port or 443) \u2014 first DNS resolution; port defaults to 443 even for http://"
+     },
+     {
+      "file": "validators.py",
+      "line": 15,
+      "note": "each returned address parsed by ipaddress.ip_address"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "rejects is_private, is_loopback, is_link_local, is_reserved; all addresses must pass"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get resolves hostname again independently; no IP pinning between check and connect"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (validators.py:12); all resolved addresses checked (validators.py:14-17); allow_redirects=False (views.py:14) closes redirect bypass; timeout=5 does not limit destination. Confidence medium-high: relies on attacker-controlled DNS with short TTL; not run against live DNS."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "No closing guard. The scheme check (validators.py:12) and the private/loopback/link-local/reserved IP check (validators.py:14-17) are not among the accepted closers, since neither is an exact hostname allowlist. allow_redirects=False (views.py:14) addresses redirects, not DNS rebinding. Nothing pins the resolved IP between validators.py:14 and views.py:14.",
+    "reason": "The check at validators.py:14-17 and the fetch at views.py:14 each resolve the hostname independently with no IP pinning, and the hostname comes straight from the unauthenticated query string at views.py:11, so a rebinding DNS record can pass the check and then reach an internal address. Also, /fetch2 at views.py:19-22 has no IP check at all, so it is a more direct SSRF than the candidate describes and was not mentioned in the candidate."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00436887
+}

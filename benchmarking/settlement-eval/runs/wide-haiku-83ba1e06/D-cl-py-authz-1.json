@@ -1,0 +1,191 @@
+{
+ "arm": "D",
+ "repo": "cl-py-authz",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01047899,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-660jrmdh/r/notes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Authorization depends on g.user, which notes.py never sets. If upstream middleware sets g.user from an unverified header or parameter, any caller can impersonate an owner and read, write, or share any note. Without such middleware, reads fail closed with AttributeError (500). Severity is conditional on deployment; cannot be verified from this file alone.",
+    "source": "Any HTTP caller reaching /n/<nid>, PUT /n/<nid>, or POST /n/<nid>/share (unauthenticated precondition)",
+    "sink": "require_view / can_edit / require_edit gate read, write, and share access using g.user",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "read() loads NOTES[nid]"
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view(g.user, n) \u2014 g.user never assigned in this file"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view: owner == user or user in shared"
+     },
+     {
+      "file": "notes.py",
+      "line": 35,
+      "note": "write() calls can_edit(g.user, n)"
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "share() calls require_edit(g.user, n)"
+     }
+    ],
+    "guards_checked": "No authentication in this file. No before_request hook. g.user is never assigned here. Upstream middleware not present in the audited code."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "Authorization checks at notes.py:12-13 (require_view, abort(403)), notes.py:21-22 (require_edit, abort(403)), and notes.py:35-36 (inline can_edit, abort(403)). Each result is tested and aborts on failure. No authentication, before_request hook, or assignment of g.user exists in notes.py, so g.user is unset within this file.",
+    "reason": "Every trace line matches notes.py (27, 28, 8, 35, 44), but whether g.user is set by a caller-controlled source (notes.py:28, 35, 44) depends on middleware outside the audited file; within notes.py alone, the access to g.user raises AttributeError and fails closed, so the impersonation path can be neither confirmed nor refuted from this code."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "BIZ-1",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "Shared access cannot be revoked. Once granted, a user keeps read access permanently. No unshare or revoke route exists.",
+    "source": "Owner-authenticated POST /n/<nid>/share with a user value",
+    "sink": "n['shared'].append(...) grants persistent read access checked in can_view",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "share() appends request.json['user'] to shared"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view grants access if user in shared, with no expiry or revocation"
+     }
+    ],
+    "guards_checked": "Only the owner can share (require_edit at notes.py:44). No revocation path exists in the file."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22) restricts /share to the owner, and can_view (notes.py:8) checks membership in shared. Neither is a revocation control, but the grant at notes.py:45 happens only for the owner.",
+    "reason": "The trace is accurate (notes.py:45 appends, notes.py:8 checks membership, and no unshare route exists), but only the owner can reach the grant at notes.py:44-45, and a non-owner cannot gain or keep access they were not given. The missing revocation is a functional gap in the owner's control, not an attacker-reachable vulnerability, so it should be treated as a design issue rather than a security finding."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "BIZ-2",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "Share list accepts arbitrary, duplicate, and unbounded entries. Non-string values and repeats grow the list without bound, making the membership check at line 8 progressively slower. Impact is memory and CPU growth, not access.",
+    "source": "JSON body 'user' field on POST /n/<nid>/share, from the owner",
+    "sink": "n['shared'].append(...) with no validation, then 'user in note[\"shared\"]' at notes.py:8",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "append request.json['user'] with no type check, dedupe, or cap"
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "user in note['shared'] is O(n) per request"
+     }
+    ],
+    "guards_checked": "Owner-only via require_edit. No type validation, dedupe, or size cap."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22) aborts with 403 unless the caller is the note owner, so only the owner can reach the append at notes.py:45. No type check, dedupe, or size cap exists on request.json[\"user\"].",
+    "reason": "The trace is accurate (notes.py:45 appends unchecked input, notes.py:8 does an O(n) membership test), but the only caller who can reach notes.py:45 is the note owner via require_edit (notes.py:20-22). That owner already has full control over the note's sharing list, so the self-inflicted slowdown of their own note is not a privilege or access flaw, and the finding should not be reported as a security vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "OUT-1",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Existence oracle: an unknown note ID raises KeyError (HTTP 500) while an existing note the caller cannot view returns 403, so an attacker can enumerate which note IDs exist. Exploitable only if IDs are guessable; ID generation is not in this file.",
+    "source": "Any caller supplying nid in the URL path",
+    "sink": "Differing HTTP status (500 vs 403) on NOTES[nid] lookup vs require_view abort",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "n = NOTES[nid] raises KeyError for unknown nid, yielding 500"
+     },
+     {
+      "file": "notes.py",
+      "line": 13,
+      "note": "require_view aborts 403 for an existing note the caller cannot view"
+     }
+    ],
+    "guards_checked": "None. No 404 mapping and no .get() lookup. ID format unknown."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. notes.py:27 does a bare NOTES[nid] lookup with no .get() and no 404 handling, so an unknown ID raises KeyError. notes.py:28 calls require_view, which aborts 403 at notes.py:13 for an existing note the caller cannot view. No errorhandler is defined in this file. Flask's default for an unhandled KeyError is 500, but a global handler could exist outside the files provided.",
+    "reason": "notes.py:27 raises KeyError for unknown IDs (500) while notes.py:13 aborts 403 for existing notes the caller cannot view, so any caller who reaches /n/<nid> can tell existence apart by status code. Severity depends on ID entropy, which is not visible here, and a global error handler outside this file could change the 500 response."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "OUT-2",
+    "file": "notes.py",
+    "line": 37,
+    "claim": "Malformed or missing input returns HTTP 500 (KeyError/TypeError on request.json['body'] or request.json['user']), and no MAX_CONTENT_LENGTH is set so request bodies are unbounded. Availability and error-handling impact only.",
+    "source": "Request body on PUT /n/<nid> (body key) and POST /n/<nid>/share (user key)",
+    "sink": "request.json[...] subscript access with no validation; unbounded body read by Flask",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 37,
+      "note": "request.json['body'] raises on missing key or non-JSON"
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "request.json['user'] raises on missing key or non-JSON"
+     }
+    ],
+    "guards_checked": "No input validation, no 400 handling, no MAX_CONTENT_LENGTH configured."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": false,
+    "guard_found": "none for missing keys: notes.py:37 and notes.py:45 subscript request.json directly with no try/except or 400 handling. The authorization checks (require_edit at notes.py:44, can_edit at notes.py:35) run first but do not gate malformed input. No MAX_CONTENT_LENGTH is configured in notes.py.",
+    "reason": "The lines exist (notes.py:37, notes.py:45), but the trace is wrong for non-JSON input: Flask's request.json raises a 400 or 415 error, not a 500. A missing key does raise KeyError and return 500, but only to the caller's own malformed request, and the write and share paths are already gated by ownership checks (notes.py:35, notes.py:44). The remaining claim is an unbounded body with no concrete impact, so this is not a security vulnerability."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.010472970000000002
+}

@@ -1,0 +1,250 @@
+{
+ "arm": "K1",
+ "repo": "svgsanitizer-injection",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.044353210000000004,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 9,
+   "Bash": 1,
+   "ToolSearch": 1,
+   "WebSearch": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/Sanitizer.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/svg-scanner.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/Helper.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/ElementReference/Resolver.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/ElementReference/Subject.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/ElementReference/Usage.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/data/AllowedTags.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/data/AllowedAttributes.php",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-lik2rdsl/r/src/data/XPath.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/ElementReference/Subject.php",
+    "line": 60,
+    "claim": "hasInfiniteLoop and countUse enumerate all paths without memoization, so a layered DAG (15 levels, width w, each <g id> containing w <use> to the next level) causes ~w^14 work per top subject (CPU DoS). Depth cap 15 bounds depth but not breadth.",
+    "source": "Untrusted SVG passed to Sanitizer::sanitize (src/Sanitizer.php:216)",
+    "sink": "Subject::hasInfiniteLoop (Subject.php:60-76) via Resolver::determineInvalidSubjects (Resolver.php:128-150); also Subject::countUse (Subject.php:114-122) via Sanitizer::isUseTagExceedingThreshold (Sanitizer.php:681-698)",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 245,
+      "note": "Resolver constructed and collect() called"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 136,
+      "note": "determineInvalidSubjects calls hasInfiniteLoop for each subject"
+     },
+     {
+      "file": "src/ElementReference/Subject.php",
+      "line": 69,
+      "note": "path copied per recursion, no visited set"
+     },
+     {
+      "file": "src/ElementReference/Subject.php",
+      "line": 70,
+      "note": "recurses into every usage"
+     }
+    ],
+    "guards_checked": "Nesting limit (Subject.php:62-64) only caps depth at 15; cycle check is path-local (Subject.php:66); useThreshold (Sanitizer.php:683) only applies to <use> elements and itself calls countUse, which is unmemoized."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/ElementReference/Resolver.php",
+    "line": 87,
+    "claim": "Duplicate id values overwrite earlier subjects, so the first element's <use> edges are missing from the graph. The threshold guard then measures the benign duplicate while browsers resolve #id to the first element, letting a use-bomb through.",
+    "source": "Attacker SVG with duplicate id attributes",
+    "sink": "Client-side rendering of sanitized output (use-expansion DoS); guard bypass in Sanitizer::isUseTagExceedingThreshold",
+    "trace": [
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 89,
+      "note": "$this->subjects[id] overwritten by later duplicate"
+     },
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 105,
+      "note": "processReferences iterates only $this->subjects, so shadowed element's uses are never added"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 692,
+      "note": "findByElementId returns the surviving (benign) duplicate, countUse is 0, threshold not exceeded"
+     }
+    ],
+    "guards_checked": "Threshold check (Sanitizer.php:692-696); no duplicate-id rejection anywhere in the pipeline."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/ElementReference/Resolver.php",
+    "line": 132,
+    "claim": "determineInvalidSubjects skips subjects whose element is already in elementsToRemove, and markSubjectAsInvalid puts target (id) elements there while startClean only removes <use> nodes. For a mutual cycle A->{B,C}, B<->C, B and C are never cleared, so a top-level <use href=#B> reaches countUse with an intact cycle and recurses without bound. PLAUSIBLE: crash requires in_array to compare DOM objects by identity; under loose equality all <use> nodes are removed instead.",
+    "source": "Attacker SVG with mutually referencing <g id> elements",
+    "sink": "Subject::countUse unbounded recursion (Subject.php:114-122) via Sanitizer::isUseTagExceedingThreshold (Sanitizer.php:692-693)",
+    "trace": [
+     {
+      "file": "src/ElementReference/Resolver.php",
+      "line": 132,
+      "note": "in_array skip for B and C after A is cleared"
+     },
+     {
+      "file": "src/ElementReference/Subject.php",
+      "line": 142,
+      "note": "clearInternalAndGetAffectedElements returns target elements, not use elements"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 332,
+      "note": "removal only applies when nodeName is 'use'"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 692,
+      "note": "countUse invoked on B"
+     }
+    ],
+    "guards_checked": "Cycle detection in hasInfiniteLoop (Subject.php:66) runs only for non-skipped subjects; threshold check (Sanitizer.php:683) requires useThreshold>0 (default 1000)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/Sanitizer.php",
+    "line": 223,
+    "claim": "The PHP-tag stripping loop removes one nesting level per full-string preg_replace pass, giving quadratic time in input size for nested <?p<?php\u2026?>hp\u2026?> payloads.",
+    "source": "Untrusted SVG body passed to Sanitizer::sanitize",
+    "sink": "preg_replace/preg_match loop (Sanitizer.php:228-229)",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 228,
+      "note": "one level stripped per pass"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 229,
+      "note": "loop repeats while matches remain"
+     }
+    ],
+    "guards_checked": "No nesting or iteration cap; the loop is not a security boundary, so impact is resource exhaustion only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/data/AllowedTags.php",
+    "line": 31,
+    "claim": "animatecolor, animatemotion and animatetransform are allowed, with attributename and values whitelisted, and the href check only covers attributes literally named href. A javascript: value in values targeting href on a parent <a> may be applied by SMIL animation. PLAUSIBLE: browser-dependent and not tested (web search was denied).",
+    "source": "Attacker SVG: <a><animatecolor attributeName=\"href\" values=\"javascript:...\"/></a>",
+    "sink": "Animated href on <a> executed on click in a browser",
+    "trace": [
+     {
+      "file": "src/data/AllowedTags.php",
+      "line": 31,
+      "note": "animatecolor allowed"
+     },
+     {
+      "file": "src/data/AllowedAttributes.php",
+      "line": 120,
+      "note": "attributename allowed"
+     },
+     {
+      "file": "src/data/AllowedAttributes.php",
+      "line": 271,
+      "note": "values allowed, never checked by isHrefSafeValue"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 431,
+      "note": "href check applies only to attribute names containing href"
+     }
+    ],
+    "guards_checked": "isHrefSafeValue (Sanitizer.php:523-573) applies to the element's own href attributes only; no check on values/attributeName."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "src/Sanitizer.php",
+    "line": 596,
+    "claim": "removeRemoteReferences misses unquoted url() values, and <style> element text is never scanned, so remote references survive when the option is enabled.",
+    "source": "Attacker SVG attribute fill=\"url(https://attacker/x)\" or <style> with remote url()/@import",
+    "sink": "Remote fetch by the viewing browser (tracking / privacy); documented opt-in control bypassed",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 596,
+      "note": "regex requires a quote character inside url()"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 446,
+      "note": "only attribute values are checked"
+     }
+    ],
+    "guards_checked": "hasRemoteReference (Sanitizer.php:592-604); quote requirement in regex; no scan of text nodes."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "src/Sanitizer.php",
+    "line": 670,
+    "claim": "<use href=\"0\"> passes the internal-only check: isHrefSafeValue treats \"0\" as empty (allowed) and isUseTagDirty treats \"0\" as falsy (not dirty), so an external relative reference survives.",
+    "source": "Attacker SVG <use href=\"0\"/>",
+    "sink": "Browser loads external resource named \"0\" relative to the page (same-origin only in practice)",
+    "trace": [
+     {
+      "file": "src/Sanitizer.php",
+      "line": 526,
+      "note": "empty('0') is true, so the href is allowed"
+     },
+     {
+      "file": "src/Sanitizer.php",
+      "line": 670,
+      "note": "$href && ... is false for '0', so not flagged dirty"
+     },
+     {
+      "file": "src/Helper.php",
+      "line": 20,
+      "note": "getElementHref returns '0' from the href attribute"
+     }
+    ],
+    "guards_checked": "isHrefSafeValue (Sanitizer.php:523) and isUseTagDirty (Sanitizer.php:667-671); impact is low because cross-origin use references are blocked by browsers."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

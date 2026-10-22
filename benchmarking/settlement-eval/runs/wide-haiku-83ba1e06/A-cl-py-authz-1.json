@@ -1,0 +1,197 @@
+{
+ "arm": "A",
+ "repo": "cl-py-authz",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.006429650000000001,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-bitcplqn/r/notes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "notes-1",
+    "file": "notes.py",
+    "line": 27,
+    "claim": "Unknown note IDs raise KeyError (500) while existing but unauthorized IDs return 403, letting an attacker distinguish which note IDs exist.",
+    "source": "Attacker-chosen nid path parameter in /n/<nid>.",
+    "sink": "NOTES[nid] lookup at line 27 (also lines 34 and 43), with the 403 returned by require_view at line 28.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read() route accepts nid from the URL."
+     },
+     {
+      "file": "notes.py",
+      "line": 27,
+      "note": "NOTES[nid] raises KeyError for unknown IDs, before any authorization check runs."
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view aborts 403 only for existing notes the caller cannot view."
+     }
+    ],
+    "guards_checked": "Authorization check runs after the lookup, so it does not guard existence. Severity low; depends on how note IDs are generated (sequential IDs make enumeration easy)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. notes.py:27 does `NOTES[nid]` before any check, so an unknown ID raises KeyError (500). For existing notes, require_view (notes.py:11-13, bare call at line 28) aborts 403 only when can_view is false. Nothing in this file catches the KeyError or runs an existence-hiding check first. The same lookup-before-auth pattern appears at notes.py:34 and 43.",
+    "reason": "notes.py:27 raises KeyError (500) for unknown IDs, while notes.py:28 returns 403 for existing notes the caller cannot view, so the two responses reveal whether a note ID exists. The candidate's trace matches the code, and no control in this file prevents it. The request needs no special role, since any caller who reaches the route gets the 403-versus-500 difference. Severity is low, as the candidate says. g.user is set outside this file, which I could not inspect, but nothing in notes.py changes the outcome for anonymous or low-privilege callers."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "notes-2",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "Owner can share with a JSON null (or other non-string) value. If an anonymous request ever has g.user None, can_view matches None in the shared list and grants read access.",
+    "source": "request.json[\"user\"] in /share, which accepts any JSON type.",
+    "sink": "n[\"shared\"].append at line 45, later checked by user in note[\"shared\"] in can_view at line 8.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "share() route is POST /n/<nid>/share."
+     },
+     {
+      "file": "notes.py",
+      "line": 44,
+      "note": "require_edit restricts this to the note owner."
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "request.json[\"user\"] is appended without type or existence validation; None is stored when JSON null is sent."
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view returns True when user is in note[\"shared\"]; None in [None] is True."
+     }
+    ],
+    "guards_checked": "require_edit (owner-only) at line 44. No type or existence validation on user. Exploitable only if g.user can be None for unauthenticated requests, which is set outside this file and unverified. Severity low, conditional."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22, called at notes.py:44) aborts with 403 unless can_edit is true, i.e. g.user == note[\"owner\"]. Nothing in the directory sets g.user (grep finds only reads at notes.py:28, 35, 44), so the None-user scenario is not established here. Even if g.user were None, can_edit(None, n) is False unless the note owner is None, which this file never creates.",
+    "reason": "The trace lines are accurate (notes.py:8, 41, 44, 45), but the only caller that can reach the append at notes.py:45 is the note owner via require_edit (notes.py:20-22, 44), so an anonymous request with g.user None is blocked with 403 and the attacker already holds owner power, which makes this a non-vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "notes-3",
+    "file": "notes.py",
+    "line": 45,
+    "claim": "The shared list has no deduplication or size cap, so an owner can grow it without limit, consuming server memory.",
+    "source": "Owner repeatedly calling POST /n/<nid>/share with request.json[\"user\"].",
+    "sink": "list.append at line 45 growing n[\"shared\"] indefinitely.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "share() route accepts repeated POSTs."
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "Each request appends another entry; duplicates are stored and nothing caps the length."
+     }
+    ],
+    "guards_checked": "require_edit at line 44 limits the caller to the owner. No dedupe, cap, or size limit. Severity low (authenticated resource growth)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_edit (notes.py:20-22, called at line 44) aborts with 403 unless the caller is the note owner; the call's result is not used, but abort() raises, so it is effective. No dedupe or size cap exists on n[\"shared\"] (line 45).",
+    "reason": "The trace is accurate (notes.py:44-45 and no cap), but only the note owner can reach the append via require_edit (notes.py:20-22, 44), and that owner already controls unbounded memory growth through PUT /n/<nid> with an arbitrary request.json[\"body\"] (notes.py:37), so the append grants no new power and the finding is not a vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "notes-4",
+    "file": "notes.py",
+    "line": 8,
+    "claim": "There is no unshare or revocation route, so once a user is added to shared they keep view access permanently and owners cannot withdraw it.",
+    "source": "Any user previously added to note[\"shared\"] via POST /n/<nid>/share (lines 41-46).",
+    "sink": "can_view at line 8 continues to return True for that user indefinitely.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 41,
+      "note": "share() is the only route that mutates sharing; it only appends."
+     },
+     {
+      "file": "notes.py",
+      "line": 45,
+      "note": "Entries are appended and never removed anywhere in the file."
+     },
+     {
+      "file": "notes.py",
+      "line": 8,
+      "note": "can_view has no expiry or revocation check."
+     }
+    ],
+    "guards_checked": "No revocation path exists in this file. This is a business-logic gap rather than a bypass. Severity medium for a data-access product."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. can_view (notes.py:8) has no expiry or revocation check. The only sharing route, share() (notes.py:41-46), appends to note[\"shared\"] at line 45 and nothing in notes.py removes entries. The only other route that reads sharing, read() (notes.py:26-29), calls require_view, which relies on can_view.",
+    "reason": "The trace matches notes.py: share() at line 45 only appends to note[\"shared\"], and can_view at line 8 never removes a user, so a user added once keeps view access and no route in this file lets the owner withdraw it. This is a lifecycle or business-logic gap rather than a bypass, and its severity is low to medium. The file does not show the full app, so an unshare route elsewhere would refute it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "notes-5",
+    "file": "notes.py",
+    "line": 29,
+    "claim": "The read response returns the full note record, including owner and the complete shared list, so any viewer can see every other collaborator's identity.",
+    "source": "Any user passing require_view (owner or member of shared) requesting /n/<nid>.",
+    "sink": "jsonify(n) at line 29 serializes owner and shared to the caller.",
+    "trace": [
+     {
+      "file": "notes.py",
+      "line": 26,
+      "note": "read() handles GET /n/<nid>."
+     },
+     {
+      "file": "notes.py",
+      "line": 28,
+      "note": "require_view admits owner or any member of shared."
+     },
+     {
+      "file": "notes.py",
+      "line": 29,
+      "note": "jsonify(n) returns the entire dict, including the sharing list."
+     }
+    ],
+    "guards_checked": "The view check at line 28 is correct. The issue is over-disclosure of collaborator identities to shared users. Severity low (privacy)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_view (notes.py:11-13) gates access to the record, but it only returns/aborts on the view check and does not filter fields. No other control sits between the response and the caller: jsonify(n) at notes.py:29 serializes the whole record, including \"owner\" and \"shared\".",
+    "reason": "The trace matches the code: read() at notes.py:26-29 passes require_view (line 28, which admits the owner or any member of n[\"shared\"]) and then returns the full note dict via jsonify(n) at line 29, so any authorized viewer receives the owner and the complete collaborator list. The disclosure is real but low severity: the attacker must already be an owner or a shared member, and the exposed data is sharing metadata rather than an access-control bypass."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01044573
+}

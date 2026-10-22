@@ -1,0 +1,198 @@
+{
+ "arm": "A",
+ "repo": "ipaddress-ssrf",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.02965576,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 10,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/ip-address.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/ipv4.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/ipv6.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/common.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/address-error.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/v6/helpers.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/v6/regular-expressions.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/v6/constants.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/v4/constants.ts",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-75h_bi8g/r/src/v6/regular-expressions.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/common.ts",
+    "line": 39,
+    "claim": "isInSubnet/isHostInSubnet have no address-family check. An Address6 can be tested against an Address4 subnet (and vice versa) by comparing raw leading bits. An IPv6 literal whose first bits match an IPv4 allowlist entry is reported as inside it. The helper is documented as the trust-boundary primitive for untrusted input (ipv4.ts:457-462, ipv6.ts:1218-1225), so an allow/deny filter that mixes families is bypassable. Medium severity, conditional on the caller mixing families.",
+    "source": "Attacker-controlled IPv6 literal, e.g. '808:808:808::1', parsed by new Address6(...) (ipv6.ts:113).",
+    "sink": "common.isHostInSubnet (common.ts:39-41), reached via Address6.isHostInSubnet (ipv6.ts:1226) and Address6.isInSubnet (ipv6.ts:1216), or via Address4.isHostInSubnet/isInSubnet (ipv4.ts:455,465).",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1226,
+      "note": "isHostInSubnet = common.isHostInSubnet; no family guard"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 19,
+      "note": "isInSubnet: only checks subnetMask ordering, then delegates"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 40,
+      "note": "return this.mask(address.subnetMask) === address.mask(); compares raw bits across families"
+     }
+    ],
+    "guards_checked": "TypeScript signature accepts Address4|Address6 for both sides (no type narrowing). isInSubnet's subnetMask-ordering check (common.ts:20) does not check family. No runtime instanceof/family check in isHostInSubnet. Repro by reading: new Address6('808:808:808::1').isHostInSubnet(new Address4('8.8.8.0/24')) returns true, because the first 24 bits of both are 00001000 00001000 00001000."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/ipv6.ts",
+    "line": 1450,
+    "claim": "Address6.href(optionalPort) concatenates the port into the URL with no validation or escaping. A port string containing '@' moves the host into the userinfo position, so the URL's host changes. Low-to-medium severity. It only matters if the caller passes an untrusted string as the port; the signature allows number|string.",
+    "source": "Caller-supplied optionalPort string (ipv6.ts:1446 signature, number | string).",
+    "sink": "Returned URL string at ipv6.ts:1453 (`http://[${this.correctForm()}]${optionalPort}/`), used as a navigation or fetch target by the caller.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1446,
+      "note": "href(optionalPort?: number | string) accepts an arbitrary string"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1450,
+      "note": "optionalPort = `:${optionalPort}`, no check that it is digits"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1453,
+      "note": "raw concatenation into the URL authority"
+     }
+    ],
+    "guards_checked": "The host part is safe: correctForm() (ipv6.ts:665) emits only hex and colons, so the injection is limited to the port slot. No port range or digit validation. No URL encoding. Repro by reading: new Address6('2001:db8::1').href('@evil.example') returns 'http://[2001:db8::1]:@evil.example/'. Under WHATWG URL parsing, the '@' makes '[2001:db8::1]:' userinfo and 'evil.example' the host. Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/common.ts",
+    "line": 123,
+    "claim": "testBit is off by one. positionInString = length - position reads the wrong bit, so 'position 0 = LSB' is never readable. In inspectTeredo, coneNat (bit 15) actually reads the Teredo R bit, and universalLocal/groupIndividual read the wrong flag bits. Logic error with low security impact; it only affects Teredo field decoding that a caller might use for classification.",
+    "source": "Attacker-controlled IPv6 address in 2001::/32 (Teredo) passed to new Address6(...).",
+    "sink": "Decoded TeredoProperties returned by inspectTeredo (ipv6.ts:954-1010), in particular coneNat, microsoft.universalLocal and microsoft.groupIndividual.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 990,
+      "note": "coneNat = testBit(flagsBase2, 15)"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 119,
+      "note": "position > length guard"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 123,
+      "note": "positionInString = length - position; for a 16-char string, bit 15 maps to index 1 (the R bit), not index 0 (the C bit)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 992,
+      "note": "groupIndividual = testBit(flagsBase2, 8) reads index 8 (first 'A' bit), not the G bit at index 7"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 993,
+      "note": "universalLocal = testBit(flagsBase2, 9) reads index 7 (G), not the U bit at index 6"
+     }
+    ],
+    "guards_checked": "Nonce (ipv6.ts:994), UDP port (ipv6.ts:978-979) and client/server IPv4 (ipv6.ts:981-985) use separate bit slices and look correct. Only the testBit-based flags are wrong. Verified by index arithmetic on the 16-char flags string; not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/ipv6.ts",
+    "line": 1313,
+    "claim": "embeddedIPv4() normalizes only IPv4-mapped and NAT64 well-known addresses. 6to4 (2002::/16) embeds an IPv4 address in bits 16-47, but it is not unwrapped. So isLoopback, isPrivate, isLinkLocal, isUnspecified, isCGNAT and isBroadcast all report false for 2002:7f00:1:: (embeds 127.0.0.1) and 2002:a9fe:a9fe:: (embeds 169.254.169.254). This is an SSRF-filter gap only where the host actually routes 2002::/16 to a tunnel that reaches the embedded IPv4. Low confidence in exploitability.",
+    "source": "Attacker-controlled URL or host string containing a 6to4 literal such as '2002:7f00:1::'.",
+    "sink": "Trust-boundary classification by callers, e.g. an SSRF allow/deny check built on isLoopback()/isPrivate()/isLinkLocal().",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1341,
+      "note": "isLoopback(): calls embeddedIPv4() first"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1313,
+      "note": "embeddedIPv4 handles only isMapped4() or NAT64_WELL_KNOWN_SUBNET; 2002::/16 is not handled"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1346,
+      "note": "falls through to getType() === 'Loopback', which returns '6to4' from constants6.ts:51, so false"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1249,
+      "note": "isLinkLocal: same gap; 2002:a9fe:a9fe:: is not classified link-local"
+     }
+    ],
+    "guards_checked": "embeddedIPv4 explicitly handles mapped and NAT64 (ipv6.ts:1296-1310 doc says so). is6to4() exists (ipv6.ts:1332) but is not used in any special-use classifier. to6to4() (ipv6.ts:1037) is not used by the classifiers. Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/ipv4.ts",
+    "line": 405,
+    "claim": "Address4.fromUnsignedByteArray only checks length, then joins elements with '.' and re-parses. Non-number elements (type-violating for number[]) such as '1/8' or '1 ' pass through the join. A string containing '/' injects a subnet suffix, so the result's prefix is not what the caller intended. Low severity: TypeScript callers cannot pass strings, and fromByteArray (ipv4.ts:384) does validate integers.",
+    "source": "A byte array whose last element is a string containing a '/' suffix, e.g. ['10','0','0','1/8'], from an untyped or JSON-sourced caller.",
+    "sink": "The Address4 returned by fromUnsignedByteArray (subnetMask and network used for allow/deny decisions).",
+    "trace": [
+     {
+      "file": "src/ipv4.ts",
+      "line": 400,
+      "note": "fromUnsignedByteArray: only bytes.length !== 4 is checked"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 405,
+      "note": "bytes.join('.') with no per-element validation"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 406,
+      "note": "new Address4('10.0.0.1/8'); the '/8' is accepted as a subnet"
+     }
+    ],
+    "guards_checked": "Length check (ipv4.ts:401). Per-element range and integer checks happen only in fromByteArray (ipv4.ts:385 via common.ts:87-102), which fromUnsignedByteArray does not call. Floats and out-of-range numbers add extra dot segments or fail to parse, so they are rejected. Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

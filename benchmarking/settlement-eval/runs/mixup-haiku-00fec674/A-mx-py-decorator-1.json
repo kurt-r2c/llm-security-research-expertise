@@ -1,0 +1,157 @@
+{
+ "arm": "A",
+ "repo": "mx-py-decorator",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00593531,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-hskpkyu8/r/routes.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "routes.py",
+    "line": 35,
+    "claim": "Unauthenticated POST to /settings/email reaches set_email with uid None, so the account-write sink runs without any authentication.",
+    "source": "Anonymous HTTP POST to /settings/email; no session required.",
+    "sink": "set_email(g.uid, \"new@example.org\") at routes.py:37",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 34,
+      "note": "Route /settings/email (POST) registered."
+     },
+     {
+      "file": "routes.py",
+      "line": 35,
+      "note": "Decorated with @login_optional, not @login_required."
+     },
+     {
+      "file": "routes.py",
+      "line": 22,
+      "note": "login_optional sets g.uid = session.get('uid'), which is None for anonymous callers, and never aborts."
+     },
+     {
+      "file": "routes.py",
+      "line": 37,
+      "note": "Handler calls set_email(None, 'new@example.org')."
+     }
+    ],
+    "guards_checked": "No authentication check on this path. login_optional only attaches uid and does not enforce auth. No ownership check, no CSRF token, no re-authentication. Impact depends on the set_email stub (routes.py:48-49), which is empty, so a None uid could match unintended rows (e.g. WHERE uid IS NULL)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. login_optional (routes.py:19-25) only sets g.uid = session.get(\"uid\") and never aborts, so the handler change_email (routes.py:35-37) runs for anonymous callers. No ownership, CSRF, or re-authentication check is on this path. The only other guard, login_required (routes.py:8-16), is applied to change_password, not change_email.",
+    "reason": "Every trace line matches the code: the POST /settings/email route at routes.py:34-35 uses @login_optional, which at routes.py:22 sets uid to None for anonymous callers without aborting, so routes.py:37 calls set_email(None, \"new@example.org\") unauthenticated. The set_email body at routes.py:48-49 is an empty stub, so the real impact of a None uid is unverifiable from this code, but the unauthenticated reach to the account-write call is confirmed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "routes.py",
+    "line": 37,
+    "claim": "Email change ignores request input and always writes the same constant address, a business-logic flaw that breaks account recovery.",
+    "source": "Any caller of /settings/email (authenticated or anonymous, see F1).",
+    "sink": "set_email(g.uid, \"new@example.org\") at routes.py:37",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 36,
+      "note": "Handler takes no request data."
+     },
+     {
+      "file": "routes.py",
+      "line": 37,
+      "note": "Writes the fixed reserved domain address new@example.org for every call."
+     }
+    ],
+    "guards_checked": "No input is read, so there is no injection surface. No email verification or confirmation step, and no check that the user owns the new address."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. routes.py:29-35 wraps change_email in login_optional, which only sets g.uid from the session and never aborts, so anonymous callers reach the handler. routes.py:37 calls set_email(g.uid, \"new@example.org\") as a bare statement with no input read and no ownership or verification check.",
+    "reason": "The handler at routes.py:36-37 writes the same fixed address for any caller, and login_optional (routes.py:19-25) never rejects anonymous requests, so nothing blocks it. Caveat: set_email at routes.py:48-49 is a `pass` stub, so in this file the write has no observable effect; the account-recovery impact holds only once set_email is implemented."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "routes.py",
+    "line": 44,
+    "claim": "Any logged-in session can set the account password to the fixed value 'hunter2' without a current-password check, enabling account takeover via session theft or CSRF.",
+    "source": "A request carrying a valid session with a uid, sent as a POST to /settings/password (directly or via cross-site request).",
+    "sink": "set_password(g.uid, \"hunter2\") at routes.py:44",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 42,
+      "note": "Route decorated with @login_required."
+     },
+     {
+      "file": "routes.py",
+      "line": 11,
+      "note": "login_required checks 'uid' in session; otherwise aborts 401."
+     },
+     {
+      "file": "routes.py",
+      "line": 13,
+      "note": "g.uid set from session."
+     },
+     {
+      "file": "routes.py",
+      "line": 44,
+      "note": "Handler sets password to constant 'hunter2'."
+     }
+    ],
+    "guards_checked": "Session authentication is enforced. No current-password or re-authentication check. No CSRF token in this file; CSRF exposure depends on the session cookie SameSite setting, which is not configured here. Modern browsers default cookies to Lax, which limits cross-site POSTs, but this is not guaranteed across browsers or configurations."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only login_required (routes.py:11-12) applies: it aborts 401 when \"uid\" is not in session, and it sets g.uid from the session (routes.py:13). No current-password or re-authentication check exists in change_password (routes.py:42-45). No CSRF token is present in this file. The SameSite cookie setting is not configured in this file, so cross-site exposure is not confirmed from this code alone.",
+    "reason": "The trace matches the code: change_password at routes.py:41-45 is guarded only by login_required (routes.py:8-16), which checks only for a uid in the session, and it calls set_password(g.uid, \"hunter2\") at routes.py:44 with no current-password check, so any holder of a valid session can set that account's password to the fixed value. The attacker must already hold a victim's session or reach it cross-site, so the impact is account takeover of the session owner's account, not privilege escalation. Note that set_password is a stub (`pass` at routes.py:52-53), so the stored effect is not shown in this file; the finding concerns the handler's behavior as written."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "routes.py",
+    "line": 44,
+    "claim": "A hard-coded password literal 'hunter2' is in source, violating the org policy against hard-coded credentials and serving as the fixed value used by F3.",
+    "source": "Source code; anyone with read access to the repo or deployed code can see the literal.",
+    "sink": "Literal \"hunter2\" passed as the new password to set_password at routes.py:44",
+    "trace": [
+     {
+      "file": "routes.py",
+      "line": 44,
+      "note": "String literal \"hunter2\" embedded directly in the handler."
+     }
+    ],
+    "guards_checked": "None. Org policy requires credentials to come from environment variables or managed secrets. Flag explicitly per policy."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only login_required (routes.py:8-16, applied at routes.py:42) gates POST /settings/password. It limits who can call the handler but does not stop the \"hunter2\" literal from being in source, and it does not validate or replace the value passed at routes.py:44. No credential-from-env or secrets-manager lookup exists.",
+    "reason": "routes.py:44 contains the literal \"hunter2\" passed directly to set_password, which is a hard-coded credential in source that the org policy prohibits, and no control removes it; the endpoint is reachable by any logged-in user (routes.py:42-44). The stubbed set_password at routes.py:52-53 means the runtime impact depends on the real implementation, but the policy violation holds as stated."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.008237280000000001
+}

@@ -1,0 +1,222 @@
+{
+ "arm": "K2",
+ "repo": "russh-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.01659893,
+ "trace": {
+  "tools": {
+   "Read": 9,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/expertise/INDEX.md",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/r/pageant/src/lib.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/r/pageant/src/interface.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/r/pageant/src/namedpipes.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/r/pageant/src/wmmessage.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/r/pageant/src/error.rs",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/r/pageant/Cargo.toml",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/expertise/cases/01-perm-result-ignored.md",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-0bo8u1zq/expertise/cases/17-int-truncation-size-check.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 33,
+    "claim": "Pageant named-pipe client connects to a predictable pipe name without verifying the server's identity; if CryptProtectMemory fails silently, the suffix is a constant, so a local account can squat the pipe and impersonate the agent (low-medium, conditional on CryptProtectMemory failure, unverified on Windows).",
+    "source": "Precondition: Pageant not running and a local account can create \\\\.\\pipe\\pageant.<user>.<suffix> first. Name built from username (UPN local part) plus SHA-256 of CryptProtectMemory output.",
+    "sink": "ClientOptions::open(&pipe_name) at namedpipes.rs:33; returned stream is trusted as the SSH agent.",
+    "trace": [
+     {
+      "file": "pageant/src/lib.rs",
+      "line": 51,
+      "note": "PageantStream::new tries namedpipes first"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 29,
+      "note": "determine_pipe_name()"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 50,
+      "note": "get_username(); '@' domain stripped at 85-86"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 51,
+      "note": "capi_obfuscate_string(\"Pageant\")"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 110,
+      "note": "CryptProtectMemory result discarded (let _ =); comment says errors explicitly ignored"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 117,
+      "note": "SHA-256 suffix; constant zero-padded plaintext if encryption failed"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 33,
+      "note": "open pipe with no server owner/SID check"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 46,
+      "note": "stream returned to caller as agent"
+     }
+    ],
+    "guards_checked": "CROSS_PROCESS flag and hashing only obscure the name, they are not secrets. No server process owner/SID verification. Pipe name includes username, which is not a control. Silent CryptProtectMemory failure is the weak point. Impact: squatter sees agent requests (identities, session-bound sign requests) and can return forged identity lists or deny service; cannot forge signatures."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 30,
+    "claim": "Org policy violation: the Windows username (PII) is written to debug logs via the pipe name.",
+    "source": "get_username() at namedpipes.rs:50 returns the account name (UPN local part or SAM name).",
+    "sink": "debug!(\"Opening pipe '{}'\", pipe_name) at namedpipes.rs:30.",
+    "trace": [
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 50,
+      "note": "username obtained from GetUserNameExA / GetUserNameA"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 52,
+      "note": "username embedded in pipe name"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 30,
+      "note": "pipe name logged at debug level"
+     }
+    ],
+    "guards_checked": "Debug level only. Org policy forbids logging PII at any level, so this is still a violation. Exploitability is none; severity depends on who can read debug logs."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 187,
+    "claim": "FindWindowW(\"Pageant\",\"Pageant\") can be satisfied by any process on the same desktop creating a window with that class and title, so a squatter receives the WM_COPYDATA request and the mapping name (low severity; same-desktop code is typically same-user).",
+    "source": "Any same-desktop process can register a top-level window with class and title Pageant.",
+    "sink": "SendMessageA(hwnd, WM_COPYDATA, ...) at wmmessage.rs:217-224, carrying the request mapping name in lpData.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 203,
+      "note": "find_pageant_window() returns first match"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 206,
+      "note": "MemoryMap::new creates PageantRequest<cookie> mapping and writes request"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 209,
+      "note": "COPYDATASTRUCT lpData carries mapping name"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 217,
+      "note": "synchronous SendMessageA to whatever window was found"
+     }
+    ],
+    "guards_checked": "64-bit random cookie prevents predicting the mapping name in advance, but the name is disclosed in the message so a squatter can read the request. Mapping uses the current user's default DACL. SendMessageA is synchronous, so a hung squatter also blocks the client. Not verified by execution."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 128,
+    "claim": "MapViewOfFile result is not checked for failure, so a failed map leads to writes or reads through a null base pointer (robustness; needs resource exhaustion). ERROR_ALREADY_EXISTS on CreateFileMappingW is also not detected (hardening only).",
+    "source": "Resource exhaustion or OS failure of MapViewOfFile.",
+    "sink": "MemoryMap::write at wmmessage.rs:150-154 and read at wmmessage.rs:165-171 dereference self.view.Value.add(pos).",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 111,
+      "note": "CreateFileMappingW; checks only is_invalid() at 123"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 126,
+      "note": "MapViewOfFile result stored without null check"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 150,
+      "note": "copy_nonoverlapping into view.Value.add(pos)"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 167,
+      "note": "copy_nonoverlapping from view.Value.add(pos)"
+     }
+    ],
+    "guards_checked": "is_invalid() check on the file mapping handle. Length checks in write/read bound offsets but not the base pointer. Random cookie makes name collision infeasible."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 43,
+    "claim": "Unbounded read buffer: the length prefix is not checked against _AGENT_MAX_MSGLEN before buffering, so the buffer grows until len+4 bytes arrive; len+4 can overflow on 32-bit targets (hardening; writer is the local client).",
+    "source": "Local SSH client writes a 4-byte length prefix up to u32::MAX.",
+    "sink": "buf accumulation at wmmessage.rs:36-46 and split_to(len + 4) at :47.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 36,
+      "note": "read_buf accumulates without limit"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 43,
+      "note": "len read from attacker-controlled prefix"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 44,
+      "note": "len + 4 overflow on 32-bit targets"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 142,
+      "note": "map.write rejects over 8192 only after full buffering"
+     }
+    ],
+    "guards_checked": "map.write checks length (wmmessage.rs:139-142) but only after buffering. Duplex capacity limits writer pressure only indirectly. Writer is the local client, so the impact is low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

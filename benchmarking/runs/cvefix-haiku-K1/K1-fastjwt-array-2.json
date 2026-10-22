@@ -1,0 +1,200 @@
+{
+ "arm": "K1",
+ "repo": "fastjwt-array",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.030189960000000002,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-c_7w61kx/r/src/decoder.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-c_7w61kx/r/src/verifier.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-c_7w61kx/r/src/signer.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-c_7w61kx/r/src/crypto.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-c_7w61kx/r/src/utils.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-c_7w61kx/r/src/index.js",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-c_7w61kx/r/src/error.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/verifier.js",
+    "line": 514,
+    "claim": "Fail-open: createVerifier accepts key null or '' together with an algorithms allowlist, so unsigned tokens with an allowed alg are accepted as valid.",
+    "source": "Unauthenticated inbound token with an empty signature segment, e.g. base64url({\"alg\":\"HS256\",\"typ\":\"JWT\"}) + '.' + base64url({\"sub\":\"admin\"}) + '.'",
+    "sink": "verify() returns the payload as authenticated (verifier.js:426 / 471)",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 507,
+      "note": "keyType check accepts 'object' and 'string', so null and '' pass; undefined throws at 508"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 514,
+      "note": "'if (key && keyType !== function)' is falsy, so key is never prepared and stays null or ''"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "BASE64URL_RE uses '*', so an empty signature segment is accepted"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 274,
+      "note": "missingSignature / missingKey only fire when a signature is present (274) or a key is present (276); with neither, no error"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 162,
+      "note": "alg HS256 is in the allowlist, so the algorithm check passes"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "'if (signature && !verifySignature(...))' skips verification because the signature is empty"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 302,
+      "note": "claim validators run and the payload is returned"
+     }
+    ],
+    "guards_checked": "Key type check (507); key guard (514); no-key/no-signature branch (274-278); algorithm allowlist (162); decoder alphabet check (41). None rejects a configured algorithm with no key material. Precondition: the app passes a falsy-but-typed key such as process.env.X || '' or null with algorithms set; no key is set, so there is no signature check at all."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/verifier.js",
+    "line": 117,
+    "claim": "Cache ignores exp when the token has no iat, so a cached token is accepted for up to cacheTTL (default 600000 ms) after its exp has passed.",
+    "source": "Token with exp but no iat (signer noTimestamp:true, signer.js:96, still sets exp at signer.js:97-99), verified once while still valid",
+    "sink": "Cache hit returns the cached payload without re-checking exp (verifier.js:364-378)",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 117,
+      "note": "hasIat is false when payload.iat is not a number"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 120,
+      "note": "block copying nbf/exp into the cache TTL is skipped"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 132,
+      "note": "cacheValue[2] stays 0, so it is set to maxTTL = now + clockTolerance + cacheTTL"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 134,
+      "note": "expiry set to maxTTL (cacheTTL default 600000, line 499)"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cache lookup; hit when now <= max, with min=0 and no exp check"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 377,
+      "note": "handleCachedResult returns the cached payload without validators"
+     }
+    ],
+    "guards_checked": "The uncached path enforces exp (verifier.js:306-322). Cache is opt-in: createCache returns null when cache is undefined (verifier.js:83-85, 580). maxAge is also skipped when iat is absent (verifier.js:311). Impact: expired tokens honored for up to cacheTTL past exp. Severity medium-low; requires caching enabled and an issuer that omits iat."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/verifier.js",
+    "line": 364,
+    "claim": "With caching enabled, verify() called with a Buffer token throws TypeError on every call because hashToken calls token.split, which Buffer does not have.",
+    "source": "Caller passes a Buffer token (e.g. raw request body or header bytes) to verify()",
+    "sink": "hashToken(token) -> token.split('.', 1) throws before validation",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Buffer tokens are explicitly accepted by the type guard"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "if (cache) calls cacheKeyBuilder(token) with the original Buffer"
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "hashToken: token.split('.', 1) \u2014 Buffer has no split method, so TypeError is thrown"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 113,
+      "note": "cacheSet also calls cacheKeyBuilder(token) with the Buffer on the error and success paths"
+     }
+    ],
+    "guards_checked": "Type guard at 353 accepts Buffers, so it does not stop the call. Impact is availability only: every Buffer-token verify call throws when cache is enabled. Not attacker-specific. Severity low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/decoder.js",
+    "line": 41,
+    "claim": "Decoder claims to enforce canonical base64url, but only checks the alphabet, so the signature's unused trailing bits can be changed to produce multiple accepted token strings for one signature.",
+    "source": "Attacker who already holds one valid token and changes the unused trailing bits of the last base64url character of the signature segment",
+    "sink": "verify() accepts the modified token string as valid (verifier.js:169 / crypto.js:297 timingSafeEqual)",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 5,
+      "note": "comment asserts non-canonical base64url must be rejected"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "only BASE64URL_RE alphabet check; no trailing-bit or length-mod-4 check"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 297,
+      "note": "Buffer.from(signature, 'base64') ignores unused trailing bits, so decoded bytes are identical"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 301,
+      "note": "timingSafeEqual of HMAC digest and decoded signature passes"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 169,
+      "note": "signature check passes for the modified string"
+     }
+    ],
+    "guards_checked": "Alphabet check (decoder.js:41); payload and header are covered by the signature input and cannot be altered. Only the signature segment is malleable. Impact: applications that use the raw token string as a replay or revocation key can be bypassed. Severity low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

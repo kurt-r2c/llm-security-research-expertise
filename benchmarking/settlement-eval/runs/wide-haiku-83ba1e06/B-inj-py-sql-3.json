@@ -1,0 +1,104 @@
+{
+ "arm": "B",
+ "repo": "inj-py-sql",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.007312979999999999,
+ "trace": {
+  "tools": {
+   "Bash": 4,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-1rbel_t0/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLI-search-01",
+    "file": "app.py",
+    "line": 12,
+    "claim": "SQL injection in /search: the attacker-controlled `q` query parameter is interpolated into an f-string SQL statement, allowing arbitrary read-only SELECT/UNION queries against shop.db (e.g. dumping sqlite_master and any other table). Stacked writes are not possible because sqlite3.execute rejects multiple statements.",
+    "source": "app.py:11 request.args.get(\"q\", \"\") \u2014 unauthenticated HTTP query parameter",
+    "sink": "app.py:12 db.execute(f\"SELECT id, name FROM products WHERE name LIKE '%{term}%'\")",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 10,
+      "note": "route /search is publicly reachable, no auth decorator or before_request hook exists in the file"
+     },
+     {
+      "file": "app.py",
+      "line": 11,
+      "note": "term = request.args.get(\"q\", \"\") \u2014 raw attacker input, no decoding/validation"
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "term is concatenated directly into the SQL string inside a LIKE '%...%' literal; a single quote breaks out of the literal and `--` comments out the trailing %')"
+     },
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "fetchall() result returned as JSON, so injected UNION results are exfiltrated in the HTTP response"
+     }
+    ],
+    "guards_checked": "No parameterization (the safe pattern is used on lines 18 and 25 but not here); no input escaping or quote-stripping; no allowlist or length limit on q; no ORM; no WAF or middleware in this file. The LIKE wrapper does not constrain injection. Result column count is fixed at 2, so the attacker must match 2 columns in UNION, which is trivial. Repro (not executed in sandbox): GET /search?q=x' UNION SELECT name, sql FROM sqlite_master --",
+    "repro": "curl 'http://HOST/search?q=x%27%20UNION%20SELECT%20name,%20sql%20FROM%20sqlite_master%20--' returns table names and CREATE statements; q=x' UNION SELECT name, name FROM <other_table> -- returns any table's contents, subject to matching the 2-column shape."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:9-10 has no auth decorator or before_request hook, app.py:11 takes q raw from request.args, and app.py:12 concatenates it into the f-string SQL with no parameterization, escaping, or allowlist. The parameterized queries at app.py:18 and app.py:25 do not cover this route.",
+    "reason": "The route at app.py:9-10 is anonymously reachable, the q value at app.py:11 flows unescaped into the SQL string at app.py:12, and app.py:13 returns fetchall() output, so UNION-based reads of sqlite_master and other tables are exfiltrated in the response, while sqlite3's single-statement restriction blocks only stacked writes."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTHZ-by-owner-02",
+    "file": "app.py",
+    "line": 24,
+    "claim": "Unauthenticated, unscoped product lookup by owner: /by-owner lets any caller enumerate products belonging to an arbitrary owner string supplied by the client, with no check that the requester is that owner or is authorized to view that owner's catalog. Severity depends on whether ownership/product ownership is considered private; this is a candidate, not a confirmed exploit.",
+    "source": "app.py:24 request.args.get(\"owner\", \"\") \u2014 client-supplied owner identifier, no session or identity binding",
+    "sink": "app.py:25-26 db.execute(\"SELECT id, name FROM products WHERE owner = ?\", (owner,)).fetchall() \u2014 protected operation is the owner-scoped product listing",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "/by-owner route has no auth decorator; the app has no authentication anywhere in this file"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "owner taken directly from query string; the server never derives owner from a session or token"
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "parameterized query, so this is not SQL injection"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "owner-scoped rows returned to any caller"
+     }
+    ],
+    "guards_checked": "Parameterized query (safe against injection, so not a SQLi finding). No authentication decorator or before_request hook. No authorization check comparing requester identity to owner. No rate limiting. Enumeration is possible because owner values are guessable or discoverable (for example, empty string owner='' is accepted). The file does not define the products schema, so whether owner values or products are considered sensitive cannot be confirmed here.",
+    "repro": "curl 'http://HOST/by-owner?owner=alice' returns id/name rows for every product whose owner is 'alice', with no credentials required."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. The /by-owner route (app.py:22-23) has no auth decorator or before_request hook, and nothing in app.py checks the requester against the owner. The parameterized query at app.py:25 blocks SQL injection, which the candidate already concedes. The response at app.py:26 contains only id and name, not owner.",
+    "reason": "Every trace line checks out and an anonymous caller can reach /by-owner (app.py:22-26) with no guard, but the file has no authentication anywhere and its unauthenticated /search (app.py:9-13) already returns all product id and name values, so /by-owner only adds the owner-to-product mapping, and whether that mapping is private depends on a products schema and business rules not present in this directory."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004288170000000001
+}

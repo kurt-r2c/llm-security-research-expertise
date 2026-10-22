@@ -1,0 +1,100 @@
+{
+ "arm": "A",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.0041293499999999995,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-7mh19eum/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches an arbitrary attacker-supplied URL with no validation and returns the status code and first 500 characters of the response body to the caller.",
+    "source": "request.args.get(\"url\") at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16; response returned at app.py:17",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\") \u2014 attacker-controlled query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target, timeout=5) with no check on scheme, host, IP range, or port; redirects followed by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status_code and resp.text[:500] returned to the caller, so the response is readable by the attacker"
+     }
+    ],
+    "guards_checked": "None. No scheme, host, IP-range, or port restriction; redirects are followed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. /preview (app.py:14-17) has no scheme, host, IP, or port check. ALLOWED_HOSTS (app.py:9) is applied only in /partner (app.py:24), not in /preview.",
+    "reason": "The source at app.py:15 is an unauthenticated query parameter that flows unvalidated into requests.get at app.py:16, and the body and status are returned to the caller at app.py:17, so the candidate's trace is accurate and no closing guard exists on this route."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks the hostname of the original URL against an allowlist but then fetches the original URL, which follows redirects, so an allowlisted host that redirects to an internal address bypasses the check. Exploitability depends on whether partner hosts can be made to redirect; unverified.",
+    "source": "request.args.get(\"url\") at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get(\"url\", \"\") \u2014 attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "if host not in ALLOWED_HOSTS (defined at app.py:9) return 400 \u2014 check runs only on the original URL"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) follows 3xx redirects by default; redirect targets are not re-checked"
+     }
+    ],
+    "guards_checked": "Hostname allowlist at app.py:24 (ALLOWED_HOSTS = api.partner.example, cdn.partner.example). urlparse blocks userinfo and fragment tricks such as http://api.partner.example@169.254.169.254/ and http://169.254.169.254#@api.partner.example/. Not checked: redirect targets, DNS rebinding, urlparse vs urllib3 parser differentials (untested), partner host behavior (unverified)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact hostname set membership on the parsed hostname: `host = urlparse(target).hostname` (app.py:23) then `if host not in ALLOWED_HOSTS` returning 400 (app.py:24), with ALLOWED_HOSTS = {\"api.partner.example\", \"cdn.partner.example\"} (app.py:9). The source is attacker-controlled (request.args at app.py:22, no auth), so the only thing closing it is this guard.",
+    "reason": "The trace lines are accurate (app.py:22, 23, 24, 26), and the source at app.py:22 is attacker-controlled, but app.py:24 does an exact hostname set-membership check on the parsed hostname before the sink at app.py:26, which is one of the closing guards defined in the rubric. The redirect-following concern the candidate raises (requests.get at app.py:26 follows 3xx by default) is a separate, conditional bypass that depends on partner-host behavior the candidate itself marks as unverified, so it does not make this a CONFIRMED finding under the stated criteria; it is worth tracking as a hardening item (e.g. allow_redirects=False or re-validating each hop)."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0038242700000000003
+}

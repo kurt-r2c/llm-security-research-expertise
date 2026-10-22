@@ -1,0 +1,115 @@
+{
+ "arm": "A",
+ "repo": "mx-py-alias",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "61bf4c6b",
+ "status": "success",
+ "gen_cost": 0.00430987,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-x67cly5x/r/acl.py",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-x67cly5x/r/views.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 18,
+    "claim": "Authorization bypass on file deletion: delete_file calls require_allowed (alias of the non-enforcing is_allowed) and discards its boolean result, so any caller can delete any file in STORE regardless of grants.",
+    "source": "DELETE /files/<fid> request by any caller (views.py:15-16); fid selects any entry in STORE",
+    "sink": "del STORE[fid] at views.py:19",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 15,
+      "note": "DELETE /files/<fid> routes to delete_file"
+     },
+     {
+      "file": "views.py",
+      "line": 17,
+      "note": "f = STORE[fid] loads the resource"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "require_allowed(g.user, f, 'delete') returns a bool that is discarded"
+     },
+     {
+      "file": "acl.py",
+      "line": 4,
+      "note": "is_allowed returns True/False and never raises or aborts"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "returns action in grants.get(user, [])"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "del STORE[fid] executes unconditionally"
+     }
+    ],
+    "guards_checked": "before_request load_user (views.py:10-12) only sets g.user, enforces nothing; is_allowed (acl.py:4-5) is a pure predicate; the enforcing ensure_allowed (acl.py:8-10, aborts 403) is imported at views.py:3 but not used on the delete path. The import alias require_allowed at views.py:4 points to the non-enforcing function. rename_file (views.py:26) uses ensure_allowed correctly."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. load_user (views.py:10-12) only sets g.user and enforces nothing. require_allowed is an alias of is_allowed (views.py:4), a pure predicate (acl.py:4-5) whose bool return is discarded as a bare statement at views.py:18. ensure_allowed (acl.py:8-10, aborts 403) is imported at views.py:3 but not called on the delete path. del STORE[fid] at views.py:19 runs unconditionally.",
+    "reason": "DELETE /files/<fid> at views.py:15-19 calls is_allowed via the require_allowed alias at views.py:18 and discards its False result, so the del at views.py:19 runs for any caller, including anonymous, and the enforcing ensure_allowed (acl.py:8-10) is never reached on this path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "views.py",
+    "line": 12,
+    "claim": "Identity is taken from a client-supplied header: load_user copies X-Session-User-Verified into g.user with no validation, so a client can impersonate any user and inherit their grants. Deployment-dependent: not a finding if an upstream proxy strips and sets this header after authentication, which is not in the directory.",
+    "source": "X-Session-User-Verified request header, settable by any client that can reach the app",
+    "sink": "g.user used in authorization checks: acl.py:5 via views.py:18 (delete) and views.py:26 (rename)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 10,
+      "note": "before_request hook registered"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user = request.headers.get('X-Session-User-Verified') with no verification"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "grants.get(g.user) selects the grant list for the claimed identity"
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "ensure_allowed(g.user, f, 'write') enforces the victim's write grant for the attacker"
+     }
+    ],
+    "guards_checked": "No validation, signature, session lookup, or source-IP check in views.py or acl.py. Upstream proxy configuration was not available to verify."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "views.py:18 calls require_allowed (alias of acl.py:4 is_allowed), which returns a bool that is discarded as a bare statement, so it enforces nothing. acl.py:8-10 ensure_allowed does abort(403) on failure and guards only the rename at views.py:26. Nothing validates the header at views.py:12. No upstream proxy is present in the directory.",
+    "reason": "views.py:12 copies the client-supplied X-Session-User-Verified header into g.user with no validation, and acl.py:5-10 then trusts that identity for the rename at views.py:26, so any client that can reach the app can act as any user with a grant. The delete at views.py:18 is worse than the candidate describes: its is_allowed result is discarded (views.py:18), so any unauthenticated request can delete any file. The only residual doubt is an upstream proxy that strips and sets the header, which is outside the directory; that affects only the rename path, not the delete path."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0045122800000000005
+}

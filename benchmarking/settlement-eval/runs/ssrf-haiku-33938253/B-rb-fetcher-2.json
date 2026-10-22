@@ -1,0 +1,114 @@
+{
+ "arm": "B",
+ "repo": "rb-fetcher",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.008177219999999999,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Grep": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-2y9w5np8/r/app.rb",
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-2y9w5np8/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.rb",
+    "line": 8,
+    "claim": "The /rss route passes the unvalidated query parameter u directly to URI.open, so an unauthenticated caller can make the server issue requests to arbitrary internal or metadata URLs and read the first 400 bytes of the response.",
+    "source": "params[:u] (query parameter 'u'), app.rb:8",
+    "sink": "URI.open(params[:u]).read (open-uri), app.rb:8",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 8,
+      "note": "params[:u] is read from the request and passed directly to URI.open"
+     },
+     {
+      "file": "app.rb",
+      "line": 9,
+      "note": "data[0, 400] returns the first 400 bytes of the fetched body to the caller, so the response is not blind"
+     }
+    ],
+    "guards_checked": "No allowlist on the /rss path; TRUSTED (app.rb:5) is defined but unused here. No scheme restriction. No authentication visible in app.rb. open-uri follows redirects by default and nothing re-validates the redirect target. Severity HIGH."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The /rss route (app.rb:7-10) has no allowlist, scheme check, or auth. TRUSTED (app.rb:5) is only used by /trusted (app.rb:14), not /rss. No before-filter or middleware is defined in app.rb.",
+    "reason": "app.rb:8 passes params[:u] straight into URI.open(...).read with no validation, and app.rb:9 returns data[0, 400] to the caller, so an unauthenticated query parameter reaches an outbound fetch whose response is returned to the requester."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-CLOSED-trusted",
+    "file": "app.rb",
+    "line": 14,
+    "claim": "Closed: the /trusted route enforces strict parsed-host set membership before the request, and Net::HTTP.get does not follow redirects. Residual, not SSRF: scheme and port are unrestricted, so only the two trusted hosts on arbitrary ports are reachable.",
+    "source": "params[:u] (app.rb:13)",
+    "sink": "Net::HTTP.get(uri), app.rb:15",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 13,
+      "note": "URI.parse(params[:u].to_s)"
+     },
+     {
+      "file": "app.rb",
+      "line": 14,
+      "note": "TRUSTED.include?(uri.host) strict set membership, halts with 400 otherwise"
+     },
+     {
+      "file": "app.rb",
+      "line": 15,
+      "note": "Net::HTTP.get(uri) issues the request only after the check passes"
+     }
+    ],
+    "guards_checked": "Strict set membership on uri.host (userinfo and suffix tricks rejected). Net::HTTP.get does not follow redirects. Scheme and port are not restricted (hardening only)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.rb:14 `halt 400, \"no\" unless TRUSTED.include?(uri.host)`, where TRUSTED (app.rb:5) is the exact two-hostname set. This is exact membership on the parsed host, which is a closing guard. app.rb:15 `Net::HTTP.get(uri)` is reached only after it passes.",
+    "reason": "The trace matches app.rb:13-15 and the source `params[:u]` is attacker-controlled, but the exact parsed-host set check at app.rb:14 closes the SSRF path, so the only remaining issue is hardening (unrestricted scheme and port), not SSRF."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-CLOSED-version",
+    "file": "app.rb",
+    "line": 19,
+    "claim": "Closed: /version fetches a hardcoded GitHub API URL with no user input.",
+    "source": "none",
+    "sink": "Net::HTTP.get(URI(...)), app.rb:19",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 19,
+      "note": "URL is a literal string"
+     }
+    ],
+    "guards_checked": "No user-controlled value reaches the sink."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none; no guard is needed because no user-controlled value reaches the sink. app.rb:19 passes only a string literal to URI() and Net::HTTP.get, and the handler at app.rb:18-20 reads no params.",
+    "reason": "The trace is accurate: app.rb:19 builds Net::HTTP.get(URI(\"https://api.github.com/repos/example/example/releases/latest\")) from a literal with no params access, so there is no attacker-controlled source and no SSRF, which means the \"closed\" status is correct and the SSRF finding is refuted."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00549935
+}

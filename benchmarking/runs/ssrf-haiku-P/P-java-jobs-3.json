@@ -1,0 +1,119 @@
+{
+ "arm": "P",
+ "repo": "java-jobs",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00572998,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-g61wclej/r/src/Jobs.java"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "src/Jobs.java",
+    "line": 21,
+    "claim": "Unvalidated callbackUrl stored by subscribe() is used to build an outbound POST in notifyAll(), which runs every minute, letting an attacker make the server send requests to arbitrary internal or external URLs (blind SSRF: response discarded).",
+    "source": "callbackUrl parameter of subscribe(name, callbackUrl), per the POST /subscribe comment at Jobs.java:12. The /subscribe handler is not in this repo, so trust of the source is inferred from that comment.",
+    "sink": "client.send(req, ...) at Jobs.java:24, with req built from URI.create(cb) at Jobs.java:21 and sent as POST at Jobs.java:22.",
+    "trace": [
+     {
+      "file": "src/Jobs.java",
+      "line": 9,
+      "note": "subscriptions map (name -> callbackUrl) declared"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 13,
+      "note": "subscribe(name, callbackUrl) entry point; callbackUrl is taken as-is"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 14,
+      "note": "subscriptions.put(name, callbackUrl) stores the raw string with no validation"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 18,
+      "note": "notifyAll(payload) runs periodically (comment at line 17)"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 19,
+      "note": "iterates over all stored callback values"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 21,
+      "note": "URI.create(cb) turns the stored attacker string into a URI"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 22,
+      "note": "POST with server-controlled payload body"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 24,
+      "note": "client.send issues the outbound request; return value (body) is ignored"
+     }
+    ],
+    "guards_checked": "No scheme, host, port, IP-range, or DNS allowlist on subscribe() or notifyAll(). HttpClient accepts only http/https schemes. Client built with HttpClient.newHttpClient() at line 10 uses default redirect policy NEVER, so redirects are not followed; direct requests to localhost, RFC1918, or 169.254.169.254 remain possible. Response body discarded, so the attack is blind. Exceptions propagate and are not returned to the requester."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. subscribe() (Jobs.java:13-15) stores callbackUrl unchecked, and notifyAll() (Jobs.java:18-25) calls URI.create(cb) and client.send with no scheme, host, or IP check. The only validation in the file is the regex on thumb() (Jobs.java:30), which is a different sink. The HttpClient is built with the default redirect policy (Jobs.java:10), so redirects are not followed.",
+    "reason": "Every trace line matches the code: the raw string is stored at Jobs.java:14, read back in the loop at Jobs.java:19, passed to URI.create at Jobs.java:21, and sent with client.send at Jobs.java:24 with no closing guard. The source is the callbackUrl body field of POST /subscribe per the comment at Jobs.java:12, so a remote caller controls it. The /subscribe handler is not in the repo, so I could not check for auth or validation there; the verdict assumes the handler passes the value through unchecked, as the comment suggests."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-DROPPED-thumb",
+    "file": "src/Jobs.java",
+    "line": 30,
+    "claim": "Not a finding: thumb() sink is constrained to a fixed host. Noted as a regression risk only if redirect following is ever enabled on the client.",
+    "source": "src parameter of thumb(src), per the GET /thumb comment at Jobs.java:28",
+    "sink": "client.send at Jobs.java:34 via URI.create(src) at Jobs.java:33",
+    "trace": [
+     {
+      "file": "src/Jobs.java",
+      "line": 30,
+      "note": "String.matches full-match against https://cdn\\.example\\.com/img/[a-z0-9]+\\.png; rejects userinfo, other hosts, ports, and path traversal"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 33,
+      "note": "URI.create(src) on validated string"
+     },
+     {
+      "file": "src/Jobs.java",
+      "line": 34,
+      "note": "client.send with default no-redirect client"
+     }
+    ],
+    "guards_checked": "Anchored full-match regex pinning host to cdn.example.com; [a-z0-9]+ excludes '/', '?', '#', '@'; HttpClient default redirect policy NEVER (Jobs.java:10)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "src/Jobs.java:30: `src.matches(\"https://cdn\\\\.example\\\\.com/img/[a-z0-9]+\\\\.png\")` is a full-string anchored match that pins the host to cdn.example.com. The `[a-z0-9]+` segment excludes '@', '/', '?', '#', ':' and '.', so userinfo, other hosts, ports, query/fragment and path traversal cannot get past it. Line 33 uses the validated string, and line 34 sends with the default client at line 10, which does not follow redirects.",
+    "reason": "The source `src` at Jobs.java:29 is attacker-controllable, but the full-string anchored regex at Jobs.java:30 pins the host to cdn.example.com and rejects any userinfo, port, or path tricks, so the request at Jobs.java:34 cannot be redirected to an arbitrary internal host."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00445713
+}

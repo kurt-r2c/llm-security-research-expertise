@@ -1,0 +1,97 @@
+{
+ "arm": "B",
+ "repo": "az-py-idor",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00605087,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-k7sm3943/r/invoices.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "invoices.py",
+    "line": 7,
+    "claim": "Missing authorization on /invoice/<inv_id> lets any caller read any invoice (IDOR / broken access control).",
+    "source": "Unauthenticated HTTP GET to /invoice/<inv_id>; attacker needs a valid invoice ID (enumerable if IDs are sequential or guessable).",
+    "sink": "jsonify(inv) at invoices.py:10 returns the full invoice record to the caller.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 7,
+      "note": "Route registered with no auth decorator."
+     },
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "inv_id taken from URL path."
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "INVOICES.get(inv_id) lookup; only guard is 404 when missing."
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "Record returned without checking the caller owns it."
+     }
+    ],
+    "guards_checked": "No authentication in this file and no before_request hook enforcing it. No ownership check (contrast /my/invoice at invoices.py:14-17, which enforces ownership, suggesting this is a leftover unscoped route). Risk depends on whether other code adds global auth middleware; none is in this directory."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:7 has no auth decorator, and the file has no before_request hook or other auth check. The only check is `INVOICES.get(inv_id) or abort(404)` at invoices.py:9, which only handles a missing record. jsonify(inv) at invoices.py:10 returns the record with no ownership check. The only other file in the directory is the .claude skills docs, so there is no app middleware here that could add auth.",
+    "reason": "The route at invoices.py:7-10 returns any invoice to an anonymous caller with no authentication or ownership check, while the sibling /my/invoice route at invoices.py:16-17 does enforce ownership, so the unscoped route is an IDOR; the attacker only needs a valid invoice ID. The one caveat is that global auth middleware could exist outside this directory, which I could not rule out."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "invoices.py",
+    "line": 16,
+    "claim": "Ownership checks read g.user without verifying it is set, so unauthenticated requests crash (500, possible traceback leak) or could fail open if a default user with id None is set elsewhere.",
+    "source": "Request with no credentials to /my/invoice/<inv_id> (line 13-14) or /my/invoices (line 21-22).",
+    "sink": "Ownership comparisons inv[\"customer\"] != g.user[\"id\"] (invoices.py:16) and i[\"customer\"] == g.user[\"id\"] (invoices.py:23).",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 14,
+      "note": "/my/invoice/<inv_id> handler receives request."
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "Reads g.user[\"id\"]; AttributeError if g.user unset, TypeError if None."
+     },
+     {
+      "file": "invoices.py",
+      "line": 23,
+      "note": "Same unguarded g.user[\"id\"] read in /my/invoices handler."
+     }
+    ],
+    "guards_checked": "404 on mismatch (invoices.py:17) is correct and the type comparison fails closed for mismatched types. Nothing in this file requires or validates an authenticated user. Exploitation depends on code outside this directory that sets g.user."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only guards are abort(404) at invoices.py:15 and :17, which don't check g.user. Nothing in the directory (only invoices.py) sets g.user, authenticates the request, or wraps these routes in a before_request. The fail-open half of the claim has no support in this code.",
+    "reason": "The trace is accurate: invoices.py:16 and :23 read g.user[\"id\"] with no check that g.user is set, and no control in the available code prevents an anonymous request from reaching them, so it crashes with a 500. The fail-open variant is unsupported, since nothing here sets g.user to a None-id default, and the impact is an unhandled error on a single request rather than an authorization bypass."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004795570000000001
+}

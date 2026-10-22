@@ -1,0 +1,150 @@
+{
+ "arm": "K3",
+ "repo": "mx-php-csrf",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "mixup",
+ "config_id": "6aeec8de",
+ "status": "success",
+ "gen_cost": 0.0074309400000000005,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Read": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-42bh_c8i/r/actions.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "actions.php",
+    "line": 16,
+    "claim": "CSRF check in transfer_funds is discarded, so the funds transfer runs without any CSRF protection.",
+    "source": "Cross-site request to transfer_funds with attacker-chosen amt and to; the victim's session cookie is sent. Token value is not needed.",
+    "sink": "UPDATE acct debit and credit (actions.php:17-18)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 16,
+      "note": "check_csrf($_POST['token'] ?? '') is called but its return value is ignored, so nothing is enforced."
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "Debits the session user's balance without any CSRF gate."
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "Credits the attacker-chosen $_POST['to'] account."
+     }
+    ],
+    "guards_checked": "check_csrf at actions.php:4-6 returns a bool that is discarded at :16. Contrast update_profile at :22, which uses verify_csrf and exits on failure. Unverified: SameSite setting on the session cookie, and whether this function is routed anywhere reachable (no route table in repo)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:4-6) returns a bool, but transfer_funds calls it as a bare statement at actions.php:16 and never tests the result, so it enforces nothing. verify_csrf (actions.php:8-13) would exit on failure, but transfer_funds does not call it. No other control sits between the request and the UPDATEs at lines 17-18.",
+    "reason": "actions.php:16 discards the bool from check_csrf, so the debit at line 17 and credit at line 18 run for any request regardless of token, while update_profile at line 22 correctly uses verify_csrf. The attacker needs only a victim's logged-in session, which a cross-site form POST can ride on; SameSite and route reachability are not in the repo, so they can't refute the defect, though they could reduce exploitability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "Negative amt lets a logged-in user move money out of any account, because the amount is never validated for sign or range.",
+    "source": "$_POST['amt'] and $_POST['to'] (attacker-controlled), with the session uid as the debited account.",
+    "sink": "UPDATE acct balance arithmetic (actions.php:17-18)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "bal = bal - amt on the session user. With amt=-500 this credits the attacker by 500."
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "bal = bal + amt on $_POST['to']. With to=<victim> and amt=-500 this debits the victim by 500."
+     }
+    ],
+    "guards_checked": "No sign check, no range check, no ownership check on to, no sender balance check. Only the (discarded) CSRF check at :16 precedes it."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. The only control is check_csrf() at actions.php:16, which returns a bool that is discarded as a bare statement, so it blocks nothing. No sign, range, sender-balance, or ownership check on $_POST['to'] exists at lines 17-18. Both statements use prepared parameters, so there is no SQL injection, but the amount is not validated.",
+    "reason": "actions.php:17-18 binds the raw $_POST['amt'] into `bal - ?` on the session uid and `bal + ?` on $_POST['to'], and the CSRF check at :16 is a discarded bool, so a logged-in user who submits a negative amt moves funds from the target account to their own. The only open point is reachability: this repo contains just actions.php and no caller or router, so I could not confirm from the code that transfer_funds is exposed to users."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "A missing amt key is passed to the UPDATEs as null, which can set both balances to NULL if the bal column is nullable.",
+    "source": "Absent $_POST['amt'] with a logged-in attacker who sets to=<victim>.",
+    "sink": "UPDATE acct balance arithmetic (actions.php:17-18)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "$_POST['amt'] has no ?? default, so the bound value is null and bal - NULL evaluates to NULL for the sender."
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "bal + NULL evaluates to NULL for $_POST['to'], nulling the victim's balance."
+     }
+    ],
+    "guards_checked": "No presence or numeric validation on amt. Conditional on the acct.bal column being nullable, which is not visible in this repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "No control validates $_POST['amt']. actions.php:17-18 pass $_POST['amt'] unvalidated, and the only guard, check_csrf() at actions.php:16, is a bare statement whose bool result is discarded, so it blocks nothing. The attacker must hold a valid session (actions.php:17 uses $_SESSION['uid']), which the candidate's attacker model already assumes.",
+    "reason": "The trace at actions.php:17-18 is accurate: omitting amt binds NULL, and bal - NULL / bal + NULL evaluate to NULL, but whether the victim's balance is actually nulled depends on the acct.bal column definition, which is not in this repo. If bal is NOT NULL, the UPDATE errors and nothing changes (PDO defaults to silent errors, so there is no crash either), so the impact cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "actions.php",
+    "line": 18,
+    "claim": "The transfer is not atomic and does not validate that the recipient exists, so a nonexistent to destroys the debited amount.",
+    "source": "$_POST['to'] set to a nonexistent account id by a logged-in user.",
+    "sink": "Two separate UPDATE statements (actions.php:17-18)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "The sender's balance is debited and committed."
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "The credit matches zero rows for a nonexistent to. Rows affected are not checked and no transaction wraps the two statements."
+     }
+    ],
+    "guards_checked": "No recipient existence check, no rows-affected check, no transaction. Impact is limited to the sender's own funds, so severity is low."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only candidate control is check_csrf() at actions.php:16, but its boolean result is discarded as a bare statement, so it blocks nothing. No recipient existence check, rows-affected check, or transaction wraps actions.php:17-18.",
+    "reason": "The trace matches actions.php:17-18: line 17 debits $_SESSION['uid'] and line 18 credits $_POST['to'] with no check, so a nonexistent 'to' destroys the debited amount. Any logged-in user can reach it, but the only loss falls on the sender's own balance, so the finding is valid and low severity."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00898948
+}

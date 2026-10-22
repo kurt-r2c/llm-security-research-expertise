@@ -1,0 +1,129 @@
+{
+ "arm": "C",
+ "repo": "az-node-massassign",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00939205,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 2,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/private/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qtz5s8xt/r/users.js",
+   "/var/folders/bw/qp7d9wg546n2n7sfj4wjlr180000gp/T/egf-qtz5s8xt/expertise/software/language-footguns/javascript_node_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me is a mass-assignment vulnerability: any field in req.body is merged into the authenticated user's record and persisted, so a user can set privilege or ownership fields (role, isAdmin, tenantId, id). Severity High, conditional on the data model.",
+    "source": "req.body on PUT /me (users.js:4), attacker-controlled. Precondition: any authenticated user; req.user is set by upstream middleware not in this repo.",
+    "sink": "Object.assign(req.user, req.body) (users.js:5), then req.store.save(req.user) (users.js:6).",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "Route handler receives req.body with no schema or field filter."
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Every own enumerable key of req.body is copied onto req.user."
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "The mutated req.user, including injected fields, is saved as-is."
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "Full record is returned, so any secret fields are disclosed too (see F3)."
+     }
+    ],
+    "guards_checked": "No allowlist, schema validation, or field stripping in this file. The sibling /me/profile route (lines 10-15) uses an explicit allowlist, which shows intent but does not protect /me. Not verifiable here: whether req.store.save filters fields, whether auth rejects role changes, and whether role/tenant fields exist. If id is overwritten and save upserts by id, another user's record could be overwritten."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:4-7 has no allowlist, schema, or field stripping. The /me/profile allowlist at users.js:11-12 applies only to that route. req.user is set by middleware outside this repo, so any authenticated user reaches this route.",
+    "reason": "Object.assign(req.user, req.body) at users.js:5 copies every body key onto the record, and req.store.save at users.js:6 persists it with no filter, so any authenticated user can write arbitrary fields. Whether that means privilege escalation (role, isAdmin, tenantId) depends on data-model fields that are not in this repo and stays unverified. The mass-assignment defect itself is confirmed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Object.assign with a raw request body lets an own __proto__ key reach the __proto__ setter, so an attacker can replace the prototype of req.user and inject inherited properties that later authorization checks may read. Severity Low to Medium; per-request, global pollution not shown.",
+    "source": "req.body parsed from JSON, e.g. {\"__proto__\": {\"isAdmin\": true}}. express.json() uses JSON.parse, which keeps __proto__ as an own property.",
+    "sink": "Object.assign(req.user, req.body) at line 5. Assign's [[Set]] invokes the __proto__ accessor, setting req.user's prototype to the attacker's object. Line 12 has the same pattern if the key reaches it, but destructuring there prevents it.",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies the own key '__proto__' via [[Set]], triggering the setter on req.user."
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save() may iterate with for...in, which includes inherited enumerable keys, so injected keys may persist."
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json serializes own keys only, so the injection may not show in the response."
+     }
+    ],
+    "guards_checked": "No __proto__ or constructor key filtering; no Object.create(null) target or hasOwn checks. Impact is limited to this request's req.user object unless it is cached or shared across requests, which this file does not show. Non-object __proto__ values are ignored by the setter. Exploitation needs downstream checks that read inherited properties."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 has no __proto__/constructor key filtering, and req.user is not shown as Object.create(null) or hasOwn-checked. The only other write, users.js:12, destructures named fields, so it does not carry a __proto__ key.",
+    "reason": "users.js:5 does what the trace says: Object.assign uses [[Set]], so an own \"__proto__\" key from req.body reaches the accessor and replaces req.user's prototype, and the authenticated user at PUT /me can reach it. Whether that is an authorization bypass depends on code not in this directory: the req.user loader and auth middleware (whether they read isAdmin-style flags through the prototype), and req.store.save (whether it uses for...in). The trace at users.js:6-7 is hedged (\"may\") and cannot be checked here. Also, users.js:5 already lets the same user set any own field, so the prototype effect adds only the inherited-read case."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "users.js",
+    "line": 7,
+    "claim": "The full user record is returned on both updates, so sensitive stored fields (password hash, API keys, reset tokens, MFA secrets) may be disclosed to the caller. Severity Low, conditional on stored fields.",
+    "source": "Authenticated caller issuing PUT /me or PUT /me/profile.",
+    "sink": "res.json(req.user) at users.js:7 and users.js:14.",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "Full req.user object is serialized into the response."
+     },
+     {
+      "file": "users.js",
+      "line": 14,
+      "note": "Same pattern on /me/profile."
+     }
+    ],
+    "guards_checked": "No projection or serializer in this file. Whether sensitive fields exist depends on the store, which is not in this repo."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none in users.js. Only the caller's own record is returned: res.json(req.user) at users.js:7 and users.js:14 serializes the object that the authenticated caller already owns, and no cross-user lookup happens in this file.",
+    "reason": "The trace is accurate (users.js:7 and :14 both return req.user), but req.user is the authenticated caller's own record, so an authenticated user only sees their own stored fields and gains no access they lack; the claim's disclosure of password hashes or MFA secrets would be self-disclosure, and no third-party exposure is shown (the store schema is outside this repo, so this does not rule out a cross-user path elsewhere)."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006538070000000001
+}

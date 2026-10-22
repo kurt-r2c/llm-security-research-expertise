@@ -1,0 +1,138 @@
+{
+ "arm": "C",
+ "repo": "mx-php-csrf",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01155127,
+ "trace": {
+  "tools": {
+   "Bash": 4,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": []
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "Negative amt lets any authenticated user drain any account via transfer_funds",
+    "source": "$_POST['amt'] and $_POST['to'] (attacker-controlled, authenticated user)",
+    "sink": "UPDATE acct SET bal = bal +/- ? at actions.php:17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 15,
+      "note": "transfer_funds entered"
+     },
+     {
+      "file": "actions.php",
+      "line": 16,
+      "note": "CSRF check result discarded"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "sender bal = bal - amt; amt=-500 credits attacker"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "target bal = bal + amt; to=<victim> is debited 500"
+     }
+    ],
+    "guards_checked": "None: no numeric or positive check on amt, no ownership or existence check on to, no balance check; CSRF check does not gate this path",
+    "repro": "Authenticated POST amt=-500&to=<victim_id>&token=anything"
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:4-6) is the only control on this path, but its bool result is discarded as a bare statement at actions.php:16, so it gates nothing. No numeric or positive check on $_POST['amt'] (line 17-18), no existence or ownership check on $_POST['to'], and no balance check. verify_csrf (lines 8-13) is not called on this path.",
+    "reason": "transfer_funds at actions.php:16 discards the check_csrf result, and actions.php:17-18 subtract and add the unvalidated $_POST['amt'] to the session user and to $_POST['to'], so a negative amt debits the victim; the caveat is that the router that calls transfer_funds is not in this directory, so the attacker's HTTP reachability is inferred from the $_POST usage rather than shown."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "actions.php",
+    "line": 16,
+    "claim": "CSRF check on transfer_funds is computed but its result is ignored, so state-changing transfer runs without a valid token",
+    "source": "Cross-site form or auto-submitting page causing victim browser to POST to transfer endpoint",
+    "sink": "Balance updates at actions.php:17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 4,
+      "note": "check_csrf returns boolean using hash_equals"
+     },
+     {
+      "file": "actions.php",
+      "line": 16,
+      "note": "check_csrf(...) return value dropped; verify_csrf not used"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debit executes unconditionally"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credit executes unconditionally"
+     }
+    ],
+    "guards_checked": "hash_equals is constant-time and correct, but unenforced; update_profile at line 22 uses verify_csrf so the bug is specific to transfer_funds. Exploitability depends on session cookie SameSite config, which is not visible in this file (Lax default blocks cross-site POST cookies)",
+    "repro": "Victim with active session loads attacker page that auto-submits POST to transfer endpoint with to=<attacker>&amt=<balance>; no token required"
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf at actions.php:4-5 returns a bool, but its result is discarded by the bare call at actions.php:16, so it is not enforced. verify_csrf (actions.php:8-13, which exits on failure) is not called in transfer_funds. The only other control is session_start (actions.php:2), which does not check the token. SameSite cookie handling is not visible in this directory and is the only possible mitigation outside the code.",
+    "reason": "The check_csrf() result at actions.php:16 is a bare statement, so debit and credit at actions.php:17-18 run with no token enforcement, while update_profile at actions.php:22 correctly uses verify_csrf. An anonymous cross-site attacker can reach this by making a logged-in victim's browser POST to the endpoint, and the only mitigation, a SameSite cookie default, is not in the code and does not remove the defect. The transfer_funds caller is not in this directory, so the reachable route is unverified, and SameSite=Lax would block the auto-submitting cross-site POST in some browsers."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "actions.php",
+    "line": 17,
+    "claim": "Transfer has no balance check and no transaction; overdraft, partial failure, and nonexistent recipient cause integrity loss",
+    "source": "$_POST['amt'] and $_POST['to'] (attacker-controlled)",
+    "sink": "Two non-transactional UPDATEs at actions.php:17-18",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debit with no balance check; balance can go negative"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credit may match zero rows if to does not exist, destroying funds"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "no BEGIN/COMMIT; failure between statements leaves debit without credit"
+     }
+    ],
+    "guards_checked": "None: no balance check, no recipient existence check, no transaction",
+    "repro": "POST amt=<more than balance>&to=<any>; or POST to=<nonexistent id> to destroy funds from sender"
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. The only control on this path is check_csrf() at actions.php:16, but it is called as a bare statement and its bool return is discarded, so it blocks nothing. No balance check, amount validation, recipient existence check, or transaction exists in transfer_funds (actions.php:15-19).",
+    "reason": "The debit at actions.php:17 has no balance or amount check and the credit at actions.php:18 silently matches zero rows for a nonexistent `to`, with no transaction wrapping the two statements, so an authenticated user (the $_SESSION['uid'] identity) can overdraw or destroy funds; caveat: no caller of transfer_funds exists in this directory, so reachability depends on an unseen dispatcher, and the candidate missed the more severe fact that the CSRF check at actions.php:16 is a no-op."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0074992900000000005
+}
