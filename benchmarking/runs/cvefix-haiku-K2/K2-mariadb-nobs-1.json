@@ -1,0 +1,169 @@
+{
+ "arm": "K2",
+ "repo": "mariadb-nobs",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.033803639999999996,
+ "trace": {
+  "tools": {
+   "Read": 10,
+   "Glob": 2,
+   "Grep": 5,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-_vcsxqm7/expertise/INDEX.md",
+   "/tmp/egf-_vcsxqm7/r/lib/io/packet-output-stream.js",
+   "/tmp/egf-_vcsxqm7/r/lib/io/packet-output-stream.js",
+   "/tmp/egf-_vcsxqm7/r/lib/misc/charset-mb.js",
+   "/tmp/egf-_vcsxqm7/r/lib/io/packet-output-stream.js",
+   "/tmp/egf-_vcsxqm7/r/lib/misc/utils.js",
+   "/tmp/egf-_vcsxqm7/r/lib/misc/parse.js",
+   "/tmp/egf-_vcsxqm7/r/lib/cmd/parser.js",
+   "/tmp/egf-_vcsxqm7/r/lib/pool.js",
+   "/tmp/egf-_vcsxqm7/r/lib/cmd/encoder/text-encoder.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lib/pool.js",
+    "line": 378,
+    "claim": "Pool-level escape() falls back to backslash escaping even when the server runs with NO_BACKSLASH_ESCAPES, because _searchInfo() never finds an active connection's status. A quote in an attacker-controlled value breaks out of the string literal.",
+    "source": "Application value passed to pool.escape(value) (e.g., a search term or username from an HTTP request). pool-promise.js:61-62 and pool-callback.js:63-64 expose this publicly.",
+    "sink": "SQL string the application builds from pool.escape() output, e.g. WHERE name = ${pool.escape(v)}.",
+    "trace": [
+     {
+      "file": "lib/pool.js",
+      "line": 380,
+      "note": "_searchInfo takes #idleConnections.get(0); undefined when all connections are busy."
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 383,
+      "note": "for...in over Object.keys(#activeConnections) iterates index strings '0','1',..., not thread IDs."
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 384,
+      "note": "#activeConnections['0'] is normally undefined, so the break on line 386 fires and conn stays undefined."
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 391,
+      "note": "conn falsy, so info stays null and is returned on line 394."
+     },
+     {
+      "file": "lib/pool.js",
+      "line": 503,
+      "note": "escape(value) passes this._searchInfo() (null) to Utils.escape."
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 224,
+      "note": "String value goes to escapeString(info, value) with info = null."
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 249,
+      "note": "noBackslashEscapes = info != null && ..., so false."
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 250,
+      "note": "Selects CHARS_GLOBAL_REGEXP and LITTERAL_ESCAPE: backslash escaping, so ' becomes \\' and \\ becomes \\\\."
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 273,
+      "note": "Output wrapped in single quotes; under NO_BACKSLASH_ESCAPES the server treats backslash as literal, so \\' closes the literal early."
+     }
+    ],
+    "guards_checked": "Idle-connection path (status-based escaping) is not taken when no idle connection exists. No status check, error, or fail-closed behavior when info is null. Connection-level escape (connection.js:113) is correct because it binds live info. escapeId unaffected."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lib/misc/utils.js",
+    "line": 213,
+    "claim": "With permitSetMultiParamEntries enabled, object keys are placed into a backtick-quoted identifier without escaping, so a key containing a backtick injects SQL.",
+    "source": "Object keys from untrusted input, e.g. connection.query('UPDATE t SET ?', obj) where obj is built from a request body.",
+    "sink": "SET/WHERE clause text sent to the server.",
+    "trace": [
+     {
+      "file": "lib/misc/utils.js",
+      "line": 202,
+      "note": "Branch taken when opts.permitSetMultiParamEntries is true for a plain object."
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 205,
+      "note": "for (let key in value): key used as-is."
+     },
+     {
+      "file": "lib/misc/utils.js",
+      "line": 213,
+      "note": "out += '`' + key + '`=' with no backtick doubling."
+     },
+     {
+      "file": "lib/cmd/encoder/text-encoder.js",
+      "line": 135,
+      "note": "Same unescaped pattern on the query-send path: out.writeString('`' + key + '`')."
+     }
+    ],
+    "guards_checked": "Option is off by default (connection-options.js:132). Values are escaped, but keys are not. No identifier validation or allowlist on this path."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lib/cmd/handshake/auth/caching-sha2-password-auth.js",
+    "line": 100,
+    "claim": "On a non-TLS connection without a configured key, the client requests the server's RSA public key over the unauthenticated channel and encrypts the password with it. An on-path attacker can substitute a key and recover the password.",
+    "source": "Network-path attacker (MITM) on a plaintext connection to the DB server; the server's key response is trusted without pinning.",
+    "sink": "Password sent as RSA-OAEP ciphertext under an attacker-supplied key (sha256-password-auth.js:130-137).",
+    "trace": [
+     {
+      "file": "lib/cmd/handshake/auth/caching-sha2-password-auth.js",
+      "line": 60,
+      "note": "Branch on opts.ssl; without TLS the key-retrieval path is reached."
+     },
+     {
+      "file": "lib/cmd/handshake/auth/caching-sha2-password-auth.js",
+      "line": 74,
+      "note": "A configured cachingRsaPublicKey is used if provided (pinned)."
+     },
+     {
+      "file": "lib/cmd/handshake/auth/caching-sha2-password-auth.js",
+      "line": 100,
+      "note": "out.writeInt8(0x02) requests the public key from the server."
+     },
+     {
+      "file": "lib/cmd/handshake/auth/caching-sha2-password-auth.js",
+      "line": 107,
+      "note": "Server PEM parsed by retrievePublicKey with no fingerprint or signature check."
+     },
+     {
+      "file": "lib/cmd/handshake/auth/caching-sha2-password-auth.js",
+      "line": 109,
+      "note": "Password RSA-encrypted with that key and sent."
+     }
+    ],
+    "guards_checked": "TLS and cachingRsaPublicKey/rsaPublicKey pinning are the mitigations. No key pinning or fingerprint check by default; matches MySQL protocol design, so may be accepted risk. Touches authentication; flag for Security review."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

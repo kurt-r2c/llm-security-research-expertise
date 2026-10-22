@@ -1,0 +1,187 @@
+{
+ "arm": "A",
+ "repo": "az-py-idor",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.005966129999999999,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-1l3iztyn/r/invoices.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "invoices.py",
+    "line": 7,
+    "claim": "/invoice/<inv_id> has no authentication or ownership check, so any unauthenticated caller can read any invoice by ID (IDOR / broken access control).",
+    "source": "Unauthenticated HTTP GET with attacker-chosen inv_id in the URL path.",
+    "sink": "jsonify(inv) returning the full invoice record from INVOICES (invoices.py:10).",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "inv_id taken from URL path with no auth decorator or hook."
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "INVOICES.get(inv_id) or abort(404); only handles missing IDs."
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "Full record returned to caller without checking g.user or customer ownership."
+     }
+    ],
+    "guards_checked": "No before_request hook, decorator, or g.user check in this file. The 404 on line 9 only handles missing IDs. The sibling /my/invoice route does enforce ownership, so this route is inconsistent with the rest of the app."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:8-10 has no decorator, before_request hook, or g.user check. The only guard is abort(404) at invoices.py:9, which handles missing IDs only. The sibling route at invoices.py:16-17 does perform an ownership check, so the omission is specific to this route. The directory contains no other .py files (Glob returned only invoices.py), so no app-level hook is visible.",
+    "reason": "Every trace line matches the code: the route at invoices.py:7-10 takes inv_id from the path, returns INVOICES[inv_id] via jsonify with no auth or ownership check, and an anonymous caller can reach it; the only caveat is that g.user is referenced at invoices.py:16 and 23, so an auth hook registered outside this directory could exist, which I cannot see."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "invoices.py",
+    "line": 16,
+    "claim": "/my/* routes depend on g.user set by unseen upstream code and do not reject unauthenticated requests; with g.user unset they fail with a 500 instead of 401/403.",
+    "source": "Request with no authenticated user, so g.user is never set.",
+    "sink": "g.user[\"id\"] access in the ownership check (invoices.py:16) and in list_mine (invoices.py:23).",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 14,
+      "note": "get_my_invoice entry point; no auth check."
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "g.user[\"id\"] raises AttributeError if g.user is unset, producing a 500."
+     },
+     {
+      "file": "invoices.py",
+      "line": 22,
+      "note": "list_mine entry point; same g.user dependency at line 23."
+     }
+    ],
+    "guards_checked": "The ownership comparison (!=) is correct and returns 404 for both missing and foreign invoices, so there is no existence oracle. Security relies entirely on authentication code that is not in this file."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:15 (abort(404) on a missing invoice) runs before the g.user access at :16, and no auth check, before_request hook, or g.user setter exists in the repo (only invoices.py is present). The ownership check at :16-17 is never reached when g.user is unset.",
+    "reason": "Trace is accurate: invoices.py:16 and :23 read g.user[\"id\"] with no guard, so an anonymous request gets a 500 (AttributeError) at :16 for any existing invoice ID, while a missing ID returns 404 at :15. The candidate's guards_checked says there is no existence oracle, which is wrong for anonymous callers, since the 404/500 difference reveals whether an invoice ID exists. Severity is low (error-handling defect plus an ID-existence oracle, not a data disclosure), and whether the app rejects anonymous requests upstream is out of this repo's scope."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "invoices.py",
+    "line": 23,
+    "claim": "One invoice record without a 'customer' key makes /my/invoices fail for every customer, not just the owner of that record (logic flaw / DoS).",
+    "source": "A record in INVOICES lacking the 'customer' key, e.g. from a partial write elsewhere.",
+    "sink": "i[\"customer\"] in the list comprehension (invoices.py:23) raises KeyError and fails the whole response.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 22,
+      "note": "list_mine entry point."
+     },
+     {
+      "file": "invoices.py",
+      "line": 23,
+      "note": "Iterates INVOICES.values(); i[\"customer\"] raises KeyError on the malformed record, returning 500 for all callers."
+     }
+    ],
+    "guards_checked": "No .get() or schema validation on the record. Single-record failure is not isolated."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none. invoices.py:23 has no .get() or schema check, but no attacker-controlled input reaches the malformed-record condition. The only INVOICES writes in the directory are its initialization at invoices.py:4. The record writer the candidate cites (\"partial write elsewhere\") is not in the code available.",
+    "reason": "The trace is accurate (invoices.py:22-23 does iterate INVOICES.values() and index i[\"customer\"] unguarded), but the attacker cannot place a record lacking 'customer' into INVOICES: the only data source in this code is the empty dict at invoices.py:4 and no writer exists here, so the KeyError requires data corruption outside any attacker's reach, not an attacker-triggerable DoS."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "invoices.py",
+    "line": 16,
+    "claim": "Ownership check may be bypassed by a null match if g.user['id'] is None or otherwise equal to an invoice's customer value (conditional on upstream auth behaviour).",
+    "source": "A g.user object whose id is None or matches a record's customer value, produced by unseen auth code.",
+    "sink": "The != comparison at invoices.py:16 allowing the protected jsonify(inv) at line 18 to run.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 15,
+      "note": "inv loaded from INVOICES by attacker-chosen inv_id."
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "inv[\"customer\"] != g.user[\"id\"] passes when both values are equal, including both None."
+     },
+     {
+      "file": "invoices.py",
+      "line": 18,
+      "note": "Record returned to caller."
+     }
+    ],
+    "guards_checked": "No check in this file rejects None or missing user IDs. Only exploitable if upstream auth can yield such a user and some invoices have a matching customer value; not confirmable from this file."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in invoices.py: no before_request/auth decorator on get_my_invoice (invoices.py:13-14), and the only check is the != comparison at invoices.py:16, which aborts on mismatch and proceeds on equality as the trace says. The directory contains only invoices.py, so the code that sets g.user (the auth code) cannot be read.",
+    "reason": "The trace matches the code (invoices.py:15 loads inv, :16 proceeds when inv[\"customer\"] equals g.user[\"id\"], :18 returns it), but whether g.user[\"id\"] can be None or equal a stored customer value depends on auth code that is not in the directory, so the exploitability cannot be decided here."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "invoices.py",
+    "line": 10,
+    "claim": "Full invoice record is returned with no field allowlist, which may expose internal fields to customers (informational, conditional on record contents).",
+    "source": "Any caller of /invoice/<inv_id> (F1) or an authenticated caller of /my/invoice/<inv_id>.",
+    "sink": "jsonify(inv) at invoices.py:10 and invoices.py:18 serializing the entire stored dict.",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "Entire INVOICES entry serialized to the response."
+     },
+     {
+      "file": "invoices.py",
+      "line": 18,
+      "note": "Same unfiltered serialization on the customer-facing route."
+     }
+    ],
+    "guards_checked": "No field filtering or serializer in this file. Impact depends on whether stored records contain internal-only fields, which cannot be seen here."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. There is no field filter or serializer in invoices.py. Line 10 (`return jsonify(inv)`) and line 18 (`return jsonify(inv)`) serialize the whole stored dict, as the candidate says. The only checks are the 404 abort on a missing ID (line 9) and the ownership comparison on line 16, which applies only to the /my/ route.",
+    "reason": "The trace is accurate (invoices.py:10 and :18 serialize the whole `inv` dict with no filtering), but whether this leaks anything depends on what fields INVOICES records hold, and `INVOICES = {}` at line 4 is empty and populated nowhere in this file, so an exposure of internal fields cannot be confirmed from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01114559
+}

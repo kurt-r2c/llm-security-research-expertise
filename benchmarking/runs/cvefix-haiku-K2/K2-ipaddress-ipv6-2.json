@@ -1,0 +1,188 @@
+{
+ "arm": "K2",
+ "repo": "ipaddress-ipv6",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.030944140000000002,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 10,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-atwqyqmy/expertise/INDEX.md",
+   "/tmp/egf-atwqyqmy/r/src/common.ts",
+   "/tmp/egf-atwqyqmy/r/src/ipv4.ts",
+   "/tmp/egf-atwqyqmy/r/src/ipv6.ts",
+   "/tmp/egf-atwqyqmy/r/src/v4/constants.ts",
+   "/tmp/egf-atwqyqmy/r/src/v6/regular-expressions.ts",
+   "/tmp/egf-atwqyqmy/r/src/v6/helpers.ts",
+   "/tmp/egf-atwqyqmy/r/src/v6/constants.ts",
+   "/tmp/egf-atwqyqmy/r/src/ip-address.ts",
+   "/tmp/egf-atwqyqmy/r/src/address-error.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/ipv6.ts",
+    "line": 1253,
+    "claim": "Address6.isLinkLocal() returns false for most of fe80::/10 (e.g. febf::1, fe81::1, fe80:0:0:1::1), while getType() classifies the same addresses as 'Link-local unicast'. isLinkLocal only matches the exact fe80::/64 prefix with bits 10-63 zero. Consumers that use isLinkLocal() in an SSRF or trust-boundary deny filter will let these through.",
+    "source": "Attacker-supplied IPv6 literal, e.g. 'febf::1', passed to new Address6(...) and then to isLinkLocal() as part of a deny check.",
+    "sink": "isLinkLocal() return value (ipv6.ts:1253-1258), used as an allow/deny decision by the caller.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1246,
+      "note": "isLinkLocal() entry point"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1247,
+      "note": "embeddedIPv4() is null for febf::1 (not mapped, not 64:ff9b::/96), so the embedded path is skipped"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1253,
+      "note": "Compares getBitsBase2(0,64) to the literal 'fe80' followed by 54 zeros, so only fe80::/64 with zero bits 10-63 matches"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1257,
+      "note": "Returns false for febf::1, whose first 64 bits are 1111111010111111 0...0"
+     },
+     {
+      "file": "src/v6/constants.ts",
+      "line": 48,
+      "note": "TYPES maps 'fe80::/10' to 'Link-local unicast'; getType() (ipv6.ts:573-581) therefore reports febf::1 as link-local, so the library is internally inconsistent"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 31,
+      "note": "Doc says the special-use classifiers (isLinkLocal etc.) back SSRF allow/deny filters, so the misclassification matters to callers"
+     }
+    ],
+    "guards_checked": "embeddedIPv4() (ipv6.ts:1317-1323) handles only mapped and NAT64 well-known addresses, so it does not cover native fe80::/10 values. The code comment at ipv6.ts:1252 says zeroes are required, which is a deliberate narrowing, but the method doc (ipv6.ts:1242-1245) promises a general link-local check. Not a decoy: the mismatch is real."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/common.ts",
+    "line": 19,
+    "claim": "isInSubnet and isHostInSubnet do not check address family. They compare only the leading N bits, so an Address6 can be reported as contained in an Address4 range (and the reverse). Example: new Address6('0a00::1').isInSubnet(new Address4('10.0.0.0/8')) returns true. An access-control check that mixes families can be bypassed with an IPv6 address.",
+    "source": "Attacker-controlled IPv6 address (e.g. '0a00::1') checked against an allow-list or deny-list that contains IPv4 ranges.",
+    "sink": "isInSubnet / isHostInSubnet return value (common.ts:19-25, 39-41), used by the caller as an authorization or classification decision.",
+    "trace": [
+     {
+      "file": "src/common.ts",
+      "line": 19,
+      "note": "isInSubnet(this: Address4|Address6, address: Address4|Address6) accepts mixed families in its signature"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 20,
+      "note": "Only subnetMask is compared (128 >= 8, so no early return)"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 40,
+      "note": "isHostInSubnet: this.mask(8) on the Address6 gives '00001010'"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 414,
+      "note": "Address4.mask() gives '00001010' for 10.0.0.0/8, so the strings compare equal and the function returns true"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1216,
+      "note": "Address6 exposes isInSubnet = common.isInSubnet publicly, with no family check"
+     }
+    ],
+    "guards_checked": "No family check anywhere on this path. The library's own classifiers (e.g. ipv6.ts:1381-1387, isPrivate) only pass Address6 ranges to Address6 methods and call Address4 methods on the embedded Address4, so the internal classifiers are not affected. Exploitability depends on the caller mixing families in a single membership test. Verdict: plausible."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/v6/constants.ts",
+    "line": 82,
+    "claim": "RE_ZONE_STRING /%.*$/ has quadratic backtracking on input with many '%' characters followed by a line terminator. The Address6 constructor runs it on untrusted input before any character validation, so the cost is O(n^2) in the input length (ReDoS). Not verified by execution; no runtime was available.",
+    "source": "Untrusted string passed to new Address6(...) or Address6.isValid(...), containing many '%' characters followed by \\n, \\r, \u2028 or \u2029.",
+    "sink": "RE_ZONE_STRING.exec at ipv6.ts:147, which runs before the bad-character check at ipv6.ts:801.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 122,
+      "note": "Subnet regex runs first; it has no '/' in this input, so it does not match"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 143,
+      "note": "/\\// test passes (no slash)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 147,
+      "note": "RE_ZONE_STRING.exec(address) starts at each '%'; '.*' runs to the terminator, '$' fails there (no m flag), and '.*' backtracks one character at a time, so each start costs O(n)"
+     },
+     {
+      "file": "src/v6/constants.ts",
+      "line": 82,
+      "note": "Regex definition /%.*$/ with no anchor or length bound"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 157,
+      "note": "parse() then rejects the '\\n' via RE_BAD_CHARACTERS, but only after the quadratic scan has finished"
+     }
+    ],
+    "guards_checked": "No input length limit in the constructor or in isValid. The subnet and '/' checks do not stop the zone scan. The impact is CPU exhaustion from a single call; there is no memory or correctness impact. Verdict: plausible, unverified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/ipv6.ts",
+    "line": 1458,
+    "claim": "Address6.href(optionalPort) concatenates the port argument into the URL without validation. A port value containing '@' or '/' changes the host or path of the returned URL. Example: href('80@evil.example') returns 'http://[::1]:80@evil.example/', which parses with host evil.example.",
+    "source": "Caller-supplied optionalPort (typed number | string) that originates from untrusted input.",
+    "sink": "Returned URL string, built at ipv6.ts:1454 and ipv6.ts:1458, and typically used as a link or redirect target.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1451,
+      "note": "href(optionalPort?: number | string) accepts an arbitrary string"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1454,
+      "note": "optionalPort = `:${optionalPort}`, with no validation or encoding"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1458,
+      "note": "Returns `http://[${this.correctForm()}]${optionalPort}/`, so the '@' in the port makes the bracketed address userinfo and the following text the host"
+     }
+    ],
+    "guards_checked": "correctForm() output is hex and colons only, so the bracketed host itself is safe. No check on optionalPort. The method's doc (ipv6.ts:1447-1450) does not say the port must be numeric. Verdict: plausible, and only reachable if the caller passes untrusted port text."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

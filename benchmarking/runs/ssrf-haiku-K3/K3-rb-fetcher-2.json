@@ -1,0 +1,95 @@
+{
+ "arm": "K3",
+ "repo": "rb-fetcher",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "3224da1d",
+ "status": "success",
+ "gen_cost": 0.005941490000000001,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-15mtilt9/r/app.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.rb",
+    "line": 8,
+    "claim": "Unauthenticated GET /rss fetches an arbitrary attacker-supplied URL with no scheme, host, IP, or port validation and returns the first 400 bytes of the response to the caller, enabling non-blind SSRF to internal hosts and cloud metadata endpoints.",
+    "source": "app.rb:7 get \"/rss\" -> params[:u] (query string, unauthenticated)",
+    "sink": "app.rb:8 URI.open(params[:u]).read (open-uri, follows HTTP redirects)",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "Route is unauthenticated; params[:u] is attacker-controlled."
+     },
+     {
+      "file": "app.rb",
+      "line": 8,
+      "note": "params[:u] passed directly to URI.open. A string containing a scheme (e.g. http://) is parsed by open-uri and fetched over the network, with no check on host or address."
+     },
+     {
+      "file": "app.rb",
+      "line": 9,
+      "note": "First 400 bytes of the fetched body are returned in the HTTP response, so the attacker reads the internal response."
+     }
+    ],
+    "guards_checked": "None on the path. No allowlist on host, scheme, IP range (RFC1918, loopback, 169.254.169.254), or port. No check on the redirect target: open-uri follows redirects, so an allowed external host can 302 to an internal address. The TRUSTED constant (app.rb:5) is defined but never used on this route. Note: a non-URL string with no scheme falls through to Kernel#open, which is a separate local-file and pipe issue outside SSRF scope."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "The `/rss` route at app.rb:7 takes `params[:u]` with no authentication, passes it unvalidated to `URI.open` at app.rb:8, and returns the first 400 bytes of the response at app.rb:9, so the attacker reads the fetched body. The only host check in the file, `TRUSTED` at app.rb:5, is used only by `/trusted` at app.rb:14, not by `/rss`."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.rb",
+    "line": 15,
+    "claim": "Route /trusted's host allowlist is enforced correctly for SSRF purposes, so it is not reported. Its only residual weakness is that the allowlist does not constrain port or scheme, which would let a caller reach any port on the allowed hosts. That is low impact and not a finding.",
+    "source": "app.rb:13 params[:u] parsed by URI.parse",
+    "sink": "app.rb:15 Net::HTTP.get(uri)",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 13,
+      "note": "Same URI object is parsed once and used for both the check and the request."
+     },
+     {
+      "file": "app.rb",
+      "line": 14,
+      "note": "uri.host is compared by exact membership in TRUSTED. Userinfo tricks (http://feeds.example.net@169.254.169.254/) parse with host=169.254.169.254 and are rejected. Backslash and whitespace inputs raise InvalidURIError instead of passing."
+     },
+     {
+      "file": "app.rb",
+      "line": 15,
+      "note": "Net::HTTP.get does not follow redirects, so no post-check redirect bypass exists."
+     }
+    ],
+    "guards_checked": "Exact host membership against TRUSTED (app.rb:14), validation and request use the same parsed URI object (app.rb:13,15), and no redirect following. Not reported: no port or scheme restriction, which is low impact on allowed hosts."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.rb:14 `halt 400, \"no\" unless TRUSTED.include?(uri.host)`: exact set membership on the parsed hostname, and the same `uri` object is passed to `Net::HTTP.get(uri)` at app.rb:15, so the request host is the checked host.",
+    "reason": "The attacker-controlled `params[:u]` (app.rb:13) is parsed once and must have `uri.host` exactly equal to `feeds.example.net` or `news.example.net` (app.rb:14) before `Net::HTTP.get(uri)` runs (app.rb:15), which is a closing exact-host guard; the candidate's trace lines match the code. The residual port/scheme looseness is outside the SSRF finding criteria, so this is not reportable as an SSRF."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00382182
+}

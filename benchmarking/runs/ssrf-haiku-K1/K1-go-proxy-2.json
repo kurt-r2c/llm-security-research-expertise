@@ -1,0 +1,110 @@
+{
+ "arm": "K1",
+ "repo": "go-proxy",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.005408970000000001,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-__8iqnop/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "Unauthenticated /fetch handler passes the attacker-supplied 'target' query parameter straight to http.Get and streams the full response body back to the caller. No scheme, host, private-IP, or redirect restrictions exist, so the endpoint can reach loopback, RFC1918 hosts, and cloud metadata endpoints and return their contents.",
+    "source": "main.go:15 r.URL.Query().Get(\"target\") (entry point: GET /fetch registered at main.go:41, no auth)",
+    "sink": "main.go:16 http.Get(target); response body copied to the client at main.go:22 via io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "/fetch is registered on the default mux with no auth middleware"
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target read from the query string with no transformation"
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get issues a request to the attacker-chosen URL using the default client, which follows redirects"
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "upstream response body is returned verbatim to the attacker (full-response SSRF)"
+     }
+    ],
+    "guards_checked": "None on this path: no scheme allowlist, no host allowlist, no resolved-IP check for private, loopback, link-local, or metadata addresses, no redirect validation. Go's client rejects non-HTTP schemes such as file:, so local file read through this route does not work. Attacker needs only network reach to port 8080."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the /fetch path. The `allowed` host map (main.go:9-12) and its check (main.go:27) exist only in safeFetch, which is registered separately at main.go:42. fetch (main.go:14-23) has no scheme, host, IP, or redirect check before http.Get(target) at main.go:16.",
+    "reason": "The /fetch route is registered without auth at main.go:41, the attacker-controlled target query parameter is read at main.go:15 and passed unvalidated to http.Get at main.go:16, and the full response body is streamed back to the client at main.go:22, so no closing guard exists on this path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "Conditional SSRF bypass in /safe: the host allowlist is checked only on the initial URL (main.go:27), and http.Get then follows redirects without re-checking the destination. If either allowlisted host (images.example.org or docs.example.org) has an open redirect to an internal or metadata address, the attacker reaches that address through /safe.",
+    "source": "main.go:26 r.URL.Query().Get(\"target\") (entry point: GET /safe registered at main.go:42)",
+    "sink": "main.go:31 http.Get(u.String()); response body copied to the client at main.go:37",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "/safe is registered on the default mux with no auth middleware"
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target parsed with url.Parse"
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "u.Hostname() must exactly match an allowlisted host; this is the only validation"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get follows up to 10 redirects by default; the redirect destination is not checked against the allowlist or private ranges"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "response body returned to the attacker"
+     }
+    ],
+    "guards_checked": "Checked and holding for direct requests: userinfo tricks (images.example.org@127.0.0.1), fragment tricks, case and trailing-dot variants, port suffixes, and non-HTTP schemes. url.Parse is used for both the check and the fetch, so the parsers agree. Not holding: redirect destinations are unchecked. Precondition is an open redirect on an allowlisted host, which this repo cannot confirm. Confidence is lower than SSRF-1."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "main.go:27 `!allowed[u.Hostname()]`, an exact-match map lookup on the parsed hostname that rejects non-allowlisted hosts before the fetch at main.go:31. This is the closing guard type the rubric recognizes. The redirect-following at main.go:31 is not validated, but the repo contains no open redirect on the allowlisted hosts, so the exploit depends on external infrastructure.",
+    "reason": "The candidate's trace lines are accurate (main.go:42, 26, 27, 31, 37), and the attacker-controlled `target` is checked by the exact hostname allowlist at main.go:27, which closes the direct-SSRF path; the remaining redirect-following concern at main.go:31 depends on an unverified open redirect on images.example.org or docs.example.org, which this repo cannot confirm, so it does not support a standalone CONFIRMED finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00389682
+}

@@ -1,0 +1,99 @@
+{
+ "arm": "A",
+ "repo": "az-py-idor",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.0043078000000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-0bkhnre4/r/invoices.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "invoices.py",
+    "line": 7,
+    "claim": "GET /invoice/<inv_id> returns any invoice to any caller with no authentication or ownership check (IDOR / missing authorization)",
+    "source": "inv_id from the URL path (invoices.py:8), attacker-controlled; no credential required",
+    "sink": "INVOICES.get(inv_id) then jsonify(inv) returns the full invoice record (invoices.py:9-10)",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 7,
+      "note": "Route '/invoice/<inv_id>' registered with no auth decorator, before_request hook, or login_required"
+     },
+     {
+      "file": "invoices.py",
+      "line": 8,
+      "note": "inv_id taken from the path with no validation"
+     },
+     {
+      "file": "invoices.py",
+      "line": 9,
+      "note": "INVOICES.get(inv_id) returns any invoice by ID, with no check against g.user or a session"
+     },
+     {
+      "file": "invoices.py",
+      "line": 10,
+      "note": "jsonify(inv) returns the whole record, including customer and any other fields"
+     }
+    ],
+    "guards_checked": "No auth decorator on the route. No ownership comparison (contrast /my/invoice at lines 16-17). No before_request in this file. Only the 404 on line 9 applies, which is an existence oracle. Unverified: a global auth hook outside this file would negate this finding."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The route at invoices.py:7 has no auth decorator, and the file has no before_request hook. The only other control is the 404 abort at invoices.py:9, which is an existence oracle, not an authorization check. The only other file in the directory is invoices.py itself, so no app-wide hook is visible. The sibling /my/invoice route (invoices.py:16-17) does check ownership, which means the missing check on /invoice/<inv_id> is not a shared pattern.",
+    "reason": "invoices.py:7-10 registers /invoice/<inv_id> with no auth or ownership check, and jsonify(inv) returns the full record for any inv_id, so an anonymous caller can read any invoice. The one caveat is that g.user is set somewhere outside this directory (used at invoices.py:16 and 23), so a global auth hook there would block it, but none is present in the code available to me."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "invoices.py",
+    "line": 13,
+    "claim": "Authorization on /my/* routes depends entirely on g.user, which this file never sets. If it is set from untrusted input or left unset, the ownership checks fail.",
+    "source": "g.user, populated by code not in this file. Its origin (session, header, token) is unknown.",
+    "sink": "Ownership comparisons at invoices.py:16 (inv['customer'] != g.user['id']) and invoices.py:23 (list filter)",
+    "trace": [
+     {
+      "file": "invoices.py",
+      "line": 13,
+      "note": "get_my_invoice route; checks inv['customer'] against g.user['id'] at line 16"
+     },
+     {
+      "file": "invoices.py",
+      "line": 21,
+      "note": "list_mine route; filters on the same comparison at line 23"
+     },
+     {
+      "file": "invoices.py",
+      "line": 16,
+      "note": "Ownership comparison depends on g.user, which is never assigned in this file"
+     }
+    ],
+    "guards_checked": "The 404 on mismatch avoids leaking existence. If g.user is missing, the route raises AttributeError (500) and does not fail open. If g.user['id'] can be None and some invoices lack a 'customer' key, the comparison could match unexpectedly; this needs the data model to confirm. Needs the auth middleware to confirm the trust source."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "abort(404) on ownership mismatch at invoices.py:16-17 and invoices.py:23 filter; if g.user is unset, g.user[\"id\"] raises AttributeError (500) so the route fails closed, not open. The only unchecked control is the g.user middleware, which is not in the directory.",
+    "reason": "The trace lines are accurate (invoices.py:13-18, 21-23), and an unset g.user fails closed with a 500 rather than failing open, so the candidate's \"left unset\" case is refuted. Whether g.user can be attacker-controlled depends on the authentication middleware that sets it, which is not in the available files, so the attacker reachability cannot be decided from this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00408465
+}

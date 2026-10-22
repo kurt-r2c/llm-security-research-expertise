@@ -1,0 +1,286 @@
+{
+ "arm": "A",
+ "repo": "nebulamesh-ssrf",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.2573256,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 32,
+   "Read": 22,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-kaexpq_2/r/internal/web/oidc.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/csrf.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/session.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/web.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/handlers.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/operators.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/cas.go",
+   "/tmp/egf-kaexpq_2/r/internal/webhook/webhook.go",
+   "/tmp/egf-kaexpq_2/r/internal/api/webhooks.go",
+   "/tmp/egf-kaexpq_2/r/internal/pop/canonical.go",
+   "/tmp/egf-kaexpq_2/r/internal/enrollment/ttl.go",
+   "/tmp/egf-kaexpq_2/r/internal/api/pop/verify.go",
+   "/tmp/egf-kaexpq_2/r/internal/api/updates.go",
+   "/tmp/egf-kaexpq_2/r/internal/configgen/firewall.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/handlers.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/handlers.go",
+   "/tmp/egf-kaexpq_2/r/internal/web/events.go",
+   "/tmp/egf-kaexpq_2/r/internal/api/hosts.go",
+   "/tmp/egf-kaexpq_2/r/internal/api/authz.go",
+   "/tmp/egf-kaexpq_2/r/internal/api/middleware.go",
+   "/tmp/egf-kaexpq_2/r/internal/store/sqlite_operators.go",
+   "/tmp/egf-kaexpq_2/r/internal/store/sqlite.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "internal/web/handlers.go",
+    "line": 166,
+    "claim": "TOTP second factor can be guessed without a per-account limit: failed codes are audited but never counted, and the pending session is not invalidated, so an attacker who knows the password can keep guessing across fresh logins.",
+    "source": "code form field on POST /ui/login/totp (handlers.go:125), reachable with a valid password",
+    "sink": "verifyTOTPWithTimestep check at handlers.go:130 (second factor for login)",
+    "trace": [
+     {
+      "file": "internal/web/web.go",
+      "line": 314,
+      "note": "auth rate limit 5 req/s burst 10 per IP (ratelimit/limiter.go:47)"
+     },
+     {
+      "file": "internal/web/handlers.go",
+      "line": 120,
+      "note": "PendingOperator resolves the pending session from cookie"
+     },
+     {
+      "file": "internal/web/handlers.go",
+      "line": 130,
+      "note": "TOTP verify with skew \u00b11 (totp.go:40)"
+     },
+     {
+      "file": "internal/web/handlers.go",
+      "line": 166,
+      "note": "on failure: audit row and re-render only; no failure counter, no session invalidation"
+     },
+     {
+      "file": "internal/web/session.go",
+      "line": 125,
+      "note": "lockout counter only incremented on password mismatch"
+     },
+     {
+      "file": "internal/web/session.go",
+      "line": 151,
+      "note": "correct password resets failure counter and creates a fresh 5-minute pending session (session.go:23,174)"
+     }
+    ],
+    "guards_checked": "Replay protection on consumed timestep (handlers.go:135); per-IP rate limit; 5-minute pending TTL. None caps total guesses per account. Approx 1500 guesses per pending session per IP at 5/s, ~3/1e6 hit chance each, scaling across IPs."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "internal/web/handlers.go",
+    "line": 63,
+    "claim": "OIDC-authenticated operators are exempt from the enforce-2FA redirect, and the OIDC callback never checks TOTPEnabled, so IdP-only login skips local second factor.",
+    "source": "Successful OIDC callback for an operator with AuthProvider=oidc",
+    "sink": "Authenticated session creation without local 2FA (requireAuth bypass)",
+    "trace": [
+     {
+      "file": "internal/web/handlers.go",
+      "line": 63,
+      "note": "requireAuth skips enforce-2FA when AuthProvider == OIDC"
+     },
+     {
+      "file": "internal/web/oidc.go",
+      "line": 347,
+      "note": "StartAuthenticatedSession called without checking op.TOTPEnabled"
+     },
+     {
+      "file": "internal/web/session.go",
+      "line": 211,
+      "note": "creates AuthenticatedSession directly, no pending_totp state"
+     }
+    ],
+    "guards_checked": "IdP-side MFA is assumed by design; email_verified and allowlist checks apply (oidc.go:305-325). Impact depends on IdP MFA strength. Policy decision, not a code bug per se."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "internal/configgen/firewall.go",
+    "line": 52,
+    "claim": "Malformed or unusable stored firewall policy silently falls back to allow-all outbound, and the mobile bundle builder discards the error, so a restrictive egress policy becomes allow-all.",
+    "source": "network_config 'firewall' JSON row (stored data; corrupt or legacy)",
+    "sink": "Rendered agent/mobile Nebula config outbound firewall rules",
+    "trace": [
+     {
+      "file": "internal/configgen/firewall.go",
+      "line": 52,
+      "note": "JSON parse error returns DefaultFirewallOutbound (allow-all)"
+     },
+     {
+      "file": "internal/configgen/firewall.go",
+      "line": 59,
+      "note": "convertStoredRules error also returns defaults"
+     },
+     {
+      "file": "internal/mobilebundle/builder.go",
+      "line": 134,
+      "note": "error discarded with _; no logger, silent default"
+     },
+     {
+      "file": "internal/api/firewall.go",
+      "line": 172,
+      "note": "agent path only logs a warning, still renders baseline"
+     }
+    ],
+    "guards_checked": "Write-time validation requires non-empty port, proto, group (internal/api/firewall.go:96-113). Only triggered by corrupted or pre-validation stored rows."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "internal/web/oidc.go",
+    "line": 327,
+    "claim": "Disabled OIDC operators receive a new authenticated session and a success audit row on callback, because upsertOperator and StartAuthenticatedSession do not check operator status.",
+    "source": "OIDC callback for an operator whose status is disabled but still allowed by the IdP",
+    "sink": "Session row creation, last-login update, and operator.oidc.login audit entry",
+    "trace": [
+     {
+      "file": "internal/web/oidc.go",
+      "line": 327,
+      "note": "upsertOperator called"
+     },
+     {
+      "file": "internal/store/sqlite_operators.go",
+      "line": 187,
+      "note": "GetOperatorByOIDC returns operator without status check"
+     },
+     {
+      "file": "internal/web/oidc.go",
+      "line": 347,
+      "note": "StartAuthenticatedSession creates session"
+     },
+     {
+      "file": "internal/web/session.go",
+      "line": 244,
+      "note": "UpdateOperatorLastLogin for disabled account"
+     },
+     {
+      "file": "internal/web/oidc.go",
+      "line": 357,
+      "note": "audit operator.oidc.login written as success"
+     }
+    ],
+    "guards_checked": "CurrentOperator rejects inactive operators (sqlite_operators.go:711), so no access is granted. Impact is misleading audit and orphaned sessions that revive on re-enable before expiry."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "internal/web/oidc.go",
+    "line": 184,
+    "claim": "OIDC authorization request omits a nonce and the ID token nonce is never validated, a defense-in-depth gap in the OIDC flow.",
+    "source": "OIDC login initiation and callback id_token",
+    "sink": "ID token acceptance in HandleCallback",
+    "trace": [
+     {
+      "file": "internal/web/oidc.go",
+      "line": 184,
+      "note": "AuthCodeURL(state) with no nonce"
+     },
+     {
+      "file": "internal/web/oidc.go",
+      "line": 251,
+      "note": "verifier.Verify without nonce check"
+     },
+     {
+      "file": "internal/web/oidc.go",
+      "line": 208,
+      "note": "state cookie binding enforced (cookie == state)"
+     }
+    ],
+    "guards_checked": "State cookie binding blocks login CSRF (oidc.go:208-210); token obtained over TLS from IdP; aud verified by verifier. Low practical impact."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "internal/web/session.go",
+    "line": 114,
+    "claim": "Any unauthenticated attacker who knows a username can lock that local account, including admin accounts, for 15 minutes every 10 failed attempts.",
+    "source": "Unauthenticated POST /ui/login with a known username and wrong password",
+    "sink": "Account lockout denying legitimate login (operator.account_locked)",
+    "trace": [
+     {
+      "file": "internal/web/session.go",
+      "line": 137,
+      "note": "RecordFailedLoginAttempt increments counter on wrong password"
+     },
+     {
+      "file": "internal/web/session.go",
+      "line": 140,
+      "note": "lock applied at threshold 10 for 15 minutes"
+     },
+     {
+      "file": "internal/web/session.go",
+      "line": 114,
+      "note": "active lock denies login regardless of password"
+     }
+    ],
+    "guards_checked": "Timing equalized via dummy bcrypt (#180); per-IP rate limit 5/s. Deliberate trade-off per #263; listed for awareness."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "internal/web/handlers.go",
+    "line": 263,
+    "claim": "Self-registration auto-provisions a CA key for each new account, letting unauthenticated callers consume CPU and storage by creating accounts, if self-registration is enabled.",
+    "source": "Unauthenticated POST /ui/register when self-registration is enabled",
+    "sink": "provisionDefaultCA key generation and CA row creation",
+    "trace": [
+     {
+      "file": "internal/web/handlers.go",
+      "line": 209,
+      "note": "gated by allowSelfRegistrationEffective"
+     },
+     {
+      "file": "internal/web/handlers.go",
+      "line": 262,
+      "note": "operator.self_register audit then provisionDefaultCA"
+     },
+     {
+      "file": "internal/web/web.go",
+      "line": 316,
+      "note": "auth rate limit 5/s burst 10 per IP"
+     }
+    ],
+    "guards_checked": "Auth rate limit and password policy apply. Default value of self-registration not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

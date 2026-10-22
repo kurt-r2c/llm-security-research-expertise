@@ -1,0 +1,216 @@
+{
+ "arm": "A",
+ "repo": "fastjwt-jwk",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "22d7688e",
+ "status": "success",
+ "gen_cost": 0.03126704,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 8,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-utlmv248/r/src/index.js",
+   "/tmp/egf-utlmv248/r/src/decoder.js",
+   "/tmp/egf-utlmv248/r/src/signer.js",
+   "/tmp/egf-utlmv248/r/src/verifier.js",
+   "/tmp/egf-utlmv248/r/src/utils.js",
+   "/tmp/egf-utlmv248/r/src/crypto.js",
+   "/tmp/egf-utlmv248/r/src/error.js",
+   "/tmp/egf-utlmv248/r/src/index.d.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/verifier.js",
+    "line": 133,
+    "claim": "Cached tokens without a numeric iat are served from cache after their exp has passed, bounded only by cacheTTL (default 600000 ms).",
+    "source": "Attacker holds a validly signed token with exp but no numeric iat, and the verifier has caching enabled (cache: true or a number).",
+    "sink": "Cache hit at src/verifier.js:377 returns the payload without re-checking exp.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "First request misses the cache."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 424,
+      "note": "verifyToken checks exp (lines 318-322) before caching."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 426,
+      "note": "cacheSet called on success."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 117,
+      "note": "hasIat is false, so the nbf/exp bound block (120-129) is skipped."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 108,
+      "note": "cacheValue initialised to [value, 0, 0]."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 133,
+      "note": "Upper bound set to clockTimestamp + clockTolerance + cacheTTL, not exp."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "Later request after exp: min===0 and now<=max, so the cache hits."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 377,
+      "note": "handleCachedResult returns the payload; exp is never re-checked."
+     }
+    ],
+    "guards_checked": "Signature verified before caching (verifier.js:424 precedes 426). exp validator runs only on the uncached path. Cache-hit path has no exp re-check; cacheTTL is the only bound. Caching is opt-in (createCache at verifier.js:580). Related: maxAge bound includes clockTolerance (verifier.js:127) while the validator does not (verifier.js:617)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/crypto.js",
+    "line": 310,
+    "claim": "With an HS-only algorithms allowlist, a serialized public JWK/JWKS passed as key is used as an HMAC secret, bypassing the asymmetric-JWK guard.",
+    "source": "Operator sets algorithms to HS* only and passes an RSA/EC/OKP public JWK or JWKS JSON as key. The attacker can read that public JSON.",
+    "sink": "HMAC verification at src/crypto.js:391 using the JWK JSON bytes as the secret.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 516,
+      "note": "createVerifier calls detectPublicKeyAlgorithms(key, ['HS256'])."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 310,
+      "note": "All-HS check returns early, before locatePem and assertNotAsymmetricJwkJson."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 519,
+      "note": "checkAreCompatibleAlgorithms passes for HS256."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 524,
+      "note": "prepareKeyOrSecret(key, true) calls createSecretKey on the JSON bytes."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 162,
+      "note": "Attacker's header alg HS256 is in the allowlist."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 391,
+      "note": "HMAC over the JWK JSON bytes verifies the attacker-signed token."
+     }
+    ],
+    "guards_checked": "Algorithm allowlist (verifier.js:162) permits HS256, so it does not block. assertNotAsymmetricJwkJson (crypto.js:136-139) is skipped on the early-return path. The async path (verifier.js:456) runs the guard and rejects, so sync and async behave inconsistently. Requires operator misconfiguration."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/crypto.js",
+    "line": 214,
+    "claim": "When algorithms is unset, a non-PEM public key (OpenSSH or bare base64 DER) is classified as a raw HMAC secret, so an attacker who knows the public key can forge HS256 tokens.",
+    "source": "Operator passes a public key without a PEM header (e.g. 'ssh-rsa AAAA...' or bare base64 DER) and omits algorithms. The attacker knows that public key.",
+    "sink": "HMAC verification at src/crypto.js:391 using the public-key string as the secret.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 516,
+      "note": "detectPublicKeyAlgorithms(key, []) is called; early return does not apply (no provided algorithms)."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 214,
+      "note": "locatePem finds no -----BEGIN header, so isRawSecret is true."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 217,
+      "note": "assertNotAsymmetricJwkJson only rejects JSON, so the string passes."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 221,
+      "note": "Returns hsAlgorithms."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 521,
+      "note": "allowedAlgorithms set to HS*."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 524,
+      "note": "Public-key string used as the HMAC secret."
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 391,
+      "note": "Attacker HS256 token signed with the public-key string verifies."
+     }
+    ],
+    "guards_checked": "Algorithm allowlist is derived from the key, so it accepts HS* for a non-PEM key. PEM detection (crypto.js:158, 223-235) runs only when a header is present. JWK guard (crypto.js:136-139) covers JSON only. Requires operator misconfiguration (algorithms unset)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/verifier.js",
+    "line": 364,
+    "claim": "With caching enabled, a Buffer token throws a plain TypeError from the cache key builder instead of a TokenError.",
+    "source": "Caller passes a Buffer token (e.g. a raw request body) to a verifier with caching enabled.",
+    "sink": "hashToken calls token.split on a Buffer, throwing TypeError (src/utils.js:46).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Type check accepts Buffer tokens."
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cache.get(cacheKeyBuilder(token)) is called before Buffer-to-string conversion."
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "hashToken calls token.split, which does not exist on a Buffer, so TypeError is thrown."
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 14,
+      "note": "Buffer-to-string conversion only happens later in the decoder, after the cache lookup."
+     }
+    ],
+    "guards_checked": "Type check at verifier.js:353 accepts Buffers; no normalisation occurs before the cache lookup. Impact is robustness only: non-TokenError exception, thrown synchronously instead of via callback in callback mode. Not an auth bypass."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

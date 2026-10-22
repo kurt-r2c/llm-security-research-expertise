@@ -1,0 +1,152 @@
+{
+ "arm": "P",
+ "repo": "h1-py-helper",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00808593,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 2,
+   "Bash": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-o26ppbex/r/views.py",
+   "/tmp/egf-o26ppbex/r/validators.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 passes a user-supplied URL to requests.get after only a scheme check, so any host (loopback, cloud metadata, RFC1918) is reachable, and the first 200 characters of the response are returned to the caller.",
+    "source": "views.py:19 request.args.get('url'), supplied by any unauthenticated HTTP client",
+    "sink": "views.py:22 requests.get(url, timeout=5), redirects followed by default",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "guard calls is_http_url"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "only checks urlparse(url).scheme in http/https; no host or IP check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get follows redirects by default; response.text[:200] returned in JSON"
+     }
+    ],
+    "guards_checked": "is_http_url (scheme only). No host, IP, port, or redirect validation."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. views.py:20 calls is_http_url, which at validators.py:7 only checks urlparse(url).scheme in (\"http\", \"https\"). No host, IP, or port check, and no allow_redirects=False on views.py:22, so requests.get follows redirects by default.",
+    "reason": "The url comes from request.args at views.py:19 with no auth in the code, the only check at views.py:20 is scheme-only (validators.py:7), and views.py:22 sends the request and returns text[:200] in the JSON body, so any host including loopback and RFC1918 is reachable."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch validates the hostname's resolved IPs, but requests.get resolves the hostname again when it connects, so DNS rebinding can switch the target to an internal address after the check.",
+    "source": "views.py:11 request.args.get('url'), supplied by any unauthenticated HTTP client",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url called"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(hostname) resolves once; the first answer can be a public IP"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "IPs checked for private/loopback/link-local/reserved; a public IP passes"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get resolves the hostname again at connect time; attacker DNS with a short TTL returns 127.0.0.1 or 169.254.169.254"
+     }
+    ],
+    "guards_checked": "is_safe_url IP check (validators.py:10-18). allow_redirects=False (views.py:14) blocks the redirect bypass but not rebinding. No IP pinning."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "validators.py:14-17 is an IP-based check on the getaddrinfo answers (private/loopback/link-local/reserved). It is not hostname membership, anchored match, or scheme plus host allowlist, so it does not close the finding. views.py:14 passes the original hostname to requests.get with no IP pinning, and allow_redirects=False only blocks redirects.",
+    "reason": "views.py:11 takes the url parameter from any unauthenticated request, validators.py:14-18 resolves the hostname once and checks the IPs, and views.py:14 calls requests.get(url) which resolves the hostname again at connect time with no pinning, so a short-TTL rebinding answer can swap in 127.0.0.1 or 169.254.169.254 after the check. One detail is imprecise: validators.py:14 loops over all answers and rejects if any is private, so the attacker needs every answer public at check time. That is still achievable with rebinding, so it does not change the verdict."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-3",
+    "file": "validators.py",
+    "line": 16,
+    "claim": "is_safe_url does not block the 100.64.0.0/10 shared (CGNAT) range, so addresses such as 100.100.100.200 (Alibaba Cloud metadata) or other internal CGNAT or overlay-network hosts pass the check. Not executed; based on knowledge of Python ipaddress semantics.",
+    "source": "views.py:11 request.args.get('url'), supplied by any unauthenticated HTTP client",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from query string"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "hostname resolves to a 100.64.0.0/10 address"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "is_private, is_loopback, is_link_local and is_reserved are all False for 100.64.0.0/10 (to verify)"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get connects to the CGNAT address"
+     }
+    ],
+    "guards_checked": "is_safe_url IP check (validators.py:10-18). No explicit CGNAT or is_global check."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. validators.py:12 checks only scheme and hostname presence; validators.py:16 tests is_private/is_loopback/is_link_local/is_reserved with no is_global or CGNAT check. views.py:12-13 only consults is_safe_url. No hostname allowlist exists anywhere on the path.",
+    "reason": "The source is the unauthenticated `url` query parameter (views.py:11), and it reaches requests.get at views.py:14 after the only check, validators.py:16, which does not exclude 100.64.0.0/10. My check is from Python ipaddress semantics (not executed, since only Read/Grep/Glob are allowed); the 100.64.0.0/10 range is not in ipaddress's private or reserved lists, so is_private and is_reserved are False there. The finding is a real blocklist gap; its practical impact depends on whether the deployment has CGNAT or cloud metadata reachable from the server."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.006542150000000001
+}

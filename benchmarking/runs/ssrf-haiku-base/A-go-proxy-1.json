@@ -1,0 +1,114 @@
+{
+ "arm": "A",
+ "repo": "go-proxy",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.00440453,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-jrusyeib/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "The /fetch handler passes the unvalidated target query parameter directly to http.Get, letting an attacker make the server request any URL, including internal hosts and cloud metadata endpoints, and read the response.",
+    "source": "main.go:15 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:16 http.Get(target)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "Route /fetch registered to fetch handler"
+     },
+     {
+      "file": "main.go",
+      "line": 14,
+      "note": "fetch handler entry"
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target read from attacker-controlled query string"
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get on unvalidated URL; follows redirects, any scheme/host"
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "Response body copied back to client (non-blind SSRF)"
+     }
+    ],
+    "guards_checked": "None. No scheme, host, IP, or port validation; no redirect policy; no error-to-internal-detail filtering (err.Error() returned at line 18)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only allowlist (`allowed`, main.go:9-12) and its hostname check (main.go:27) are in safeFetch, which is registered to /safe (main.go:42), not on the /fetch path. fetch (main.go:14-23) has no validation before http.Get at line 16.",
+    "reason": "main.go:15 reads the attacker-controlled `target` query parameter on the unauthenticated /fetch route (main.go:41), main.go:16 passes it unvalidated to http.Get, and main.go:22 copies the response body back to the client, so this is a non-blind SSRF with no closing guard on that path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "The /safe handler validates the hostname against an allowlist on the first request only; http.Get follows redirects by default with no CheckRedirect, so an allowed host that redirects to an internal or disallowed address bypasses the allowlist. Exploitability depends on an allowed host having an open redirect or attacker-controlled content, which was not verified.",
+    "source": "main.go:26 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:31 http.Get(u.String())",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "Route /safe registered to safeFetch handler"
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target parsed with url.Parse from attacker-controlled query"
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "Allowlist check on u.Hostname() against images.example.org and docs.example.org; only the initial hop is checked"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get follows up to 10 redirects by default; no CheckRedirect set"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "Final response body copied to client"
+     }
+    ],
+    "guards_checked": "Nil deref guarded by short-circuit at line 27 (u used only when err == nil). Hostname() vs Host confusion via userinfo/port not exploitable (same parsed URL used for request). Case variants and trailing-dot hostnames fail map lookup (rejected, not bypass). Non-http(s) schemes rejected by http.Get. Not checked: redirect targets on allowed hosts, DNS rebinding / resolved-IP validation."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is the allowlist at main.go:27, which runs once on the initial URL. Nothing sets a CheckRedirect on the default client used by http.Get at main.go:31, so Go follows redirects to any host. The body is copied back at main.go:37.",
+    "reason": "The trace matches the code: the attacker-controlled target at main.go:26 is checked against the allowlist only at main.go:27, then http.Get at main.go:31 follows redirects by default with no CheckRedirect and returns the body at main.go:37. The bypass is conditional on an allowlisted host that redirects, which the candidate did not verify. That condition is outside this code, so the finding stands as a code-level SSRF path rather than a demonstrated exploit."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00387775
+}

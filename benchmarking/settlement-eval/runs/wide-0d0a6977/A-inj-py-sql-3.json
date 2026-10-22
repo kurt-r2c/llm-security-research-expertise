@@ -1,0 +1,93 @@
+{
+ "arm": "A",
+ "repo": "inj-py-sql",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.043483100000000004,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.py",
+    "line": 12,
+    "claim": "SQL injection in /search: the q parameter is interpolated into the SQL string via an f-string. An unauthenticated attacker can use UNION SELECT to read any table in shop.db, including columns not exposed by the endpoint such as price or owner, and users or credentials tables if they exist.",
+    "source": "request.args.get('q') (HTTP query parameter q, app.py:11)",
+    "sink": "db.execute(f\"SELECT id, name FROM products WHERE name LIKE '%{term}%'\") at app.py:12",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 11,
+      "note": "term = request.args.get('q', '') takes attacker input with no validation"
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "term is embedded directly in the SQL text of the LIKE clause, so a single quote breaks out of the string literal"
+     },
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "Query results are returned as JSON, so injected UNION output is exfiltrated directly"
+     }
+    ],
+    "guards_checked": "No parameterization (the other two queries use ? placeholders, this one does not). No input sanitization, no authentication decorator, no WAF or middleware in the file. Flask performs no escaping for SQL."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:11 takes q unvalidated and app.py:12 f-string-interpolates it into the LIKE query with no parameterization, auth decorator or middleware, and app.py:13 returns the rows as JSON, so UNION SELECT output is exfiltrated by an anonymous caller; the other queries at app.py:18 and :25 use ? placeholders, which confirms this one is the exception. Whether a users or credentials table exists in shop.db can't be told from the code, but price and owner columns are referenced at app.py:18 and :25."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:11-13 matches the trace. `term` from request.args goes into an f-string SQL at app.py:12 with no parameterization, validation or auth decorator on the route. Rows are returned via jsonify at app.py:13. A UNION SELECT with two columns can read other tables and columns such as price and owner."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.py",
+    "line": 22,
+    "claim": "The /by-owner endpoint has no authentication or authorization. Any anonymous caller can supply an arbitrary owner value and list that owner's products, so owner-scoped data can be enumerated (an IDOR-style missing access control). Severity depends on whether owner is meant to be private. This is a candidate rather than a confirmed flaw, because the file defines no auth model.",
+    "source": "request.args.get('owner') (HTTP query parameter owner, app.py:24), fully attacker-chosen",
+    "sink": "db.execute('SELECT id, name FROM products WHERE owner = ?', (owner,)) at app.py:25, which returns another owner's records",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "owner is read from the query string and is not compared to any authenticated identity"
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "The query is parameterized (no SQL injection) but filters on the caller-supplied owner"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "Matching rows are returned to the caller"
+     }
+    ],
+    "guards_checked": "No login, session or token check anywhere in app.py. No check that owner equals the current user. The query is parameterized, so SQL injection is not possible here."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none (the query at app.py:25 is parameterized, which stops SQL injection but not enumeration)",
+    "reason": "The trace is accurate (app.py:24-26 reads the caller-supplied owner and returns the matching rows with no auth check), but app.py has no auth model and /search and /product (app.py:9-19) are equally public, so whether owner-scoped data is meant to be private can't be decided from the code."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none (no auth check; query at app.py:25 is parameterized)",
+    "reason": "The trace is accurate (app.py:24-26), but /by-owner returns only id and name, which the equally unauthenticated /search (app.py:9-13) already exposes for every product (q=\"\" matches all), so the owner filter grants no access beyond the public catalog and nothing in the code marks owner-scoped data as private."
+   }
+  }
+ ],
+ "verify_cost": 0.059443300000000004,
+ "verify_facts_cost": 0.0614031
+}

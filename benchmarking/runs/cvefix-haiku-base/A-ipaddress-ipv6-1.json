@@ -1,0 +1,233 @@
+{
+ "arm": "A",
+ "repo": "ipaddress-ipv6",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "22d7688e",
+ "status": "success",
+ "gen_cost": 0.10596963,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 9,
+   "Grep": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-3b63klx8/r/src/ip-address.ts",
+   "/tmp/egf-3b63klx8/r/src/ipv4.ts",
+   "/tmp/egf-3b63klx8/r/src/ipv6.ts",
+   "/tmp/egf-3b63klx8/r/src/common.ts",
+   "/tmp/egf-3b63klx8/r/src/address-error.ts",
+   "/tmp/egf-3b63klx8/r/src/v4/constants.ts",
+   "/tmp/egf-3b63klx8/r/src/v6/constants.ts",
+   "/tmp/egf-3b63klx8/r/src/v6/helpers.ts",
+   "/tmp/egf-3b63klx8/r/src/v6/regular-expressions.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/ipv6.ts",
+    "line": 1246,
+    "claim": "Address6.isLinkLocal() returns false for fe80::/10 addresses with nonzero bits 10-63 (e.g. fe80:0:0:1::1), while getType() and getScope() classify the same address as link-local.",
+    "source": "Attacker-chosen IPv6 literal such as fe80:0:0:1::1 supplied as untrusted input",
+    "sink": "isLinkLocal() used as a trust-boundary deny check (SSRF filter) by the caller",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1246,
+      "note": "isLinkLocal(); embeddedIPv4() is null for this address"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1253,
+      "note": "compares getBitsBase2(0,64) to an exact string: fe80 prefix then 54 zeros, so any nonzero bit in 10-63 fails"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 573,
+      "note": "getType() uses isHostInSubnet('fe80::/10') and returns 'Link-local unicast' for the same address"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 557,
+      "note": "getScope() maps 'Link-local unicast' to 'Link local'"
+     }
+    ],
+    "guards_checked": "embeddedIPv4 short-circuit (not applicable: no mapped or NAT64 prefix). No other guard. Whether the OS treats such an address as on-link was not verified by execution."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/ipv4.ts",
+    "line": 503,
+    "claim": "Unspecified addresses 0.0.0.0 and :: are not matched by isPrivate(), isLoopback() or isLinkLocal() on either family, although the library documents these classifiers as SSRF trust-boundary checks.",
+    "source": "Attacker-controlled URL host such as http://0.0.0.0/ or http://[::]/",
+    "sink": "Outbound request in an application whose deny-list uses isPrivate/isLoopback/isLinkLocal but not isUnspecified",
+    "trace": [
+     {
+      "file": "src/ipv4.ts",
+      "line": 479,
+      "note": "Address4.isPrivate() checks only 10/8, 172.16/12, 192.168/16"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 487,
+      "note": "isLoopback() checks 127/8 only"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 495,
+      "note": "isLinkLocal() checks 169.254/16 only"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 503,
+      "note": "0.0.0.0 is reported only by isUnspecified()"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1380,
+      "note": "Address6.isPrivate() on :: returns false, same gap"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1427,
+      "note": ":: is reported only by isUnspecified()"
+     }
+    ],
+    "guards_checked": "isUnspecified() exists and is correct, but callers must remember to call it. Kernel behaviour for 0.0.0.0 and :: was not verified here."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/common.ts",
+    "line": 19,
+    "claim": "isInSubnet() is containment-based and returns false when the caller's prefix is shorter than the range's, so an attacker-chosen small suffix hides an address that isHostInSubnet() and isPrivate() both classify as private.",
+    "source": "Attacker-supplied IPv4 or IPv6 literal with a short CIDR suffix, e.g. 10.1.2.3/7",
+    "sink": "Application deny-check using isInSubnet(10.0.0.0/8), then a request to correctForm() which drops the suffix",
+    "trace": [
+     {
+      "file": "src/common.ts",
+      "line": 20,
+      "note": "if this.subnetMask (7) < address.subnetMask (8) return false"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 39,
+      "note": "isHostInSubnet ignores the caller's own prefix and would return true"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 455,
+      "note": "Address4.isInSubnet exposes the containment version under the same name"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1216,
+      "note": "Address6.isInSubnet, same footgun"
+     }
+    ],
+    "guards_checked": "The doc comments at common.ts:9-18 and ipv4.ts:457-465 warn to use isHostInSubnet for untrusted input. This is API misuse, not a flaw in the function's stated contract. Not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/ipv6.ts",
+    "line": 1317,
+    "claim": "embeddedIPv4() unwraps only IPv4-mapped and NAT64 well-known addresses. 6to4 (2002::/16) addresses that embed a private or loopback IPv4 are classified as public by isPrivate, isLoopback and related checks.",
+    "source": "Attacker-chosen IPv6 literal such as 2002:0a00:0001::",
+    "sink": "Trust-boundary classifier used as an SSRF deny-check on a host with 6to4 routing",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1317,
+      "note": "embeddedIPv4 checks isMapped4 and NAT64_WELL_KNOWN only"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1337,
+      "note": "is6to4() exists but is not consulted by the trust-boundary classifiers"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1380,
+      "note": "isPrivate() returns false for 2002:0a00:0001::, since ULA and NAT64 local-use do not match"
+     }
+    ],
+    "guards_checked": "ULA and NAT64 local-use checks: not applicable. Exploitability depends on the host having a 6to4 relay or tunnel; not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/v6/constants.ts",
+    "line": 82,
+    "claim": "RE_ZONE_STRING /%.*$/ is quadratic on many % characters followed by a newline, so a long attacker-supplied address string can block the event loop.",
+    "source": "Untrusted string passed to new Address6() or Address6.isValid()/fromURL(), e.g. '%'.repeat(N) + '\\n'",
+    "sink": "CPU time in the constructor before the bad-character check",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 147,
+      "note": "RE_ZONE_STRING.exec(address) runs on the full string with no length limit"
+     },
+     {
+      "file": "src/v6/constants.ts",
+      "line": 82,
+      "note": "/%.*$/: each % starts a scan to the newline, then backtracks, so the cost is O(n^2)"
+     }
+    ],
+    "guards_checked": "RE_SUBNET_STRING is linear; the slash test runs first. No length cap in the constructor. Timing not measured; no execution tool was available."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "src/ipv6.ts",
+    "line": 1451,
+    "claim": "href(optionalPort) concatenates a string port without validation, so a caller passing untrusted text can change the host and URL structure, e.g. '80@evil.example'.",
+    "source": "Caller-supplied port string (type number | string) taken from user input",
+    "sink": "Returned URL string used for a redirect or outbound fetch",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1451,
+      "note": "href(optionalPort?: number | string)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1455,
+      "note": "optionalPort is interpolated as ':${optionalPort}' with no escaping or numeric check"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1458,
+      "note": "returns http://[correctForm]:<port>/"
+     }
+    ],
+    "guards_checked": "Host part is safe (correctForm only emits hex and colons). Port is unchecked. Exploitability requires the caller to pass an untrusted string as the port."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

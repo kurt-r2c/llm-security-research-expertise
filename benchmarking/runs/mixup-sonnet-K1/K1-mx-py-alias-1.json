@@ -1,0 +1,105 @@
+{
+ "arm": "K1",
+ "repo": "mx-py-alias",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "mixup",
+ "config_id": "5ed7b2f7",
+ "status": "success",
+ "gen_cost": 0.0501268,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-eexluqco/r/acl.py",
+   "/tmp/egf-eexluqco/r/views.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "views.py",
+    "line": 18,
+    "claim": "delete_file calls require_allowed, which is an alias of acl.is_allowed (a boolean predicate, not the aborting ensure_allowed). The return value is discarded, so the authorization check is never enforced and any caller can delete any file.",
+    "source": "Any HTTP client sending DELETE /files/<fid> with any fid, authenticated or not.",
+    "sink": "del STORE[fid] at views.py:19",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 4,
+      "note": "from acl import is_allowed as require_allowed: the name suggests enforcement, but this is the non-raising predicate"
+     },
+     {
+      "file": "views.py",
+      "line": 18,
+      "note": "require_allowed(g.user, f, \"delete\") result is ignored, with no if, abort or raise"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "is_allowed only returns a bool and never aborts"
+     },
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "del STORE[fid] runs unconditionally"
+     }
+    ],
+    "guards_checked": "Compared with rename_file, which correctly uses ensure_allowed, which aborts with 403. No other middleware or decorator guards the route. before_request only sets g.user and does not reject anyone."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: is_allowed (acl.py:4-5) is a bool predicate whose result is discarded; before_request load_user (views.py:10-12) only sets g.user and never rejects; no decorators on the route",
+    "reason": "views.py:4 aliases the non-aborting is_allowed as require_allowed, views.py:18 discards its bool result, so del STORE[fid] at views.py:19 runs for any caller (anonymous included) whose fid exists in STORE, unlike rename_file's ensure_allowed at views.py:26 which aborts 403 via acl.py:10."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "views.py",
+    "line": 12,
+    "claim": "The user identity is taken directly from the client-supplied header X-Session-User-Verified, with no session, signature or token verification. Any client can impersonate any user, including the owners listed in a resource's grants, which defeats ensure_allowed on rename_file.",
+    "source": "The X-Session-User-Verified request header, set by any client.",
+    "sink": "ensure_allowed(g.user, f, \"write\") at views.py:26, followed by the write f[\"name\"] = ... at views.py:27. Impersonation also defeats any future delete check.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "g.user = request.headers.get(\"X-Session-User-Verified\"), trusted as-is"
+     },
+     {
+      "file": "views.py",
+      "line": 26,
+      "note": "The ACL lookup is keyed on the spoofed user"
+     },
+     {
+      "file": "acl.py",
+      "line": 5,
+      "note": "grants.get(user) matches the forged name, so the check passes"
+     },
+     {
+      "file": "views.py",
+      "line": 27,
+      "note": "The attacker renames a file they do not own"
+     }
+    ],
+    "guards_checked": "No signature or HMAC check and no session lookup in this code. A fronting proxy might strip or set the header, but none is visible in the repo, so this is a precondition: the header must not be overwritten upstream. Reported as a candidate on that basis."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none in the repo. ensure_allowed (acl.py:8-10) does abort(403) and is called at views.py:26, but it only checks grants keyed on the unauthenticated g.user. No signature, session or proxy-stripping logic exists.",
+    "reason": "views.py:12 sets g.user straight from the client-controlled X-Session-User-Verified header, and acl.py:5 matches that string against grants, so any caller can pass the check at views.py:26 and reach the write at views.py:27 unless an unseen upstream proxy overwrites the header. Separately, delete_file (views.py:18) calls is_allowed under the alias require_allowed and discards the result, so DELETE is unguarded even without spoofing."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.06489339999999999
+}

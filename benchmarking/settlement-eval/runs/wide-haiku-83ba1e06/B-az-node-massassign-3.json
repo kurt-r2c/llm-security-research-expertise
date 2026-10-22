@@ -1,0 +1,192 @@
+{
+ "arm": "B",
+ "repo": "az-node-massassign",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.007602050000000001,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-wtdxq9av/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Mass assignment: any authenticated user can write arbitrary fields (e.g. role, isAdmin, email, id, password hash) on their own user record via PUT /me.",
+    "source": "req.body on PUT /me (attacker-controlled JSON from any authenticated user)",
+    "sink": "Object.assign(req.user, req.body) followed by req.store.save(req.user) persisting the object",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "PUT /me route handler begins"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies every body key onto req.user with no allowlist"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save persists the mutated user object"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json returns the updated user"
+     }
+    ],
+    "guards_checked": "No field allowlist, no schema validation, no key filtering in users.js. Auth middleware and user model are not in the repo, so the set of writable sensitive fields could not be confirmed. Severity depends on the user model."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 copies every req.body key onto req.user with no allowlist, and users.js:6 persists the result via req.store.save. The only other control in the repo is the allowlist in /me/profile (users.js:11-12), which /me does not use. Auth middleware, schema validation, and the store's save logic are not in the repo.",
+    "reason": "Any authenticated user's PUT /me body keys are assigned onto their own record at users.js:5 and persisted at users.js:6 with no filter, so arbitrary fields are writable. The privilege-escalation impact (role/isAdmin) depends on the user model and store, which are not in the repo, so severity is unverified even though the flaw itself is confirmed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Prototype manipulation: a '__proto__' key in the body changes the prototype of req.user, so inherited authorization properties (e.g. isAdmin) can be set in-request and may be persisted if store.save enumerates inherited keys.",
+    "source": "req.body on PUT /me containing a '__proto__' own property, e.g. {\"__proto__\":{\"isAdmin\":true}}",
+    "sink": "Object.assign uses [[Set]], invoking the Object.prototype.__proto__ setter on req.user; subsequent reads or req.store.save may observe inherited properties",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign assigns the __proto__ key, triggering the prototype setter on req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save receives the object; exploitable only if it enumerates inherited keys or a later check reads them"
+     }
+    ],
+    "guards_checked": "No key filtering. JSON.parse yields an own __proto__ property, so the setter path is reachable. Exploitability depends on req.store.save and downstream authorization checks, which are not in the repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 applies Object.assign(req.user, req.body) with no key filtering, and users.js:6-7 save and return req.user without any check. The attacker is any authenticated user, since they can already edit their own profile. The req.store implementation and any later isAdmin check are not in the repo (the only files are users.js and .claude/skills/...).",
+    "reason": "The trace at users.js:5 is accurate: a JSON-parsed own \"__proto__\" key triggers the Object.prototype.__proto__ setter on req.user, changing only that object's prototype and not global Object.prototype. Nothing in users.js:6-7 reads inherited properties, and res.json serializes own properties only, so the effect stops at the attacker's own object unless the unseen req.store.save enumerates inherited keys (for...in) or an unseen authorization check reads req.user.isAdmin, which the repo cannot show."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "users.js",
+    "line": 12,
+    "claim": "Profile update clears existing fields and accepts any JSON type: a PUT that omits displayName or bio sets it to undefined and wipes stored data; object values are stored unvalidated, which may enable stored NoSQL operator injection and unbounded storage.",
+    "source": "req.body.displayName and req.body.bio on PUT /me/profile (any JSON type, any length)",
+    "sink": "Object.assign(req.user, { displayName, bio }) followed by req.store.save(req.user)",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Destructures displayName and bio from req.body without type or length checks"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Object.assign sets missing keys to undefined, overwriting existing values"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "req.store.save persists the object with stored values unvalidated"
+     }
+    ],
+    "guards_checked": "No type checks, length limits, or omitted-field handling. The data-loss behavior is certain from this code; NoSQL injection depends on the store and on how displayName is queried elsewhere."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None in users.js. Line 11 destructures without type or length checks, and line 12 always builds `{ displayName, bio }`, so an omitted field becomes an own key with value undefined and overwrites the stored value. No validation or omitted-field handling appears before the save at line 13. Any body-size limit (for example a global express.json limit) lives outside this file and was not checked.",
+    "reason": "users.js:11-13 shows that a PUT to /me/profile omitting displayName or bio sets those keys to undefined on req.user and saves them, with no guard in the file. The attacker is any authenticated user, and the effect is limited to their own record, so this is self-inflicted data loss rather than a privilege issue. The NoSQL injection and unbounded-storage parts cannot be verified from this file, because the store's query behavior and any body-size limit are not visible."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "users.js",
+    "line": 6,
+    "claim": "Un-awaited save with no error handling: a rejected req.store.save becomes an unhandled promise rejection that can crash the Node process, and the client is told the write succeeded even when it failed.",
+    "source": "Authenticated user sends a body that makes req.store.save reject (PUT /me at line 6, PUT /me/profile at line 13)",
+    "sink": "Un-awaited promise returned by req.store.save; unhandled rejection terminates the process under default Node settings",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save called without await or catch"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "Success response sent before persistence is confirmed"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "Same un-awaited save pattern on the profile route"
+     }
+    ],
+    "guards_checked": "No await, no try/catch, no error response. Exploitability requires req.store.save to be async and able to reject; not verifiable from this repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "None in the repo: no await, no try/catch, and no process-level unhandledRejection handler (grep finds none). The definition of req.store.save is not in the directory, so whether it can reject is unknown.",
+    "reason": "The trace is accurate: users.js:6, :7 and :13 match the claim, and the response at :7 and :14 is sent before the un-awaited save at :6 and :13 settles. Whether a rejection can crash the process depends on req.store.save, which is not defined in this repo. If save throws synchronously, Express 4 catches it and returns a 500 rather than crashing. A crash needs an async rejection, and that cannot be confirmed here. The \"client told success on failure\" part holds whenever save fails, but the crash impact is unverifiable."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "users.js",
+    "line": 7,
+    "claim": "Full user object returned in responses may expose secret or internal fields (password hash, reset tokens, internal flags) stored on the model.",
+    "source": "Any authenticated request to PUT /me (line 7) or PUT /me/profile (line 14)",
+    "sink": "res.json(req.user) serializes every own property of the user object to the client",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json returns the full req.user object from PUT /me"
+     },
+     {
+      "file": "users.js",
+      "line": 14,
+      "note": "res.json returns the full req.user object from PUT /me/profile"
+     }
+    ],
+    "guards_checked": "No field filtering or projection. Exposure depends on which fields the user model holds, which is not in the repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:7 and users.js:14 pass req.user straight to res.json with no projection, and the directory contains no other source files (only users.js and skill docs), so no user model, serializer, or toJSON override is available to filter it.",
+    "reason": "The trace is accurate: users.js:7 and users.js:14 both return the full req.user object, and no guard exists in users.js, but whether that object holds a password hash, reset token, or internal flag depends on a user model that is not in this directory, so the exposure cannot be confirmed from the code available."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.011686249999999999
+}

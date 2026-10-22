@@ -1,0 +1,238 @@
+{
+ "arm": "A",
+ "repo": "praxis-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.24267023999999998,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 24,
+   "Grep": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/request_filter/mod.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/request_filter/validation.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/normalize.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/upstream_peer.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/upstream_request.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/reserved_headers.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/hop_by_hop.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/tcp/proxy.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/tls_setup.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/request_filter/stream_buffer.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/convert.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/upstream_response.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/via.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/fail_to_proxy.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/request_body_filter.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/health/probe.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/kv/mod.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/health/mod.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/mod.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/listener.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/health/service.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/tcp/mod.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/response_filter.rs",
+   "/tmp/egf-7f5_hmay/r/protocol/src/http/pingora/handler/no_body.rs"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "protocol/src/http/pingora/health/service.rs",
+    "line": 167,
+    "claim": "The admin listener exposes unauthenticated KV write/delete endpoints (PUT/DELETE /api/kv/{store}/{key}); any client that can reach admin_addr can mutate KV stores that the filter pipeline may read.",
+    "source": "Any network client that can reach the admin_addr TCP listener (no credentials required). Request method PUT or DELETE with path /api/kv/{store}/{key}.",
+    "sink": "KvStoreBackend.set / KvStoreBackend.delete via handle_set/handle_delete (protocol/src/http/pingora/kv/mod.rs:169-190).",
+    "trace": [
+     {
+      "file": "protocol/src/http/pingora/health/service.rs",
+      "line": 221,
+      "note": "add_admin_endpoints_to_pingora_server binds admin_addr with service.add_tcp (plain TCP, no TLS, no auth layer)."
+     },
+     {
+      "file": "protocol/src/http/pingora/health/service.rs",
+      "line": 164,
+      "note": "PingoraAdminService::response reads the path and performs no authentication or authorization check."
+     },
+     {
+      "file": "protocol/src/http/pingora/health/service.rs",
+      "line": 167,
+      "note": "Paths starting with /api/kv/ are dispatched directly to dispatch_kv_request when kv_registry is Some."
+     },
+     {
+      "file": "protocol/src/http/pingora/kv/mod.rs",
+      "line": 60,
+      "note": "dispatch_kv_request resolves the route from method and path, with no identity check."
+     },
+     {
+      "file": "protocol/src/http/pingora/kv/mod.rs",
+      "line": 67,
+      "note": "KvRoute::Set reads the request body via read_body."
+     },
+     {
+      "file": "protocol/src/http/pingora/kv/mod.rs",
+      "line": 169,
+      "note": "handle_set calls backend.set(key, value) and returns 200 on success."
+     },
+     {
+      "file": "protocol/src/http/pingora/kv/mod.rs",
+      "line": 71,
+      "note": "KvRoute::Delete calls handle_delete, which calls backend.delete(key)."
+     }
+    ],
+    "guards_checked": "Body cap of 1 MiB (kv/mod.rs:25, 129-131); UTF-8 validation (kv/mod.rs:142-145); 404 for unknown store (kv/mod.rs:154-156, 170-171); route validation of exactly two segments (kv/mod.rs:92-107); JSON escaping on read paths (service.rs:36-54; kv/mod.rs:159-161, 202-208). NOT present in this code: authentication, authorization, TLS, or any restriction of admin_addr to loopback. The default and configured bind address are in config code that is not in this directory, so exploitability depends on that config."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "protocol/src/http/pingora/handler/request_body_filter.rs",
+    "line": 41,
+    "claim": "After a WebSocket upgrade, request and response body filters are skipped entirely, including the SizeLimit enforcement. Frames sent over the tunnel are not inspected by body-level filters.",
+    "source": "Client request with Upgrade: websocket and Connection: Upgrade. The upstream answers 101 Switching Protocols with Upgrade: websocket, which sets ctx.connection_upgraded.",
+    "sink": "Body filter pipeline (execute_http_request_body) and SizeLimit check (check_body_size_limit) are bypassed for the rest of the connection (request_body_filter.rs:41-43, 63-73; response_body_filter.rs:38).",
+    "trace": [
+     {
+      "file": "protocol/src/http/pingora/handler/response_filter.rs",
+      "line": 40,
+      "note": "A 101 from upstream is rejected unless the request carried an Upgrade header (request_has_upgrade)."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/response_filter.rs",
+      "line": 47,
+      "note": "is_upgrade_response is true only if the 101 has an Upgrade value that is exactly websocket (hop_by_hop.rs:73-75)."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/response_filter.rs",
+      "line": 54,
+      "note": "ctx.connection_upgraded is set from is_upgrade_response."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/request_body_filter.rs",
+      "line": 41,
+      "note": "execute() returns Ok immediately when connection_upgraded is set, before pre-read, SizeLimit, and pipeline execution."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/response_body_filter.rs",
+      "line": 38,
+      "note": "Same early return for response body filters."
+     }
+    ],
+    "guards_checked": "101 must follow a client upgrade request and must be websocket-only (response_filter.rs:40-47). h2c and mixed Upgrade values are stripped (upstream_request.rs:33-43, hop_by_hop.rs:61-75). Upgraded connections still get header-phase filters. Nothing in this code gates whether body filters should run on WebSocket frames. Whether the bypass matters depends on which body-inspection filters are configured, and those are not in this directory. Confidence medium: the behavior is clear from the code, the intent is not documented here."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "protocol/src/http/pingora/handler/upstream_request.rs",
+    "line": 43,
+    "claim": "Client-controlled Connection tokens remove any upstream-bound header by name, including headers the filter pipeline set in request_filter. A client can make a trusted pipeline-injected header disappear before it reaches the backend.",
+    "source": "Request header Connection: <name> where <name> matches a header the pipeline set (for example an identity or auth-result header inserted by a filter).",
+    "sink": "Upstream request header set (strip_connection_tokens calls remove_header_by_name; upstream_request.rs:41-43, hop_by_hop.rs:91-105).",
+    "trace": [
+     {
+      "file": "protocol/src/http/pingora/handler/request_filter/mod.rs",
+      "line": 144,
+      "note": "Pipeline headers_to_set and extra_headers are inserted into session.req_header_mut() during request_filter."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/no_body.rs",
+      "line": 182,
+      "note": "upstream_request_filter runs after request_filter and calls strip_hop_by_hop(upstream_request, is_upgrade) (line 183). with_body.rs:218-219 does the same."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/upstream_request.rs",
+      "line": 33,
+      "note": "strip_hop_by_hop snapshots every Connection value (hop_by_hop.rs:83-85) without distinguishing client-supplied headers from pipeline-set ones."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/hop_by_hop.rs",
+      "line": 91,
+      "note": "strip_connection_tokens removes each token that is not in the static hop-by-hop list (lines 98-103)."
+     }
+    ],
+    "guards_checked": "Static hop-by-hop list (hop_by_hop.rs:24-33). Reserved-name rejection covers only x-praxis-* and x-ext-protocol-*/x-ext-agent-* prefixes (request_filter/mod.rs:75-78; reserved_headers.rs:20-22). It does not cover arbitrary names a filter may set. Impact depends on backend behavior when the header is missing (for example fail-open to anonymous) and on the filters, which are not in this directory. Confidence medium."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "protocol/src/http/pingora/handler/normalize.rs",
+    "line": 163,
+    "claim": "obs-fold unfolding replaces every value of a repeated header with one unfolded value, silently dropping the other values of that header.",
+    "source": "Request with a repeated header (for example two Cookie or X-Forwarded-For lines) where at least one value contains CRLF followed by SP or HTAB.",
+    "sink": "Forwarded request header map integrity: sibling values are lost (normalize.rs:163 insert_header).",
+    "trace": [
+     {
+      "file": "protocol/src/http/pingora/handler/normalize.rs",
+      "line": 141,
+      "note": "handle_obs_fold runs from normalize_request_headers (line 63)."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/normalize.rs",
+      "line": 151,
+      "note": "headers_snapshot collects each (name, value) pair whose value contains obs-fold and whose name is not in OBS_FOLD_REJECT_HEADERS."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/normalize.rs",
+      "line": 163,
+      "note": "insert_header(name, new_value) overwrites all existing values for that name (http::HeaderMap::insert semantics). Sibling values that do not contain obs-fold are lost."
+     }
+    ],
+    "guards_checked": "Host and Content-Length with obs-fold are rejected (normalize.rs:142-149). Conflicting duplicate Content-Length and Content-Type are rejected (normalize.rs:75-99). The loss of sibling values is not guarded. Impact is integrity only (silent value loss). Confidence medium-high; assumes Pingora's insert_header behaves like HeaderMap::insert, which is not in this directory."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "protocol/src/http/pingora/handler/normalize.rs",
+    "line": 35,
+    "claim": "Transfer-Encoding is not in the obs-fold rejection list, and normalization does not check Transfer-Encoding together with Content-Length. Header framing is normalized after Pingora has parsed the request, so the proxy's view of framing and the normalized header view can differ.",
+    "source": "Request with obs-fold inside Transfer-Encoding, or with both Transfer-Encoding and Content-Length present.",
+    "sink": "Request framing and body-length decisions (Pingora parser and body reader, not in this directory). The proxy-side effect is limited because Transfer-Encoding is stripped before the upstream request (hop_by_hop.rs:24-33).",
+    "trace": [
+     {
+      "file": "protocol/src/http/pingora/handler/normalize.rs",
+      "line": 35,
+      "note": "OBS_FOLD_REJECT_HEADERS lists only Host and Content-Length."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/normalize.rs",
+      "line": 59,
+      "note": "normalize_request_headers checks only duplicate CL/CT and obs-fold. It has no TE/CL conflict check."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/normalize.rs",
+      "line": 159,
+      "note": "Obs-fold in Transfer-Encoding is unfolded (not rejected) into a single-line value."
+     },
+     {
+      "file": "protocol/src/http/pingora/handler/request_filter/mod.rs",
+      "line": 70,
+      "note": "normalize runs in request_filter, after Pingora has already parsed the request and decided body framing."
+     }
+    ],
+    "guards_checked": "Pingora's own HTTP/1 parser (not in this directory) may already reject TE+CL and obs-fold. Whether it does is not verifiable here. Upstream TE stripping (hop_by_hop.rs:24-33) limits proxy-to-backend desync. Confidence low; this is a candidate for manual review of the Pingora parser configuration, not a confirmed smuggling issue."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

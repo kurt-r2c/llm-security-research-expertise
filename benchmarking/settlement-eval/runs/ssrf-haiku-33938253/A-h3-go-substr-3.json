@@ -1,0 +1,102 @@
+{
+ "arm": "A",
+ "repo": "h3-go-substr",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00476212,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-x1mqi4jk/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "Unrestricted SSRF in /logo: the 'logo' parameter is only checked with a substring match for 'example.io', so any host, scheme (http/https), or path can be fetched, and the response body is returned to the caller.",
+    "source": "r.FormValue(\"logo\") at main.go:31 (attacker-controlled query/form parameter on GET /logo, listener :8081)",
+    "sink": "http.Get(raw) at main.go:36, default client following up to 10 redirects; body returned via io.Copy(w, resp.Body) at main.go:38",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw := r.FormValue(\"logo\") takes attacker-supplied value"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "strings.Contains(raw, \"example.io\") is the only validation; substring match, not hostname match"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) fetches the full attacker-supplied URL, redirects followed"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy(w, resp.Body) reflects the fetched body to the attacker (non-blind SSRF)"
+     }
+    ],
+    "guards_checked": "Substring check at main.go:32 is bypassable: http://169.254.169.254/latest/meta-data/?example.io reaches cloud metadata; http://127.0.0.1:6379/?example.io reaches loopback; http://attacker.test/?example.io reaches arbitrary hosts; allowed hosts can 302 to internal addresses since redirects are not restricted. Non-http(s) schemes fail in http.Get and leave resp nil, causing a nil-deref panic at main.go:37 (reliability, not SSRF). Listener binds all interfaces (main.go:44), widening exposure."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is the substring match `strings.Contains(raw, \"example.io\")` at main.go:32, which does not close the finding. The default http.Get at main.go:36 follows redirects, and the body is copied to the response at main.go:38.",
+    "reason": "The `logo` value comes straight from `r.FormValue(\"logo\")` at main.go:31, the substring check at main.go:32 is the only validation, and `http.Get(raw)` at main.go:36 fetches an attacker-chosen URL whose body is returned via `io.Copy` at main.go:38, so this is a non-blind SSRF. The trace matches the code, and the nil-deref note at main.go:36-37 also holds because `resp` is nil when `http.Get` fails on a non-http(s) scheme."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "NOTE-CDN-NOT-SSRF",
+    "file": "main.go",
+    "line": 20,
+    "claim": "Not a finding: /cdn is protected by an exact Hostname() allowlist (cdn.example.io) and blocks redirects, so attacker cannot reach arbitrary or internal hosts via this handler.",
+    "source": "r.FormValue(\"u\") at main.go:15",
+    "sink": "c.Get(u.String()) at main.go:25",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "url.Parse of attacker value"
+     },
+     {
+      "file": "main.go",
+      "line": 20,
+      "note": "trusted[u.Hostname()] exact map lookup; rejects userinfo tricks, trailing dot, case variants"
+     },
+     {
+      "file": "main.go",
+      "line": 12,
+      "note": "noRedirect returns http.ErrUseLastResponse, blocking redirect-based pivots"
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "request made to the same validated URL"
+     }
+    ],
+    "guards_checked": "Hostname allowlist, redirect blocking. Residual risk limited to DNS control of cdn.example.io, which is not attacker-controlled. Note: err from c.Get ignored at main.go:25, nil-deref panic at main.go:26 on failure (reliability, not SSRF)."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "main.go:20 `trusted[u.Hostname()]` is an exact, case-sensitive map-membership check on the parsed hostname against {\"cdn.example.io\"}. Redirects are also blocked by main.go:12 (`http.ErrUseLastResponse`) and wired in at main.go:24.",
+    "reason": "The source at main.go:15 is attacker-controlled, but the exact `Hostname()` membership check at main.go:20 closes the SSRF path, and the redirect block at main.go:12/24 stops pivots. The sink at main.go:25 uses the same parsed URL that passed the check, so the request can only reach cdn.example.io. Every trace line matches the code. The nil-deref at main.go:26 on error is a reliability bug, not SSRF."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00434027
+}

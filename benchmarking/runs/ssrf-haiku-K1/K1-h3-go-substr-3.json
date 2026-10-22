@@ -1,0 +1,75 @@
+{
+ "arm": "K1",
+ "repo": "h3-go-substr",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.00409764,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-r2hf7xar/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "Unauthenticated /logo endpoint fetches any http/https URL supplied by the caller and streams the response body back to the caller. The only check is a substring test for 'example.io', which an attacker can satisfy with a query string or path suffix, so the server can be made to request internal hosts and cloud metadata endpoints.",
+    "source": "main.go:31 r.FormValue(\"logo\") (query string or POST form body, attacker-controlled)",
+    "sink": "main.go:36 http.Get(raw), which uses the default client (follows up to 10 redirects, no host/IP restriction) and main.go:38 io.Copy(w, resp.Body) returns the body to the attacker",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 44,
+      "note": "ListenAndServe on :8081 (all interfaces), no auth or middleware in front of handlers"
+     },
+     {
+      "file": "main.go",
+      "line": 43,
+      "note": "/logo routed to logo() with no auth guard"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw := r.FormValue(\"logo\") taken directly from the request"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "strings.Contains(raw, \"example.io\") is the only validation; it matches anywhere in the string, e.g. http://169.254.169.254/latest/meta-data/?example.io or http://127.0.0.1:6379/x?example.io or http://attacker.tld/example.io"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) requests the URL verbatim with the default client: no scheme pin, no parsed-host check, no IP block, redirects followed"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "Response body copied to the attacker's connection; no status check, so this is a full-response (non-blind) SSRF"
+     }
+    ],
+    "guards_checked": "Substring check at line 32 only. It does not parse the URL, does not compare the parsed host, and does not check scheme, port, or resolved IP. Redirects are not blocked (default client at line 36, unlike /cdn). No private, loopback, or link-local block. Scheme limited to http/https by Go's net/http, which does not allow file:// or gopher://. Middleware: none found in main.go. Because the attacker can reach the endpoint and the response is reflected, the precondition is only network reachability of port 8081. Side note, not SSRF: if http.Get errors, resp is nil and line 37 panics on resp.Body."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is strings.Contains(raw, \"example.io\") at main.go:32, a substring match that does not parse the URL or compare the hostname. No middleware or auth wraps the handler (main.go:43-44), and redirects are not blocked (main.go:36 uses the default client, unlike the noRedirect client in cdn at main.go:24).",
+    "reason": "The attacker-controlled value at main.go:31 (r.FormValue, which reads query or form body) reaches http.Get(raw) at main.go:36 and the response is copied back to the caller at main.go:38, gated only by the substring test at main.go:32 which does not close the SSRF; the endpoint is unauthenticated on :8081 (main.go:44). The candidate's trace lines are accurate. The side note is also accurate: line 37 dereferences resp when http.Get returns an error."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0022159799999999998
+}

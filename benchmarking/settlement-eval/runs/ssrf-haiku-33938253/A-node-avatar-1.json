@@ -1,0 +1,102 @@
+{
+ "arm": "A",
+ "repo": "node-avatar",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0050158,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ghh9dkxb/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches an attacker-supplied URL server-side. The only check is that the value is a string starting with https://, which does not restrict host, IP range, port, or redirect targets. Attacker can reach internal TLS services directly or use an https:// URL that 302-redirects to internal http:// endpoints such as 169.254.169.254. Impact is blind: only the response byte length is returned.",
+    "source": "server.js:10 req.body.avatarUrl (unauthenticated POST body, parsed at server.js:5)",
+    "sink": "server.js:14 axios.get(url, { responseType: \"arraybuffer\" }) with default redirect following",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "Unauthenticated route POST /profile/avatar registered"
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url taken directly from req.body.avatarUrl"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "Validation: typeof string and startsWith('https://') only; no host, IP, port, or redirect checks"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "Server issues request to url; axios follows redirects by default, so the https:// check is not applied to redirect targets; no timeout or size limit"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "Only img.data.length is returned, so the response body is not exposed (blind SSRF)"
+     }
+    ],
+    "guards_checked": "Type check (server.js:11) and https:// scheme prefix (server.js:11) only. No host allowlist, no private/loopback/link-local IP block, no DNS resolution check, no port restriction, no redirect validation, no timeout or size cap. Userinfo-style host tricks (https://x@169.254.169.254/) pass the prefix check but are unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is server.js:11, a typeof string test plus a startsWith(\"https://\") prefix test. That is a prefix check, not a closing guard. No host, IP, port, or redirect validation exists anywhere in server.js, and there is no auth middleware on the route (server.js:5 is express.json() only).",
+    "reason": "The trace matches the code: req.body.avatarUrl (server.js:10) is passed unchecked beyond a https:// prefix (server.js:11) into axios.get with default redirect following (server.js:14), and only img.data.length is returned (server.js:15). The route is unauthenticated, so an attacker controls the request target and can use https:// URLs that redirect to internal hosts."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-1b",
+    "file": "server.js",
+    "line": 20,
+    "claim": "Candidate ruled out, not SSRF: GET /users/:id uses a constant host (USER_SVC) and encodeURIComponent (server.js:19) blocks escape from the /v1/users/ path. Bare '.' or '..' segments can normalize to same-host paths such as /v1/, which is path traversal within the users service, not SSRF.",
+    "source": "server.js:18 req.params.id",
+    "sink": "server.js:20 axios.get(`${USER_SVC}/v1/users/${id}`)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 18,
+      "note": "id from route parameter"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "encodeURIComponent encodes /, ?, #, %"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "Host fixed to USER_SVC constant"
+     }
+    ],
+    "guards_checked": "encodeURIComponent (server.js:19); constant base URL (server.js:7). Host cannot be changed by the attacker."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "encodeURIComponent at server.js:19 stops \"/\", \"?\", \"#\" from altering the path, and the base URL is the constant USER_SVC defined at server.js:7 and used at server.js:20, so the attacker cannot change the host.",
+    "reason": "The sink at server.js:20 always goes to the fixed host in USER_SVC (server.js:7), and the attacker-controlled id is only a path segment after encodeURIComponent (server.js:19), so this is not SSRF; at most a path manipulation within the users service, as the candidate itself notes."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00382596
+}

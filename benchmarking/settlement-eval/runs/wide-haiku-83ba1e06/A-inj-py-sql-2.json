@@ -1,0 +1,102 @@
+{
+ "arm": "A",
+ "repo": "inj-py-sql",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00346108,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-paqblitz/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "app.py",
+    "line": 12,
+    "claim": "SQL injection in /search: the user-supplied `q` parameter is interpolated into a raw SQL string via an f-string, letting an unauthenticated attacker alter the query and read any table in shop.db (e.g. UNION-based extraction from users or sqlite_master).",
+    "source": "HTTP query parameter `q` read by request.args.get(\"q\", \"\") at app.py:11 (fully attacker-controlled, no authentication required).",
+    "sink": "db.execute(f\"SELECT id, name FROM products WHERE name LIKE '%{term}%'\") at app.py:12, using string interpolation instead of bound parameters.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 9,
+      "note": "Route /search is registered with no auth decorator or access check."
+     },
+     {
+      "file": "app.py",
+      "line": 11,
+      "note": "term = request.args.get(\"q\", \"\") takes raw attacker input."
+     },
+     {
+      "file": "app.py",
+      "line": 12,
+      "note": "term is f-string interpolated into the SQL text; the single quote in '%{term}%' can be broken out of, e.g. q=x%' UNION SELECT name, sql FROM sqlite_master--"
+     },
+     {
+      "file": "app.py",
+      "line": 13,
+      "note": "Rows returned by the injected query are serialized to the response via jsonify, so the attacker receives the extracted data directly."
+     }
+    ],
+    "guards_checked": "No sanitization, escaping, allowlist, or length limit on `term`; query is not parameterized (contrast with lines 18 and 25, which do use `?` placeholders); no authentication or authorization on the route; no WAF or framework-level protection in the file. sqlite3's execute() rejects stacked statements, so the exploit uses UNION/boolean-style injection rather than multi-statement payloads, which does not block data exfiltration."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:9 registers /search with no auth decorator or access check. app.py:11 takes `q` straight from request.args with no validation, allowlist, or length limit. app.py:12 interpolates `term` into the SQL text via an f-string with no parameter binding, unlike the `?` placeholders at app.py:18 and app.py:25. No other control sits between the request and the sink.",
+    "reason": "The unauthenticated /search route (app.py:9) passes the raw `q` value (app.py:11) into an f-string SQL query (app.py:12) with no parameterization or other control, and the rows are returned via jsonify (app.py:13), so an anonymous attacker can use a UNION payload such as `x%' UNION SELECT name, sql FROM sqlite_master--` to read data from shop.db. The two-column UNION matches the two selected columns, and sqlite3's rejection of stacked statements does not stop UNION-based extraction."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "app.py",
+    "line": 22,
+    "claim": "Broken authorization / data exposure in /by-owner: the endpoint returns products for any caller-supplied `owner` value with no authentication and no check that the requester is that owner, allowing enumeration of all products belonging to any owner.",
+    "source": "HTTP query parameter `owner` read at app.py:24 (attacker-controlled, no identity is bound to the request).",
+    "sink": "db.execute(\"SELECT id, name FROM products WHERE owner = ?\", (owner,)) at app.py:25, returning owner-filtered rows at app.py:26.",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "Route /by-owner has no auth decorator or session/identity check."
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "owner = request.args.get(\"owner\", \"\") is taken directly from the caller."
+     },
+     {
+      "file": "app.py",
+      "line": 25,
+      "note": "Parameterized query filters products by that owner value; no ownership check is applied."
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "Matching product rows are returned to the caller."
+     }
+    ],
+    "guards_checked": "Query is parameterized (no SQL injection here, which is why this is reported as an authorization issue, not F1). No authentication or ownership check exists in the file. Whether this is a real data leak depends on whether products.owner or the owner's identity is sensitive, and the schema is not in the repo, so this is a candidate with moderate confidence."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.py:22 has no auth decorator, session, or identity check. app.py:24 takes owner directly from request.args. app.py:25 parameterizes the value, which blocks SQL injection but is not an authorization control. app.py:26 returns the matching rows without any ownership check.",
+    "reason": "The trace matches app.py:22-26 exactly, and an anonymous caller can supply any owner at app.py:24 to map products to owners through the unguarded query at app.py:25. Impact is narrower than the claim: id and name are already public via /search (app.py:12) and /product/<id> (app.py:18), so the only new information is the owner-to-product relationship, and whether that matters depends on the schema, which is not in the repo."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00446249
+}

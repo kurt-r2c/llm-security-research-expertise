@@ -1,0 +1,115 @@
+{
+ "arm": "P",
+ "repo": "h2-node-admin",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00486522,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-yz8epvam/r/routes.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "routes.js",
+    "line": 20,
+    "claim": "Unauthenticated SSRF via POST /hooks/test: the request body's callback URL is passed straight to axios.post, so any caller who can reach the public router can make the server send a POST with JSON {ping:true} to any URL, including internal hosts and cloud metadata endpoints, and read back the response status.",
+    "source": "req.body.callback (routes.js:20), supplied by the unauthenticated HTTP client in the request body. The pub router has no auth middleware (routes.js:4, 19).",
+    "sink": "axios.post(req.body.callback, { ping: true }) at routes.js:20, an outbound HTTP request from the server.",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 4,
+      "note": "pub = express.Router(); no middleware is attached to this router."
+     },
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) applies only to the admin router, not to pub."
+     },
+     {
+      "file": "routes.js",
+      "line": 19,
+      "note": "pub.post('/hooks/test') handler with no auth check."
+     },
+     {
+      "file": "routes.js",
+      "line": 20,
+      "note": "req.body.callback is used as the URL for axios.post with no validation. axios follows redirects by default in Node."
+     },
+     {
+      "file": "routes.js",
+      "line": 21,
+      "note": "res.json returns r.status to the caller, which gives a status-code oracle. Non-2xx responses make axios throw, and the throw is not caught here."
+     }
+    ],
+    "guards_checked": "No authentication on the pub router. No URL parsing, scheme check, host or IP allowlist or denylist, port restriction, or redirect restriction. No try/catch. Whether pub is mounted publicly cannot be verified from this repo because no app entry point is present, so exposure depends on the deployment."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. routes.js:4 creates pub with no middleware, routes.js:7-12 requireAdmin is attached only to admin (routes.js:12), routes.js:19-20 has no auth, URL validation, or try/catch before axios.post(req.body.callback, ...). The only Glob result is routes.js, so no app entry point exists to show pub is mounted publicly.",
+    "reason": "The trace is accurate: req.body.callback (routes.js:20) reaches axios.post with no check, and pub (routes.js:4, 19) has no auth, so an unauthenticated caller controls the outbound URL and can read the status back (routes.js:21). The finding holds as long as pub is mounted on a publicly reachable app, which this repo cannot confirm."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "routes.js",
+    "line": 15,
+    "claim": "Admin-gated SSRF via GET /diagnostics/fetch: the url query parameter is passed directly to axios.get, so an authenticated admin (or someone who can forge an admin session) can make the server fetch arbitrary internal URLs and read the status code. Lower severity than SSRF-1 because it requires the admin role.",
+    "source": "req.query.url (routes.js:15), supplied by the HTTP client as a query-string parameter. Access is limited to sessions with role 'admin' by requireAdmin (routes.js:7-10, 12).",
+    "sink": "axios.get(req.query.url) at routes.js:15, an outbound GET request from the server.",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) applies to every route on the admin router."
+     },
+     {
+      "file": "routes.js",
+      "line": 8,
+      "note": "requireAdmin returns 403 unless req.session.role === 'admin'. The session is set elsewhere and is not in this repo."
+     },
+     {
+      "file": "routes.js",
+      "line": 14,
+      "note": "admin.get('/diagnostics/fetch') handler."
+     },
+     {
+      "file": "routes.js",
+      "line": 15,
+      "note": "req.query.url is passed directly to axios.get with no validation; redirects are followed by default."
+     },
+     {
+      "file": "routes.js",
+      "line": 16,
+      "note": "res.json returns r.status to the caller, which gives a status-code oracle."
+     }
+    ],
+    "guards_checked": "requireAdmin role check (routes.js:7-12). No URL validation, scheme or host allowlist, IP-range denylist, or redirect restriction. The admin router's mount point and the session implementation are not in this repo."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none on the URL. The only check is the role gate at routes.js:8 (requireAdmin, applied via routes.js:12), which limits access to admin sessions but does not validate the URL.",
+    "reason": "Every trace line checks out (routes.js:8, 12, 14, 15, 16), but the source fails: req.query.url at routes.js:15 is reachable only after the role === 'admin' check at routes.js:8, so the attacker must already hold admin privilege and is not the low-privilege remote attacker the rubric requires. The claim's \"or someone who can forge an admin session\" depends on session handling that is not in this repo, so it cannot be used to make the finding CONFIRMED here."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00412224
+}

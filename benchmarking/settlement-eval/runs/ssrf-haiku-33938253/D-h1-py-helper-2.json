@@ -1,0 +1,121 @@
+{
+ "arm": "D",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01836856,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 5,
+   "Grep": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-0nc4o4y_/r/.claude/skills/security-research/infrastructure/SKILL.md",
+   "/tmp/egf-0nc4o4y_/r/.claude/skills/security-research/triage/SKILL.md",
+   "/tmp/egf-0nc4o4y_/r/.claude/skills/security-research/ssrf/SKILL.md",
+   "/tmp/egf-0nc4o4y_/r/views.py",
+   "/tmp/egf-0nc4o4y_/r/validators.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "Unauthenticated SSRF in /fetch2: the user-supplied url query parameter is fetched with requests.get after only a scheme check, so any internal or metadata address is reachable, and redirects are followed by default.",
+    "source": "views.py:19 request.args.get(\"url\") (unauthenticated query parameter)",
+    "sink": "views.py:22 requests.get(url, timeout=5) (redirects enabled)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url read from request.args with no authentication required"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url gate applied"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "is_http_url only checks urlparse(url).scheme in (http, https); no host, IP, or allowlist check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get fetches the attacker URL with default redirect following; first 200 bytes of body returned to caller"
+     }
+    ],
+    "guards_checked": "Scheme-only check (validators.py:7) does not restrict host. No hostname allowlist, no private/loopback/link-local IP filtering, no allow_redirects=False, no post-redirect re-validation. Timeout of 5s is not a security control."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the /fetch2 path. The only check is is_http_url at views.py:20, which calls validators.py:7 and tests only the scheme. No hostname, IP, or allowlist check, and requests.get at views.py:22 has no allow_redirects=False, so redirects are followed. The stronger is_safe_url guard (validators.py:10-18) is used only by /fetch (views.py:12), not /fetch2.",
+    "reason": "The url comes from an unauthenticated request.args value (views.py:19), passes only the scheme-only is_http_url check (views.py:20, validators.py:7), and is fetched with requests.get at views.py:22 with default redirect following, returning the first 200 bytes; the candidate's trace matches the code exactly."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "DNS-rebinding TOCTOU in /fetch: is_safe_url resolves the hostname and checks every returned IP, but requests.get performs a second, independent DNS resolution and connects to whatever address it receives, so an attacker-controlled domain can pass the check with a public IP and then resolve to 127.0.0.1, 169.254.169.254, or an RFC-1918 host for the actual fetch.",
+    "source": "views.py:11 request.args.get(\"url\") (unauthenticated query parameter)",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False) (connection to the second, unvalidated DNS resolution)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url read from request.args with no authentication required"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url gate applied before the fetch"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse; scheme restricted to http/https and hostname required"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "first DNS resolution via socket.getaddrinfo; result is only used for the check"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "each resolved IP checked for is_private, is_loopback, is_link_local, is_reserved"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get re-resolves the hostname in urllib3 and connects to the returned IP, which the check never saw"
+     }
+    ],
+    "guards_checked": "Scheme restriction (validators.py:12) and hostname-present check (validators.py:12) present. All resolved addresses checked for private/loopback/link-local/reserved (validators.py:14-17). allow_redirects=False (views.py:14) closes redirect-based bypass. Timeout 5s. Missing: connection pinning to the validated IP, or connect-time IP check, so the check and the fetch can resolve differently. Practical impact limited by 200-byte response truncation and rebinding timing window."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. validators.py:12 is a scheme and hostname check, and validators.py:14-17 checks resolved IPs, but nothing pins the connection to the validated IP. views.py:14 calls requests.get(url) with the hostname, so urllib3 resolves it again. views.py:14 also sets allow_redirects=False, which closes only the redirect path. Neither guard closes the rebinding TOCTOU.",
+    "reason": "The trace matches the code: url comes from unauthenticated request.args at views.py:11, is_safe_url at views.py:12 resolves via getaddrinfo at validators.py:14 and checks the IPs at validators.py:16, and requests.get at views.py:14 performs a separate DNS resolution with no pinned IP. Nothing in the path closes the gap, so the rebinding TOCTOU is real. The response is truncated to 200 bytes (views.py:14), which limits impact but does not refute the finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00407211
+}

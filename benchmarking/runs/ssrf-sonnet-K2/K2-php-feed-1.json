@@ -1,0 +1,106 @@
+{
+ "arm": "K2",
+ "repo": "php-feed",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "c6805ce7",
+ "status": "success",
+ "gen_cost": 0.05174340000000001,
+ "trace": {
+  "tools": {
+   "Read": 3,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-tsvqjbx8/expertise/INDEX.md",
+   "/tmp/egf-tsvqjbx8/r/import.php",
+   "/tmp/egf-tsvqjbx8/expertise/cases/12-ssrf-resolve-then-fetch.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF and local file read: the `feed` POST parameter is passed directly to file_get_contents(), which accepts URLs (http, ftp, php://, etc.) and local paths (file://, plain paths). The response length is echoed, so it works as a blind oracle (reachability, size). The request is made by the server, so it can reach internal hosts, cloud metadata (169.254.169.254) and localhost services.",
+    "source": "$_POST['feed'] (POST body, any client)",
+    "sink": "file_get_contents($_POST['feed']) at import.php:12",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Only checks that the request is POST and `feed` is set; there is no auth check"
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "The user-controlled value is fetched directly with file_get_contents()"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "strlen of the fetched body is echoed, leaking response size and reachability"
+     }
+    ],
+    "guards_checked": "No scheme or host allowlist, no private-IP or DNS check, no require_admin() (it is only called in the webhook branch), no allow_url_fopen restriction visible in the code. The session is started but never consulted for this branch."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "import.php:11-13 passes $_POST['feed'] straight into file_get_contents() and echoes strlen() with no auth, since require_admin() is only called at import.php:18 in the webhook branch, and no scheme or host validation exists."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "SSRF via the webhook URL: the `set_webhook` POST parameter goes straight into curl_init() and curl_exec(), so the server requests any URL. curl supports many schemes (http, https, gopher, file, dict, ftp) and no protocol restriction is set. It is gated by an admin session check, which lowers severity: it needs an admin or a session with is_admin set. The response is not echoed, so the SSRF is blind.",
+    "source": "$_POST['set_webhook'] (POST body, admin session required)",
+    "sink": "curl_init($hook) / curl_exec($ch) at import.php:20-22",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch entered when `set_webhook` is present"
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks $_SESSION['is_admin'] and exits with 403 otherwise"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook'] with no validation"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the URL"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec() performs the request"
+     }
+    ],
+    "guards_checked": "require_admin() is the only guard (admin-only). There is no scheme restriction (CURLOPT_PROTOCOLS is not set), no host or IP allowlist, no private-range block, no DNS pinning, and CURLOPT_FOLLOWLOCATION is not set so redirects are not followed. An admin, or an attacker who has obtained an admin session, can still reach internal services and metadata endpoints."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 (session is_admin check, 403 otherwise); no URL, scheme or host validation",
+    "reason": "The trace matches import.php:17-22, but the `set_webhook` sink is reachable only after require_admin() at import.php:18 passes, and nothing in the code sets `$_SESSION['is_admin']`, so an unauthenticated or low-privilege attacker cannot control it."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.057980000000000004
+}

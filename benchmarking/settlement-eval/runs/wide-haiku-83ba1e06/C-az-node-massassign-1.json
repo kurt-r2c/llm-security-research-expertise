@@ -1,0 +1,140 @@
+{
+ "arm": "C",
+ "repo": "az-node-massassign",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.012767850000000002,
+ "trace": {
+  "tools": {
+   "Bash": 5,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": []
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "users-put-me-mass-assignment",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me copies the entire request body onto the authenticated user record with no field allowlist, so any authenticated user can write any stored field (role, isAdmin, tenantId, plan, emailVerified, email, passwordHash, id) if such fields exist on the User schema. Severity high, pending the schema, which is not in the repo.",
+    "source": "req.body in PUT /me (attacker-controlled JSON from any authenticated user)",
+    "sink": "Object.assign(req.user, req.body) at users.js:5, followed by req.store.save(req.user) at users.js:6",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "PUT /me handler receives req; req.user is loaded by upstream auth middleware (not in repo)"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies every own enumerable key of req.body onto req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save persists the modified user object"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json returns the modified object to the caller"
+     }
+    ],
+    "guards_checked": "None in this file: no field allowlist, no schema or type validation, no length limits, no per-field authorization. Upstream middleware that could strip fields is not in the repo and was not verified. Possible extra impact if id is writable: store.save may overwrite another user's record, depending on store implementation (not verified). Cross-site form CSRF on this route is possible only if urlencoded bodies are parsed and the session cookie is sent cross-site; CSRF config not visible."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js: no field allowlist, schema, or validation between req.body (users.js:5) and req.store.save (users.js:6). Upstream auth middleware is not in the repo, so it cannot be checked for field stripping.",
+    "reason": "The sink is accurate: users.js:5 Object.assign(req.user, req.body) copies every key of the request body and users.js:6 persists it, with no control in this file. Whether that is exploitable depends on the User schema and on upstream middleware (neither in the repo), so the claimed privilege escalation (role, isAdmin, tenantId, passwordHash, id) cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-put-me-proto-key",
+    "file": "users.js",
+    "line": 5,
+    "claim": "A __proto__ key in the JSON body survives JSON.parse as an own property. Object.assign uses [[Set]], which calls the inherited __proto__ setter and replaces the [[Prototype]] of req.user itself (not Object.prototype), so inherited properties such as isAdmin become readable on req.user. Impact depends on how store.save serializes (for...in would include inherited enumerable keys). Global pollution not shown. Low to medium. Not executed: a Node verification command was denied, so this rests on language semantics.",
+    "source": "JSON request body containing a \"__proto__\" key in PUT /me",
+    "sink": "Object.assign(req.user, req.body) at users.js:5 invoking the __proto__ setter, then req.store.save at users.js:6",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign iterates own keys of req.body, including the own __proto__ key from JSON.parse, and performs [[Set]] on req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "[[Set]] finds the inherited __proto__ accessor on Object.prototype and sets req.user's [[Prototype]] to the attacker object"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "store.save receives req.user with the altered prototype; persistence depends on its serialization"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json serializes req.user; JSON.stringify ignores inherited properties"
+     }
+    ],
+    "guards_checked": "None in this file. No __proto__, constructor, or prototype filtering. An allowlist fix (finding users-put-me-mass-assignment) would also remove this path. store.save implementation not in repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:4-5 has no __proto__, constructor, or prototype filtering, and no allowlist before Object.assign(req.user, req.body). The only other guard-like code in the file is the destructuring at users.js:11-12, which is on a different route (/me/profile) and does not apply to /me.",
+    "reason": "users.js:5 passes the raw req.body to Object.assign, so an own \"__proto__\" key from JSON.parse goes through the inherited [[Set]] setter and replaces req.user's own [[Prototype]] (not Object.prototype), and any authenticated user reaching PUT /me at users.js:4 can do this. The candidate's impact is limited and the claim was not executed (I had no execution tool), but the semantics it relies on are standard and no effective control exists in the repo."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-put-profile-undefined-and-untyped",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile writes displayName and bio with no type or length checks. A request that omits either field sets it to undefined, clearing the stored value. If a consumer renders these fields without escaping, object or long values could become stored XSS or storage abuse. Low severity; the stored-XSS part depends on code outside the repo.",
+    "source": "req.body.displayName and req.body.bio in PUT /me/profile (attacker-controlled)",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12, followed by req.store.save at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Destructures displayName and bio from req.body with no validation"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Object.assign writes both keys, including undefined for omitted fields"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "req.store.save persists the values, clearing omitted fields"
+     },
+     {
+      "file": "users.js",
+      "line": 14,
+      "note": "res.json returns the stored user"
+     }
+    ],
+    "guards_checked": "Route is restricted to two named fields, so it is not vulnerable to general mass assignment (the pattern finding users-put-me-mass-assignment should adopt). No type, length, or undefined checks. No output-encoding evidence in repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:11 destructures displayName and bio from req.body with no validation, and users.js:12 Object.assign copies those keys even when undefined. No type, length, or escaping check exists in the repo (the only grep hits for validate/sanitize/escape are the route itself). The auth middleware that sets req.user and req.store is not in the repo, so its behavior is unknown.",
+    "reason": "The trace matches users.js:11-14: unvalidated req.body fields are assigned at line 12 (undefined overwrites stored values) and persisted at line 13, and no effective control exists in the repo. The attacker is any authenticated user editing their own profile, so the impact is low and limited to self-clearing plus unescaped rendering of attacker-supplied strings, where the XSS step depends on consumer code outside the repo."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00680943
+}

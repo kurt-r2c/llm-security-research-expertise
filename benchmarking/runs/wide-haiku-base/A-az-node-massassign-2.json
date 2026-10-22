@@ -1,0 +1,164 @@
+{
+ "arm": "A",
+ "repo": "az-node-massassign",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.00550654,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-rbzogfmf/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "Mass assignment on PUT /me lets a user overwrite any property of their own user record, including privilege fields such as role or isAdmin, if the store persists them.",
+    "source": "req.body in PUT /me (users.js:4-5), fully attacker-controlled JSON.",
+    "sink": "Object.assign(req.user, req.body) at users.js:5, followed by req.store.save(req.user) at users.js:6.",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "route handler accepts PUT /me"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "every own key of req.body is copied onto req.user with no allowlist"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "modified req.user, including injected fields, is persisted"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "updated record returned to client"
+     }
+    ],
+    "guards_checked": "No allowlist, schema validation, or field filtering in this file. Unverified preconditions: express.json() is mounted, req.user is loaded from session or token, and the stored user has privilege fields (role, isAdmin, orgId, id). Authentication is assumed to be enforced by middleware outside this file."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 copies every own key of req.body onto req.user with no allowlist, and users.js:6 persists it. The only other file in the directory is users.js itself, so there is no auth middleware, schema, or store definition to check.",
+    "reason": "The trace matches users.js:4-7 exactly and nothing in the file filters fields, but whether this is exploitable depends on code outside the directory: the auth middleware that sets req.user (the candidate's attacker is an authenticated user, but this is unverified), and whether the stored user actually has role, isAdmin, or orgId fields that the store persists."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 12,
+    "claim": "Prototype-chain manipulation via a __proto__ key on PUT /me. Object.assign uses [[Set]], so a JSON key \"__proto__\" changes req.user's prototype instead of creating an own property.",
+    "source": "req.body (users.js:4-5), specifically a JSON key named \"__proto__\" with an object value.",
+    "sink": "Object.assign(req.user, req.body) at users.js:5 invokes the __proto__ setter on req.user.",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies own key \"__proto__\" to req.user via [[Set]], invoking the setter"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save runs with a changed prototype; impact depends on store and downstream reads of inherited properties"
+     }
+    ],
+    "guards_checked": "No key filtering, no Object.create(null), no freeze. Impact limited within this file: no authorization check runs after the assignment, and JSON.stringify does not serialize prototype-only changes. Exploitability depends on store implementation and downstream middleware, which are not in the repo."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none. Line 5 (users.js:5) calls Object.assign(req.user, req.body) with no key filtering, and users.js:6 saves without any authorization check. The __proto__ setter behavior is real, but it grants nothing new.",
+    "reason": "The trace is accurate: Object.assign at users.js:5 uses [[Set]], so an own \"__proto__\" key from req.body invokes the setter. But the attacker is the authenticated user editing their own req.user, and users.js:5 already lets them write any own property with no filtering, so a prototype swap gives no capability they lack. Persistence is also doubtful, since the store saves own properties and the prototype change is not serialized. This is at most a mass-assignment issue, not a separate prototype-pollution vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "users.js",
+    "line": 12,
+    "claim": "Partial-update data loss on PUT /me/profile. Omitting displayName or bio sets the field to undefined and overwrites the stored value.",
+    "source": "req.body.displayName and req.body.bio (users.js:11), optional client-controlled fields.",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12, then req.store.save(req.user) at users.js:13.",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "destructures displayName and bio; absent keys become undefined"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "undefined values overwrite existing properties on req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "store persists the cleared values"
+     }
+    ],
+    "guards_checked": "No defaults, no merge with existing values, no partial-update check. Self-inflicted integrity issue, not cross-user."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none. The trace is accurate: users.js:11 destructures the body, and users.js:12 Object.assign copies keys whose values are undefined, which overwrites the stored fields. users.js:13 then saves. The effect is a self-inflicted clearing of the caller's own profile fields, which is not a security issue.",
+    "reason": "The trace is correct (users.js:11-13), but the only party who can trigger it is the authenticated user editing their own req.user, who can already set or clear displayName and bio to any value through the same endpoint, so no privilege or cross-user boundary is crossed. It is at most a PUT-semantics or data-integrity bug, not a vulnerability. The auth middleware that sets req.user is not in the directory, so I could not confirm it is always the caller's own record."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "users.js",
+    "line": 11,
+    "claim": "No type or length validation on displayName and bio. Non-string values or large strings are persisted, which may enable NoSQL operator injection if the store is document-based, or stored XSS if the profile is rendered unescaped.",
+    "source": "req.body.displayName and req.body.bio (users.js:11).",
+    "sink": "req.store.save(req.user) at users.js:13 and any downstream read or render of these fields.",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "values taken from req.body without type checks"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "values assigned to req.user unchanged"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "persisted without validation"
+     }
+    ],
+    "guards_checked": "No validation or sanitization in this file. Store layer and rendering layer are not in the repo, so injection or XSS paths are unconfirmed."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in users.js. Lines 11-13 match the trace: displayName and bio are destructured from req.body (users.js:11), assigned to req.user via Object.assign (users.js:12), and saved with req.store.save (users.js:13). No type, length, or sanitization check exists. The auth middleware that sets req.user and the store and render code are not in the repo.",
+    "reason": "The trace at users.js:11-13 is accurate and no validation exists in this file, but whether non-string values or markup cause harm depends on req.store.save and the profile render path, which are not in the repo, so the NoSQL-injection and stored-XSS impact cannot be confirmed. The attacker is an authenticated user who can write their own profile (users.js:10-13), and the stored-XSS variant would need another user to view the profile."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00782091
+}

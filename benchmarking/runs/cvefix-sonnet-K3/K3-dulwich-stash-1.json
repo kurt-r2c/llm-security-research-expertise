@@ -1,0 +1,69 @@
+{
+ "arm": "K3",
+ "repo": "dulwich-stash",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "cvefix",
+ "config_id": "559d691a",
+ "status": "success",
+ "gen_cost": 0.1410578,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 5,
+   "Read": 5,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-er6u4tuh/r/dulwich/lfs_server.py",
+   "/tmp/egf-er6u4tuh/r/dulwich/web.py",
+   "/tmp/egf-er6u4tuh/r/dulwich/web.py",
+   "/tmp/egf-er6u4tuh/r/dulwich/server.py",
+   "/tmp/egf-er6u4tuh/r/dulwich/lfs.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "dulwich/lfs_server.py",
+    "line": 140,
+    "claim": "Path traversal in the LFS batch handler. The `oid` from the JSON body is never passed through `_is_valid_oid`, although the GET, PUT and verify handlers all call it. The `oid` goes into `LFSStore._sha_path`, which uses `os.path.join` on slices of it. A crafted `oid` can make the path absolute and point it at any file. Unauthenticated callers can then tell whether arbitrary files exist on the server. Impact is limited to a file-existence oracle, because the opened file is never read back. A non-string `oid` such as an int also raises an unhandled exception.",
+    "source": "POST /objects/batch JSON body, `objects[].oid` (lfs_server.py:105,120). The route has no auth and the field has no validation.",
+    "sink": "`open(self._sha_path(sha), 'rb')` in lfs.py:150. `_sha_path` is `os.path.join(self.path,'objects',sha[0:2],sha[2:4],sha)` (lfs.py:145). The result is exposed through the 200 'download' action versus the 404 error in the batch response.",
+    "trace": [
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 120,
+      "note": "oid = obj.get('oid'), only a truthiness check follows (123)"
+     },
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 140,
+      "note": "download branch calls self._object_exists(oid) without validation"
+     },
+     {
+      "file": "dulwich/lfs_server.py",
+      "line": 271,
+      "note": "_object_exists calls lfs_store.open_object(oid)"
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 145,
+      "note": "os.path.join with sha[2:4]='/.' (oid like 'ab/./etc/passwd', where 'ab' is any two characters) resets the join to an absolute path, so the oid escapes the objects dir"
+     },
+     {
+      "file": "dulwich/lfs.py",
+      "line": 150,
+      "note": "open() on the attacker-chosen path. FileNotFoundError becomes KeyError, so the response differs depending on whether the file exists"
+     }
+    ],
+    "guards_checked": "`_is_valid_oid` (lfs_server.py:46) is enforced in handle_download (173), handle_upload (198) and handle_verify (242), but not in the batch handler. No auth, canonicalization or containment check exists on the batch path. Only FileNotFoundError is handled, so other OSErrors such as permission denied or an invalid path propagate as unhandled exceptions. I did not verify a working exploit by running it."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,110 @@
+{
+ "arm": "D",
+ "repo": "az-node-authorize",
+ "rep": 1,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.0790688,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-k3yhqnl7/r/api.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "Broken access control on DELETE /projects/:id. The route calls authorized(), which returns a boolean instead of throwing, and discards the result. The ownership/admin check is never enforced, so any authenticated user can delete any project. The sibling PUT route correctly uses authorize(), which throws.",
+    "source": "Any authenticated user (req.user) sending DELETE /projects/<id> for a project they do not own. IDs are taken from req.params.id.",
+    "sink": "req.store.projects.delete(project.id) at api.js:19, a destructive operation on another user's resource.",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 16,
+      "note": "DELETE /projects/:id handler is entered with attacker-chosen :id"
+     },
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "Project is loaded by id with no ownership scoping"
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "authorized(req.user, project) returns false for a non-owner, but the return value is ignored and nothing is thrown"
+     },
+     {
+      "file": "api.js",
+      "line": 12,
+      "note": "authorized() only computes a boolean (ownerId === user.id || isAdmin === true) and has no side effects"
+     },
+     {
+      "file": "api.js",
+      "line": 19,
+      "note": "Project is deleted unconditionally"
+     },
+     {
+      "file": "api.js",
+      "line": 20,
+      "note": "Responds 204, so the attacker sees success"
+     }
+    ],
+    "guards_checked": "Checked for a throwing check in the handler (none; authorized() is non-throwing and unused). Checked for router-level middleware in api.js (none visible). Checked for ownership scoping in the store lookup (none; get() takes only the id). Authentication of req.user is assumed to be done upstream and is not in this repo. Even so, it only establishes who the caller is and not whether they own the project. The PUT route at api.js:25 uses authorize() correctly, which confirms the DELETE route is the omission."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "authorized() at api.js:12-14 returns a boolean, and the DELETE handler discards the result at api.js:18. The throwing authorize() at api.js:4-10 is used only by the PUT route at api.js:25. No router-level middleware is present.",
+    "reason": "At api.js:18 the return value of the non-throwing authorized() is discarded, so api.js:19 deletes the project for any authenticated user, while the PUT route at api.js:25 correctly uses the throwing authorize()."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "BIZ-1",
+    "file": "api.js",
+    "line": 17,
+    "claim": "Missing existence check on the project lookup. If projects.get() returns undefined for an unknown id, then project.id (line 19) and resource.ownerId (inside authorize/authorized) throw a TypeError, producing a 500 response and possibly an unhandled error. This is a low-severity robustness and information-disclosure issue and does not bypass authorization. Under Express 4, synchronous throws are handled by the default error handler, which may leak a stack trace if NODE_ENV is not production. It also lets an attacker distinguish 403 (exists) from 500 (does not exist) on the PUT route, which enumerates project ids.",
+    "source": "Any authenticated user sending a request with a nonexistent :id",
+    "sink": "Unhandled TypeError at api.js:19 (DELETE) and api.js:5 (PUT)",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "projects.get() result is not checked for undefined"
+     },
+     {
+      "file": "api.js",
+      "line": 24,
+      "note": "Same unchecked lookup in the PUT handler"
+     },
+     {
+      "file": "api.js",
+      "line": 5,
+      "note": "resource.ownerId dereferences undefined, causing a 500 instead of a 404"
+     }
+    ],
+    "guards_checked": "No null check, no error-handling middleware, and no 404 handling in this file. The Express default error handler may mask details in production, so severity is low."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none for existence: no undefined check on projects.get() (api.js:17, 24), no error middleware or 404 in the file. authorize() (api.js:4-10) throws 403 and authorized() (api.js:12-14) returns a bool, but both dereference resource.ownerId first.",
+    "reason": "projects.get() at api.js:17 and api.js:24 is unchecked, so an unknown id makes resource.ownerId throw a TypeError (api.js:5 in PUT, api.js:13 in DELETE) and return a 500 instead of a 403 or 404, which lets any authenticated user tell existing ids from missing ones on PUT. Two corrections: the DELETE TypeError is thrown at api.js:13 inside authorized(), not at api.js:19. Separately, the DELETE handler discards authorized()'s return value at api.js:18, so any user can delete any existing project. The claim that this \"does not bypass authorization\" is true only of the missing-check issue itself."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0629908
+}

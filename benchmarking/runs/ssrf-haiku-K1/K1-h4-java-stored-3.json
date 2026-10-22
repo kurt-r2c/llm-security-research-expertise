@@ -1,0 +1,75 @@
+{
+ "arm": "K1",
+ "repo": "h4-java-stored",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.00417729,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Read": 1,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-nbo3oq3l/r/src/Profile.java"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "src/Profile.java",
+    "line": 23,
+    "claim": "Unvalidated profile icon URL is fetched server-side with a GET by the nightly sync job, enabling blind SSRF to arbitrary http/https hosts (including internal addresses and cloud metadata endpoints) from the server's network position.",
+    "source": "Profile.java:11 `update(String webhook, String icon)` \u2014 the `icon` parameter is stored with no validation at line 16 (`this.iconUrl = icon`). Entry point is PUT /profile (route not in this repo; caller auth unknown).",
+    "sink": "Profile.java:23-24 `c.send(HttpRequest.newBuilder().uri(URI.create(iconUrl)).GET().build(), HttpResponse.BodyHandlers.ofByteArray())` inside `sync()` (line 20), run by the nightly job.",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 11,
+      "note": "update() receives attacker-controlled icon string via PUT /profile"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 15,
+      "note": "webhook is validated; icon is not"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 16,
+      "note": "icon stored unvalidated in iconUrl field"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 20,
+      "note": "sync() nightly job, injected HttpClient c"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 23,
+      "note": "URI.create(iconUrl) parsed; request issued from server with GET"
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 24,
+      "note": "response body read fully into memory (ofByteArray); not returned to attacker, so blind"
+     }
+    ],
+    "guards_checked": "(1) Webhook regex at line 12 (`https://hooks\\.example\\.com/[A-Za-z0-9]{20}`, full-match via String.matches) pins host and forbids userinfo/fragment/path tricks, so the webhook POST at line 21 is NOT an SSRF finding. (2) icon: no regex, scheme, host, port, or private/loopback/link-local/metadata IP check anywhere on the path. (3) Scheme: java.net.http.HttpClient only supports http/https; other schemes such as file: or ftp: throw at request build, so the realistic reach is http/https only. (4) Redirects: default HttpClient redirect policy is NEVER, but the client is injected at line 20, so its redirect setting cannot be verified here; if it is set to NORMAL or ALWAYS, redirects would reach internal hosts, and the host check would be bypassed. (5) DNS rebinding: no IP pinning, so a check added on the string would still be bypassable. Caveats: the PUT /profile route, its authorization, and the HttpClient construction are not in this repo, so reachability by an external attacker is unconfirmed. Impact is blind (no response returned), limited to GET requests and timing or side effects, so severity is likely moderate."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The regex at src/Profile.java:12 validates only `webhook`, not `icon`. Nothing between `update()` (line 11) and the sink at lines 23-24 checks `icon` for scheme, host, port, or private IP. The redirect policy of the injected HttpClient (line 20) is unverifiable here, but a redirect setting would widen the reach, not close it.",
+    "reason": "The trace matches the code: `update()` at src/Profile.java:11 stores `icon` unvalidated at line 16, and `sync()` at line 23 passes `URI.create(iconUrl)` straight to `c.send(...GET...)` at line 24, with no closing guard on that path. The source is the `PUT /profile` handler parameter, which is a user-profile setting rather than config or admin-only input, though the route's auth check is not in this repo, so reachability by a low-privilege user is inferred, not confirmed."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0027678900000000003
+}

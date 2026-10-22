@@ -1,0 +1,110 @@
+{
+ "arm": "P",
+ "repo": "h4-java-stored",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.004438310000000001,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-v77kxch3/r/src/Profile.java"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "src/Profile.java",
+    "line": 23,
+    "claim": "The nightly sync() issues a server-side GET to an attacker-chosen iconUrl with no host, scheme, or address validation. A user can point the server at internal or link-local addresses (e.g. http://169.254.169.254/, http://10.x.x.x/admin).",
+    "source": "iconUrl parameter of Profile.update(String webhook, String icon) (src/Profile.java:11), supplied by the PUT /profile caller. Stored unvalidated at src/Profile.java:16.",
+    "sink": "c.send(HttpRequest.newBuilder().uri(URI.create(iconUrl)).GET().build(), ...ofByteArray()) at src/Profile.java:23-24, run by the nightly job in sync().",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 11,
+      "note": "update(webhook, icon) receives icon from the PUT /profile request (comment on line 10)."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 12,
+      "note": "Only the webhook argument is validated; icon is not checked."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 16,
+      "note": "this.iconUrl = icon stores the raw attacker string."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 20,
+      "note": "sync(HttpClient c) runs in the nightly job, using the stored state."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 23,
+      "note": "URI.create(iconUrl) parses the stored string with no scheme or host check. Only the scheme limits from HttpClient apply (http and https are allowed)."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 24,
+      "note": "The request is sent with a GET and the body is buffered with ofByteArray(). The response body is never returned to the requester, so the attack is blind unless the server behaviour makes internal state observable."
+     }
+    ],
+    "guards_checked": "Line 12 regex `https://hooks\\.example\\.com/[A-Za-z0-9]{20}` applies only to webhook and is not applied to icon. No allowlist, host check, private-IP block, scheme restriction, or redirect control exists in this file. HttpClient is injected and its redirect policy is not visible in this repo; the default is Redirect.NEVER, but that cannot be confirmed here. Impact is blind SSRF: internal GET side effects, internal port or host probing via timing or error differences, and unbounded in-memory buffering of the response (no size limit)."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none: src/Profile.java:12 regex applies only to webhook, and icon is stored unchecked at src/Profile.java:16 and used at src/Profile.java:23-24 with no host, scheme, or address check.",
+    "reason": "Every trace line checks out (update at src/Profile.java:11, webhook-only validation at :12, raw store at :16, sync GET at :23-24), and no guard closes icon. However, the only evidence that icon is attacker-controlled is the comment \"PUT /profile\" at src/Profile.java:10. The handler that calls update() is not in the repo (a grep for update/PUT/profile finds nothing else), so whether a remote low-privilege user can supply icon cannot be confirmed from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2-dropped",
+    "file": "src/Profile.java",
+    "line": 21,
+    "claim": "Not a finding: webhookUrl POST at line 21 is SSRF-constrained. update() enforces a full match (String.matches) against https://hooks\\.example\\.com/[A-Za-z0-9]{20} at line 12. The host is fixed, the path allows only alphanumerics (no '@', '#', '?', or '..' possible), and the scheme is HTTPS only. The attacker can choose only the 20-character path token on a fixed host.",
+    "source": "webhook parameter, src/Profile.java:11",
+    "sink": "src/Profile.java:21",
+    "trace": [
+     {
+      "file": "src/Profile.java",
+      "line": 12,
+      "note": "Full-match validation with fixed host and alphanumeric path."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 15,
+      "note": "Validated value stored."
+     },
+     {
+      "file": "src/Profile.java",
+      "line": 21,
+      "note": "POST to the fixed host."
+     }
+    ],
+    "guards_checked": "Full-match regex, fixed host, alphanumeric-only path, HTTPS-only. No SSRF to attacker-chosen hosts."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "src/Profile.java:12, `webhook.matches(\"https://hooks\\\\.example\\\\.com/[A-Za-z0-9]{20}\")`: a full-string anchored match (String.matches) with a fixed hostname and an alphanumeric-only path, so no '@', '?', '#', or other host can be injected, and the HTTPS scheme is fixed.",
+    "reason": "The trace is accurate (src/Profile.java:12 validates, :15 stores, :21 POSTs), but the full-anchored regex at src/Profile.java:12 restricts webhookUrl to a fixed host with a 20-character alphanumeric path, which closes the finding as the rubric defines it."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00460959
+}

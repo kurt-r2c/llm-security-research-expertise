@@ -1,0 +1,118 @@
+{
+ "arm": "A",
+ "repo": "inj-php-order",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00564103,
+ "trace": {
+  "tools": {
+   "Bash": 2,
+   "Read": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-dk0e56by/r/list.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLI-1",
+    "file": "list.php",
+    "line": 6,
+    "claim": "SQL injection in list_users_sorted: the unvalidated $_GET['sort'] value is concatenated directly into an ORDER BY clause, letting an attacker append arbitrary SQL expressions and extract data via a boolean/blind oracle (e.g. CASE WHEN (SELECT ...) THEN id ELSE name END) because the query result order changes with the injected condition.",
+    "source": "$_GET['sort'] (list.php:5, attacker-controlled HTTP query parameter; defaults to 'id' only when absent)",
+    "sink": "$pdo->query(\"SELECT id, name FROM users ORDER BY \" . $sort) at list.php:6 (raw SQL executed by PDO sqlite)",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 5,
+      "note": "$sort = $_GET['sort'] ?? 'id' \u2014 raw request value taken with no validation"
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "$sort concatenated into the SQL string and passed to $pdo->query(); no prepared statement, no bound parameter, no quoting"
+     }
+    ],
+    "guards_checked": "No allowlist, type cast, regex, or quoting on $sort. No prepared statement (query() not prepare()/execute()). Only the ?? 'id' default, which applies only when the parameter is absent. Not verified at runtime: the sandbox blocked running a SQLite test; reasoning relies on SQLite accepting scalar subqueries and CASE expressions in ORDER BY. Reachability: this file defines the function but contains no routing; the finding assumes a caller passes $_GET through, as the function is written to do."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. list.php:5 takes $_GET['sort'] ?? 'id' with no allowlist, cast, or quoting, and list.php:6 concatenates it into a query() call with no bound parameter. The only sanitized path is the sibling list_users_safe (list.php:9-12), which uses an allowlist, but the claim does not depend on it.",
+    "reason": "The trace is accurate (list.php:5 reads $_GET['sort'] unvalidated and list.php:6 concatenates it into an unparameterized ORDER BY) and no guard exists, but nothing in this directory calls list_users_sorted (list.php:4) and there is no routing, so attacker reachability cannot be established from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SQLI-2-NOTE",
+    "file": "list.php",
+    "line": 11,
+    "claim": "Not a finding: list_users_safe uses an allowlist map ($cols) and only interpolates constant column names, so $sort cannot inject SQL. Noted only because it is the intended safe pattern for the sort parameter. Edge case: an array-valued sort parameter may raise a PHP illegal-offset error (a 500, not an injection).",
+    "source": "$_GET['sort'] (list.php:11)",
+    "sink": "ORDER BY at list.php:12 using $sort which can only be one of the constant values 'id', 'created_at', 'name' or the fallback 'id'",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 10,
+      "note": "$cols allowlist defined with constant column names"
+     },
+     {
+      "file": "list.php",
+      "line": 11,
+      "note": "$cols[$_GET['sort'] ?? 'id'] ?? 'id' \u2014 unknown keys fall back to 'id'"
+     },
+     {
+      "file": "list.php",
+      "line": 12,
+      "note": "interpolated value is always one of the constants"
+     }
+    ],
+    "guards_checked": "Allowlist lookup with fallback; constant column names only. Not exploitable for injection."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Allowlist map $cols at list.php:10 with lookup and 'id' fallback at list.php:11. Only the mapped values (constant column names) reach the ORDER BY at list.php:12. The raw-concatenation sink list_users_sorted at list.php:6 is a separate function that does not use this allowlist.",
+    "reason": "list_users_safe at list.php:11-12 only interpolates values from the constant map at list.php:10, so attacker-controlled $_GET['sort'] is never concatenated into SQL; the candidate's trace is accurate apart from listing the keys as 'created_at' when the key is 'created' (the value is 'created_at'), and the only failure mode is a PHP illegal-offset error on array input, which is not an injection."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTHZ-1",
+    "file": "list.php",
+    "line": 4,
+    "claim": "Possible authorization gap: list_users_sorted and list_users_safe return id and name for every row in the users table with no authentication or role check in this file. Impact is limited to user ids and names, not email. Whether it is a real finding depends on how these functions are exposed, which this file does not show.",
+    "source": "Caller context not present in this file; any HTTP request reaching the function",
+    "sink": "SELECT id, name FROM users at list.php:6 and list.php:12 (unrestricted read)",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 4,
+      "note": "list_users_sorted has no session, token, or role parameter"
+     },
+     {
+      "file": "list.php",
+      "line": 9,
+      "note": "list_users_safe has no session, token, or role parameter"
+     }
+    ],
+    "guards_checked": "No auth check, session check, or ownership check is present in the file. Whether a web-server or framework layer provides auth cannot be determined from this file alone."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. list.php:4-7 and list.php:9-13 have no session, token, or role check, and no auth include or middleware appears in the directory. The only sort guard is the column allowlist at list.php:10-11, which limits the ORDER BY column but not who can read the rows.",
+    "reason": "The trace is accurate: list.php:5 reads $_GET['sort'] at top-level script scope, so any HTTP request to this file runs the query, and list.php:12 returns id and name for every row with no check on the caller. Severity is low, because the exposed data is only id and name, and whether public user names are intended is a product decision this file cannot answer. Separately, list.php:6 concatenates the unallowlisted $_GET['sort'] into the ORDER BY clause, which is a SQL injection a stronger finding would cover."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00754201
+}

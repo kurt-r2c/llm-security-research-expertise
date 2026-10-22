@@ -1,0 +1,106 @@
+{
+ "arm": "D",
+ "repo": "php-feed",
+ "rep": 2,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.10766540000000001,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-8xpj43iu/r/import.php",
+   "/tmp/egf-8xpj43iu/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF: the POST parameter `feed` is passed unvalidated to file_get_contents(), which fetches any URL. That includes http://169.254.169.254/ and RFC-1918 hosts, and PHP stream wrappers such as file:// and ftp://. Only the response length is echoed back (line 13), so the request is semi-blind. It still allows internal port and host probing, metadata reachability checks, and size oracles. Redirects are followed by default. Severity is HIGH under the skill's Check 1 rules, or MEDIUM if the length-only response is weighed as blind SSRF.",
+    "source": "$_POST['feed'] (import.php:11-12), any unauthenticated client",
+    "sink": "file_get_contents($_POST['feed']) at import.php:12",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Handler entered on any POST that has `feed` set; no require_admin() call and no session check"
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "$xml = file_get_contents($_POST['feed']); the URL goes to the sink directly with no parsing, scheme or host check"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "echo strlen($xml) returns the fetched body length, which gives the attacker an oracle for success, failure and size"
+     }
+    ],
+    "guards_checked": "No allowlist, no scheme restriction, no hostname parsing and no IP/CIDR blocking. require_admin() is defined at line 4 but not called on this path. No redirect or wrapper restrictions. allow_url_fopen is assumed enabled (PHP default). No egress controls are visible in the repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "import.php:11-13 passes $_POST['feed'] straight into file_get_contents() and echoes strlen(). session_start() at line 2 and the unused require_admin() at line 4 do not gate this path, and no allowlist, scheme check or host check exists, so the semi-blind SSRF is reachable unauthenticated."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated SSRF: the POST parameter `set_webhook` is passed unvalidated to curl_init() and executed immediately with curl_exec(). Any admin can make the server request arbitrary URLs, including cloud metadata and internal RFC-1918 services. cURL supports gopher://, file:// and other schemes unless CURLOPT_PROTOCOLS is set, and none is set here. The response is discarded and the code echoes only \"ok\", so this is blind SSRF. Severity is MEDIUM: the endpoint is admin-only, but admin does not demonstrably imply OS-level access.",
+    "source": "$_POST['set_webhook'] (import.php:17,19), authenticated admin user",
+    "sink": "curl_exec($ch) on a handle created by curl_init($hook) at import.php:20-22",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Entered when $_POST['set_webhook'] is set"
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks $_SESSION['is_admin'] and sends 403 otherwise"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook']"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) sets the target URL from user input"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec($ch) dispatches the request immediately"
+     }
+    ],
+    "guards_checked": "The only guard is require_admin() (import.php:4-9), which is an authentication gate and not a target allowlist. No scheme or host allowlist, no CURLOPT_PROTOCOLS or CURLOPT_REDIR_PROTOCOLS, and no IP blocking. CURLOPT_FOLLOWLOCATION is not set, so cURL does not follow redirects, but the initial URL is still fully attacker-chosen. Admin-only webhook registration alone would be excluded under 'Do not flag'. Here the value is not stored but fetched immediately, and the skill's Check 7 note says to retain at MEDIUM."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9 gates the path (403 unless $_SESSION['is_admin']). It is an auth gate, not a URL allowlist, so there is no target validation.",
+    "reason": "The trace matches import.php:17-22, but $_POST['set_webhook'] reaches curl_exec at import.php:22 only after require_admin() at import.php:18, so an unauthenticated or low-privilege attacker cannot control it and the admin-only source fails the source check."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.060412099999999996
+}

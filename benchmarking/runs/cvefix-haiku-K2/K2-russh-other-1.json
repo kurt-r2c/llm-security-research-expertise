@@ -1,0 +1,187 @@
+{
+ "arm": "K2",
+ "repo": "russh-other",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.017291030000000002,
+ "trace": {
+  "tools": {
+   "Read": 9,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-lqeff670/expertise/INDEX.md",
+   "/tmp/egf-lqeff670/r/pageant/src/interface.rs",
+   "/tmp/egf-lqeff670/r/pageant/src/namedpipes.rs",
+   "/tmp/egf-lqeff670/r/pageant/src/wmmessage.rs",
+   "/tmp/egf-lqeff670/r/pageant/src/lib.rs",
+   "/tmp/egf-lqeff670/r/pageant/src/error.rs",
+   "/tmp/egf-lqeff670/r/pageant/Cargo.toml",
+   "/tmp/egf-lqeff670/expertise/cases/01-perm-result-ignored.md",
+   "/tmp/egf-lqeff670/expertise/cases/17-int-truncation-size-check.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 33,
+    "claim": "Client connects to a predictable named pipe (\\\\.\\pipe\\pageant.<username>.<hash>) and trusts whichever server answers, with no check that the server is the genuine Pageant process. A local attacker who creates that pipe first (e.g. while Pageant is not running) receives the victim's SSH agent requests (key listing, sign requests with the data to be signed) and can return attacker-chosen keys and responses. Severity: low-medium, multi-user hosts only. Confidence: PLAUSIBLE; not verified on a Windows host. Assumes CRYPTPROTECTMEMORY_CROSS_PROCESS output is computable by any process on the machine, which I recall from the MS docs but did not confirm.",
+    "source": "Local attacker-controlled pipe server squatting the deterministic name. Precondition: another local account or same-user code can create named pipes on the host, and the real Pageant is not already holding the name.",
+    "sink": "ClientOptions::open(&pipe_name) at namedpipes.rs:33; the returned NamedPipeClient is used as the agent transport (lines 46, 24-25).",
+    "trace": [
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 28,
+      "note": "PageantStream::new() begins"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 29,
+      "note": "determine_pipe_name() called"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 49,
+      "note": "determine_pipe_name builds the name from the OS username and the hash"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 50,
+      "note": "username from GetUserNameExA / GetUserNameA"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 51,
+      "note": "suffix = capi_obfuscate_string(\"Pageant\"), deterministic, no per-session secret"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 52,
+      "note": "pipe name formatted as \\\\.\\pipe\\pageant.{username}.{suffix}"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 33,
+      "note": "ClientOptions::new().open(&pipe_name) connects to whichever server owns the name; no server-identity check"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 46,
+      "note": "stream returned and used for all agent I/O"
+     }
+    ],
+    "guards_checked": "No server identity verification (no GetNamedPipeServerProcessId, owner or token check, no comparison against a known Pageant PID). ERROR_PIPE_BUSY retry loop (lines 32-44) only retries on busy, not on a squatting server. The name is user-specific, not a fixed global name, which limits the target set. Default ClientOptions security QoS was not verified, and it does not stop server spoofing anyway."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 187,
+    "claim": "The WM_COPYDATA path locates Pageant with FindWindowW(\"Pageant\",\"Pageant\") and sends the request (map name and cookie) to whatever window matches, with no verification that the window belongs to Pageant. A process on the same desktop that registers a window of class/title \"Pageant\" receives the request and, via the mapping named PageantRequest<cookie>, can return forged responses. Severity: low; this needs same-user code execution, which already exposes the user's agent. Confidence: CONFIRMED that the code does this, and PLAUSIBLE that it is exploitable in practice.",
+    "source": "Any process in the victim's interactive session that creates a top-level window with class and title \"Pageant\" (no privilege needed).",
+    "sink": "SendMessageA(hwnd, WM_COPYDATA, ...) at wmmessage.rs:218-224, which delivers the COPYDATASTRUCT with the map name. The response is then read from the shared mapping at lines 230-237.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 186,
+      "note": "find_pageant_window()"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 187,
+      "note": "FindWindowW by class/title string only; first match wins"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 203,
+      "note": "query_pageant_direct resolves the window"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 204,
+      "note": "map_name = PageantRequest + cookie"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 206,
+      "note": "MemoryMap::new creates mapping with default DACL and writes request"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 211,
+      "note": "COPYDATASTRUCT carries the map name"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 218,
+      "note": "SendMessageA to the located window; synchronous"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 230,
+      "note": "response read from the mapping whatever process wrote it"
+     }
+    ],
+    "guards_checked": "Window lookup by name only, no PID, executable path, or owner check. Mapping DACL is the creator's default (owner user, SYSTEM, Admins), so only same-user processes can open it; a different user cannot. The 64-bit random cookie (rand::random, line 33 in namedpipes is the same pattern but this file's cookie comes from interface.rs:33) limits pre-squatting of the mapping name. The response is size-bounded by MemoryMap::read (lines 160-163), so there is no out-of-bounds read."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "pageant/src/wmmessage.rs",
+    "line": 44,
+    "claim": "The duplex bridge accumulates bytes into an unbounded BytesMut based on a peer-declared 32-bit length prefix. The 8192-byte limit is enforced only in MemoryMap::write after a full message is buffered, so a peer can send a 0xFFFFFFFF prefix and stream data indefinitely, growing client memory up to the length or without limit. On 32-bit targets, len + 4 (line 44 and line 47) also wraps in release builds for len >= 0xFFFFFFFC, so split_to receives 0-3 and the length prefix is never consumed, which can loop and resend requests. Severity: low-medium (memory DoS, plus a spin on 32-bit). Confidence: PLAUSIBLE; exploitable only if a consumer feeds peer-controlled bytes into this stream (e.g. relaying a forwarded agent channel). This crate has no consumer to verify that.",
+    "source": "Peer-controlled bytes written into the duplex 'one' end by the consumer. Precondition: the consumer relays data from an untrusted party (e.g. a remote SSH server via agent forwarding).",
+    "sink": "BytesMut growth via read_buf at line 36 with no cap; the length-based wait at line 44 (buf.len() < len + 4); split_to(len + 4) at line 47 on a 32-bit usize.",
+    "trace": [
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 31,
+      "note": "tokio::io::duplex(_AGENT_MAX_MSGLEN * 100) bounds the writer side only, not the reader's accumulation buffer"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 36,
+      "note": "two.read_buf(&mut buf) keeps reading into an uncapped BytesMut"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 43,
+      "note": "len = BigEndian::read_u32 as usize, peer-controlled, up to 4 GiB, no check against _AGENT_MAX_MSGLEN"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 44,
+      "note": "if buf.len() < len + 4 { continue }: the size gate is only 'wait for more bytes'; on 32-bit len + 4 wraps"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 47,
+      "note": "split_to(len + 4) once complete"
+     },
+     {
+      "file": "pageant/src/wmmessage.rs",
+      "line": 202,
+      "note": "query_pageant_direct: 8192 cap is enforced only here, in MemoryMap::write (lines 139-142), after buffering"
+     }
+    ],
+    "guards_checked": "duplex capacity (line 31) bounds in-flight bytes but not the reader's buffer; the 8192-byte check in MemoryMap::write (line 140) rejects oversize messages only after they are fully accumulated, so it is no memory bound; BigEndian::read_u32 bounds the prefix to 32 bits; buf.len() < 4 check (line 40) only gates the prefix read. No pre-check of len against _AGENT_MAX_MSGLEN before accumulation."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,94 @@
+{
+ "arm": "P",
+ "repo": "cl-js-inj",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.00517076,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-w_xdpw5_/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "db-users-authz-1",
+    "file": "db.js",
+    "line": 9,
+    "claim": "Unauthenticated cross-tenant user enumeration: GET /users accepts an attacker-chosen org query parameter and returns id and name for all users in that org with no authentication or authorization check.",
+    "source": "req.query.org (db.js:9), supplied by any remote client; the route has no auth (db.js:8).",
+    "sink": "Parameterized SELECT id, name FROM users WHERE org = $1 (db.js:9), serialized to the response via res.json(rows) (db.js:10).",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "GET /users route handler; no authentication middleware or session check"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.query.org bound as $1 into the users query; no check that caller belongs to org"
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "query rows returned as JSON to the caller"
+     },
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "app.listen(3002) with no host binds all interfaces, so the endpoint is network-reachable"
+     }
+    ],
+    "guards_checked": "SQL injection: not exploitable (bound parameter). Authentication/authorization: none in file or repo. Network exposure: binds 0.0.0.0. Caveat: req.pg is never set in this repo, so the handler would throw unless surrounding code provides it; the enumeration depends on that setup, which was not inspectable."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8 registers GET /users with no middleware (no app.use or auth wrapper anywhere in the directory). db.js:9 binds req.query.org as a parameter, which prevents SQL injection but is not an authorization check. db.js:23 app.listen(3002) has no host argument, so it listens on all interfaces. The only grep hit for req.pg is db.js:9 itself, so the pg provider is not in this repo.",
+    "reason": "The trace matches the code: db.js:8 has no auth, db.js:9 queries users by the attacker-supplied org with no caller-org check, db.js:10 returns the rows, and db.js:23 listens on all interfaces, so an anonymous remote client can enumerate users in any org. The caveat stands: req.pg is never set in this directory, so the handler only works if the surrounding deployment supplies it, but that is a precondition, not a control."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "db-count-dos-2",
+    "file": "db.js",
+    "line": 20,
+    "claim": "Unauthenticated /count endpoint spawns a wc process per request with no rate limiting, allowing resource exhaustion; the callback also ignores the error argument and returns an empty 200 on failure.",
+    "source": "Any remote HTTP request to GET /count (db.js:19); request data does not reach the arguments.",
+    "sink": "execFile(\"wc\", [\"-l\", \"data.csv\"]) process spawn (db.js:20).",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 19,
+      "note": "GET /count handler, no auth or rate limit"
+     },
+     {
+      "file": "db.js",
+      "line": 20,
+      "note": "execFile spawns wc with fixed args; callback ignores error e"
+     }
+    ],
+    "guards_checked": "Command injection: not possible (no shell, fixed argv, no request input in args). Information exposure: response is only a line count of data.csv. Rate limiting: none, so process-spawn exhaustion is possible. Severity low."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The /count route (db.js:19-21) has no auth middleware or rate limiter. The execFile callback at db.js:20 ignores the error argument, so a failed wc run sends an empty 200 instead of an error. There is no injection guard because the argv is fixed and no request input reaches it.",
+    "reason": "The trace matches db.js:19-20: an anonymous GET /count spawns `wc -l data.csv` on every request with no auth or rate limit, and the callback at db.js:20 drops the error, so the candidate's claim holds. The impact is low, since the attacker can only drive process spawns and the response leaks nothing beyond a line count."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00408146
+}

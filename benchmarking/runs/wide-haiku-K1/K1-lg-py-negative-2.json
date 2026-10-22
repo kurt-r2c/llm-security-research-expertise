@@ -1,0 +1,179 @@
+{
+ "arm": "K1",
+ "repo": "lg-py-negative",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "58b2c8f2",
+ "status": "success",
+ "gen_cost": 0.0048040800000000005,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-3515eqzz/r/bank.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 14,
+    "claim": "Negative transfer amount lets an authenticated user drain any existing account. /transfer never checks amount > 0, so a negative amount credits the sender and debits the recipient.",
+    "source": "request.json['amount'] (bank.py:10), attacker-supplied JSON body; request.json['to'] (bank.py:9) names the victim.",
+    "sink": "BAL[g.user] -= amount (line 13) and BAL[to] += amount (line 14): balance mutation with no sign check.",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to read from request body, attacker-chosen victim account"
+     },
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount read from request body, no type/sign validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "only check is BAL[g.user] < amount; with amount=-V this is BAL[g.user] < -V, which is false whenever the sender's balance is >= -V, so the check passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender balance increases by V"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "victim balance decreases by V; no check that 'to' is a different or existing account beyond the KeyError"
+     }
+    ],
+    "guards_checked": "Line 11 balance check does not bound amount from below. No amount>0 check (unlike /withdraw line 21). No type validation. Precondition not visible in this file: g.user must be set by an authentication layer, which is not present in this directory, and the victim key must exist in BAL. Impact: any logged-in user with balance >= 0 can move arbitrary funds from any existing account to themselves."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None in bank.py. The only check on /transfer is `BAL[g.user] < amount` at bank.py:11, which does not bound amount from below. The sign check at bank.py:21 exists only in /withdraw, not /transfer. No before_request hook or auth decorator is defined in bank.py. g.user is read at bank.py:11 and 13 but never set in this directory.",
+    "reason": "Every trace line matches the code: request inputs are read at bank.py:9-10, the only check at bank.py:11 is bypassed by a negative amount, and balances are mutated at bank.py:13-14 with no sign check (unlike /withdraw at bank.py:21). Any logged-in user whose session sets g.user can move funds from an existing victim account, and the auth layer that sets g.user is the only precondition, which is not in this directory."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "A NaN amount (accepted by Python's json parser) bypasses the balance check and permanently corrupts balances. An attacker can send NaN to a victim's account and make that balance unusable.",
+    "source": "request.json['amount'] (bank.py:10); Flask request.json uses Python json.loads, which accepts the non-standard literal NaN.",
+    "sink": "BAL[to] += amount (line 14) and BAL[g.user] -= amount (line 13) store NaN into balances; /withdraw line 21 also admits NaN.",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount = NaN from JSON body"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < NaN evaluates False, so the abort is skipped"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[to] becomes NaN; NaN propagates through every later arithmetic operation on that account"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "withdraw: amount <= 0 is False and BAL < NaN is False, so a NaN balance or amount is also accepted"
+     }
+    ],
+    "guards_checked": "No isfinite / numeric-type validation on amount. Comparison-based guards fail open on NaN. Impact: an attacker can permanently set any known victim's balance to NaN, destroying those funds, and can also set their own balance to NaN."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. bank.py:11 and bank.py:21 are comparison guards that fail open on NaN (`BAL < NaN` and `NaN <= 0` are both False), and bank.py:21 also admits a NaN amount. No isfinite or numeric-type check exists anywhere in the codebase (bank.py is the only file). g.user is never set in this file, so authentication is assumed to happen elsewhere, but no guard there blocks a NaN amount.",
+    "reason": "Every trace line matches: bank.py:10 reads the amount from request.json, which Flask parses with Python's json module that accepts NaN; bank.py:11 is skipped because `BAL[g.user] < NaN` is False; bank.py:14 then sets the recipient balance to NaN, and bank.py:21 admits NaN on withdraw. The attacker only needs to be an authenticated user (g.user is assumed, since its source is not in this codebase) and to know a victim's account key, and nothing in the code blocks it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 21,
+    "claim": "Check-then-act race on /withdraw (and /transfer) allows double-spend. Concurrent requests from the same account can all pass the balance check before any debit runs.",
+    "source": "Two concurrent authenticated POST /withdraw requests for the same g.user with amount equal to or less than the balance (bank.py:20).",
+    "sink": "BAL[g.user] -= amount (bank.py:23) after the unlocked read at bank.py:21; same pattern at bank.py:11 and bank.py:13 in /transfer.",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "thread A reads BAL[g.user] and passes the check"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "thread B reads the same unchanged BAL[g.user] and passes the check before A debits"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "both threads debit; balance goes negative and the same funds are spent twice"
+     }
+    ],
+    "guards_checked": "No lock, transaction, or atomic conditional update. Read and write are separate statements, so the window exists regardless of the GIL. Flask's default run mode is threaded, so concurrent requests are reachable. Precondition: concurrent requests on one account. Impact: spending more than the balance; negative balances."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. No lock, transaction, or atomic update protects the check at bank.py:21 and the debit at bank.py:23. The same pattern applies to bank.py:11 and bank.py:13 in /transfer. The only other file in the directory is none; g.user is never assigned in the repo, so authentication lives outside this code.",
+    "reason": "The trace is accurate: the balance check at bank.py:21 and the debit at bank.py:23 are separate, unlocked statements, and the same holds for bank.py:11 and bank.py:13, so concurrent authenticated requests on one account can both pass the check and overdraw. The attacker only needs a normal account to send concurrent requests against its own balance, and nothing in the repo blocks that. Caveat: g.user is assigned outside this repo, so the authentication behavior is unverified, but that does not change the race."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "bank.py",
+    "line": 14,
+    "claim": "/transfer is not atomic: the sender is debited before the recipient is checked, so a transfer to an unknown account destroys the sender's funds.",
+    "source": "request.json['to'] (bank.py:9) set to a nonexistent account key.",
+    "sink": "BAL[g.user] -= amount (line 13) executes before BAL[to] += amount (line 14) raises KeyError.",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to is an unknown key"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender balance is debited"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "KeyError: no credit happens, no rollback, request returns 500"
+     }
+    ],
+    "guards_checked": "No existence check on 'to' before the debit and no rollback on error. Impact: self-harm or user mistake that destroys funds; low severity on its own, but it is a business-logic failure in the same function as F1 and F2."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is the balance test at bank.py:11, which does not validate `to`. Nothing checks that BAL[to] exists before the debit at bank.py:13, and there is no try/except or rollback around bank.py:13-14, so the KeyError at bank.py:14 leaves the debit committed.",
+    "reason": "Every trace line matches: `to` is read unchecked at bank.py:9, the sender is debited at bank.py:13, and BAL[to] += amount at bank.py:14 raises KeyError for an unknown key with no rollback, so the sender loses funds. The bug is real, but the only party harmed is the authenticated sender, who could already withdraw their own balance via /withdraw (bank.py:23), so it is a business-logic/atomicity defect with no security escalation and low severity."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.01022146
+}

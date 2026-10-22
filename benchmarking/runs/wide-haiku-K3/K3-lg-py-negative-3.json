@@ -1,0 +1,140 @@
+{
+ "arm": "K3",
+ "repo": "lg-py-negative",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "98497172",
+ "status": "success",
+ "gen_cost": 0.0072295599999999995,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Read": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-taqvylz_/r/bank.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "Negative transfer amount is not rejected, so a sender can pull funds from a recipient account (theft).",
+    "source": "POST /transfer JSON field 'amount' (bank.py:10)",
+    "sink": "BAL[g.user] -= amount and BAL[to] += amount (bank.py:13-14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount read from request.json without validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "only control: BAL[g.user] < amount; always False for negative amount, so check passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender balance decreased by negative amount, i.e. increased"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "recipient balance increased by negative amount, i.e. decreased"
+     }
+    ],
+    "guards_checked": "Balance comparison at bank.py:11 only. No lower bound on amount. Contrast /withdraw which checks amount <= 0 at bank.py:21."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the balance comparison at bank.py:11 (`BAL[g.user] < amount`), which is a bare abort(400) check that does not reject negative amounts. No `amount <= 0` check exists in /transfer; the check at bank.py:21 is in /withdraw only. No before_request hook or other validation exists in the repo (the only file is bank.py). g.user is never set in the repo, so it is assumed to come from an external authentication layer.",
+    "reason": "The trace matches the code: bank.py:10 reads amount unvalidated, bank.py:11 passes for any negative amount since BAL[g.user] < negative is false for non-negative balances, and bank.py:13-14 move funds from the recipient to the sender. The attacker is any authenticated user with a valid g.user identity, which is a low-privilege role, so this is a real theft path unless the external auth layer (not in the repo) blocks negative amounts."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "Balance check and debit are not atomic, so concurrent requests can overdraw an account.",
+    "source": "Concurrent POST /transfer (bank.py:7-8) or POST /withdraw (bank.py:18-19) for the same account",
+    "sink": "Debit at bank.py:13 and bank.py:23 against module-level BAL dict",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "balance read and compared to amount"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "separate debit statement, no lock held across check and debit"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "same pattern in /withdraw"
+     },
+     {
+      "file": "bank.py",
+      "line": 23,
+      "note": "debit without lock"
+     }
+    ],
+    "guards_checked": "No lock, transaction, or atomic operation. BAL is a shared global dict; threaded server serves requests concurrently. Race window is narrow and timing-dependent (moderate confidence)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. No lock, transaction, or atomic operation guards the check-then-debit at bank.py:11-13 (/transfer) or bank.py:21-23 (/withdraw). BAL is a plain module-level dict (bank.py:4). The only checks are the balance comparisons themselves, which are not atomic with the debit.",
+    "reason": "Every trace line matches the code: the balance is compared at bank.py:11 and debited at bank.py:13, and the same pattern appears at bank.py:21 and bank.py:23, with no lock between check and debit. An authenticated account holder (g.user, set outside this file) can send concurrent /withdraw or /transfer requests, and because the server is threaded, two requests can both pass the check before either debit runs, overdrawing the account. The window is narrow, so exploitability is timing-dependent, but no effective control blocks it."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 14,
+    "claim": "A missing or unhashable recipient key raises after the sender is debited, destroying the sender's funds.",
+    "source": "POST /transfer JSON field 'to' (bank.py:9)",
+    "sink": "BAL[to] += amount (bank.py:14) after BAL[g.user] -= amount (bank.py:13)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to read without existence or type validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "sender debited and committed"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "KeyError (unknown key) or TypeError (unhashable) raised before credit; request returns 500"
+     }
+    ],
+    "guards_checked": "No validation of 'to' and no rollback or transaction around the two writes. Impact is self-harm only (low severity)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only guard is the balance check at bank.py:11-12, which runs before the debit and does not validate `to`. Nothing between the debit at bank.py:13 and the credit at bank.py:14 checks `to`, catches an exception, or rolls back. BAL is a plain dict (bank.py:4), so a missing key raises KeyError at bank.py:14 with no defaultdict fallback.",
+    "reason": "The trace matches the code: `to` is read unvalidated at bank.py:9, the sender is debited at bank.py:13, and `BAL[to] += amount` at bank.py:14 raises KeyError or TypeError with no try/except or rollback, so the debit persists in the in-memory dict. Any caller who can reach /transfer with a balance can trigger it, but the only loss is their own funds, so the impact is low."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00627166
+}

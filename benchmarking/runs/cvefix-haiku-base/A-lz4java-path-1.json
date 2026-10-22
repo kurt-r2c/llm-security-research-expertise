@@ -1,0 +1,133 @@
+{
+ "arm": "A",
+ "repo": "lz4java-path",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.09743550000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 14,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-p87tlpxs/r/src/java-unsafe/net/jpountz/lz4/LZ4UnsafeUtils.java",
+   "/tmp/egf-p87tlpxs/r/src/jni/net_jpountz_lz4_LZ4JNI.c",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+   "/tmp/egf-p87tlpxs/r/src/build/source_templates/decompressor.template",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4JNISafeDecompressor.java",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4JNIFastDecompressor.java",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+   "/tmp/egf-p87tlpxs/r/src/build/source_templates/decompress.template",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4Factory.java",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/util/SafeUtils.java",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4Utils.java",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4DecompressorWithLength.java",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/util/ByteBufferUtils.java",
+   "/tmp/egf-p87tlpxs/r/src/java/net/jpountz/lz4/LZ4FrameOutputStream.java"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+    "line": 280,
+    "claim": "After a block fails validation, decompression, or checksum, LZ4BlockInputStream leaves the read cursor o and finished state unchanged while originalLen has already been overwritten with the attacker's value. A caller that catches the IOException and calls read() again receives bytes from the failed, unverified block, so the integrity check is bypassed for tolerant callers.",
+    "source": "Attacker-controlled compressed stream bytes: header fields compressedLen/originalLen/check read at LZ4BlockInputStream.java:259-281.",
+    "sink": "read()/read(byte[],int,int)/available() returning buffer contents of a block whose XXHash32 check failed (LZ4BlockInputStream.java:195-204, 219-221, 190).",
+    "trace": [
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 259,
+      "note": "Header bytes read from untrusted input stream."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 280,
+      "note": "originalLen assigned from header BEFORE any validation; field now holds attacker value."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 283,
+      "note": "Validation throws IOException on bad header; o and finished are not reset, originalLen stays changed."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 317,
+      "note": "Decompression writes attacker-chosen plaintext into buffer (also on LZ4Exception path at 327-329, partially written)."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 336,
+      "note": "Checksum mismatch throws IOException; buffer already holds the unverified output; o=0 at line 339 never runs."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 198,
+      "note": "Next read(): o != originalLen, so refill() is skipped and no re-validation happens."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4BlockInputStream.java",
+      "line": 204,
+      "note": "Returns buffer[o++], i.e. unverified plaintext. read(byte[]) at 219-221 copies from the same buffer; len=min(len, originalLen-o) can go negative after a header failure."
+     }
+    ],
+    "guards_checked": "Magic, method, level and size bounds at 268-291 (pass for a crafted header). Checksum verification at 334-338 gates only the return from readBlock, not later reads. No sticky error/finished flag is set on exception. refill gating at 198/213 keys off originalLen, which was already updated. Attacker can craft literal bytes to produce arbitrary plaintext and set a wrong check value. Exploitability depends on the caller catching IOException and continuing; not run, verified by reading."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+    "line": 223,
+    "claim": "In LZ4FrameInputStream, frameInfo is replaced with the new frame's unverified FLG/BD values before the descriptor hash is checked. After DESCRIPTOR_HASH_MISMATCH, a caller that retries read() skips nextFrameInfo() and decodes the rejected frame's blocks using its unverified CONTENT_CHECKSUM/BLOCK_CHECKSUM flags and the previous frame's maxBlockSize.",
+    "source": "Attacker-controlled frame descriptor bytes (FLG, BD, descriptor hash byte) for the second or later frame in a multi-frame stream: LZ4FrameInputStream.java:196-210, 225-228.",
+    "sink": "Block data emitted to the caller from readBlock (LZ4FrameInputStream.java:356-357), with integrity checks selected by unverified flags (:335, :352) and a stale block bound (:305).",
+    "trace": [
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 223,
+      "note": "this.frameInfo = new FrameInfo(flg, bd, ...) built from untrusted descriptor bytes."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 232,
+      "note": "Descriptor hash computed and compared."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 238,
+      "note": "Mismatch throws DESCRIPTOR_HASH_MISMATCH; frameInfo already replaced and not finished (LZ4FrameOutputStream.java:452-458, finished defaults false). firstFrameHeaderRead stays true and maxBlockSize (:242) is never updated."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 363,
+      "note": "Retried read(): frameInfo.isFinished() is false, so nextFrameInfo() is skipped and readBlock() runs on the rejected frame."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 335,
+      "note": "BLOCK_CHECKSUM taken from the unverified flags, so the attacker can clear it."
+     },
+     {
+      "file": "src/java/net/jpountz/lz4/LZ4FrameInputStream.java",
+      "line": 356,
+      "note": "Decoded data exposed through buffer to the caller."
+     }
+    ],
+    "guards_checked": "Descriptor hash at 232-240 (gates the throw only). Block size check against maxBlockSize at 305 (stale value from the previous frame). Per-block checksum only when BLOCK_CHECKSUM is set by the same unverified flags. Content checksum at 294 is checked only at end of frame. Also: a failed block (checksum/decompress error at 326-338) is consumed and the reader resumes at the next block, so a tolerant caller silently drops it unless CONTENT_CHECKSUM catches it. Requires multi-frame input and a caller that continues after IOException; not run, verified by reading."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

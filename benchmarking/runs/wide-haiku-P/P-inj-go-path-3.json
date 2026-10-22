@@ -1,0 +1,104 @@
+{
+ "arm": "P",
+ "repo": "inj-go-path",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "185e89c5",
+ "status": "success",
+ "gen_cost": 0.003963110000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-k276sasv/r/files.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "files.go",
+    "line": 13,
+    "claim": "Path traversal in /dl lets an unauthenticated remote client read arbitrary files on the host, because filepath.Join cleans '..' segments and the result is never checked to remain under root.",
+    "source": "Query parameter 'f' from GET /dl, read at files.go:12 via r.URL.Query().Get(\"f\"). Any network client that can reach :8082 controls it (listener on all interfaces, line 34).",
+    "sink": "os.ReadFile at files.go:13 on filepath.Join(root, name); contents returned via w.Write at files.go:18.",
+    "trace": [
+     {
+      "file": "files.go",
+      "line": 32,
+      "note": "/dl is routed to download with no auth wrapper"
+     },
+     {
+      "file": "files.go",
+      "line": 12,
+      "note": "name = URL-decoded value of ?f=, attacker-controlled"
+     },
+     {
+      "file": "files.go",
+      "line": 13,
+      "note": "filepath.Join(\"/srv/files\", \"../../etc/passwd\") is Cleaned to \"/etc/passwd\"; Join does not confine the result to root"
+     },
+     {
+      "file": "files.go",
+      "line": 13,
+      "note": "os.ReadFile opens the resolved path; any readable file on the host is accepted"
+     },
+     {
+      "file": "files.go",
+      "line": 18,
+      "note": "entire file contents written to the HTTP response"
+     }
+    ],
+    "guards_checked": "No containment check (no strings.HasPrefix against root, no filepath.Rel check, no rejection of '..' or absolute paths). No filepath.Base as used in avatar(). No authentication or authorization on the route. No size limit, so a special file such as /dev/zero would be read until memory is exhausted (DoS impact). Symlinks under root are not checked either. Exploit shape: GET /dl?f=../../../../etc/passwd."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. files.go:32 routes /dl straight to download with no auth wrapper. files.go:12-13 take ?f= (URL-decoded by Query().Get) and pass it to filepath.Join(root, name) with no containment check, no filepath.Base, and no rejection of '..' or absolute paths. files.go:15 only handles the read error. files.go:18 writes the full file. The avatar() Base guard at files.go:22 is on a different route and does not apply to /dl. Filepath.Join cleans to /etc/passwd for f=../../etc/passwd. Listener at files.go:34 binds all interfaces.",
+    "reason": "Every trace line matches the code: /dl is unauthenticated at files.go:32, filepath.Join at files.go:13 cleans traversal segments with no containment check, and files.go:18 writes the file contents to the response, so an anonymous network client can read any host file readable by the process. The only deployment caveat is that :8082 must actually be reachable from the attacker, which the listener on all interfaces at files.go:34 supports."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "files.go",
+    "line": 32,
+    "claim": "Neither endpoint has any authentication or authorization, so every file under /srv/files is readable by anyone who can reach port 8082. This is a real exposure if the directory holds non-public data; if the host is meant to be public, it is not a bug.",
+    "source": "Any unauthenticated network client sending GET /dl?f=<name> or GET /avatar?u=<name>.",
+    "sink": "os.ReadFile at files.go:13 (download) and files.go:23 (avatar); the response is written at files.go:18 and files.go:28.",
+    "trace": [
+     {
+      "file": "files.go",
+      "line": 32,
+      "note": "/dl registered with no middleware"
+     },
+     {
+      "file": "files.go",
+      "line": 33,
+      "note": "/avatar registered with no middleware"
+     },
+     {
+      "file": "files.go",
+      "line": 34,
+      "note": "ListenAndServe on \":8082\" binds all interfaces over plain HTTP, no TLS"
+     }
+    ],
+    "guards_checked": "No authentication, no authorization check, no per-user ownership check, no TLS. Whether the content is meant to be public cannot be determined from this repository alone; there are no docs, config or deployment files. Confidence depends on the intent of /srv/files and on network exposure of port 8082."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. files.go:32-33 register both handlers with no middleware, no auth, and no ownership check; files.go:34 serves plain HTTP on all interfaces. The only checks are the err != nil branches at files.go:14 and :24, which return 404 for missing files and do not restrict access. filepath.Base at files.go:22 only contains the avatar path to avatars/, and it does not check who is asking.",
+    "reason": "An anonymous client can reach both handlers (files.go:32-34) and os.ReadFile is called with no access control (files.go:13, :23), so anyone who can reach :8082 can read the files. Whether this is a bug depends on whether /srv/files is meant to be public, which this repo cannot show. The candidate also understates the issue: /dl uses filepath.Join(root, name) at files.go:13 with no containment check, so f=../../etc/passwd escapes /srv/files. Only /avatar is contained, by filepath.Base at files.go:22."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00407034
+}

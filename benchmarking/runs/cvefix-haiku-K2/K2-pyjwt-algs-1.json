@@ -1,0 +1,151 @@
+{
+ "arm": "K2",
+ "repo": "pyjwt-algs",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.02681108,
+ "trace": {
+  "tools": {
+   "Read": 8,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-c9ba7x6o/expertise/INDEX.md",
+   "/tmp/egf-c9ba7x6o/r/jwt/api_jws.py",
+   "/tmp/egf-c9ba7x6o/r/jwt/api_jwt.py",
+   "/tmp/egf-c9ba7x6o/r/jwt/jwks_client.py",
+   "/tmp/egf-c9ba7x6o/r/jwt/algorithms.py",
+   "/tmp/egf-c9ba7x6o/r/jwt/api_jwk.py",
+   "/tmp/egf-c9ba7x6o/r/jwt/jwk_set_cache.py",
+   "/tmp/egf-c9ba7x6o/r/jwt/utils.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "jwt/api_jwt.py",
+    "line": 446,
+    "claim": "_validate_sub fails open: when the caller pins subject= and the token omits the sub claim, the subject check is skipped and the token is accepted.",
+    "source": "Attacker holds a validly signed token from the same issuer/key that lacks a sub claim (precondition; signature still verified).",
+    "sink": "Subject-binding check in _validate_sub (api_jwt.py:452-454), never reached when sub is absent.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 421,
+      "note": "_validate_claims calls _validate_sub(payload, subject) when verify_sub is set."
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 446,
+      "note": "_validate_sub begins; line 446-447 returns early if 'sub' not in payload."
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 452,
+      "note": "Expected-subject comparison only runs when sub is present."
+     }
+    ],
+    "guards_checked": "verify_sub defaults on; signature verification runs first. Sibling validators _validate_iss (api_jwt.py:571-572) and _validate_aud (api_jwt.py:529-532) raise MissingRequiredClaimError when the caller requires the claim, so this is inconsistent. Upstream PyJWT may intend this behavior; not confirmable from this copy (no tests/docs present). Not reproduced by execution."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "jwt/jwks_client.py",
+    "line": 251,
+    "claim": "With cache_jwk_set=False, an unverified token's kid drives two unthrottled outbound JWKS fetches per call, serialized under _client_lock, enabling request amplification and thread stalls.",
+    "source": "kid header of an unauthenticated token, read by get_signing_key_from_jwt with verify_signature disabled (jwks_client.py:280-282).",
+    "sink": "Outbound HTTP in fetch_data (jwks_client.py:156-163), invoked from get_signing_keys (line 247) and get_signing_keys(refresh=True) (line 258) while holding _client_lock (line 246).",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 282,
+      "note": "get_signing_key_from_jwt passes unverified kid to get_signing_key."
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 247,
+      "note": "get_signing_keys() -> get_jwk_set(): cache is None so fetch_data runs (fetch #1)."
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 251,
+      "note": "cooling_down requires jwk_set_cache is not None, so it is False when the cache is disabled."
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 258,
+      "note": "Unknown kid triggers get_signing_keys(refresh=True): fetch #2, no cooldown."
+     }
+    ],
+    "guards_checked": "Cooldown applies only when the JWK set cache is enabled (documented in docstring). No rate limit. URI scheme check (jwks_client.py:105-110) does not limit volume. Timeout 30s per fetch, held under RLock. Not reproduced by execution."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "jwt/jwks_client.py",
+    "line": 140,
+    "claim": "cache_keys=True caches signing keys per kid with no time-based expiry, so a key removed from the JWKS (rotated out or revoked) keeps verifying tokens in-process until LRU eviction.",
+    "source": "Attacker holds the private key of a key that was removed from the JWKS (precondition; no JWKS write access needed).",
+    "sink": "Cached PyJWK returned from get_signing_key and used for signature verification (jwks_client.py:267).",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 142,
+      "note": "get_signing_key wrapped in lru_cache(maxsize=max_cached_keys) when cache_keys is True."
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 267,
+      "note": "First successful lookup is returned and cached; later JWKS removal does not evict it."
+     }
+    ],
+    "guards_checked": "Behavior is documented in the class docstring (lines 69-72). Cache disabled by default. Revocation gap rather than auth bypass. Not reproduced by execution."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "jwt/api_jwt.py",
+    "line": 477,
+    "claim": "Time-claim validators catch only ValueError, so non-numeric or infinite exp/nbf/iat values raise TypeError/OverflowError instead of InvalidTokenError.",
+    "source": "Time claim (exp, nbf, or iat) set to null, a list, or 1e400 (inf) in a token body.",
+    "sink": "int(payload[...]) in _validate_iat/_validate_nbf/_validate_exp (api_jwt.py:477, 492, 506).",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 477,
+      "note": "int(payload['iat']) with except ValueError only (lines 476-481)."
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 492,
+      "note": "int(payload['nbf']) with except ValueError only (lines 491-494)."
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 506,
+      "note": "int(payload['exp']) with except ValueError only (lines 505-510)."
+     }
+    ],
+    "guards_checked": "Requires a validly signed token, or verify_signature disabled with time checks explicitly enabled; default merge disables these (api_jwt.py:81-89). Effect is an uncaught exception / 500, not an auth bypass."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

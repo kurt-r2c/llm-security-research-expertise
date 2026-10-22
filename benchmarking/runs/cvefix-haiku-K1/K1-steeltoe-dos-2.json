@@ -1,0 +1,85 @@
+{
+ "arm": "K1",
+ "repo": "steeltoe-dos",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.029252170000000008,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 8,
+   "Read": 11,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-mp7z8154/r/src/Security/src/Authentication.OpenIdConnect/TokenKeyResolver.cs",
+   "/tmp/egf-mp7z8154/r/src/Security/src/Authentication.JwtBearer/PostConfigureJwtBearerOptions.cs",
+   "/tmp/egf-mp7z8154/r/src/Security/src/Authentication.OpenIdConnect/PostConfigureOpenIdConnectOptions.cs",
+   "/tmp/egf-mp7z8154/r/src/Management/src/Endpoint/Actuators/CloudFoundry/PermissionsProvider.cs",
+   "/tmp/egf-mp7z8154/r/src/Management/src/Endpoint/EndpointOptionsExtensions.cs",
+   "/tmp/egf-mp7z8154/r/src/Management/src/Endpoint/Actuators/CloudFoundry/CloudFoundrySecurityMiddleware.cs",
+   "/tmp/egf-mp7z8154/r/src/Management/src/Endpoint/Actuators/HeapDump/HeapDumper.cs",
+   "/tmp/egf-mp7z8154/r/src/Management/src/Endpoint/ManagementPort/ManagementPortMiddleware.cs",
+   "/tmp/egf-mp7z8154/r/src/Management/src/Endpoint/Actuators/DbMigrations/DbMigrationsEndpointHandler.cs",
+   "/tmp/egf-mp7z8154/r/src/Common/src/Common/DynamicTypeAccess/PackageResolver.cs",
+   "/tmp/egf-mp7z8154/r/src/Management/src/Endpoint/Actuators/DbMigrations/DbMigrationsEndpointHandler.cs"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "JWT-KID-FETCH-DOS-1",
+    "file": "src/Security/src/Authentication.JwtBearer/TokenKeyResolver.cs",
+    "line": 63,
+    "claim": "An unauthenticated client can force one blocking outbound HTTP fetch to the configured IdP token_keys endpoint per request by sending a Bearer JWT with a fresh random 'kid' header. The per-kid negative cache never hits for new kids, so the request thread blocks on the fetch before the signature is checked. This is resource exhaustion/amplification, not a signature bypass.",
+    "source": "Attacker-controlled 'kid' in the unverified JWT header of any request carrying an Authorization: Bearer header (src/Security/src/Authentication.JwtBearer/PostConfigureJwtBearerOptions.cs:63-65 passes keyId straight to ResolveSigningKey).",
+    "sink": "TokenKeyResolver.FetchKeySet -> httpClient.SendAsync to <Authority>/token_keys, executed synchronously via GetAwaiter().GetResult() (TokenKeyResolver.cs:106-113, 124).",
+    "trace": [
+     {
+      "file": "src/Security/src/Authentication.JwtBearer/PostConfigureJwtBearerOptions.cs",
+      "line": 63,
+      "note": "IssuerSigningKeyResolver lambda receives keyId from the token header before signature verification"
+     },
+     {
+      "file": "src/Security/src/Authentication.JwtBearer/PostConfigureJwtBearerOptions.cs",
+      "line": 65,
+      "note": "calls ResolveSigningKey(options.Authority, keyId, options.Backchannel)"
+     },
+     {
+      "file": "src/Security/src/Authentication.JwtBearer/TokenKeyResolver.cs",
+      "line": 43,
+      "note": "GetTokenKeysUri builds <authority>/token_keys; the host is fixed by config, only the kid varies"
+     },
+     {
+      "file": "src/Security/src/Authentication.JwtBearer/TokenKeyResolver.cs",
+      "line": 57,
+      "note": "CachingResolveSigningKey entry"
+     },
+     {
+      "file": "src/Security/src/Authentication.JwtBearer/TokenKeyResolver.cs",
+      "line": 61,
+      "note": "cache lookup keyed by tokenKeysUri:kid; a new kid is a miss"
+     },
+     {
+      "file": "src/Security/src/Authentication.JwtBearer/TokenKeyResolver.cs",
+      "line": 63,
+      "note": "cache miss triggers a synchronous FetchKeySet for every request with a new kid"
+     },
+     {
+      "file": "src/Security/src/Authentication.JwtBearer/TokenKeyResolver.cs",
+      "line": 79,
+      "note": "negative result is cached only for that single kid (30-60s), so the next request with a different kid fetches again"
+     }
+    ],
+    "guards_checked": "Issuer, audience and signature checks run after key resolution, so they do not stop the fetch. Authority host is config-pinned, so this is not SSRF. Negative caching is per kid, so it does not block fresh random kids. No concurrency lock or single-flight on FetchKeySet. No rate limiting found in the middleware path. Severity is low to medium: an unauthenticated request can hold a request thread for up to the backchannel timeout, and each request makes one outbound call to the IdP. Not verified at runtime; based on code reading of the Microsoft.IdentityModel resolver call order."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

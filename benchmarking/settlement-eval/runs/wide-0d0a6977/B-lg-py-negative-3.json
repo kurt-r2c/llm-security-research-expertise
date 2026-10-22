@@ -1,0 +1,103 @@
+{
+ "arm": "B",
+ "repo": "lg-py-negative",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.0560407,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "/transfer does not validate that amount is positive. A negative amount passes the balance check and reverses the transfer, so the caller takes funds from any other account. The recipient does not need to consent and may have any balance.",
+    "source": "Authenticated user's JSON body: {\"to\": \"<victim>\", \"amount\": -1000}",
+    "sink": "BAL[g.user] -= amount and BAL[to] += amount (bank.py:13-14)",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 9,
+      "note": "to = request.json[\"to\"] is attacker-controlled"
+     },
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount = request.json[\"amount\"] is attacker-controlled with no type or sign check"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "BAL[g.user] < amount is false for a negative amount, so the check passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "BAL[g.user] -= (-1000) credits the attacker"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "BAL[victim] += (-1000) debits the victim, which can push the victim below zero"
+     }
+    ],
+    "guards_checked": "/withdraw has an `amount <= 0` check at line 21, but /transfer has none. There is no type check, so floats, NaN and bools are also accepted. No recipient-consent or recipient-existence check exists. BAL[to] raises KeyError for an unknown recipient, but only after the sender has already been debited at line 13, so that money is lost."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /transfer (only the balance check at bank.py:11, which a negative amount bypasses). The only positivity check is `amount <= 0` in /withdraw at bank.py:21. No type, recipient-consent or existence check.",
+    "reason": "bank.py:11 only checks `BAL[g.user] < amount`, which a negative amount passes, so bank.py:13-14 credit the caller and debit the recipient; /transfer has no `amount <= 0` check like the one at bank.py:21. The file defines no authentication that sets g.user, so the finding's premise of an authenticated low-privilege caller is assumed rather than seen here."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only the BAL[g.user] < amount balance check at bank.py:11, which a negative amount passes; /withdraw's amount <= 0 check at line 21 is not in /transfer)",
+    "reason": "bank.py:9-14 take amount straight from request.json with no sign or type check, so a negative amount passes the line 11 check and line 13-14 credit the caller and debit the victim; the route has no restricting decorator, so any authenticated user can reach it."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "No authentication is set up. g.user is never assigned: the file has no before_request hook, login or token verification. Identity is whatever outside code puts in g.user. If that is not set up, every request fails. If it is set from a client-controlled value, any user can be impersonated. The balance check and update are also a non-atomic check-then-act with no lock, so concurrent requests can double-spend.",
+    "source": "Unauthenticated HTTP POST to /transfer or /withdraw",
+    "sink": "Balance mutation at bank.py:13-14 and bank.py:23, keyed by g.user",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 3,
+      "note": "The app is created with no before_request authentication handler"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "g.user is read without ever being set in this file"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "Check (BAL[g.user] < amount) and update (line 23) are not atomic"
+     }
+    ],
+    "guards_checked": "Searched bank.py, the only source file, for g.user assignment, before_request, login_required, sessions and tokens, and found none. A guard may exist in code outside this directory, so this is conditional on how g.user is populated. No locks or transactions exist around the balance read-modify-write."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in bank.py (no before_request, login check, or lock); g.user could be set by code outside this directory, which isn't present",
+    "reason": "The trace lines match (bank.py:3 creates the app with no hook, bank.py:11 and :21 read g.user, bank.py:13-14 and :23 mutate BAL), but nothing in bank.py sets g.user, so as written every request raises AttributeError, and whether anyone can be impersonated depends on external code that isn't here. The check-then-act race at bank.py:21-23 is real but needs a valid user."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none in bank.py; g.user is populated by trusted upstream middleware outside this directory, per the maintainer's project facts",
+    "reason": "The unauthenticated/impersonation claim fails because bank.py:11, 21 and 23 read g.user, which the maintainer states is set by trusted upstream middleware, so the attacker is not anonymous. The residual check-then-act race at bank.py:21-23 (a weak, GIL-limited double-spend) is not the reported auth flaw. Separately, bank.py:11-14 has no amount<=0 check in /transfer, so a negative amount can pull funds from the recipient. That is a different bug the candidate did not report."
+   }
+  }
+ ],
+ "verify_cost": 0.0656715,
+ "verify_facts_cost": 0.065025
+}

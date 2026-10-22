@@ -1,0 +1,119 @@
+{
+ "arm": "D",
+ "repo": "az-py-swallow",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.016966830000000002,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Glob": 1,
+   "Bash": 1,
+   "Read": 3,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-3wdgvbp4/r/admin.py",
+   "/tmp/egf-3wdgvbp4/r/.claude/skills/security-research/auth/SKILL.md",
+   "/tmp/egf-3wdgvbp4/r/.claude/skills/security-research/triage/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTH-1",
+    "file": "admin.py",
+    "line": 18,
+    "claim": "Admin ban endpoint's authorization check is swallowed by a broad except, so any authenticated non-admin user can ban any user by uid (cross-user privilege escalation). Severity HIGH.",
+    "source": "Authenticated low-privilege user (g.user set) sends POST /admin/users/<uid>/ban with an attacker-chosen uid path parameter.",
+    "sink": "do_ban(uid) at admin.py:20 (protected state-changing admin action; implementation is a pass stub at admin.py:31-32 in this snapshot)",
+    "trace": [
+     {
+      "file": "admin.py",
+      "line": 14,
+      "note": "Route POST /admin/users/<uid>/ban bound to ban(uid); no decorator or auth wrapper in this file"
+     },
+     {
+      "file": "admin.py",
+      "line": 17,
+      "note": "require_admin(g.user) called inside try"
+     },
+     {
+      "file": "admin.py",
+      "line": 10,
+      "note": "user.get('is_admin') false for non-admin"
+     },
+     {
+      "file": "admin.py",
+      "line": 11,
+      "note": "abort(403) raises werkzeug HTTPException, which subclasses Exception"
+     },
+     {
+      "file": "admin.py",
+      "line": 18,
+      "note": "except Exception swallows the 403; no re-raise"
+     },
+     {
+      "file": "admin.py",
+      "line": 19,
+      "note": "log.warning records the failure, then execution falls through"
+     },
+     {
+      "file": "admin.py",
+      "line": 20,
+      "note": "do_ban(uid) executes for the non-admin caller"
+     },
+     {
+      "file": "admin.py",
+      "line": 21,
+      "note": "Returns {ok: true}"
+     }
+    ],
+    "guards_checked": "require_admin (admin.py:9-11) correctly denies but its exception is caught at admin.py:18, so the guard fails open. Unban (admin.py:24-28) calls require_admin without try and correctly returns 403, used as control. No auth decorator or middleware is in this repo. Unauthenticated path: if g.user is unset, AttributeError at admin.py:17 is caught but g.user.get at admin.py:19 raises uncaught, so do_ban is not reached (500). Triage: Check 1 not implied; Check 2 plausible for any registered account; Check 3 unverified (no bind config in repo); Check 10 not self-affecting (target uid is another user). Caveat: if middleware sets an anonymous g.user dict for unauthenticated requests, this becomes anonymously reachable and should be re-rated CRITICAL. Repro: POST /admin/users/<victim-uid>/ban with a low-privilege session cookie returns {ok:true} (vulnerable) vs 403 (fixed); unban with the same cookie returns 403. Validation Tier 0. Fix: remove the try/except around require_admin, enforce admin via a decorator on all /admin routes, add an authorization check inside do_ban, and add a 403 test."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_admin (admin.py:9-11) is the only authorization control, and it aborts with 403. Its exception is caught by the bare `except Exception` at admin.py:18, which logs at line 19 and does not re-raise, so do_ban (line 20) still runs. No decorator, middleware, or authorization check inside do_ban exists in the repo (do_ban is a pass stub at admin.py:31-32). The unban route at admin.py:26 calls require_admin without try, so it correctly returns 403.",
+    "reason": "Every trace line matches admin.py: the 403 raised by require_admin (admin.py:11) is swallowed by the except at admin.py:18, so do_ban(uid) at admin.py:20 runs and returns {ok: true} for any caller with g.user set (admin.py:17), including a non-admin, while the unban route at admin.py:26 correctly blocks the same caller. The only open question is whether upstream middleware sets g.user for anonymous requests, which is outside this repo; for an authenticated low-privilege user the finding stands."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "OBS-1",
+    "file": "admin.py",
+    "line": 19,
+    "claim": "Authorization-failure log line writes the requesting user's display name (PII) to logs, against org logging policy. LOW hardening note. Also, g.user.get raises AttributeError when g.user is unset, turning unauthenticated requests into 500s rather than 401/403.",
+    "source": "Any request that fails the admin check in ban() (admin.py:18).",
+    "sink": "log.warning at admin.py:19",
+    "trace": [
+     {
+      "file": "admin.py",
+      "line": 18,
+      "note": "Exception caught"
+     },
+     {
+      "file": "admin.py",
+      "line": 19,
+      "note": "g.user.get('name') logged as argument"
+     }
+    ],
+    "guards_checked": "No log redaction or filter is present in this file. The logged value is a display name, not a credential, so this is LOW hygiene only."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. The only control is the admin check at admin.py:17 (require_admin \u2192 abort(403)), but the bare `except Exception` at admin.py:18 swallows the abort, so execution continues. No log redaction exists in the file.",
+    "reason": "The trace is accurate: admin.py:17-18 catches the failure and admin.py:19 logs g.user.get(\"name\") as a display name, which is PII under the org logging policy, and any caller who reaches the route can trigger it. The candidate understates severity, though: because of the swallowed exception, admin.py:20 `do_ban(uid)` runs for non-admins, so the admin check at admin.py:17 does not stop anyone and any user can ban any account. That authorization bypass is a higher-severity finding than the LOW logging note and should be reported separately as critical."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004274430000000001
+}

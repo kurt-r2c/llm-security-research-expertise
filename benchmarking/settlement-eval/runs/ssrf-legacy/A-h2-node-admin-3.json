@@ -1,0 +1,90 @@
+{
+ "arm": "A",
+ "repo": "h2-node-admin",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.03855600000000001,
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "routes.js",
+    "line": 20,
+    "claim": "The unauthenticated POST /hooks/test endpoint passes a user-supplied callback URL straight to axios.post. An attacker can make the server send requests to internal hosts, such as cloud metadata at 169.254.169.254, localhost services, or private IP ranges. The response status is returned to the caller, which gives a reachability oracle. axios follows redirects by default, which adds a further bypass route.",
+    "source": "req.body.callback (POST body, public router `pub`)",
+    "sink": "axios.post(req.body.callback, { ping: true })",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 4,
+      "note": "`pub` router is created with no auth middleware"
+     },
+     {
+      "file": "routes.js",
+      "line": 19,
+      "note": "POST /hooks/test handler reads req.body.callback"
+     },
+     {
+      "file": "routes.js",
+      "line": 20,
+      "note": "The value is passed unvalidated as the URL to axios.post"
+     },
+     {
+      "file": "routes.js",
+      "line": 21,
+      "note": "The upstream status is returned in the response"
+     }
+    ],
+    "guards_checked": "No scheme or host allowlist, no private/loopback/link-local IP blocking, no DNS-resolution check, and no redirect restriction. `pub` is not covered by requireAdmin, and there is no other auth in this file. I could not see how the router is mounted, since this is the only file."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "routes.js:19-21 passes req.body.callback unvalidated to axios.post and returns the upstream status, and `pub` (routes.js:4) has no auth middleware (requireAdmin at routes.js:12 applies only to `admin`); the mount point is not visible, but nothing in this file guards the route."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "routes.js",
+    "line": 15,
+    "claim": "The admin diagnostics endpoint fetches an arbitrary URL taken from the query string with no destination restrictions. This is full SSRF against internal services and metadata endpoints, limited only by the admin check. Impact is lower because exploiting it needs an admin session, or a compromised admin account or CSRF, since it is a GET request.",
+    "source": "req.query.url (GET query string, admin router)",
+    "sink": "axios.get(req.query.url)",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) gates the router on session role === 'admin'"
+     },
+     {
+      "file": "routes.js",
+      "line": 14,
+      "note": "GET /diagnostics/fetch handler"
+     },
+     {
+      "file": "routes.js",
+      "line": 15,
+      "note": "req.query.url is passed unvalidated to axios.get"
+     },
+     {
+      "file": "routes.js",
+      "line": 16,
+      "note": "The upstream status is returned in the response"
+     }
+    ],
+    "guards_checked": "requireAdmin (routes.js:7-10) restricts access to admin sessions only. There is no URL scheme or host allowlist, no private-IP blocking, and no redirect control. The guard limits who can exploit this, but it does not prevent SSRF."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "requireAdmin (routes.js:7-10), applied via admin.use at routes.js:12, returns 403 unless session role is \"admin\". There is no URL or host validation.",
+    "reason": "The trace matches the code, but the sink at routes.js:15 (axios.get(req.query.url)) is reachable only through the admin-only router gated at routes.js:12, so an unauthenticated or low-privilege attacker cannot control the value. The only route to it is a compromised admin session or CSRF, and nothing in the code shows a CSRF path."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.059933799999999995
+}

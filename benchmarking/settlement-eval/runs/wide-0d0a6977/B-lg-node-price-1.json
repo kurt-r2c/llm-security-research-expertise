@@ -1,0 +1,93 @@
+{
+ "arm": "B",
+ "repo": "lg-node-price",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.0709757,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "cart.js",
+    "line": 5,
+    "claim": "The /checkout endpoint charges a total computed from client-supplied price and qty. An attacker can set arbitrary prices (for example 0.01) or negative values to pay less than the real price or to get a negative charge (a refund-like credit).",
+    "source": "req.body.items[].price and req.body.items[].qty (attacker-controlled JSON body)",
+    "sink": "req.payments.charge(req.user.id, total)",
+    "trace": [
+     {
+      "file": "cart.js",
+      "line": 5,
+      "note": "total = sum(i.price * i.qty) using body-supplied price and qty, with no catalog lookup or validation"
+     },
+     {
+      "file": "cart.js",
+      "line": 6,
+      "note": "total passed directly to the payment charge"
+     },
+     {
+      "file": "cart.js",
+      "line": 7,
+      "note": "total echoed back to the client"
+     }
+    ],
+    "guards_checked": "No server-side price lookup, no numeric, positive or integer validation, and no auth or validation middleware in this file. checkout-v2 shows the intended catalog-price approach, but the legacy route is still exposed."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "cart.js:5 computes total from body-supplied i.price * i.qty, cart.js:6 passes it to req.payments.charge, and cart.js:7 echoes it back, with no catalog lookup or validation, unlike the guarded /checkout-v2 at cart.js:13-14. The attacker only needs to be a user able to POST /checkout. The file doesn't show how auth is mounted, though req.user at line 6 implies the attacker is an authenticated low-privilege user. Whether the payment provider rejects negative totals is also outside the code available."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "cart.js:5 sums body-supplied i.price * i.qty with no validation or catalog lookup, and cart.js:6 passes that total to req.payments.charge, so any user able to reach the route (authenticated, per req.user.id) can set low or negative prices, unlike the guarded /checkout-v2 at cart.js:13-14."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "cart.js",
+    "line": 14,
+    "claim": "/checkout-v2 takes prices from the catalog but does not validate qty. Non-numeric qty gives Math.floor(NaN) = NaN, and Math.max(1, NaN) = NaN, so total becomes NaN. Huge or Infinity qty gives an absurd total. Charging NaN may be treated as zero or may fail open depending on the payments implementation. Missing or non-array items throws an unhandled error.",
+    "source": "req.body.items[].qty and req.body.items (attacker-controlled)",
+    "sink": "req.payments.charge(req.user.id, total)",
+    "trace": [
+     {
+      "file": "cart.js",
+      "line": 12,
+      "note": "iterates attacker-supplied items with no type check"
+     },
+     {
+      "file": "cart.js",
+      "line": 14,
+      "note": "Math.max(1, Math.floor(i.qty)) returns NaN for non-numeric qty and a huge value for large qty; the total is polluted"
+     },
+     {
+      "file": "cart.js",
+      "line": 16,
+      "note": "unvalidated total is charged"
+     }
+    ],
+    "guards_checked": "Math.max(1, ...) blocks negative and zero qty but not NaN or Infinity. There is no Number.isFinite or integer check, no upper bound, and no check of the total after the loop. Whether this is exploitable depends on how req.payments.charge handles NaN, which is not visible in this repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. Math.max(1, ...) at cart.js:14 only clamps low numeric values. There is no isFinite, integer or upper-bound check, no check of the total, and no try/catch.",
+    "reason": "The trace is accurate (cart.js:12 iterates req.body.items, :14 gives NaN for a missing or non-numeric qty and Infinity for huge qty, :16 charges that total) and no guard exists. Whether NaN or Infinity is charged as zero depends on req.payments.charge, which is not in this repo, so impact can't be decided. An overcharge only hurts the attacker's own account, and prices come from req.catalog, not the client."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "cart.js:14 does yield NaN for a non-numeric qty (Math.max(1, NaN) is NaN) and cart.js:16 charges it with no check, but whether a NaN total gives the attacker a free or zero charge depends on req.payments.charge, which is not in this directory. Huge qty only overcharges the attacker. A missing items array throws at cart.js:12, which is a 500 error rather than a vulnerability."
+   }
+  }
+ ],
+ "verify_cost": 0.0666843,
+ "verify_facts_cost": 0.06305179999999999
+}

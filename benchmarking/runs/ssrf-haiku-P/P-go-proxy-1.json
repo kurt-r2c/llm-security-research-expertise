@@ -1,0 +1,120 @@
+{
+ "arm": "P",
+ "repo": "go-proxy",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "7ef16586",
+ "status": "success",
+ "gen_cost": 0.00452159,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-hkii_c4y/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "The /fetch handler passes an attacker-supplied URL straight to http.Get with no validation, and returns the full response body to the caller. Any client that can reach :8080 can make the server fetch arbitrary internal or external URLs, including localhost services and cloud metadata endpoints such as 169.254.169.254.",
+    "source": "HTTP query parameter 'target' read at main.go:15 (r.URL.Query().Get(\"target\")), supplied by any remote client. The server listens on all interfaces with no authentication (main.go:43, registered at main.go:41).",
+    "sink": "http.Get(target) at main.go:16. The response body is streamed back to the attacker via io.Copy(w, resp.Body) at main.go:22, so the attack is not blind.",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "/fetch is registered on the default mux, reachable by any client."
+     },
+     {
+      "file": "main.go",
+      "line": 14,
+      "note": "fetch handler begins."
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target taken from the query string with no further processing."
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get(target) issues the request to the attacker-chosen URL; Go's client follows redirects by default."
+     },
+     {
+      "file": "main.go",
+      "line": 18,
+      "note": "Error text, including connection results, is returned to the caller via http.Error, which is an additional oracle for port scanning."
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "Response body copied to the attacker."
+     }
+    ],
+    "guards_checked": "None. There is no scheme check, host check, IP/private-range check, port check, redirect limit, or auth check on this path. The allowlist map at main.go:9-12 is defined but is not consulted by fetch. Go's client rejects non-http(s) schemes, so file:// is not reachable, but http:// and https:// to any host or IP are."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The fetch handler (main.go:14-23) has no scheme, host, IP, port, or auth check. The allowlist map at main.go:9-12 is only consulted in safeFetch (main.go:27), which is registered on a separate path (/safe, main.go:42), so it does not guard /fetch.",
+    "reason": "The `target` query parameter (main.go:15) flows unvalidated into http.Get (main.go:16) on the /fetch route registered at main.go:41 with no auth, and the response body is returned to the caller via io.Copy (main.go:22). Every trace line matches the file, and the server listens on all interfaces at main.go:43."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "The /safe handler validates only the initial URL's hostname against an allowlist. http.Get then follows redirects to any host by default, so an allowlisted host that returns a 3xx pointing to an internal or metadata address causes the server to fetch that address and return its body. The check is bypassed through redirects.",
+    "source": "HTTP query parameter 'target' read at main.go:26, supplied by any remote client.",
+    "sink": "http.Get(u.String()) at main.go:31. The redirected response body is returned to the caller at main.go:37.",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "/safe is registered on the default mux."
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target parsed with url.Parse."
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "Allowlist check on u.Hostname() only, against images.example.org and docs.example.org."
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get(u.String()) issues the request. The client follows up to 10 redirects to any host, and the allowlist is not re-applied to redirect targets."
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "Body of the final redirected response is copied to the attacker."
+     }
+    ],
+    "guards_checked": "Hostname allowlist at main.go:27. Verified as sound for the direct request: url.Parse and http.Get use the same net/url parser, so userinfo tricks such as http://images.example.org@evil.com are parsed with evil.com as the host and rejected; Hostname() strips the port; comparison is exact and case-sensitive, so variants fail closed. Not present: a CheckRedirect policy on the client, any re-validation of redirect targets, or a resolved-IP check. This finding depends on an allowlisted host issuing a redirect, which is a precondition the code does not control. The hostnames are placeholders (example.org), so I could not confirm whether either real host has an open redirect. Severity is therefore conditional."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Exact, case-sensitive hostname membership check on url.Parse's Hostname() at main.go:27 (allowed map). Only applies to the initial URL. No CheckRedirect on the default client and no re-validation of redirect targets anywhere in safeFetch (main.go:31).",
+    "reason": "The trace matches the code: target is read from the query at main.go:26, the exact-match allowlist at main.go:27 applies only to the first URL, and http.Get at main.go:31 uses the default client, which follows redirects to any host and returns the final body via io.Copy at main.go:37. The source is attacker-controlled and no closing guard exists, so the bypass holds. Severity remains conditional on an allowlisted host (images.example.org or docs.example.org) actually issuing a redirect, which the code cannot confirm."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004023200000000001
+}

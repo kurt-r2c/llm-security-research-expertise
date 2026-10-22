@@ -1,0 +1,115 @@
+{
+ "arm": "C",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.17845319999999998,
+ "trace": {
+  "tools": {
+   "Read": 4,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-7rh85g82/expertise/INDEX.md",
+   "/tmp/egf-7rh85g82/r/validators.py",
+   "/tmp/egf-7rh85g82/r/views.py",
+   "/tmp/egf-7rh85g82/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "The /fetch2 endpoint fetches a user-supplied URL after checking only that the scheme is http or https. There is no host or IP restriction, and redirects are followed. An attacker can reach loopback, RFC1918 ranges, or cloud metadata at 169.254.169.254. The first 200 bytes of the response body are returned to the attacker.",
+    "source": "request.args.get('url') (the `url` query parameter on GET /fetch2), views.py:19",
+    "sink": "requests.get(url, timeout=5) at views.py:22, with default allow_redirects=True",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url = request.args.get('url', '') taken straight from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) is the only gate"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "is_http_url only checks urlparse(url).scheme in ('http','https'). It does no host, IP or DNS check."
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) fetches the URL and follows redirects. The body is reflected in the JSON response."
+     }
+    ],
+    "guards_checked": "The only guard is the scheme allowlist in is_http_url (validators.py:7), which blocks file:// and gopher:// but not http://169.254.169.254/ or http://127.0.0.1/. There is no blocklist, allowlist or resolved-IP check. allow_redirects is left at its default of True, so an attacker-hosted redirect also works. No authentication is visible in the code."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only scheme check is_http_url, validators.py:7; the stronger is_safe_url is used only on /fetch, not /fetch2)",
+    "reason": "views.py:19-22 passes the user-supplied `url` query parameter to requests.get (redirects followed by default) gated only by the scheme-only check at validators.py:7, so there is no host/IP restriction."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "The /fetch endpoint validates the destination with is_safe_url, which resolves DNS once and checks the resolved IPs against a blocklist. requests.get then resolves the hostname again independently. An attacker-controlled DNS server can return a public IP for the validation lookup and 169.254.169.254 or 127.0.0.1 for the fetch lookup (DNS rebinding TOCTOU, TTL=0). The body is reflected, so the attacker can read internal responses. The check is also a blocklist, not an allowlist.",
+    "source": "request.args.get('url') (the `url` query parameter on GET /fetch), views.py:11, pointing at an attacker-controlled hostname whose DNS answers change between lookups",
+    "sink": "requests.get(url, timeout=5, allow_redirects=False) at views.py:14. The original hostname string is re-resolved by urllib3 and is not pinned to the validated IP.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) is called"
+     },
+     {
+      "file": "validators.py",
+      "line": 11,
+      "note": "urlparse(url) is the validator-side parser. The fetcher (requests/urllib3) parses the string again with a different parser."
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(hostname, port) is DNS lookup #1, used only for validation"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "Blocklist check with is_private/is_loopback/is_link_local/is_reserved. It returns True if every resolved address is public at that instant."
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url) is passed the original, unmodified URL string. It does DNS lookup #2 and can connect to an internal IP."
+     }
+    ],
+    "guards_checked": "Checked scheme restriction (http/https only), hostname-present check, and resolved-IP blocklist via ipaddress (private, loopback, link-local, reserved). allow_redirects=False is set, so redirect-based bypass is closed. The 5s timeout does not help. There is no DNS pinning, because the validated IP is not passed to the client. It is a blocklist, not an allowlist. The ipaddress properties cover the common encodings once resolved, so the main residual weakness is the rebinding race. The validator and fetcher also use different parsers (urlparse vs urllib3). Severity is lower than SSRF-1 because exploitation needs a rebinding DNS server and a successful race."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Scheme restriction plus a resolved-IP blocklist (validators.py:12-16). No hostname allowlist and no DNS pinning. These do not close the finding.",
+    "reason": "Every trace line matches the code. The `url` query parameter (views.py:11) is validated by a one-shot getaddrinfo blocklist (validators.py:14-16). The original string is then re-resolved by requests.get (views.py:14), so a DNS-rebinding TOCTOU exists, and up to 200 bytes of the response body are returned."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0652337
+}

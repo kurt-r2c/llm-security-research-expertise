@@ -1,0 +1,227 @@
+{
+ "arm": "B",
+ "repo": "cl-js-inj",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00819412,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-2eo93zrx/r/db.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "db.js",
+    "line": 9,
+    "claim": "Unauthenticated cross-tenant user enumeration: GET /users returns id and name for any org the caller names, because the org filter comes straight from the query string with no session or membership check.",
+    "source": "req.query.org (db.js:9), client-controlled and unauthenticated",
+    "sink": "SELECT id, name FROM users WHERE org = $1 (db.js:9), response via res.json(rows) (db.js:10)",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "GET /users route handler, no auth middleware on the route"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "req.query.org passed as bound parameter into query that returns all users in that org"
+     },
+     {
+      "file": "db.js",
+      "line": 10,
+      "note": "all matching rows returned as JSON, no pagination or rate limit"
+     }
+    ],
+    "guards_checked": "Parameterized query prevents SQL injection. No authentication, session, token, or org-membership check in this file. Whether req.pg is set by middleware enforcing auth is not visible in the audited code, so the finding depends on that being absent."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:8 registers app.get(\"/users\") with no auth middleware argument. The file has no app.use() call, so no app-wide auth middleware is attached here. db.js:9 passes req.query.org straight into a parameterized query, which blocks SQL injection but not authorization. db.js:10 returns all rows as JSON. The only other unseen dependency is req.pg, which is never set in this file. That is a crash risk rather than a guard, and the directory has no code that sets it.",
+    "reason": "The route at db.js:8 has no authentication or org-membership check, and db.js:9 uses the client-supplied req.query.org as the filter before db.js:10 returns the matching id and name rows, so an anonymous caller can enumerate users in any org. The one caveat is that req.pg is never defined in this file, so the handler as written would throw a TypeError unless some external code sets it; that does not supply an auth control."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "db.js",
+    "line": 9,
+    "claim": "Unauthenticated process crash: a NUL byte in the org parameter makes the Postgres query reject, and the async handler has no error handling, so on Express 4 / Node >=15 the rejection is unhandled and the process exits.",
+    "source": "req.query.org containing a NUL byte, e.g. GET /users?org=%00 (db.js:9)",
+    "sink": "await req.pg.query(...) rejection at db.js:9 is unhandled, terminating the process",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "async handler with no try/catch"
+     },
+     {
+      "file": "db.js",
+      "line": 9,
+      "note": "Postgres rejects NUL bytes in text parameters, query promise rejects"
+     },
+     {
+      "file": "db.js",
+      "line": 11,
+      "note": "no catch path; Express 4 does not forward async rejections to error middleware"
+     }
+    ],
+    "guards_checked": "No try/catch or .catch() in handler. Parameterization does not stop NUL bytes. Not exploitable if Express 5 is used (it forwards async errors). Also triggered if req.pg is undefined (TypeError). Express version, Node version, and req.pg setup are unverified."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. The /users handler at db.js:8-11 has no try/catch or .catch(), and the parameterized query at db.js:9 does not filter NUL bytes. The only guard in the file is the path check at db.js:15, which is on /file and does not apply here.",
+    "reason": "The code matches the claim: an anonymous request to /users reaches the unguarded await at db.js:9, and db.js:11 is just the handler's closing brace. Whether the rejection crashes the process depends on the Express version, which is not in this directory (no package.json or lockfile was found), and on how req.pg is set up, which is not in db.js. On Express 5 the rejection would be forwarded to error middleware, so the verdict cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "db.js",
+    "line": 23,
+    "claim": "Unauthenticated service binds to all network interfaces, exposing /users, /file, and /count to the network rather than localhost.",
+    "source": "Network reachability: app.listen(3002) with no host argument (db.js:23)",
+    "sink": "Exposure of the unauthenticated routes at db.js:8, db.js:13, db.js:19",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 23,
+      "note": "app.listen(3002) with no host binds to all interfaces"
+     },
+     {
+      "file": "db.js",
+      "line": 8,
+      "note": "/users reachable without auth"
+     },
+     {
+      "file": "db.js",
+      "line": 13,
+      "note": "/file reachable without auth"
+     },
+     {
+      "file": "db.js",
+      "line": 19,
+      "note": "/count reachable without auth"
+     }
+    ],
+    "guards_checked": "None in this file: no host restriction, no auth middleware, no reverse-proxy assumption. Depends on deployment network topology."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. db.js:23 app.listen(3002) has no host argument, so Node binds to all interfaces. db.js:8, :13 and :19 have no auth middleware. The only other files in the directory are .claude/skills markdown, so no proxy, firewall, or auth config exists in the code available. The path check at db.js:15 guards traversal only, not access, and does not block the exposure.",
+    "reason": "db.js:23 listens without a host, so the unauthenticated /users (db.js:8), /file (db.js:13), and /count (db.js:19) routes are reachable from any network the host is on, with nothing in the available code restricting access. Whether that network is actually exposed depends on deployment, which I cannot see, so the severity is deployment-dependent even though the code-level exposure is confirmed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "db.js",
+    "line": 20,
+    "claim": "/count discloses the line count of data.csv to unauthenticated callers, ignores the exec error so a missing file returns an empty 200, and spawns an unthrottled process per request.",
+    "source": "Unauthenticated GET /count (db.js:19); fixed filename data.csv, no user input reaches the command",
+    "sink": "execFile('wc', ['-l','data.csv']) (db.js:20) and res.send(out) (db.js:20)",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 19,
+      "note": "unauthenticated route handler"
+     },
+     {
+      "file": "db.js",
+      "line": 20,
+      "note": "spawns wc on fixed args; error argument e discarded; stdout sent to client"
+     }
+    ],
+    "guards_checked": "execFile without a shell, fixed arguments, so no command injection. No auth, rate limit, or error check. Severity low."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only checks are on the /file route (db.js:15), not /count. Nothing guards /count: no auth middleware, no rate limit, and the execFile callback ignores `e` and sends `out` unconditionally (db.js:20).",
+    "reason": "db.js:19-20 is an unauthenticated GET route that runs execFile('wc', ['-l','data.csv']) with fixed arguments and calls res.send(out) even when the error argument is set, so anyone can read the line count of data.csv, get an empty 200 when the file is missing, and trigger a process spawn per request. The impact is low, as the candidate says, since the disclosed value is only a line count and the command is not injectable."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "db.js",
+    "line": 15,
+    "claim": "/file containment check is purely lexical, so a symlink inside public/ pointing outside ROOT would be followed by res.sendFile and served. Exploitation requires write access to public/.",
+    "source": "req.query.name (db.js:14), plus any symlink an attacker can create under public/",
+    "sink": "res.sendFile(p) (db.js:16) follows symlinks",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 14,
+      "note": "p = path.resolve(ROOT, req.query.name), no realpath resolution"
+     },
+     {
+      "file": "db.js",
+      "line": 15,
+      "note": "startsWith(ROOT + path.sep) check passes for a symlink path inside public/"
+     },
+     {
+      "file": "db.js",
+      "line": 16,
+      "note": "sendFile reads through the symlink to a target outside ROOT"
+     }
+    ],
+    "guards_checked": "Lexical ../ and absolute-path rejection via path.resolve + startsWith (db.js:15) is correct. No fs.realpath check. Severity low because it requires prior write access to public/."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Lexical containment check at db.js:15 (path.resolve result must start with ROOT + path.sep). It does not resolve symlinks, so it does not block the symlink case, but it does block the ../ and absolute-path traversal that the HTTP attacker would use.",
+    "reason": "The trace lines at db.js:14-16 are accurate and sendFile does follow symlinks, but the only route to a symlink under public/ is prior filesystem write access to public/, and no HTTP path in db.js (lines 8-21) creates or modifies files, so an remote attacker cannot reach the effect. Under the threat model this is a local-access precondition, not a remotely exploitable vulnerability."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "db.js",
+    "line": 14,
+    "claim": "A non-string name query parameter (array or object, e.g. ?name[]=x) makes path.resolve throw a TypeError, and Express's default error handler may return a stack trace outside production.",
+    "source": "req.query.name as array or object (db.js:14)",
+    "sink": "path.resolve(ROOT, req.query.name) throws (db.js:14); default error response",
+    "trace": [
+     {
+      "file": "db.js",
+      "line": 14,
+      "note": "path.resolve called with non-string argument, throws synchronously"
+     },
+     {
+      "file": "db.js",
+      "line": 13,
+      "note": "sync throw inside Express handler becomes 500 via default error handler"
+     }
+    ],
+    "guards_checked": "No type check on req.query.name and no custom error handler. Information disclosure is low and depends on NODE_ENV."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check, the startsWith containment test at db.js:15, runs after the throw at line 14, so it never executes for an array or object name. No type check or custom error handler exists in db.js. Express's own try/catch around sync handlers (framework behavior, not a guard) turns the throw into a 500 via the default finalhandler.",
+    "reason": "db.js:14 passes req.query.name straight to path.resolve, which throws a TypeError for a non-string argument; no check at db.js:13-15 prevents it, so an anonymous request such as /file?name[]=x yields a 500, and the stack trace is shown only when NODE_ENV is not \"production\". The reachable impact is low (error-path behavior and possible stack disclosure), not a bypass of the path containment check."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0130429
+}

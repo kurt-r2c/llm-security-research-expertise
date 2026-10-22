@@ -1,0 +1,107 @@
+{
+ "arm": "A",
+ "repo": "go-proxy",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00363637,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-eddlcsnj/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 16,
+    "claim": "The /fetch handler passes the attacker-supplied `target` query parameter straight to http.Get with no scheme, host, or IP validation, and copies the full response body back to the caller, so it is a non-blind SSRF that can reach internal services, localhost, and cloud metadata endpoints.",
+    "source": "main.go:15 r.URL.Query().Get(\"target\")",
+    "sink": "main.go:16 http.Get(target); response relayed via main.go:22 io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 41,
+      "note": "/fetch is registered to the fetch handler on the public :8080 listener"
+     },
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "target read from the query string, attacker-controlled"
+     },
+     {
+      "file": "main.go",
+      "line": 16,
+      "note": "http.Get(target) issues a server-side request to the attacker-chosen URL"
+     },
+     {
+      "file": "main.go",
+      "line": 22,
+      "note": "response body is streamed back to the attacker, making the SSRF readable"
+     }
+    ],
+    "guards_checked": "None on this path. No allowlist, no url.Parse, no scheme check, no private/loopback/link-local IP check, no redirect policy. Go's net/http only accepts http and https schemes, so the reachable set is limited to HTTP(S) URLs."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on the /fetch path. main.go:14-23 (fetch) has no url.Parse, host allowlist, or IP check before http.Get(target) at main.go:16. The allowlist at main.go:9-12 and the check at main.go:27 belong only to safeFetch (main.go:25-38), which is registered on a separate route, /safe (main.go:42). The fetch handler is registered on /fetch at main.go:41 on the :8080 listener at main.go:43.",
+    "reason": "The trace is accurate: main.go:15 reads the attacker-controlled `target` query parameter, main.go:16 passes it straight to http.Get, and main.go:22 copies the response body back to the caller, and no closing guard exists on the /fetch path (main.go:14-23). Because the route is unauthenticated and reachable on :8080, the SSRF is readable and can reach localhost, internal hosts, and metadata endpoints."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 31,
+    "claim": "safeFetch validates only the initial URL's hostname against an allowlist. Its http.Get uses the default client, which follows up to 10 redirects with no CheckRedirect, so an allowed host that returns a 3xx to an internal address (127.0.0.1, RFC1918, 169.254.169.254) bypasses the check. Exploitability depends on the allowed hosts having an open redirect or attacker-controlled content, which this code does not show.",
+    "source": "main.go:26 r.URL.Query().Get(\"target\") parsed with url.Parse",
+    "sink": "main.go:31 http.Get(u.String()), with redirects followed by the default client; response relayed via main.go:37",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 42,
+      "note": "/safe is registered to safeFetch"
+     },
+     {
+      "file": "main.go",
+      "line": 26,
+      "note": "target parsed with url.Parse"
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "allowed[u.Hostname()] checked against images.example.org / docs.example.org"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "http.Get follows redirects from the allowed host to any destination"
+     },
+     {
+      "file": "main.go",
+      "line": 37,
+      "note": "response body returned to the attacker"
+     }
+    ],
+    "guards_checked": "Parse error and nil-u short-circuit at line 27: safe, because || short-circuits before u.Hostname(). Hostname() strips userinfo and port, so http://evil.com@images.example.org and http://images.example.org:1@evil.com are handled correctly by the exact-match allowlist. Scheme is limited to http/https by net/http. The check is on the parsed URL and http.Get re-parses u.String(), and the round trip is consistent for userinfo, so no parser-differential bypass was found. Not checked: DNS resolution of allowed hosts (rebinding requires control of the allowed hosts' DNS). Missing guard: CheckRedirect or re-validation of each redirect target."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "main.go:27 exact-match allowlist on u.Hostname(), which validates only the initial URL. No CheckRedirect or per-hop validation exists anywhere in main.go, so the redirect path from an allowed host to an internal address is not closed.",
+    "reason": "The trace matches the code: main.go:42 routes /safe to safeFetch, main.go:26 takes the attacker-controlled target query parameter, main.go:27 checks only the initial hostname, main.go:31 uses http.Get with the default client, which follows redirects, and main.go:37 returns the body. The exploit still needs an allowed host that redirects to an internal address, which this code does not show, so the severity depends on that external condition."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00433122
+}

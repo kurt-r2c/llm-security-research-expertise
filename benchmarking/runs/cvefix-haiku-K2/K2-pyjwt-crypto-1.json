@@ -1,0 +1,221 @@
+{
+ "arm": "K2",
+ "repo": "pyjwt-crypto",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.02685066,
+ "trace": {
+  "tools": {
+   "Read": 12,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-j42q41ms/expertise/INDEX.md",
+   "/tmp/egf-j42q41ms/expertise/cases/06-token-alg-from-header.md",
+   "/tmp/egf-j42q41ms/expertise/cases/07-token-kid-lookup.md",
+   "/tmp/egf-j42q41ms/expertise/cases/19-secret-compare-timing.md",
+   "/tmp/egf-j42q41ms/r/jwt/api_jws.py",
+   "/tmp/egf-j42q41ms/r/jwt/api_jwt.py",
+   "/tmp/egf-j42q41ms/r/jwt/algorithms.py",
+   "/tmp/egf-j42q41ms/r/jwt/jwks_client.py",
+   "/tmp/egf-j42q41ms/r/jwt/api_jwk.py",
+   "/tmp/egf-j42q41ms/r/jwt/jwk_set_cache.py",
+   "/tmp/egf-j42q41ms/r/jwt/utils.py",
+   "/tmp/egf-j42q41ms/r/jwt/api_jwk.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "PYJWT-1",
+    "file": "jwt/jwks_client.py",
+    "line": 218,
+    "claim": "An unauthenticated token with an unknown or missing kid forces an outbound JWKS fetch on every request, bypassing the cache and with no negative caching or rate limit.",
+    "source": "kid from the unverified token header, read at jwks_client.py:239-241 via decode with verify_signature False",
+    "sink": "get_signing_keys(refresh=True) -> fetch_data() -> opener.open() network request (jwks_client.py:135)",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 239,
+      "note": "Unverified decode of the token; kid is taken from the attacker-supplied header"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 241,
+      "note": "get_signing_key(header.get('kid')) with attacker-chosen kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 213,
+      "note": "Lookup in cached JWK set; misses for unknown kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 218,
+      "note": "Refresh path calls get_signing_keys(refresh=True), which skips the cache"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 168,
+      "note": "fetch_data() invoked because refresh bypasses cache"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 135,
+      "note": "Outbound HTTP request to the configured JWKS URI"
+     }
+    ],
+    "guards_checked": "kid is only compared with == in match_kid (jwks_client.py:257), never used in a path, URL or query; signing keys filtered to sig/unspecified with a kid (:189-193); JWKS URI is app-configured with http/https only (:90-95); no rate limit or negative cache exists; precondition is use of get_signing_key_from_jwt or get_signing_key with attacker-controlled kid"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "PYJWT-2",
+    "file": "jwt/jwks_client.py",
+    "line": 115,
+    "claim": "With cache_keys=True, signing keys cached by kid never expire on time, so a key removed from the JWKS after compromise or revocation keeps verifying tokens until LRU eviction.",
+    "source": "A token whose kid matches a previously cached key, after the key was revoked or removed from the JWKS",
+    "sink": "Signature verification succeeds with the cached PyJWK",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 115,
+      "note": "get_signing_key wrapped in lru_cache keyed on kid"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 113,
+      "note": "Enabled only when cache_keys=True"
+     },
+     {
+      "file": "jwt/jwk_set_cache.py",
+      "line": 25,
+      "note": "TTL applies only to Tier-1 JWK set cache, not to the per-kid LRU cache"
+     }
+    ],
+    "guards_checked": "Documented in PyJWKClient docstring (jwks_client.py:57-60); cache_keys defaults to False; eviction only when size exceeds max_cached_keys (default 16)",
+    "repro": "Create PyJWKClient(uri, cache_keys=True); verify a token with kid K; remove K from the JWKS; verify another token signed by K after the 5-minute JWK set TTL: it still succeeds until 16 other kids evict it."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "PYJWT-3",
+    "file": "jwt/api_jwt.py",
+    "line": 568,
+    "claim": "Issuer validation is silently skipped when no issuer argument is passed, even though verify_iss defaults to True, unlike audience validation which rejects tokens carrying aud when no audience is given.",
+    "source": "iss claim of a token signed by the verification key",
+    "sink": "Token acceptance without issuer check",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 412,
+      "note": "verify_iss defaults True so _validate_iss is called"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 413,
+      "note": "_validate_iss invoked with issuer argument, which is None when app omits it"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 568,
+      "note": "if issuer is None: return, so iss is not checked"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 522,
+      "note": "Contrast: _validate_aud rejects a token with aud when audience is None (lines 522-527)"
+     }
+    ],
+    "guards_checked": "Signature verification is still required before claims are checked; impact depends on the app sharing one verification key or JWKS across multiple issuers or tenants and omitting issuer=; logic inconsistency rather than a direct bypass"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "PYJWT-4",
+    "file": "jwt/api_jwt.py",
+    "line": 477,
+    "claim": "Non-numeric iat, nbf or exp values (list, dict, or JSON Infinity) raise TypeError or OverflowError instead of a PyJWT error, because only ValueError is caught.",
+    "source": "iat, nbf or exp claim of a signed token, or of an unverified token decoded with verify_signature False and explicit verify_* True",
+    "sink": "int(payload[...]) in claim validation raises an uncaught non-PyJWT exception out of decode()",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 477,
+      "note": "int(payload['iat']) with list value raises TypeError"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 478,
+      "note": "except ValueError does not catch TypeError or OverflowError"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 492,
+      "note": "Same pattern for nbf (catches only ValueError)"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 506,
+      "note": "Same pattern for exp (catches only ValueError)"
+     }
+    ],
+    "guards_checked": "Default verify_signature False path disables these checks via _merge_options (api_jwt.py:82-89); signed tokens require a valid signature first; impact is an unhandled exception (typically 500) rather than acceptance of a forged token, unless the app treats non-InvalidTokenError exceptions as success"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "PYJWT-5",
+    "file": "jwt/api_jws.py",
+    "line": 206,
+    "claim": "Short HMAC secrets and RSA keys below 2048 bits only produce a warning by default, so weak key material is accepted and can be brute-forced offline from observed tokens.",
+    "source": "Developer-supplied secret or key (not attacker-controlled); attacker holds an observed HS256 token",
+    "sink": "HMAC signing and verification with a short secret, enabling offline brute force of the key",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 60,
+      "note": "enforce_minimum_key_length defaults to False"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 206,
+      "note": "Key length check only raises when enforce_minimum_key_length is True"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 209,
+      "note": "Otherwise emits InsecureKeyLengthWarning and proceeds"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 408,
+      "note": "HMAC check_key_length returns message for keys shorter than hash digest size"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 447,
+      "note": "RSA check_key_length returns message for keys under 2048 bits"
+     }
+    ],
+    "guards_checked": "Documented design choice with a warning; enforcement is opt-in; precondition is that the application uses a short secret or small RSA key"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

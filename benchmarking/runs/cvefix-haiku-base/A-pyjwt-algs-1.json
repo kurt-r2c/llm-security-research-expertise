@@ -1,0 +1,312 @@
+{
+ "arm": "A",
+ "repo": "pyjwt-algs",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "22d7688e",
+ "status": "success",
+ "gen_cost": 0.05714848,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "Grep": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-zmz3c2b4/r/jwt/api_jws.py",
+   "/tmp/egf-zmz3c2b4/r/jwt/api_jwt.py",
+   "/tmp/egf-zmz3c2b4/r/jwt/algorithms.py",
+   "/tmp/egf-zmz3c2b4/r/jwt/jwks_client.py",
+   "/tmp/egf-zmz3c2b4/r/jwt/api_jwk.py",
+   "/tmp/egf-zmz3c2b4/r/jwt/utils.py",
+   "/tmp/egf-zmz3c2b4/r/jwt/jwk_set_cache.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "subject-absent-bypass",
+    "file": "jwt/api_jwt.py",
+    "line": 446,
+    "claim": "decode(subject=...) does not enforce the expected subject when the token has no sub claim, so a validly signed subject-less token is accepted for a subject-bound check.",
+    "source": "Attacker holds a token signed by the app's key that omits the sub claim (e.g. issued for another purpose by the same key).",
+    "sink": "Subject authorization check in _validate_sub, which is meant to accept only tokens whose sub equals the configured subject.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 370,
+      "note": "decode_complete forwards subject to the claim validator"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 277,
+      "note": "_validate_claims called after signature verification"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 420,
+      "note": "verify_sub gate calls _validate_sub"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 446,
+      "note": "returns early when 'sub' not in payload, skipping the subject comparison at 452-454"
+     }
+    ],
+    "guards_checked": "Signature verified first (api_jws.py:277-285); verify_sub defaults True (api_jwt.py:61); non-string sub rejected (449-450). Missing sub is not rejected, unlike aud (529-532) and iss (571-572)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "hmac-weak-secret-default",
+    "file": "jwt/algorithms.py",
+    "line": 482,
+    "claim": "Short HMAC secrets are accepted by default: key-length enforcement is off and only a warning is emitted, so an attacker holding one token can brute-force the secret and forge tokens.",
+    "source": "Attacker holds a token signed with HS256/384/512 using a short or low-entropy app secret.",
+    "sink": "HMAC verification of arbitrary attacker-supplied tokens once the secret is recovered.",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 425,
+      "note": "_verify_signature calls check_key_length"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 482,
+      "note": "HMACAlgorithm.check_key_length returns a message for keys below digest size"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 430,
+      "note": "emits InsecureKeyLengthWarning and continues unless enforce_minimum_key_length"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 60,
+      "note": "enforce_minimum_key_length defaults to False"
+     }
+    ],
+    "guards_checked": "Empty-key and asymmetric/JWK-looking key checks (algorithms.py:346-440) do not address weak secrets. Default enforce_minimum_key_length=False (api_jwt.py:64, api_jws.py:60)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "cache-keys-no-revocation",
+    "file": "jwt/jwks_client.py",
+    "line": 140,
+    "claim": "With cache_keys=True, signing keys are cached in an LRU with no time expiry, so a key removed from the JWKS (revoked or compromised) continues to verify tokens until evicted by size.",
+    "source": "Attacker holds a token signed by a key that was removed from the JWKS after compromise or rotation.",
+    "sink": "Signature verification using the cached PyJWK object, which is not re-checked against the JWKS.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 142,
+      "note": "get_signing_key wrapped in lru_cache(maxsize=max_cached_keys)"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 232,
+      "note": "get_signing_key returns cached PyJWK on hit"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 405,
+      "note": "_verify_signature uses the PyJWK's key directly, with no JWKS re-check"
+     }
+    ],
+    "guards_checked": "Documented in the docstring (jwks_client.py:69-72) and opt-in (default cache_keys=False). Eviction is size-only, max 16 entries."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "ecdsa-signature-malleability",
+    "file": "jwt/algorithms.py",
+    "line": 765,
+    "claim": "ECDSA verification accepts high-S signatures, so a valid token has a second valid string form (s replaced by n-s), which defeats raw-token-string deny lists or replay caches.",
+    "source": "Attacker holds a valid ES256/384/512 token and computes s' = n - s.",
+    "sink": "Any revocation, deny-list or one-time-use check keyed on the raw token string or signature bytes.",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 432,
+      "note": "_verify_signature calls alg_obj.verify"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 765,
+      "note": "ECAlgorithm.verify"
+     },
+     {
+      "file": "jwt/utils.py",
+      "line": 83,
+      "note": "raw_to_der_signature re-encodes r,s without a range check"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 777,
+      "note": "public_key.verify accepts either s value"
+     }
+    ],
+    "guards_checked": "Base64url canonicality enforced (api_jws.py:338), so only signature bytes vary. Curve check (algorithms.py:716-725) is unrelated. No low-S enforcement in the library."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "iss-not-enforced-when-unspecified",
+    "file": "jwt/api_jwt.py",
+    "line": 412,
+    "claim": "When the app omits issuer=, the iss claim is not checked at all, so tokens minted for another issuer sharing the same key are accepted.",
+    "source": "Attacker holds a validly signed token from another service that uses the same key and includes an iss claim.",
+    "sink": "Application authorization that relies on decode() to bind tokens to one issuer.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 412,
+      "note": "verify_iss gate calls _validate_iss"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 568,
+      "note": "returns when issuer is None, so any iss passes"
+     }
+    ],
+    "guards_checked": "Signature verified first. aud, by contrast, rejects a token carrying aud when the app passes no audience (api_jwt.py:522-527); iss has no equivalent guard."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "exp-optional-no-expiry",
+    "file": "jwt/api_jwt.py",
+    "line": 409,
+    "claim": "Tokens lacking an exp claim are accepted indefinitely by default, because expiry is checked only when exp is present and require defaults to empty.",
+    "source": "Attacker holds a validly signed token issued without exp.",
+    "sink": "Expiry-based session or access control.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 409,
+      "note": "exp check runs only if 'exp' in payload"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 62,
+      "note": "require defaults to []"
+     }
+    ],
+    "guards_checked": "Signature verified first. Expiry required only if the app sets require=['exp']. Consistent with RFC 7519 optionality."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "jwks-refresh-no-backoff",
+    "file": "jwt/jwks_client.py",
+    "line": 246,
+    "claim": "Unknown-kid tokens trigger JWKS refetches with no backoff after a failed fetch, and the client lock is held during network I/O, so unauthenticated traffic can amplify outbound requests and serialize verification during a JWKS outage.",
+    "source": "Unauthenticated attacker sends tokens with unknown kid values, read via get_signing_key_from_jwt without signature verification.",
+    "sink": "Outbound HTTP to the JWKS endpoint under _client_lock with a default 30 s timeout.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 280,
+      "note": "get_signing_key_from_jwt reads kid from unverified header"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 246,
+      "note": "get_signing_key holds _client_lock during fetch"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 258,
+      "note": "refresh path fetches on unknown kid when not cooling down"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 164,
+      "note": "failed fetch does not update _last_successful_fetch, so no cooldown after failure"
+     }
+    ],
+    "guards_checked": "30 s cooldown after a successful fetch when cache_jwk_set=True (jwks_client.py:250-256). Cooldown is bypassed by design when cache_jwk_set=False (docstring :66-67)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "alg-string-substring-match",
+    "file": "jwt/api_jws.py",
+    "line": 402,
+    "claim": "If the app passes algorithms as a string rather than a list, alg membership becomes substring matching, letting an attacker-chosen registered algorithm name that is a substring of the configured string pass the allow-list.",
+    "source": "Attacker-controlled alg header value; developer misconfiguration passing a str for algorithms.",
+    "sink": "Algorithm allow-list check that selects the verification algorithm.",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 247,
+      "note": "decode_complete only checks algorithms is truthy"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 402,
+      "note": "alg not in algorithms performs substring check on a str"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 420,
+      "note": "get_algorithm_by_name selects the algorithm for the substring-matched alg"
+     }
+    ],
+    "guards_checked": "EC curve check (algorithms.py:716-725) blocks ES256 vs secp256k1 key mismatch when the key is secp256k1; PEM/DER/SSH checks block HMAC with asymmetric keys; PyJWK alg must equal key.algorithm_name (api_jws.py:411). Exploitable only with developer misuse and a mismatched key type."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "claim-parse-uncaught-exceptions",
+    "file": "jwt/api_jwt.py",
+    "line": 477,
+    "claim": "Claim validators catch only ValueError around int() conversion, so an exp/nbf/iat of Infinity (accepted by json.loads) or null raises OverflowError or TypeError out of decode() instead of a clean InvalidTokenError.",
+    "source": "A key-holder-signed token with exp Infinity or null, or an attacker payload if verify_signature is disabled.",
+    "sink": "Uncaught exception in the decode path.",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 477,
+      "note": "_validate_iat catches only ValueError around int(payload['iat'])"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 492,
+      "note": "_validate_nbf same pattern"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 506,
+      "note": "_validate_exp same pattern"
+     }
+    ],
+    "guards_checked": "Signature verified first for normal decode, so the attacker must hold a signing key. Impact is an uncaught exception, not an auth bypass."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

@@ -1,0 +1,99 @@
+{
+ "arm": "B",
+ "repo": "py-webhook",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00865668,
+ "trace": {
+  "tools": {
+   "Bash": 3,
+   "Grep": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-1bcofeq6/r/app.py",
+   "/tmp/egf-1bcofeq6/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unrestricted URL fetch on /preview with response body and status returned to the caller (non-blind SSRF). Allows reading internal services and cloud metadata.",
+    "source": "request.args.get(\"url\") at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\") \u2014 attacker-controlled query param"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target) \u2014 no validation before dispatch; redirects followed by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status_code and resp.text[:500] returned in JSON response"
+     }
+    ],
+    "guards_checked": "No scheme check, no host check, no allowlist on this path. ALLOWED_HOSTS (app.py:9) defined but unused here. Redirect following not disabled, no per-hop re-validation. Severity HIGH."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. ALLOWED_HOSTS (app.py:9) is only checked in /partner (app.py:23-24), not in /preview. The sink at app.py:16 has no scheme or host check, and requests follows redirects by default.",
+    "reason": "The attacker-controlled url query parameter (app.py:15) reaches requests.get(target) with no validation (app.py:16), and the status and first 500 bytes of the response are returned to the caller (app.py:17), so this is a non-blind SSRF on an unauthenticated route."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "Host allowlist on /partner is validated only on the initial URL; requests follows redirects without re-validating, so an allowlisted partner host that redirects can send the server to internal or metadata addresses. Downgraded to MEDIUM because it needs an allowlisted partner host to misbehave, and only status_code is returned.",
+    "source": "request.args.get(\"url\") at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get(\"url\", \"\") \u2014 attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "if host not in ALLOWED_HOSTS \u2014 strict set membership on hostname, passes for allowed partner hosts"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get(target) with redirects followed by default; redirect target not re-checked"
+     }
+    ],
+    "guards_checked": "Strict set membership on parsed .hostname (correct form; suffix tricks fail). Check runs before the call. Not closed: redirect following not disabled and no per-hop re-validation. Unverified: possible urlparse vs urllib3 host disagreement for crafted URLs (backslash or %40) \u2014 sandbox probe was denied, so not reported as a finding."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:24 `if host not in ALLOWED_HOSTS`, an exact set-membership check on `urlparse(target).hostname`, run before the request at app.py:26. No redirect re-validation exists anywhere in the path.",
+    "reason": "The trace is accurate: the source at app.py:22 is attacker-controlled, and the exact hostname allowlist at app.py:24 closes the initial-URL SSRF that the rubric counts as a closing guard. The residual issue is that requests.get at app.py:26 follows redirects with no per-hop check, so an allowlisted partner host that redirects could reach internal addresses. That needs a partner-host open redirect or compromise and is a different, weaker issue than the one claimed, so I'm refuting the finding as stated rather than confirming it. It could be reported separately as a redirect-following hardening item (allow_redirects=False or per-hop validation)."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00427819
+}

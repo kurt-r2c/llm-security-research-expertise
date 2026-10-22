@@ -1,0 +1,114 @@
+{
+ "arm": "K3",
+ "repo": "inj-go-path",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "98497172",
+ "status": "success",
+ "gen_cost": 0.00539737,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ztkvq_sh/r/files.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "files.go",
+    "line": 13,
+    "claim": "Path traversal in download handler: user-supplied query parameter 'f' is joined onto /srv/files with filepath.Join without any sanitization, so '../' sequences escape the root and allow arbitrary file read.",
+    "source": "files.go:12 r.URL.Query().Get(\"f\") (unauthenticated GET /dl)",
+    "sink": "files.go:13 os.ReadFile(filepath.Join(root, name)); contents written to response at files.go:18",
+    "trace": [
+     {
+      "file": "files.go",
+      "line": 32,
+      "note": "/dl registered with download handler, no auth middleware"
+     },
+     {
+      "file": "files.go",
+      "line": 11,
+      "note": "download(w, r) entry"
+     },
+     {
+      "file": "files.go",
+      "line": 12,
+      "note": "name taken directly from query param f"
+     },
+     {
+      "file": "files.go",
+      "line": 13,
+      "note": "filepath.Join calls Clean, so ../../../etc/passwd resolves outside root; ReadFile reads it"
+     },
+     {
+      "file": "files.go",
+      "line": 18,
+      "note": "file bytes written to HTTP response"
+     }
+    ],
+    "guards_checked": "None on path in download. filepath.Base is applied only in avatar (files.go:22) and is absent here. No '..' rejection, no post-resolution prefix check, no allowlist."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only path-sanitizing call, filepath.Base, is applied in avatar at files.go:22, not in download. download (files.go:11-19) has no '..' rejection, no prefix check after resolution, and no allowlist. The /dl route at files.go:32 has no auth middleware.",
+    "reason": "An anonymous request to GET /dl (files.go:32) passes the raw query value f (files.go:12) into filepath.Join(root, name) (files.go:13), which cleans the path, so ../ sequences escape /srv/files, and the bytes read are returned at files.go:18 with no effective guard in between."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "files.go",
+    "line": 32,
+    "claim": "No authentication or authorization on file-serving routes: /dl and /avatar are registered without any auth middleware, and the server listens on all interfaces, so every file under /srv/files is served to any unauthenticated client. Severity depends on the contents of /srv/files, which were not inspected.",
+    "source": "files.go:32-33 route registration; unauthenticated network client",
+    "sink": "files.go:13 and files.go:23 ReadFile of files under /srv/files, returned at files.go:18 and :28",
+    "trace": [
+     {
+      "file": "files.go",
+      "line": 31,
+      "note": "main starts server"
+     },
+     {
+      "file": "files.go",
+      "line": 32,
+      "note": "/dl route registered without auth"
+     },
+     {
+      "file": "files.go",
+      "line": 33,
+      "note": "/avatar route registered without auth"
+     },
+     {
+      "file": "files.go",
+      "line": 34,
+      "note": "ListenAndServe on :8082 (all interfaces)"
+     },
+     {
+      "file": "files.go",
+      "line": 18,
+      "note": "file contents returned unconditionally"
+     }
+    ],
+    "guards_checked": "No auth middleware, token check, session check, or ownership check exists anywhere in files.go."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. No auth, token, session, or ownership check exists in files.go. main registers /dl and /avatar directly (files.go:32-33) and calls ListenAndServe(\":8082\", nil) on all interfaces (files.go:34). The only conditional is the error check on ReadFile (files.go:14, :24), which only chooses between NotFound and serving the file.",
+    "reason": "An anonymous network client can request /dl?f=... (files.go:12-13) and receive the file contents unconditionally (files.go:18) because the route has no auth middleware (files.go:32) and the server binds to all interfaces (files.go:34). The candidate understates the impact: filepath.Join does not confine the path, so f=../../etc/passwd resolves outside /srv/files and is served too (files.go:13, :18). Only /avatar is contained, by filepath.Base (files.go:22). The trace note at files.go:31 is loosely worded (the server starts at :34), but the substance is accurate."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00391777
+}

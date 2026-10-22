@@ -1,0 +1,157 @@
+{
+ "arm": "A",
+ "repo": "ipaddress-ssrf",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.0318212,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 9,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ozzdomv_/r/src/ip-address.ts",
+   "/tmp/egf-ozzdomv_/r/src/ipv4.ts",
+   "/tmp/egf-ozzdomv_/r/src/ipv6.ts",
+   "/tmp/egf-ozzdomv_/r/src/common.ts",
+   "/tmp/egf-ozzdomv_/r/src/v6/helpers.ts",
+   "/tmp/egf-ozzdomv_/r/src/v6/regular-expressions.ts",
+   "/tmp/egf-ozzdomv_/r/src/v6/constants.ts",
+   "/tmp/egf-ozzdomv_/r/src/v4/constants.ts",
+   "/tmp/egf-ozzdomv_/r/src/address-error.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/common.ts",
+    "line": 40,
+    "claim": "isHostInSubnet/isInSubnet have no address-family check, so an IPv6 address can be tested against an IPv4 range (and vice versa). Public methods on both classes expose them, and the docs recommend them for SSRF/trust-boundary decisions on untrusted input. An attacker-chosen IPv6 literal such as a00::1 is reported as inside 10.0.0.0/8.",
+    "source": "Attacker-controlled IPv6 literal (e.g. a DNS AAAA record or URL host) parsed via new Address6(host) at src/ipv6.ts:113.",
+    "sink": "Caller trust decision using addr6.isHostInSubnet(new Address4('10.0.0.0/8')) (method bound at src/ipv6.ts:1226, src/ipv4.ts:465).",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1226,
+      "note": "isHostInSubnet = common.isHostInSubnet; assigned on Address6 with no family restriction"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 39,
+      "note": "Signature accepts this: Address4|Address6 and address: Address4|Address6, so mixed families type-check"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 40,
+      "note": "Compares this.mask(address.subnetMask) with address.mask() as raw bit strings; no check that both are the same width"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 428,
+      "note": "Address6.mask() returns the first N bits of the 128-bit binary form"
+     },
+     {
+      "file": "src/ipv4.ts",
+      "line": 414,
+      "note": "Address4.mask() returns the first 8 bits of the 32-bit form for a /8 range"
+     }
+    ],
+    "guards_checked": "No family check in common.ts:19-25 (isInSubnet) or common.ts:39-41 (isHostInSubnet). The doc comments (common.ts:27-38, ipv6.ts:1218-1226) warn about untrusted input but do not enforce anything. Built-in classifiers only pass same-family ranges, so the bug is reachable only when a caller passes a mixed-family range. The Address4 subnet check also matches on prefix bits alone."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/common.ts",
+    "line": 123,
+    "claim": "testBit is off by one. Bit p is read at string index length-p instead of length-1-p. Teredo flag booleans are therefore wrong: coneNat reads the R bit, groupIndividual reads an 'A' bit, and universalLocal reads the G bit.",
+    "source": "Attacker-controlled IPv6 bits in the Teredo 2001::/32 range, passed to Address6.inspectTeredo().",
+    "sink": "Booleans returned by inspectTeredo() (coneNat, microsoft.reserved, microsoft.universalLocal, microsoft.groupIndividual) that application logic may act on.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 988,
+      "note": "flagsBase2 = getBitsBase2(64,80): a 16-char string where index 0 is bit 15"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 990,
+      "note": "coneNat = testBit(flagsBase2, 15) (the C bit)"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 117,
+      "note": "length = binaryValue.length (16)"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 123,
+      "note": "positionInString = length - position = 1 for position 15; should be length-1-position = 0"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 124,
+      "note": "Returns the character at index 1, which is the R bit. The C bit at index 0 is never read"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 992,
+      "note": "groupIndividual = testBit(flagsBase2, 8) reads index 8, which is bit 7 (an A bit), not the G bit"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 993,
+      "note": "universalLocal = testBit(flagsBase2, 9) reads index 7, which is bit 8 (the G bit), not the U bit"
+     }
+    ],
+    "guards_checked": "testBit's own doc (common.ts:112-115) says position 0 is the LSB, which the code contradicts. The position > length guard (common.ts:119) does not catch the off-by-one. The raw flags string (ipv6.ts:1000) and nonce (ipv6.ts:994) are correct, so only the derived booleans are wrong. No tests are in this directory, so this is not caught here."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/ipv6.ts",
+    "line": 1312,
+    "claim": "embeddedIPv4 unwraps only IPv4-mapped and NAT64 well-known addresses. 6to4 (2002::/16) and Teredo addresses embed an IPv4 address that the classifiers ignore, so isPrivate/isLoopback/isLinkLocal return false for embedded private or loopback targets such as 2002:0a00:0001:: (embeds 10.0.0.1).",
+    "source": "Attacker-controlled IPv6 literal, e.g. a hostname AAAA record or a URL host, reaching new Address6(host).",
+    "sink": "SSRF deny-list or internal-only check built on isPrivate()/isLoopback(), followed by a connection through a 6to4 or Teredo path.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1312,
+      "note": "embeddedIPv4 checks only isMapped4() or NAT64_WELL_KNOWN_SUBNET (line 1313)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1375,
+      "note": "isPrivate: embeddedIPv4() returns null for 2002:0a00:0001::, then falls through to isULA()/NAT64 local-use only, so it returns false"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1340,
+      "note": "isLoopback has the same gap: 2002:7f00:0001:: is not reported as loopback"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1332,
+      "note": "is6to4() exists, but no classifier uses it to unwrap the embedded IPv4"
+     }
+    ],
+    "guards_checked": "The doc comment at ipv6.ts:1295-1310 says embeddedIPv4 covers mapped and NAT64 only, so this is a design gap rather than a bug in the code as written. It is exploitable only if the deployment routes 6to4/Teredo traffic to IPv4 (a tunnel or relay on the path). Not verified by running code."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

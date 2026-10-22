@@ -1,0 +1,99 @@
+{
+ "arm": "K1",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "ssrf",
+ "config_id": "851c79bd",
+ "status": "success",
+ "gen_cost": 0.0504456,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-e_cr4n31/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unauthenticated /preview fetches any URL supplied by the caller and returns status and the first 500 chars of the body. An attacker can reach internal services, loopback, and cloud metadata (169.254.169.254) and read the response.",
+    "source": "request.args.get('url') in preview()",
+    "sink": "requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target taken directly from the query string"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "passed unmodified to requests.get, which follows redirects by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "response status and body are returned to the attacker (full-read SSRF)"
+     }
+    ],
+    "guards_checked": "No scheme allowlist, host allowlist, IP/private-range block, or auth decorator on the route. Redirects are followed. The timeout only limits duration."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "app.py:15 reads the url query param, app.py:16 passes it unvalidated to requests.get (no auth, allowlist, or IP block; the ALLOWED_HOSTS check exists only on /partner at app.py:24), and app.py:17 returns the status and first 500 chars of the body."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks the host with a hostname allowlist, but requests follows redirects by default. Any open redirect on an allowed partner host, or a urlparse vs urllib3 parsing differential (for example a backslash before '@' in the authority), can send the request to an arbitrary host. Only the status code is returned, so this is blind or semi-blind SSRF. It is less certain than ssrf-1 and I have not confirmed a bypass.",
+    "source": "request.args.get('url') in partner()",
+    "sink": "requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target taken from the query string"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host extracted with urllib.parse.urlparse(...).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "exact-match check against ALLOWED_HOSTS, performed on the urlparse result only"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "the original string is re-parsed by requests/urllib3 and fetched with redirects enabled, with no re-validation"
+     }
+    ],
+    "guards_checked": "Exact-match hostname allowlist, which is effective against simple tricks such as userinfo '@' or a subdomain suffix. No scheme restriction (only http/https are supported by requests anyway). allow_redirects is not disabled. The resolved IP is not pinned or checked. The route has no authentication."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "Exact set membership of urlparse(target).hostname in ALLOWED_HOSTS (app.py:23-25), which returns 400 otherwise. allow_redirects is not disabled (app.py:26).",
+    "reason": "The trace matches app.py:22-27 and the url parameter is attacker-controlled, but app.py:23-25 is an exact hostname set-membership guard, which closes the finding. The redirect and parser-differential bypasses are speculative, and the candidate admits it has not confirmed one. No open redirect on an allowed host exists in this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0579323
+}

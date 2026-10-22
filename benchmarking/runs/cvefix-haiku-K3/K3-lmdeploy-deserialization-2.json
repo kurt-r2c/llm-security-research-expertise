@@ -1,0 +1,244 @@
+{
+ "arm": "K3",
+ "repo": "lmdeploy-deserialization",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3af06fea",
+ "status": "success",
+ "gen_cost": 0.06595982,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Grep": 19,
+   "Read": 15,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/openai/endpoints/management.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/utils/server_utils.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/proxy/proxy.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/proxy/proxy.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/openai/api_server.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/proxy/proxy.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/proxy/proxy.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/vl/media/connection.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/processors/multimodal.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/processors/multimodal.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/pytorch/engine/model_agent/agent.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/pytorch/engine/model_agent/agent.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/pytorch/engine/engine.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/serve/openai/endpoints/distserve.py",
+   "/tmp/egf-wi2u6rdo/r/lmdeploy/pytorch/engine/executor/mp_executor.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+    "line": 1289,
+    "claim": "Unauthenticated POST /update_weights reaches ForkingPickler.loads on a client-supplied base64 payload, giving remote code execution in the default configuration where api_keys is unset.",
+    "source": "management.py:53-59 POST /update_weights; protocol.py:541 serialized_named_tensors (client string)",
+    "sink": "agent.py:1289 ForkingPickler.loads(pybase64.b64decode(serialized_data))",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/openai/endpoints/management.py",
+      "line": 58,
+      "note": "handler forwards request to engine.update_params unchecked"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/engine.py",
+      "line": 510,
+      "note": "engine.update_params -> executor.update_params"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/executor/base_worker.py",
+      "line": 117,
+      "note": "worker -> model_agent.update_params"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1332,
+      "note": "serialized_data = request.serialized_named_tensors"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1339,
+      "note": "_deserialize_weights(serialized_data)"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1289,
+      "note": "pickle deserialization of attacker bytes"
+     }
+    ],
+    "guards_checked": "server_utils.py:15-19 validate_json_request checks Content-Type only; server_utils.py:75-128 AuthenticationMiddleware installed only if api_keys set (api_server.py:409-410, opt-in); no payload type restriction; load_format check happens only after deserialization (agent.py:1290)"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "lmdeploy/serve/proxy/proxy.py",
+    "line": 492,
+    "claim": "Proxy /nodes/* routes are exempt from API-key auth by path prefix, so anyone can register an attacker-controlled backend URL and receive subsequent client requests, including the caller's Authorization header and prompts; the same routes can also terminate all backends and drive proxy-side GETs to arbitrary URLs.",
+    "source": "Unauthenticated HTTP body Node.url and status.models on POST /nodes/add (proxy.py:55-58, 492-510)",
+    "sink": "NodeManager.add force-registers node (proxy.py:165-169) and _prepare_headers forwards all headers incl. Authorization to node_url+endpoint (proxy.py:450-460, 408-414, 357-359)",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/utils/server_utils.py",
+      "line": 90,
+      "note": "skip_prefixes includes /nodes"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 924,
+      "note": "middleware installed only when api_keys set"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 492,
+      "note": "/nodes/add with no auth"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 165,
+      "note": "non-empty models -> registered without contacting node, no URL validation"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 138,
+      "note": "update_config_file persists the attacker node"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 451,
+      "note": "Authorization copied into forwarded headers"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 412,
+      "note": "POST to attacker URL with client headers and body"
+     },
+     {
+      "file": "lmdeploy/serve/proxy/proxy.py",
+      "line": 194,
+      "note": "/nodes/terminate issues GET {node_url}/terminate; terminate_all at 540-550 iterates all nodes"
+     }
+    ],
+    "guards_checked": "server_utils.py:90-95 /nodes bypass; proxy.py:924-927 auth only when api_keys set; Node.url is plain str with no scheme/host validation (proxy.py:55-58); add() swallows exceptions (proxy.py:509-510); no _is_safe_url-style check on node URLs"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "lmdeploy/serve/openai/endpoints/management.py",
+    "line": 72,
+    "claim": "Unauthenticated weight-update endpoints let a network attacker join a torch.distributed group at an attacker-chosen master address and broadcast arbitrary weights into the running model, persistently poisoning it for all users.",
+    "source": "POST /init_weights_update_group body master_address/master_port/rank_offset/world_size/backend (protocol.py:549-552); POST /update_weights_from_distributed (management.py:88-106)",
+    "sink": "agent.py:1380-1391 init_custom_process_group(tcp://master_address:master_port); agent.py:1412-1431 dist.broadcast into attacker-influenced tensors loaded into model",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/openai/endpoints/management.py",
+      "line": 74,
+      "note": "handler forwards request unchecked besides backend check"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1380,
+      "note": "init_method built from request master_address/master_port"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1385,
+      "note": "joins group with attacker-chosen master"
+     },
+     {
+      "file": "lmdeploy/pytorch/engine/model_agent/agent.py",
+      "line": 1421,
+      "note": "receives broadcast tensors from src=0 into model path"
+     }
+    ],
+    "guards_checked": "management.py:61-70 backend check only; agent.py:1373-1376 group_name uniqueness only; no address allowlist; no auth unless api_keys set (opt-in). Final weight-load call past agent.py:1434 not read."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 130,
+    "claim": "Chat multimodal image_url/video_url/audio_url values are passed unvalidated to the file branch of load_from_url, letting an unauthenticated client read any local file the server can decode as image, video, or audio.",
+    "source": "Client-supplied image_url/video_url/audio_url string in POST /v1/chat/completions and sibling endpoints (multimodal.py:139-145, 156-179)",
+    "sink": "connection.py:130-131 _load_file_url -> media_io.load_file (image.py:31-34, video_loader.py:117-125)",
+    "trace": [
+     {
+      "file": "lmdeploy/serve/processors/multimodal.py",
+      "line": 145,
+      "note": "URL taken as data_src without validation"
+     },
+     {
+      "file": "lmdeploy/serve/processors/multimodal.py",
+      "line": 162,
+      "note": "image branch calls load_from_url"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 130,
+      "note": "file:// scheme or os.path.exists(url) or os.path.exists(url_spec.path) selects file branch"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 112,
+      "note": "_load_file_url builds Path from netloc+path"
+     },
+     {
+      "file": "lmdeploy/vl/media/image.py",
+      "line": 31,
+      "note": "open(file_path) and Image.open reads local file"
+     }
+    ],
+    "guards_checked": "allowed_media_domains only applies to HTTP branch (connection.py:60,75); _is_safe_url only on HTTP branch (connection.py:79); no scheme, path, or root restriction on file branch; allowed_media_domains defaults to None (api_server.py:277)"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "lmdeploy/vl/media/connection.py",
+    "line": 83,
+    "claim": "_is_safe_url resolves DNS once for the global-IP check and requests.get resolves again at connect time, so DNS rebinding can make the server fetch internal or metadata addresses (SSRF).",
+    "source": "Client-supplied http(s) media URL in chat multimodal fields (multimodal.py:145-164)",
+    "sink": "connection.py:83 client.get(parsed.url) after check at connection.py:79",
+    "trace": [
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 79,
+      "note": "_is_safe_url check"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 41,
+      "note": "getaddrinfo first resolution, is_global checked at line 49"
+     },
+     {
+      "file": "lmdeploy/vl/media/connection.py",
+      "line": 83,
+      "note": "requests.get performs second, unpinned DNS resolution at connect time"
+     }
+    ],
+    "guards_checked": "is_global check on first resolution (connection.py:49-50) enforced; redirects re-validated per hop (connection.py:70-79) enforced; no IP pinning between check and connect; rebinding not tested dynamically"
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

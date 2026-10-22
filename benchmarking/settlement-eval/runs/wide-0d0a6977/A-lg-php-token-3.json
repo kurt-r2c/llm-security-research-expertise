@@ -1,0 +1,103 @@
+{
+ "arm": "A",
+ "repo": "lg-php-token",
+ "rep": 3,
+ "status": "success",
+ "gen_cost": 0.0412345,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "reset.php",
+    "line": 4,
+    "claim": "Password reset token is compared with loose equality (==), allowing token bypass via PHP type juggling. If $token is attacker-supplied as a JSON boolean true (or int 0 on PHP<8), it equals any non-empty/non-numeric stored token. If the stored token is a numeric-string like '0e12345', any other '0e...' string also matches (magic hash). This enables account takeover of any email.",
+    "source": "Attacker-controlled $email and $token (e.g. from the reset request body; JSON decoding yields typed values like true/0), plus unauthenticated access",
+    "sink": "UPDATE users SET pw = ... WHERE email = ... (line 5-6) \u2013 overwrites the victim's password",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 2,
+      "note": "reset_password_loose receives attacker-controlled $email, $token, $new"
+     },
+     {
+      "file": "reset.php",
+      "line": 3,
+      "note": "Stored token fetched for the victim email"
+     },
+     {
+      "file": "reset.php",
+      "line": 4,
+      "note": "$row['token'] == $token loose comparison, bypassable with true / 0 / '0e..' strings"
+     },
+     {
+      "file": "reset.php",
+      "line": 5,
+      "note": "Password hash of attacker-chosen $new written for victim's email"
+     }
+    ],
+    "guards_checked": "No type check on $token, no strict comparison (===/hash_equals), no expiry, no rate limiting. SQL is escaped via $db->quote so injection is not the issue. The sibling reset_password() uses hash_equals with a (string) cast and is not affected; this finding applies only if the _loose variant is reachable."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none in reset_password_loose (only $db->quote for SQL escaping, which is irrelevant to the token comparison); the sibling reset_password() at reset.php:14 uses hash_equals with a (string) cast.",
+    "reason": "reset.php:4 does use loose `==` on the token with no type check, so `true` would match any non-empty stored token (and '0e..' strings would match each other), but nothing in the directory calls reset_password_loose, so I can't tell whether an anonymous attacker can reach it or supply a typed (non-string) $token."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "reset.php:4 compares the stored token to $token with `==` and no type check, so a JSON boolean true matches any non-empty stored token and lines 5-6 then overwrite the victim's password. This depends on the caller (not in this directory) passing a typed value such as a decoded JSON boolean rather than a string."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "reset.php",
+    "line": 14,
+    "claim": "Reset token is not invalidated after use and has no expiry or attempt limiting, in both functions. A leaked/old token can be replayed to reset the password repeatedly, and the token can be brute-forced without throttling.",
+    "source": "Attacker who has obtained a previously issued token (email, logs, referrer) or who can guess tokens, with a known victim email",
+    "sink": "UPDATE users SET pw = ... WHERE email = ... (line 15-16)",
+    "trace": [
+     {
+      "file": "reset.php",
+      "line": 13,
+      "note": "Token row selected by email only; no created_at/expiry column checked"
+     },
+     {
+      "file": "reset.php",
+      "line": 14,
+      "note": "Token compared with hash_equals; success is the only gate"
+     },
+     {
+      "file": "reset.php",
+      "line": 15,
+      "note": "Password updated; no DELETE of the resets row afterward"
+     },
+     {
+      "file": "reset.php",
+      "line": 17,
+      "note": "Returns true without consuming the token"
+     }
+    ],
+    "guards_checked": "hash_equals gives timing safety and string typing; no expiry check, no single-use deletion, no rate limiting visible in this file. Callers/token generation are not in the repo, so the token entropy and any external throttling are unverified."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "hash_equals at reset.php:14 (timing-safe compare only); no expiry, no single-use deletion, no rate limiting. reset.php is the only file in the repo.",
+    "reason": "reset.php:13-17 selects the token by email only, updates the password at 15-16, and returns true without deleting or expiring the resets row, so a leaked token can be replayed, although the brute-force part depends on token entropy that isn't in the repo."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "hash_equals (timing-safe compare only); no expiry, no deletion of the resets row, no rate limiting in this file",
+    "reason": "reset.php:13-17 selects the token by email, compares it with hash_equals, updates the password, and returns true without deleting the resets row or checking any expiry or attempt count, so a token can be replayed and guessed without limit. The only caveat is that token entropy and any external throttling are outside this directory."
+   }
+  }
+ ],
+ "verify_cost": 0.0684143,
+ "verify_facts_cost": 0.0639922
+}

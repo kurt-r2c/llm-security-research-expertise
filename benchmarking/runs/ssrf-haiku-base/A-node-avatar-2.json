@@ -1,0 +1,115 @@
+{
+ "arm": "A",
+ "repo": "node-avatar",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.00550225,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-rb3oqbmq/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "ssrf-avatar-001",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar fetches an attacker-supplied URL server-side with axios; the only check is an https:// prefix, so the host is unrestricted. Internal HTTPS hosts are reachable, and an https:// host can redirect to http:// internal targets such as 169.254.169.254. The response is returned only as byte length, so the bug is blind but gives a reachability oracle.",
+    "source": "server.js:10 (req.body.avatarUrl, unauthenticated POST body)",
+    "sink": "server.js:14 (axios.get(url, { responseType: \"arraybuffer\" }))",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 5,
+      "note": "express.json() parses the request body; no auth middleware on the route"
+     },
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "POST /profile/avatar registered without authentication or authorization"
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl, taken directly from the client"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "validation: typeof url === 'string' and url.startsWith('https://'); scheme only, no host check"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "axios.get(url) issues the server-side request; redirects followed by default (not verified by running)"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "res.json({ bytes: img.data.length }) returns only the size; non-2xx throws, and the async handler has no try/catch, giving a success/error oracle"
+     }
+    ],
+    "guards_checked": "Type check (typeof string) at server.js:11: sound. Scheme prefix check (startsWith https://) at server.js:11: restricts scheme only, not host. Not present: hostname/IP allowlist; private, loopback, or link-local address rejection; DNS-resolution check against rebinding; port restriction; maxRedirects:0 or per-hop redirect validation; response size limit; timeout. Internal HTTPS targets need a trusted certificate unless NODE_TLS_REJECT_UNAUTHORIZED=0 is set (deployment question, not verified)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is server.js:11, `typeof url !== \"string\" || !url.startsWith(\"https://\")`, which is a type check plus a scheme-only prefix check. There is no hostname or IP allowlist, no private/loopback/link-local rejection, no maxRedirects:0, no timeout, and no response size limit anywhere in server.js.",
+    "reason": "The attacker-controlled value `req.body.avatarUrl` (server.js:10) reaches `axios.get(url, ...)` (server.js:14) on an unauthenticated route (server.js:9), and the only validation at server.js:11 restricts the scheme to https:// without any host restriction, so the SSRF is not closed. Trace lines all exist and match the description; the one nuance is that the error path at server.js:14-15 has no try/catch, so a failed fetch produces a hung or failed request rather than a clean error response, which still gives a reachability signal but is not the explicit success/error oracle the claim describes. Redirect-following is axios's default and not verified by running, and reaching internal HTTPS hosts depends on certificate trust at deployment."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "ssrf-users-002",
+    "file": "server.js",
+    "line": 20,
+    "claim": "Not an SSRF finding: the destination host is fixed to USER_SVC. Path confusion via id values such as '..' can reach other paths on the same trusted host (low severity).",
+    "source": "server.js:18 (req.params.id)",
+    "sink": "server.js:20 (axios.get to fixed USER_SVC host)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 7,
+      "note": "USER_SVC constant fixes the host to http://users.internal:8080"
+     },
+     {
+      "file": "server.js",
+      "line": 18,
+      "note": "req.params.id from the route"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "encodeURIComponent(id) encodes '/', '?', '#', and '%'; '.' and '..' pass through"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "axios.get on the fixed host; dot-segments can alter the path on the same host"
+     }
+    ],
+    "guards_checked": "encodeURIComponent at server.js:19 blocks path-separator and query injection. Host is constant, so the attacker cannot choose the destination host. Residual path confusion is low severity and not SSRF."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "server.js:19 encodeURIComponent(req.params.id) blocks '/', '?', and '#', so the attacker cannot add path segments. The destination host is a constant at server.js:7 and is used unchanged at server.js:20.",
+    "reason": "The trace is accurate (server.js:7, 18, 19, 20 match the claims), but the attacker cannot choose the destination host, so this is not SSRF; the only residual effect is a dot-segment (`..`) normalization within the same fixed host at server.js:20, which the candidate itself rates as low-severity path confusion rather than SSRF."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0041465
+}

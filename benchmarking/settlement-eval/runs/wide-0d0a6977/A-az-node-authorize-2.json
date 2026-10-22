@@ -1,0 +1,98 @@
+{
+ "arm": "A",
+ "repo": "az-node-authorize",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.04284110000000001,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "DELETE /projects/:id calls authorized(), which only returns a boolean, and ignores the result. Any authenticated user can delete any project. The sibling route uses authorize(), which throws, so this looks like a mix-up of the two helpers.",
+    "source": "Any authenticated user sends DELETE /projects/<id> for a project they don't own, with req.user not admin.",
+    "sink": "req.store.projects.delete(project.id) at api.js:19 (project deletion).",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 16,
+      "note": "Route handler for DELETE /projects/:id. The only guard is authentication, which is assumed to run upstream."
+     },
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "Project is loaded by the attacker-supplied id. There is no ownership filter."
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "authorized(req.user, project) returns false for non-owners, but the return value is discarded and nothing throws."
+     },
+     {
+      "file": "api.js",
+      "line": 19,
+      "note": "The project is deleted unconditionally."
+     },
+     {
+      "file": "api.js",
+      "line": 20,
+      "note": "Returns 204, so the attacker sees success."
+     }
+    ],
+    "guards_checked": "Checked authorized() at api.js:12-14. It is a pure predicate with no side effects and no throw. Only one file exists in the directory, so there is no middleware here and I could not see any upstream authorization. Checked whether the call is wrapped in a conditional or throw. It is not."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: authorized() at api.js:12-14 is a pure boolean predicate whose result is discarded at api.js:18; authorize() (api.js:4-10, which throws) is only used on the PUT route at api.js:25. No middleware is visible in the directory (only api.js exists).",
+    "reason": "api.js:18 calls the boolean-returning authorized() as a bare statement, so nothing throws or returns early and api.js:19 deletes the project for any authenticated non-owner, non-admin user. The PUT route at api.js:25 uses the throwing authorize(), which confirms the mix-up."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none effective: authorized() at api.js:12-14 is a pure boolean predicate whose result is discarded at api.js:18; the throwing authorize() (api.js:4-10) is only used in the PUT route at api.js:25.",
+    "reason": "api.js:18 calls the boolean-returning authorized() as a bare statement and never checks the result, so any authenticated non-owner, non-admin reaches req.store.projects.delete at api.js:19 and gets a 204 at api.js:20."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "api.js",
+    "line": 17,
+    "claim": "A non-existent project id likely makes projects.get() return undefined, because the store looks like a Map. Dereferencing it (project.id at line 19, and ownerId inside authorize at line 5) throws a TypeError. In the DELETE route the throw happens at line 19, after the missed authorization check. This is mainly a robustness problem, and Express 4 may turn it into a 500 response. It is low severity, and it is not a security finding by itself.",
+    "source": "The :id path parameter is an arbitrary string supplied by the attacker.",
+    "sink": "Unhandled TypeError at api.js:19 and api.js:5.",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "get() on an unknown id returns undefined, assuming Map semantics."
+     },
+     {
+      "file": "api.js",
+      "line": 25,
+      "note": "authorize() reads resource.ownerId on undefined and throws a TypeError, giving 500 instead of 404."
+     }
+    ],
+    "guards_checked": "No null check, 404 handling, or error middleware is visible in this file. The store implementation is not in scope, so I could not confirm its behavior."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": false,
+    "guard_found": "none in api.js: no null check or 404 handling on the get() result (api.js:17, 24). authorize() (api.js:4-10) throws on failure. authorized() (api.js:12-14) returns a bool, and the DELETE route discards it at api.js:18. No error middleware is in this file.",
+    "reason": "Lines 17 and 25 are accurate, but the claim that the DELETE throw happens at api.js:19 is wrong: authorized() at api.js:18 would throw at api.js:13 first. Whether get() returns undefined depends on req.store, which isn't in scope (api.js:17), and the result at most gives a 500 instead of a 404, which is not a security issue."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": false,
+    "guard_found": "none (no null check or 404 handling in api.js; the store, and any error middleware, are outside this directory)",
+    "reason": "The claim that DELETE throws at api.js:19 is wrong: if get() at api.js:17 returns undefined, authorized() at api.js:18 throws first, at api.js:13. Whether get() returns undefined for an unknown id depends on req.store, which isn't in this directory. Even if it does, the result is a non-security robustness error."
+   }
+  }
+ ],
+ "verify_cost": 0.0647304,
+ "verify_facts_cost": 0.0647441
+}

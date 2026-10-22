@@ -1,0 +1,147 @@
+{
+ "arm": "K2",
+ "repo": "loofah-scrub",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.16735676,
+ "trace": {
+  "tools": {
+   "Read": 17,
+   "Glob": 10,
+   "Grep": 3,
+   "StructuredOutput": 2
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-oqygzfk6/expertise/INDEX.md",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/html5/scrub.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/scrubbers.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/html5/safelist.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/helpers.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/scrubber.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/concerns.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/html4/document_fragment.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/html5/document_fragment.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah.rb",
+   "/opt/homebrew/lib/ruby/gems/3.1.0/gems/crass-1.0.6/lib/crass/tokenizer.rb",
+   "/opt/homebrew/lib/ruby/gems/3.1.0/gems/crass-1.0.6/lib/crass/tokenizer.rb",
+   "/opt/homebrew/lib/ruby/gems/3.1.0/gems/crass-1.0.6/lib/crass/parser.rb",
+   "/tmp/egf-oqygzfk6/r/lib/loofah/metahelpers.rb",
+   "/tmp/egf-oqygzfk6/expertise/cases/08-sanitize-before-decode.md",
+   "/tmp/egf-oqygzfk6/expertise/cases/04-url-validate-reparse.md",
+   "/tmp/egf-oqygzfk6/expertise/cases/24-regex-unanchored.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "css-ident-url-bypass",
+    "file": "lib/loofah/html5/scrub.rb",
+    "line": 126,
+    "claim": "scrub_css emits identifier values unescaped for non-shorthand properties such as cursor and list-style. A CSS-escaped identifier that decodes to url(...) is not a :url token on the first parse, so the url check passes. The decoded text is reparsed as a real url() token and written to the output style attribute. Confirmed by reading Crass 1.0.6 source; not executed.",
+    "source": "Attacker-controlled style attribute on any element Loofah sanitizes, for example Loofah.html5_fragment(input).scrub!(:strip) or Loofah::Helpers.sanitize. Payload: cursor: u\\72l\\28http\\3a\\2f\\2fzexample\\2eorg\\2fpath\\2fimg\\2epng\\29",
+    "sink": "Sanitized style attribute containing cursor:url(http://zexample.org/path/img.png), which makes the victim browser fetch a remote resource. The sanitizer is meant to strip url() entirely. Impact is remote load or tracking, not script execution.",
+    "trace": [
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 93,
+      "note": "scrub_css_attribute reads node.attributes['style'], the attacker input"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 99,
+      "note": "Crass.parse_properties tokenizes the CSS; the escaped identifier becomes one :ident whose :value is unescaped to url(http:...)"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 104,
+      "note": "url_flags check inspects only top-level child node types; the ident is not :url or :bad_url, so it passes"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 108,
+      "note": "cursor (and list-style) are in ACCEPTABLE_CSS_PROPERTIES (safelist.rb:646, 668)"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 126,
+      "note": "keyword = child[:value] takes the unescaped value"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 127,
+      "note": "the shorthand guard only covers background, border, margin and padding, so cursor and list-style return the ident without any keyword filter"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 141,
+      "note": "propstring 'cursor:url(http:...)' is reparsed; Crass yields a :url token; only .first is kept, which truncates extra declarations but not the url"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 145,
+      "note": "Crass::Parser.stringify emits the url raw into the output"
+     }
+    ],
+    "guards_checked": "url_flags node-type check at line 104 (runs on the pre-reparse tree only); shorthand keyword filter at 127 (does not cover cursor or list-style); ALLOWED_CSS_FUNCTIONS at 122 (not applied to reparsed text); .first at 141 (blocks extra declarations, not url); no re-validation after reparse; allowed_uri? (not applied to CSS)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "allowed-uri-semicolonless-entity",
+    "file": "lib/loofah/html5/scrub.rb",
+    "line": 185,
+    "line_note": "allowed_uri? returns true at 185",
+    "claim": "allowed_uri? returns true for javascript&#58alert(1). CGI.unescapeHTML only decodes entities that end in ';' (Ruby cgi/util.rb:97), and URI_PROTOCOL_REGEX (scrub.rb:17) requires a literal ':' after the scheme, so the scheme check is skipped. Browsers decode numeric references without a semicolon in attribute values. Confirmed for the allowed_uri? API by reading. The DOM-path exploit (Loofah::Helpers.sanitize, html4/libxml2) is PLAUSIBLE and not executed: it depends on libxml2 writing href values with '&' unescaped.",
+    "source": "Attribute value of href, src, action, cite or other ATTR_VAL_IS_URI attributes. Direct API input: javascript&#58alert(1). DOM input: <a href=\"javascript&amp;#58alert(1)\">x</a>, which libxml2 decodes once to javascript&#58alert(1).",
+    "sink": "Attribute kept in sanitized output; if serialized raw, the browser decodes &#58 to ':' and the link becomes a javascript: URL (XSS on click). Likely not reachable on the HTML5/Gumbo path, which escapes '&' in attributes.",
+    "trace": [
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 170,
+      "note": "allowed_uri?(uri_string) entry"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 172,
+      "note": "CGI.unescapeHTML only decodes ';'-terminated refs, so &#58alert is left as-is"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 176,
+      "note": "URI_PROTOCOL_REGEX requires a literal ':' after [a-z][a-z0-9+.-]*; the input has '&' there, so the regex does not match"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 185,
+      "note": "falls through to 'true': allowed"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 189,
+      "note": "scrub_uri_attribute keeps the attribute when allowed_uri? is true"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 17,
+      "note": "URI_PROTOCOL_REGEX definition, the literal-colon requirement"
+     },
+     {
+      "file": "lib/loofah/html5/scrub.rb",
+      "line": 202,
+      "note": "force_correct_attribute_escaping! only handles space and double-quote, so '&' is not escaped here"
+     }
+    ],
+    "guards_checked": "CONTROL_CHARACTERS strip (line 172-173): irrelevant to the entity form. &colon; replacement (line 174): only the named form. PROTOCOL_SEPARATOR (safelist.rb:986) handles &#58 without ';' but is reached only after URI_PROTOCOL_REGEX matches, which it does not. Case 08 invariant (validate after every decode) is violated."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

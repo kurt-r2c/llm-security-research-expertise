@@ -1,0 +1,138 @@
+{
+ "arm": "C",
+ "repo": "az-node-massassign",
+ "rep": 3,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.00879214,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 1,
+   "Grep": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-b8e0ijfl/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "users-put-me-mass-assignment",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me lets any authenticated user overwrite arbitrary fields of their own user record, including privilege and integrity fields such as role, isAdmin, emailVerified, passwordHash, mfaEnabled, tenantId, or id, by sending them in the JSON body.",
+    "source": "req.body (attacker-controlled JSON body) at users.js:5",
+    "sink": "Object.assign(req.user, req.body) at users.js:5, followed by req.store.save(req.user) at users.js:6 and the response at users.js:7",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "Route handler for PUT /me; no field filtering, schema, or validation"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies every own enumerable key of req.body onto req.user"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "The mutated req.user is persisted to the store unchanged"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "The full updated record is returned, which can also disclose fields the user should not see"
+     }
+    ],
+    "guards_checked": "No allowlist, pick, or schema in this file. Upstream auth middleware and body parser are not visible; they establish req.user but do not restrict which fields may be written. The /me/profile route at line 10 does allowlist its fields, which shows the intended pattern was applied only there. Severity depends on which fields exist on the user model, which could not be seen."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 Object.assign(req.user, req.body) copies the whole body with no allowlist, pick, or schema; the return value is unused, and nothing between users.js:4 and users.js:6 filters or throws. The allowlist at users.js:11-12 belongs to the separate /me/profile route and does not guard /me. Upstream auth and body-parser middleware are not in the directory, so they could not be checked.",
+    "reason": "The trace matches the code: users.js:4-7 passes the whole req.body into Object.assign(req.user, req.body) at users.js:5, persists it at users.js:6, and returns it at users.js:7, with no visible control between them, so any user who can reach this route can overwrite their own record's fields. Whether role, isAdmin, or passwordHash are actually present on the model could not be seen, so the claimed severity is unverified even though the defect itself is confirmed."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-put-me-proto-chain-swap",
+    "file": "users.js",
+    "line": 5,
+    "claim": "A JSON body containing an own key \"__proto__\" makes Object.assign replace req.user's prototype with an attacker-supplied object. Any later check that reads an inherited property, such as req.user.isAdmin, can then evaluate true for an unprivileged user, for the rest of that request.",
+    "source": "req.body with key \"__proto__\" from JSON.parse, which yields an own property named __proto__ (attacker-controlled)",
+    "sink": "Object.assign at users.js:5 uses [[Set]], which invokes the __proto__ setter on req.user and changes its [[Prototype]]; subsequent reads of req.user.<prop> at downstream auth checks",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign iterates req.body's own enumerable keys, including __proto__, and assigns via [[Set]]"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "req.user.__proto__ setter sets req.user's prototype to the attacker object, e.g. {\"isAdmin\": true}"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "save() persists req.user; whether the prototype change survives persistence depends on the store's serialization, not visible here"
+     },
+     {
+      "file": "(not in repo)",
+      "line": 0,
+      "note": "Any downstream guard that reads an inherited property, e.g. if (req.user.isAdmin), would see the injected value unless it uses hasOwnProperty or the property is set as an own property"
+     }
+    ],
+    "guards_checked": "The global Object.prototype is not polluted, because the setter only affects req.user's own chain; this is object-level, not global, pollution. No Object.create(null) target, no key filter for __proto__, constructor, or prototype, and no hasOwnProperty check. Exploitability depends on downstream authorization code that was not visible. Confidence is moderate."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none in the repo. Only users.js exists, so no auth middleware, store, or isAdmin check is visible. The handler ends at users.js:7-8 with res.json, and nothing after line 5 reads req.user for an authorization decision.",
+    "reason": "The mechanism is real: Object.assign at users.js:5 uses [[Set]], so a body key \"__proto__\" changes req.user's prototype. But the claimed escalation has no reader: the only later code in this request is req.store.save and res.json at users.js:6-7, which do not check privileges, and the repo has no downstream guard or store that would carry the inherited isAdmin into a later request."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "users-put-me-profile-undefined-clobber",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile with missing displayName or bio sets those fields to undefined, because Object.assign copies undefined-valued source properties. A partial update therefore erases existing profile data. This is a data-integrity logic flaw, not a privilege issue.",
+    "source": "req.body.displayName and req.body.bio at users.js:11, which may be absent",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12 followed by save at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Destructure displayName and bio from req.body; absent keys become undefined"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Object.assign copies undefined values, overwriting stored values"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "The overwritten record is saved"
+     }
+    ],
+    "guards_checked": "The field allowlist at line 12 prevents mass assignment on this route. There is no type check, length limit, or presence check on displayName or bio, so non-string values such as objects or arrays are stored as-is. Impact is limited to a user's own record. Low severity."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only the destructuring at users.js:11 acts as a key allowlist, which prevents mass assignment but does not check presence, type, or length. No control at users.js:12-13 blocks undefined values. The auth middleware that sets req.user is not in this directory, so it is not checked.",
+    "reason": "At users.js:11-12, a PUT to /me/profile without displayName or bio gives those keys the value undefined, and Object.assign copies undefined-valued properties, so the stored values are overwritten at users.js:13. The attacker is any authenticated user, and the effect is limited to their own record, so the candidate's low severity and its data-integrity (not privilege) framing are accurate."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0067678899999999995
+}

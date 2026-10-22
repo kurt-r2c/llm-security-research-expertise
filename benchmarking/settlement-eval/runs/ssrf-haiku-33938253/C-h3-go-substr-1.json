@@ -1,0 +1,111 @@
+{
+ "arm": "C",
+ "repo": "h3-go-substr",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01735918,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-_i2pptem/r/main.go",
+   "/tmp/egf-_i2pptem/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/tmp/egf-_i2pptem/expertise/software/language-footguns/go_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "The /logo handler fetches an attacker-supplied URL with http.Get after only checking that the raw string contains the substring \"example.io\". Any internal or metadata address that carries \"example.io\" anywhere in the string (for example in the URL fragment) passes the check. The response body is copied back to the caller, so the SSRF is non-blind.",
+    "source": "main.go:31 raw := r.FormValue(\"logo\") (query or form parameter, fully attacker-controlled)",
+    "sink": "main.go:36 resp, _ := http.Get(raw), followed by main.go:38 io.Copy(w, resp.Body) which reflects the response to the attacker",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "Attacker-controlled value read from the logo form/query parameter into raw."
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "Only guard: strings.Contains(raw, \"example.io\") on the unparsed string. Does not check scheme, parsed host, port, or IP."
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "raw is passed unmodified to http.Get, which uses DefaultClient. Redirects are followed (up to 10), so a redirect from an allowed-looking host to an internal address is also reachable. The client re-parses raw independently of any check."
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy streams the internal response body to the attacker; no status or content-type filtering."
+     }
+    ],
+    "guards_checked": "(1) Substring check on the raw string: bypassed because the check is not on the parsed host, e.g. http://169.254.169.254/latest/meta-data/iam/security-credentials/#example.io (fragment is never sent, but passes the check). (2) Scheme: not restricted in code. Go's http transport only speaks http/https, so file:// and gopher:// fail here; the attack surface is http/https only. (3) Host/IP allowlist or private-range/loopback/link-local block: none. (4) DNS pinning / rebinding defense: none. (5) Redirect handling: not restricted, DefaultClient follows redirects, so an open redirect on any example.io-containing host reaches internal targets. (6) Authentication on the endpoint: none in this file; exposure depends on deployment (listens on :8081, all interfaces). Impact is higher if the host runs on AWS with IMDSv1 or in a network with internal services. Not run locally; the finding is from reading the code.",
+    "verdict_note": "high"
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. main.go:32 is the only check, a substring match (strings.Contains(raw, \"example.io\")) on the unparsed string, which does not close the finding. Nothing before the sink at main.go:36 checks the parsed host, scheme, or IP, and main.go:36 uses the default client, which follows redirects.",
+    "reason": "The attacker-controlled value at main.go:31 (r.FormValue(\"logo\")) reaches http.Get at main.go:36 after only the substring check at main.go:32, and the body is copied back to the caller at main.go:38, so a URL like http://169.254.169.254/...#example.io passes the check and the response is reflected. All trace lines match the code, and the sibling /cdn handler at main.go:20 and main.go:24 uses exact hostname membership and noRedirect, which shows the /logo handler lacks that protection."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "main.go",
+    "line": 25,
+    "claim": "The /cdn handler allows a fetch to any port and path on the hostname cdn.example.io, because the allowlist checks only u.Hostname(). Port and scheme are not constrained. Impact is limited unless cdn.example.io resolves to internal infrastructure or runs services on non-HTTP ports the attacker can reach.",
+    "source": "main.go:15 u, err := url.Parse(r.FormValue(\"u\")) (query or form parameter, attacker-controlled)",
+    "sink": "main.go:25 resp, _ := c.Get(u.String()), with the body reflected at main.go:27 io.Copy(w, resp.Body)",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "Attacker-controlled URL parsed with net/url."
+     },
+     {
+      "file": "main.go",
+      "line": 20,
+      "note": "Allowlist: exact map lookup of u.Hostname() in trusted = {cdn.example.io}. Port and path are not checked. Userinfo, trailing-dot, and case variants are rejected because the lookup is exact."
+     },
+     {
+      "file": "main.go",
+      "line": 24,
+      "note": "Client created with CheckRedirect: noRedirect (line 12), so redirects are not followed. This blocks the redirect pivot to other hosts."
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "c.Get(u.String()) re-serializes the same parsed struct. No parser differential was found between the check and the fetch, so the connection target matches the checked hostname."
+     },
+     {
+      "file": "main.go",
+      "line": 27,
+      "note": "Response body reflected to the caller."
+     }
+    ],
+    "guards_checked": "(1) Hostname exact-match allowlist on the parsed host: effective against other hosts, including userinfo, backslash, fragment, and IPv6 tricks, as far as Go's url parser is concerned. (2) noRedirect: prevents open-redirect pivots to other hosts. (3) Scheme: limited to http/https by the Go transport. (4) Port: not checked, so http://cdn.example.io:<any>/ is reachable. (5) Path: not checked. (6) DNS rebinding: cdn.example.io is a fixed, trusted name, so this is not attacker-influenced.",
+    "verdict_note": "low"
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "main.go:20 `trusted[u.Hostname()]` is an exact map-membership check on the parsed hostname against {cdn.example.io}; the request is rejected with 403 if it does not match. Redirects are also blocked at main.go:12 and main.go:24.",
+    "reason": "The attacker-controlled `u` (main.go:15) is restricted by the exact-hostname allowlist at main.go:20 before the fetch at main.go:25, so the attacker cannot choose the host; the remaining control over port and path on the fixed host cdn.example.io is not the SSRF to arbitrary targets the finding describes, and the candidate's own verdict_note already rates it low."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004267470000000001
+}

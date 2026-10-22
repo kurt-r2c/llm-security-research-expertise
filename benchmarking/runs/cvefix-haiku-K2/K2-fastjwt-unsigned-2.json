@@ -1,0 +1,306 @@
+{
+ "arm": "K2",
+ "repo": "fastjwt-unsigned",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.033936680000000004,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 13,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-s7no1nw3/expertise/INDEX.md",
+   "/tmp/egf-s7no1nw3/r/src/verifier.js",
+   "/tmp/egf-s7no1nw3/r/src/decoder.js",
+   "/tmp/egf-s7no1nw3/r/src/signer.js",
+   "/tmp/egf-s7no1nw3/r/src/crypto.js",
+   "/tmp/egf-s7no1nw3/r/src/utils.js",
+   "/tmp/egf-s7no1nw3/r/src/index.js",
+   "/tmp/egf-s7no1nw3/r/src/error.js",
+   "/tmp/egf-s7no1nw3/expertise/cases/06-token-alg-from-header.md",
+   "/tmp/egf-s7no1nw3/expertise/cases/07-token-kid-lookup.md",
+   "/tmp/egf-s7no1nw3/expertise/cases/19-secret-compare-timing.md",
+   "/tmp/egf-s7no1nw3/expertise/cases/24-regex-unanchored.md",
+   "/tmp/egf-s7no1nw3/expertise/cases/13-mass-assignment.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/verifier.js",
+    "line": 311,
+    "claim": "Claim validators (aud, iss, sub, jti, nonce, and iat for maxAge) are skipped when the claim is absent from the payload, so a validly signed token that omits the claim passes the configured allowlist unless the claim is also listed in requiredClaims.",
+    "source": "Precondition: a token validly signed with the verifier's key that lacks aud/iss/sub/jti/nonce/iat (e.g. issued for another audience or service sharing the key, or issued with noTimestamp for maxAge).",
+    "sink": "Accept decision: verify() returns the payload (verifier.js:426 sync, verifier.js:471 async) for a token whose claim the operator meant to constrain.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 280,
+      "note": "validateAlgorithmAndSignature enforces alg allowlist and signature, so the token must be genuinely signed"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 293,
+      "note": "requiredClaims presence check runs only if the option is set"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 304,
+      "note": "validators loop over configured claim checks"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 311,
+      "note": "if (!(claim in payload)) continue; absent claim skips the allowlist/maxAge check"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 647,
+      "note": "allowedJti/aud/iss/sub/nonce validators are built only from options"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 642,
+      "note": "maxAge validator checks iat; skipped when iat is absent"
+     }
+    ],
+    "guards_checked": "Signature verification (verifier.js:169), alg allowlist (verifier.js:162), requiredClaims (verifier.js:293, opt-in only), type checks (verifier.js:316). exp/nbf absence is by design and not reported. Severity depends on whether the operator also sets requiredClaims."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/verifier.js",
+    "line": 133,
+    "claim": "Cache TTL ignores exp when the token has no iat, so a token whose exp has passed is still served from cache until cacheTTL (default 600000 ms) after it was first verified.",
+    "source": "Precondition: the verifier has caching enabled, and the token has exp but no iat (e.g. signer option noTimestamp: true, or an external issuer). The token was successfully verified once before exp.",
+    "sink": "Cache-hit return of an expired token's payload from verify() (verifier.js:376-377 via handleCachedResult).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 363,
+      "note": "cache.get(cacheKeyBuilder(token)) on each call"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 117,
+      "note": "hasIat is false for a token without iat"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 123,
+      "note": "exp-derived cacheValue[2] is set only inside the hasIat block, so it stays 0"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 133,
+      "note": "cacheValue[2] = maxTTL = clockTimestamp + clockTolerance + cacheTTL"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 368,
+      "note": "hit check uses only min/max; exp is not re-evaluated"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 374,
+      "note": "now <= max holds until cacheTTL elapses, so the expired token hits"
+     }
+    ],
+    "guards_checked": "Cache is opt-in (createCache returns null when cache is unset, verifier.js:84-85). The uncached path does enforce exp (verifier.js:304-323), so the inconsistency exists only on cache hits. Cache key is the full token string, so no cross-token confusion."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/verifier.js",
+    "line": 110,
+    "claim": "Cached inactive (nbf in the future) errors do not record nbf, so a token rejected as not-yet-active stays rejected until errorCacheTTL elapses, even after nbf has passed.",
+    "source": "Precondition: caching enabled with a positive errorCacheTTL (default -1 at verifier.js:499). A token presented before its nbf.",
+    "sink": "Cached TokenError returned from verify() on later calls (verifier.js:141-147 handleCachedResult).",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 110,
+      "note": "TokenError values take the early-return branch"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 112,
+      "note": "cacheValue[2] = now + tolerance + errorCacheTTL; cacheValue[1] (min) is never set"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cache lookup returns the error with min=0"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 374,
+      "note": "hit while now <= max, regardless of nbf"
+     }
+    ],
+    "guards_checked": "Opt-in cache and errorCacheTTL. Availability-only impact; no authorization bypass."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "src/verifier.js",
+    "line": 364,
+    "claim": "With caching enabled, passing a Buffer token makes the default cacheKeyBuilder throw a TypeError synchronously, before decode and before any callback/promise handling.",
+    "source": "Caller-supplied token of type Buffer, which the type check explicitly accepts (verifier.js:353).",
+    "sink": "hashToken calls token.split (utils.js:46); Buffer has no split, so the exception escapes verify() itself.",
+    "trace": [
+     {
+      "file": "src/verifier.js",
+      "line": 353,
+      "note": "Buffer tokens are accepted"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 363,
+      "note": "cache is enabled"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 364,
+      "note": "cacheKeyBuilder(token) with default hashToken"
+     },
+     {
+      "file": "src/utils.js",
+      "line": 46,
+      "note": "token.split('.', 1) on a Buffer throws TypeError"
+     }
+    ],
+    "guards_checked": "Type check at verifier.js:353 accepts Buffers. Not reached: decode(), since the throw happens earlier. Impact is a thrown exception (possible crash or 500 for callers that do not wrap verify), not an auth bypass. Only with the default cacheKeyBuilder."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "src/decoder.js",
+    "line": 35,
+    "claim": "Signature segment accepts non-canonical base64url (non-zero padding bits), so one valid signature has several distinct token strings; the code comment claims canonical signatures.",
+    "source": "Attacker holds one valid token and alters the last base64url character of the signature segment.",
+    "sink": "Raw-token-string identity used by consumers for replay/one-time-use or revocation keyed on the full token string.",
+    "trace": [
+     {
+      "file": "src/decoder.js",
+      "line": 10,
+      "note": "BASE64URL_RE only checks the alphabet, not canonical trailing bits"
+     },
+     {
+      "file": "src/decoder.js",
+      "line": 41,
+      "note": "signatureSegment passes the alphabet check"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 387,
+      "note": "Buffer.from(signature,'base64') ignores non-zero trailing bits, so variant strings decode to the same bytes"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 391,
+      "note": "timingSafeEqual passes for every variant (HS256: 4 variant strings)"
+     },
+     {
+      "file": "src/verifier.js",
+      "line": 166,
+      "note": "comment asserts signature is canonical; it is not"
+     }
+    ],
+    "guards_checked": "Signature is cryptographically correct (timingSafeEqual, crypto.js:391). The malleability does not affect the signed input, which is the raw header.payload string. Only consumers that key replay or revocation on the raw token string are affected. jti-based checks are unaffected."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "src/crypto.js",
+    "line": 143,
+    "claim": "Public JWK/JWKS detection runs only if the trimmed key starts with '{' or '[', and trim() does not strip control characters such as U+0000-U+0008 or zero-width U+200B, so a public JWK with such a prefix is accepted as an HMAC secret.",
+    "source": "Precondition: the key option is public JWK JSON text carrying a leading control or zero-width character (e.g. from a DB or JWKS store), with an HS* algorithm allowed.",
+    "sink": "HMAC key derivation (createSecretKey via prepareKeyOrSecret, verifier.js:550 / signer.js:241), reopening the GHSA-g3jj public-JWK-as-secret class.",
+    "trace": [
+     {
+      "file": "src/crypto.js",
+      "line": 143,
+      "note": "performDetectPrivateKeyAlgorithm trims the key"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 150,
+      "note": "locatePem finds no PEM header in a JWK"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 152,
+      "note": "isRawSecret branch"
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 93,
+      "note": "isAsymmetricJwkJson returns false when firstChar is not { or ["
+     },
+     {
+      "file": "src/crypto.js",
+      "line": 212,
+      "note": "same trim-then-first-char gap in performDetectPublicKeyAlgorithms"
+     }
+    ],
+    "guards_checked": "JWK kty check (crypto.js:85-87, 110-114), PEM locator (crypto.js:123-131). Defense-in-depth gap; needs the operator to supply such key text, so reachability is low."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "src/signer.js",
+    "line": 84,
+    "claim": "additionalHeader is spread after alg/typ/kid, so the header option can override alg, making the token header disagree with the algorithm used to sign.",
+    "source": "The header option (developer-supplied). Only exploitable if that option is built from client input.",
+    "sink": "Emitted token header; signature is made with the configured algorithm (signer.js:126, 167).",
+    "trace": [
+     {
+      "file": "src/signer.js",
+      "line": 81,
+      "note": "header.alg = algorithm"
+     },
+     {
+      "file": "src/signer.js",
+      "line": 84,
+      "note": "...additionalHeader overrides alg, typ, kid"
+     },
+     {
+      "file": "src/signer.js",
+      "line": 126,
+      "note": "signature uses configured algorithm, not header.alg"
+     }
+    ],
+    "guards_checked": "Verifier rejects a mismatched header alg (verifier.js:162), so this produces an unverifiable token rather than a forgery. Informational."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

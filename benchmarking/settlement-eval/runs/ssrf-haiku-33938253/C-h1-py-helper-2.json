@@ -1,0 +1,158 @@
+{
+ "arm": "C",
+ "repo": "h1-py-helper",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01479237,
+ "trace": {
+  "tools": {
+   "Bash": 4,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-n0brqi2_/expertise/software/vuln-classes/ssrf_url_parsing_expertise.md",
+   "/tmp/egf-n0brqi2_/expertise/software/language-footguns/python_footguns_expertise.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "/fetch2 fetches any user-supplied http(s) URL with no destination validation. The only check is the scheme, so the server can be made to request internal hosts, cloud metadata, and loopback services. Redirects are followed (requests default), so even a public URL can 302 to 169.254.169.254 or other internal addresses. The first 200 bytes of the response are returned to the attacker, so the response is not blind.",
+    "source": "views.py:19 request.args.get(\"url\") (attacker-controlled query parameter)",
+    "sink": "views.py:22 requests.get(url, timeout=5) with default allow_redirects=True",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken directly from request.args"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) is the only guard"
+     },
+     {
+      "file": "validators.py",
+      "line": 6,
+      "note": "is_http_url definition"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "urlparse(url).scheme in (http, https); no host, IP, port, or private-range check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) fetches the attacker URL from the server's network position and returns body[:200] in the JSON response"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (http/https) only. No hostname, resolved-IP, port, or redirect validation. Response body is reflected to the caller."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. views.py:20 calls is_http_url, which validators.py:7 implements as a scheme-only check (urlparse(url).scheme in (\"http\",\"https\")). No hostname, IP, port, or redirect check runs before the sink at views.py:22. Redirects are not disabled (views.py:22 passes only timeout=5, so requests' default allow_redirects=True applies). The sibling /fetch route uses is_safe_url, but that guard is not on the /fetch2 path.",
+    "reason": "The source is request.args[\"url\"] at views.py:19 on an unauthenticated route, the only guard is the scheme-only is_http_url at views.py:20 / validators.py:7, and views.py:22 calls requests.get with redirects enabled and returns text[:200] to the caller, so the SSRF claim holds as written."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "/fetch checks the hostname's resolved IPs before fetching, but fetches by hostname, which is re-resolved by requests. This is a DNS-rebinding TOCTOU: an attacker-controlled DNS name can return a public address to is_safe_url and a private or metadata address (e.g. 169.254.169.254, 127.0.0.1) to the subsequent requests.get. The response body is reflected back to the caller.",
+    "source": "views.py:11 request.args.get(\"url\") (attacker-controlled)",
+    "sink": "views.py:14 requests.get(url, timeout=5, allow_redirects=False)",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url from request.args"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) called"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "socket.getaddrinfo(parsed.hostname, ...) \u2014 DNS lookup #1; all returned addresses are checked"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "private/loopback/link-local/reserved rejection on the lookup #1 result"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url) performs DNS lookup #2 on the same hostname, with no IP pinning; the rebind happens here"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "body[:200] returned to the caller"
+     }
+    ],
+    "guards_checked": "Scheme allowlist and non-empty hostname (validators.py:12); resolve-and-check of all addresses (validators.py:14-17); allow_redirects=False (views.py:14) so a redirect cannot reach a new host; 5s timeout. Not present: connection to the validated IP (pinning), re-check of the IP actually connected to, Host-header/SNI pinning."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Scheme check and non-empty hostname at validators.py:12; resolve-and-check of all returned addresses at validators.py:14-17; allow_redirects=False at views.py:14. None of these is a closing guard under the rubric: there is no exact hostname allowlist, and the resolved-IP check is the TOCTOU the finding describes, since requests.get at views.py:14 resolves the hostname again and connects to whatever address that lookup returns.",
+    "reason": "The trace matches the code: url comes from request.args at views.py:11, is_safe_url resolves the hostname once at validators.py:14-16, and requests.get re-resolves and fetches the same hostname at views.py:14 with the body returned at views.py:14. Because the source is attacker-controlled and no hostname allowlist or IP pinning exists, a DNS-rebinding response can get past the check. The sibling route /fetch2 (views.py:22) has no IP check at all, so it is exposed to the same attacker-controlled URL."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-3",
+    "file": "validators.py",
+    "line": 16,
+    "claim": "The internal-address check does not cover the carrier-grade NAT range 100.64.0.0/10. In CPython's ipaddress, that range is neither is_private nor is_reserved (is_global is False, but it is not checked). So a hostname or literal resolving to 100.100.100.200 (Alibaba Cloud instance metadata) passes is_safe_url in /fetch and is fetched. This is a secondary candidate with medium confidence: it is based on reading CPython's ipaddress definitions and was not executed here, and it matters only if the service runs on Alibaba Cloud or another host where 100.64/10 carries internal services.",
+    "source": "views.py:11 request.args.get(\"url\") with a hostname or IP literal resolving to 100.100.100.200",
+    "sink": "views.py:14 requests.get(url) reached after validators.py:16 passes",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "attacker-controlled url"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "getaddrinfo returns 100.100.100.200"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "ip.is_private / is_loopback / is_link_local / is_reserved all False for 100.64.0.0/10, so the check passes"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get fetches 100.100.100.200 and returns body[:200]"
+     }
+    ],
+    "guards_checked": "is_private, is_loopback, is_link_local, is_reserved (validators.py:16). No explicit 100.64.0.0/10 or is_global check."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check on the resolved address is validators.py:16 (is_private, is_loopback, is_link_local, is_reserved). Nothing excludes 100.64.0.0/10. views.py:12-14 passes the URL straight to requests.get with allow_redirects=False, and is_http_url (views.py:20) is not used on /fetch.",
+    "reason": "All cited lines match the description: the attacker-controlled url is read at views.py:11, resolved at validators.py:14, passed by the check at validators.py:16, and fetched at views.py:14. No closing guard exists, so the remaining question is only whether CPython's ipaddress leaves 100.64.0.0/10 unflagged, which I could not execute here (no shell) but which matches my understanding of the stdlib; exploitability depends on deployment, as the candidate says."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.007528840000000001
+}

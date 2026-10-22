@@ -1,0 +1,105 @@
+{
+ "arm": "A",
+ "repo": "node-avatar",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.00491457,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-6ugkvlqf/r/server.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "server.js",
+    "line": 14,
+    "claim": "POST /profile/avatar makes a server-side axios.get to an attacker-supplied URL. The only check is a string prefix match on https://, so private/internal hosts pass, and axios follows redirects (default maxRedirects, version not confirmed since there is no package.json) to http:// targets, bypassing the https check.",
+    "source": "req.body.avatarUrl (server.js:10), from the JSON body of POST /profile/avatar",
+    "sink": "axios.get(url, { responseType: \"arraybuffer\" }) (server.js:14)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 5,
+      "note": "express.json() parses the request body"
+     },
+     {
+      "file": "server.js",
+      "line": 10,
+      "note": "url = req.body.avatarUrl, no other source"
+     },
+     {
+      "file": "server.js",
+      "line": 11,
+      "note": "typeof string check and url.startsWith(\"https://\") only; no host, IP-range, port or redirect validation"
+     },
+     {
+      "file": "server.js",
+      "line": 14,
+      "note": "url passed directly to axios.get, redirects followed by default"
+     },
+     {
+      "file": "server.js",
+      "line": 15,
+      "note": "only img.data.length is returned, so exploitation is blind (reachability, port and size oracles, GET side effects)"
+     }
+    ],
+    "guards_checked": "Type check (string) passes attacker strings. Scheme check is a prefix match, not URL parsing, so it does not constrain host. No hostname allowlist, no DNS/IP check for loopback, RFC1918 or link-local (169.254.169.254), no maxRedirects:0, no beforeRedirect or lookup hook, no timeout or maxContentLength."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. server.js:11 is a typeof check plus `url.startsWith(\"https://\")`, a prefix match that does not constrain the host. No hostname allowlist, IP/private-range check, maxRedirects:0, or timeout exists anywhere in server.js.",
+    "reason": "The attacker-controlled `req.body.avatarUrl` (server.js:10) from the unauthenticated POST /profile/avatar route (server.js:9) reaches `axios.get` at server.js:14 with only a scheme-prefix check at server.js:11, so an attacker can point the server at internal hosts such as http://users.internal:8080 or 169.254.169.254 (the response size is returned at server.js:15, which is a blind oracle). The redirect-to-http bypass claim is plausible but not needed for the finding, and the axios version is unconfirmed because there is no package.json."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2-ruled-out",
+    "file": "server.js",
+    "line": 20,
+    "claim": "Not reported. GET /users/:id requests a fixed host (USER_SVC, server.js:7). The id is encodeURIComponent'd (server.js:19), so the attacker cannot change host, scheme or port, and cannot inject / ? #. Only a dot-segment (id=..) can alter the path on the same internal host.",
+    "source": "req.params.id (server.js:18-19)",
+    "sink": "axios.get(`${USER_SVC}/v1/users/${id}`) (server.js:20)",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 7,
+      "note": "fixed base URL http://users.internal:8080"
+     },
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "encodeURIComponent applied to id"
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "id interpolated into path on fixed host"
+     }
+    ],
+    "guards_checked": "Fixed host constant, encodeURIComponent, Express segment matching (no / inside :id). Residual same-host dot-segment path manipulation only."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "encodeURIComponent at server.js:19 encodes \"/\", \"?\", \"#\" and other reserved characters, so the id cannot change host, scheme, port, or add a query or fragment. The fixed base URL at server.js:7 pins the host. The only remaining manipulation is a whole-segment \"..\" or \".\" (not encoded by encodeURIComponent), which moves the path up at most to /v1/ on the same internal host.",
+    "reason": "The candidate's trace is accurate (server.js:7, 19, 20), and the attacker-controlled id at server.js:18-19 cannot change host, scheme, or port because of the fixed USER_SVC constant at server.js:7 and encodeURIComponent at server.js:19, so no SSRF is reportable at line 20; the only residual is a dot-segment path move to /v1/ on the same host. Separately, the avatar endpoint at server.js:11-14 is not covered by this verdict: its `startsWith(\"https://\")` check at line 11 is a prefix check that does not close SSRF, so a full attacker-chosen https URL reaches axios.get at line 14 and should be reviewed as its own finding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004424620000000001
+}

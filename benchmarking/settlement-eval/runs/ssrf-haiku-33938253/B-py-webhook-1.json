@@ -1,0 +1,103 @@
+{
+ "arm": "B",
+ "repo": "py-webhook",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0054787099999999995,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-51unjufa/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "Unrestricted SSRF in /preview: attacker-controlled url query parameter is passed directly to requests.get and the response status and first 500 bytes of body are returned to the caller.",
+    "source": "request.args.get(\"url\", \"\") at app.py:15",
+    "sink": "requests.get(target, timeout=5) at app.py:16",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target read from ?url= query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "target passed unvalidated to requests.get, which follows redirects by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status_code and resp.text[:500] returned to caller (non-blind SSRF)"
+     }
+    ],
+    "guards_checked": "None. No scheme check, host allowlist, private/loopback/link-local IP block, port restriction, or redirect control. timeout=5 limits duration only."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /preview. The only host check, ALLOWED_HOSTS at app.py:24, is in the /partner handler (app.py:20-27), not the /preview handler (app.py:13-17), so it does not apply to the sink at app.py:16.",
+    "reason": "The url value is read unauthenticated from request.args at app.py:15 and passed unvalidated to requests.get at app.py:16 (which follows redirects by default), and the status and first 500 bytes of the body are returned to the caller at app.py:17, with no scheme, host, or IP restriction on that route."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "Host allowlist in /partner is bypassable via HTTP redirects: the hostname is checked only on the original URL, and requests.get follows redirects to arbitrary internal destinations. Blind except for status code oracle.",
+    "source": "request.args.get(\"url\", \"\") at app.py:22",
+    "sink": "requests.get(target, timeout=5) at app.py:26 (redirects followed by default)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target read from ?url= query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "hostname must be exactly api.partner.example or cdn.partner.example, else 400"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get follows any 3xx from allowed host to internal target; redirect destination is never checked"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "only status_code returned to caller"
+     }
+    ],
+    "guards_checked": "Hostname allowlist at app.py:23-25 is correct for the original URL (urlparse handles userinfo tricks; non-HTTP schemes rejected by requests). Not applied to redirect hops. Exploitation requires an open redirect or subdomain takeover on an allowed host; none found in this code."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "app.py:23-25: `host = urlparse(target).hostname` followed by `if host not in ALLOWED_HOSTS` (an exact set-membership check on the parsed hostname, returning 400). The check is applied before the sink at app.py:26.",
+    "reason": "The source at app.py:22 is attacker-controlled, and the trace lines match the code, but the exact-hostname membership check at app.py:24 closes the sink's input, and `requests.get` at app.py:26 only follows a redirect if an allowed host (api.partner.example or cdn.partner.example) itself returns one. Nothing in this code makes an allowed host redirect, and the attacker does not control those hosts, so the claimed bypass depends on an external open redirect or subdomain takeover that the candidate itself did not find. Residual risk: if either allowed host ever redirects, the 5s GET would reach internal targets, so this is worth noting as hardening (e.g., `allow_redirects=False` or re-validating each hop), but it is not a closed-form finding in this code."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00418051
+}

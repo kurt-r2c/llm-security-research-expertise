@@ -1,0 +1,140 @@
+{
+ "arm": "K2",
+ "repo": "coraza-injection",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.0217102,
+ "trace": {
+  "tools": {
+   "Glob": 2,
+   "Read": 11,
+   "Grep": 5,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-5jp82j_7/expertise/INDEX.md",
+   "/tmp/egf-5jp82j_7/r/internal/operators/inspect_file.go",
+   "/tmp/egf-5jp82j_7/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-5jp82j_7/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-5jp82j_7/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-5jp82j_7/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-5jp82j_7/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-5jp82j_7/r/internal/bodyprocessors/multipart.go",
+   "/tmp/egf-5jp82j_7/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-5jp82j_7/r/internal/bodyprocessors/urlencoded.go",
+   "/tmp/egf-5jp82j_7/r/internal/strings/strings.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "internal/corazawaf/transaction.go",
+    "line": 386,
+    "claim": "A request with a parameterized urlencoded Content-Type (e.g. 'application/x-www-form-urlencoded; charset=utf-8') skips request body parsing, so ARGS_POST and REQUEST_BODY are never populated and body rules do not fire, while a backend form parser still reads the body. Bypass of body inspection in default configuration when body access is enabled. Not run; verified by reading the code.",
+    "source": "HTTP request Content-Type header (attacker-controlled), lowercased at transaction.go:385",
+    "sink": "Body processor selection (reqbodyProcessor) and body rule evaluation on ARGS_POST / REQUEST_BODY at transaction.go:1100-1120",
+    "trace": [
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 385,
+      "note": "Content-Type value is lowercased, no parameter stripping"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 386,
+      "note": "Exact equality with 'application/x-www-form-urlencoded'; parameterized value fails, reqbodyProcessor is not set to URLENCODED"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 1100,
+      "note": "rbp read from reqbodyProcessor, resulting in empty string"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 1116,
+      "note": "rbp == '' returns early after phase rule evaluation; no body processor runs"
+     },
+     {
+      "file": "internal/bodyprocessors/urlencoded.go",
+      "line": 25,
+      "note": "Not reached: the URLENCODED processor that would populate ARGS_POST and REQUEST_BODY never runs"
+     }
+    ],
+    "guards_checked": "Multipart branch (transaction.go:388) uses HasPrefix so it is not affected. No fallback re-derives the type from the raw header. ForceRequestBodyVariable is reset to false at waf.go:210 and only set via ctl, so it does not cover this by default. RequestBodyAccess must be enabled (deployment-dependent). Repo test rules_test.go:752-792 shows charset-bearing Content-Types are expected in real traffic, so the gap is not a deliberate exclusion."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "internal/corazawaf/transaction.go",
+    "line": 934,
+    "claim": "Under RequestBodyLimitAction=ProcessPartial, body bytes past RequestBodyLimit are passed through without inspection. Documented trade-off; exploitable only when an operator selects ProcessPartial. Low severity, configuration-dependent.",
+    "source": "Request body length (attacker-controlled), exceeding RequestBodyLimit",
+    "sink": "Request body rule evaluation (uninspected tail of body)",
+    "trace": [
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 957,
+      "note": "On limit reached with ProcessPartial, writes only up to the limit and runs ProcessRequestBody"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 934,
+      "note": "On subsequent WriteRequestBody calls at the limit, returns nil without buffering or inspecting further bytes"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 1042,
+      "note": "Same partial-processing path in ReadRequestBodyFrom"
+     }
+    ],
+    "guards_checked": "Default RequestBodyLimitAction is not ProcessPartial, so this requires explicit operator opt-in. Behavior is documented."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "internal/operators/inspect_file.go",
+    "line": 55,
+    "claim": "The @inspectFile operator fails open: on timeout or any execution error it returns false (no match), so a deny rule is bypassed if an attacker can make the external scanner time out or fail. The doc comment (lines 22-26) also contradicts the code on which output means match: the code returns true for any non-'1' output (line 58). Low-medium, requires a rule using @inspectFile.",
+    "source": "Request value (e.g. REQUEST_BODY, FILES_TMPNAMES) passed as argv[1] to the external program, attacker-controlled size and content",
+    "sink": "Verdict of the external scanner used by a deny rule (return value of Evaluate)",
+    "trace": [
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 50,
+      "note": "10s context timeout set on the external program run"
+     },
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 53,
+      "note": "exec.CommandContext(o.path, value): value is an argv element, no shell"
+     },
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 55,
+      "note": "On deadline exceeded or err != nil, returns false (no match, fail-open)"
+     },
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 58,
+      "note": "Otherwise returns true for any non-'1' first output byte, contradicting the doc comment semantics at lines 22-26"
+     }
+    ],
+    "guards_checked": "No shell is used, so no shell injection. Program path comes from rule-author configuration, not the request. Residual concern: attacker-controlled value is passed as an argument without a '--' separator, so leading '-' could be interpreted as an option by the scanner."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

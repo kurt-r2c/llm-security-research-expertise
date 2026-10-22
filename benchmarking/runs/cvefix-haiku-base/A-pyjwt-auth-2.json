@@ -1,0 +1,310 @@
+{
+ "arm": "A",
+ "repo": "pyjwt-auth",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.035572,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 7,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-dmxfnmj6/r/jwt/api_jws.py",
+   "/tmp/egf-dmxfnmj6/r/jwt/api_jwt.py",
+   "/tmp/egf-dmxfnmj6/r/jwt/algorithms.py",
+   "/tmp/egf-dmxfnmj6/r/jwt/jwks_client.py",
+   "/tmp/egf-dmxfnmj6/r/jwt/api_jwk.py",
+   "/tmp/egf-dmxfnmj6/r/jwt/jwk_set_cache.py",
+   "/tmp/egf-dmxfnmj6/r/jwt/utils.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "jwt/api_jwt.py",
+    "line": 446,
+    "claim": "_validate_sub returns without checking the caller-supplied subject when the token has no sub claim, so decode(..., subject=X) accepts signed tokens lacking sub (fail-open; iss and aud fail closed).",
+    "source": "Token payload lacking a 'sub' claim, signed by the same key/issuer (e.g. a different token type sharing the key).",
+    "sink": "Caller's subject-based authorization check via decode(..., subject=...).",
+    "trace": [
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 370,
+      "note": "decode() forwards subject to decode_complete"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 283,
+      "note": "decode_complete passes subject into _validate_claims"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 420,
+      "note": "_validate_sub(payload, subject) is called when verify_sub is set"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 446,
+      "note": "'if \"sub\" not in payload: return' exits before comparing to subject"
+     }
+    ],
+    "guards_checked": "Signature verified first (api_jws.py:269-277). Present sub must be a string and must equal subject (api_jwt.py:449-454). Sibling checks fail closed: missing aud raises (api_jwt.py:529-532), missing iss raises (api_jwt.py:571-572). Verified by reading only; not executed."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "jwt/jwks_client.py",
+    "line": 100,
+    "claim": "With cache_keys=True, get_signing_key is wrapped in an LRU cache with no time expiry, so a signing key removed from the JWKS (rotation or compromise) keeps verifying until evicted by other kids.",
+    "source": "A signing key that the IdP has removed from its JWKS; the attacker holds a token signed with it.",
+    "sink": "Signature acceptance using the cached PyJWK key (api_jws.py:416-417).",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 100,
+      "note": "cache_keys enables lru_cache(maxsize=max_cached_keys) on get_signing_key"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 102,
+      "note": "self.get_signing_key replaced by cached wrapper"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 44,
+      "note": "docstring documents no time-based expiration for this tier"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 416,
+      "note": "alg_obj.verify runs with the cached key and succeeds"
+     }
+    ],
+    "guards_checked": "Only successful lookups are cached. The 5-minute JWKS lifespan (jwks_client.py:92-96) does not apply to this tier. Behaviour is documented, but there is no revocation or max-age path. Verified by reading only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "jwt/jwks_client.py",
+    "line": 77,
+    "claim": "PyJWKClient accepts any http/https URI and follows redirects with urlopen, forwarding configured headers (e.g. Authorization). If the application builds the URI from token data (jku), an attacker can host a JWKS or reach internal hosts (SSRF).",
+    "source": "Attacker-influenced JWKS URI (e.g. a jku header value), or a redirect from the JWKS endpoint.",
+    "sink": "Outbound HTTP request in fetch_data and trust of the returned key set.",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 77,
+      "note": "urlparse scheme check only; accepts any http/https host"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 117,
+      "note": "urllib Request built with self.headers"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 118,
+      "note": "urlopen follows redirects; scheme guard applies only to the initial URI"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 121,
+      "note": "attacker-served JSON parsed with json.load and no size limit, then cached"
+     }
+    ],
+    "guards_checked": "Scheme allowlist (http/https) only. No host allowlist, no private-address block, no redirect cap, no response size limit. Severity medium if the application derives the URI from token data; low otherwise. Verified by reading only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "jwt/jwks_client.py",
+    "line": 203,
+    "claim": "Every unknown kid in an unauthenticated token triggers a synchronous, unthrottled JWKS refetch, enabling outbound request amplification and thread exhaustion (DoS).",
+    "source": "Unauthenticated token with a random kid, read from the unverified header.",
+    "sink": "Outbound HTTP GET to the JWKS endpoint (30 s default timeout).",
+    "trace": [
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 224,
+      "note": "get_signing_key_from_jwt reads kid from the unverified header"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 198,
+      "note": "get_signing_key calls get_signing_keys() (cached)"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 203,
+      "note": "on miss, get_signing_keys(refresh=True) is called"
+     },
+     {
+      "file": "jwt/jwks_client.py",
+      "line": 153,
+      "note": "get_jwk_set calls fetch_data when refresh bypasses cache"
+     }
+    ],
+    "guards_checked": "None rate-limits refresh or enforces a minimum refresh interval. Failed lookups are not cached, so each request causes another fetch. Verified by reading only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5",
+    "file": "jwt/api_jws.py",
+    "line": 362,
+    "claim": "The signature segment is decoded with a lenient base64 decoder that ignores non-alphabet characters and unused trailing bits, so one valid signature has several token-string encodings. Token-string identity (replay caches, denylists) can be bypassed. ECDSA also accepts both (r,s) and (r,n-s).",
+    "source": "A valid token; attacker re-encodes its signature segment.",
+    "sink": "Any application check keyed on the raw token string (replay cache, denylist).",
+    "trace": [
+     {
+      "file": "jwt/utils.py",
+      "line": 33,
+      "note": "base64.urlsafe_b64decode with validate=False drops non-alphabet characters and ignores trailing bits"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 362,
+      "note": "crypto_segment decoded via base64url_decode"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 326,
+      "note": "signing_input covers header and payload only, not the signature segment"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 691,
+      "note": "ECDSA verify accepts high-s signatures, so (r,n-s) also verifies"
+     }
+    ],
+    "guards_checked": "Cryptographic verification is correct; only the string form is malleable. Count of equivalent HS256 encodings (4) and RS256 (16) comes from base64 arithmetic, not execution. Low severity; depends on the application using token strings as identifiers."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F6",
+    "file": "jwt/api_jws.py",
+    "line": 57,
+    "claim": "Secure-by-default gaps: HMAC secrets shorter than the digest size are accepted with only a warning (enforce_minimum_key_length defaults to False), and tokens without exp, nbf, or iat pass validation unless the application sets require.",
+    "source": "Weak HMAC secret (offline brute-force from one captured token); or a signed token omitting exp.",
+    "sink": "HMAC secret strength; token lifetime enforcement.",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 57,
+      "note": "enforce_minimum_key_length defaults to False"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 411,
+      "note": "effective_options check; warning only when not enforced"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 396,
+      "note": "HMAC check_key_length returns a message for short keys"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 62,
+      "note": "require defaults to [] (no mandatory claims)"
+     },
+     {
+      "file": "jwt/api_jwt.py",
+      "line": 409,
+      "note": "exp checked only if present in payload"
+     }
+    ],
+    "guards_checked": "Warning emitted for short keys; enforcement available as opt-in. Missing exp/nbf/iat is skipped unless require is set. Defaults are a design choice; flagged as low. Verified by reading only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F7",
+    "file": "jwt/algorithms.py",
+    "line": 331,
+    "claim": "The HMAC key-type guard rejects PEM and exact-prefix SSH keys but not DER-encoded public keys or SSH keys with leading whitespace, so an asymmetric public key can be used as an HMAC secret when HS* is allowed.",
+    "source": "Application passes a DER public key, or a whitespace-prefixed ssh- key, with algorithms including HS256/HS384/HS512; attacker signs with that public key as the secret.",
+    "sink": "HMAC signature verification with the public key bytes as secret (algorithms.py:410-411).",
+    "trace": [
+     {
+      "file": "jwt/algorithms.py",
+      "line": 325,
+      "note": "HMACAlgorithm.prepare_key calls force_bytes on the key"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 331,
+      "note": "is_pem_format and is_ssh_key checks; DER not covered"
+     },
+     {
+      "file": "jwt/utils.py",
+      "line": 142,
+      "note": "is_ssh_key uses raw startswith, with no lstrip"
+     },
+     {
+      "file": "jwt/algorithms.py",
+      "line": 357,
+      "note": "raw key bytes returned as HMAC secret"
+     }
+    ],
+    "guards_checked": "PEM labels from _PEMS rejected via regex search. Standard ssh- prefixes rejected. JWK-shaped JSON with kty rejected (algorithms.py:344-355). Conditional on an unsafe application configuration; low severity. Verified by reading only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F8",
+    "file": "jwt/api_jws.py",
+    "line": 337,
+    "claim": "Pre-authentication header parsing catches only ValueError, so deeply nested JSON in an unauthenticated token raises RecursionError out of decode (crash/DoS).",
+    "source": "Unauthenticated token whose header is deeply nested JSON.",
+    "sink": "json.loads on attacker-controlled header bytes before any signature check.",
+    "trace": [
+     {
+      "file": "jwt/api_jws.py",
+      "line": 337,
+      "note": "json.loads(header_data) runs before signature verification"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 338,
+      "note": "except ValueError does not catch RecursionError"
+     },
+     {
+      "file": "jwt/api_jws.py",
+      "line": 341,
+      "note": "dict type check runs only after a successful parse"
+     }
+    ],
+    "guards_checked": "Non-dict header rejected after parsing. Impact limited to an uncaught exception that the application must handle. Low severity. Verified by reading only."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

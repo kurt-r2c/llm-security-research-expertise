@@ -1,0 +1,106 @@
+{
+ "arm": "A",
+ "repo": "py-webhook",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "9514989d",
+ "status": "success",
+ "gen_cost": 0.00534916,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 1,
+   "Read": 1,
+   "Bash": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-52qlwmas/r/app.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.py",
+    "line": 16,
+    "claim": "/preview fetches any user-supplied URL with no validation and returns the status code and first 500 chars of the body (non-blind SSRF).",
+    "source": "app.py:15 - request.args.get(\"url\", \"\")",
+    "sink": "app.py:16 - requests.get(target, timeout=5)",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 15,
+      "note": "target = request.args.get(\"url\", \"\") - attacker-controlled query parameter"
+     },
+     {
+      "file": "app.py",
+      "line": 16,
+      "note": "requests.get(target, timeout=5) - no scheme, host, IP, or port check; redirects followed by default"
+     },
+     {
+      "file": "app.py",
+      "line": 17,
+      "note": "status code and resp.text[:500] returned to caller, so attacker reads internal response content"
+     }
+    ],
+    "guards_checked": "None on this path. No allowlist, no scheme restriction, no private/loopback/link-local IP block, no redirect restriction, no DNS-rebinding defense. timeout=5 does not limit destination."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /preview path; ALLOWED_HOSTS check at app.py:24-25 applies only to the /partner route, not /preview",
+    "reason": "app.py:15 takes the attacker-controlled `url` query parameter, app.py:16 passes it directly to requests.get with no scheme, host, or IP restriction (redirects followed by default), and app.py:17 returns the status code and resp.text[:500] to the caller, so this is a non-blind SSRF."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "app.py",
+    "line": 26,
+    "claim": "/partner checks only the initial URL's host against an allowlist, then requests.get follows redirects by default. An allowlisted host can redirect the server to an internal address, bypassing the check; status code returned (status-code oracle).",
+    "source": "app.py:22 - request.args.get(\"url\", \"\")",
+    "sink": "app.py:26 - requests.get(target, timeout=5) with redirects followed",
+    "trace": [
+     {
+      "file": "app.py",
+      "line": 22,
+      "note": "target = request.args.get(\"url\", \"\") - attacker-controlled"
+     },
+     {
+      "file": "app.py",
+      "line": 23,
+      "note": "host = urlparse(target).hostname - validation applies to initial URL only"
+     },
+     {
+      "file": "app.py",
+      "line": 24,
+      "note": "host not in ALLOWED_HOSTS returns 400; api.partner.example and cdn.partner.example pass"
+     },
+     {
+      "file": "app.py",
+      "line": 26,
+      "note": "requests.get follows redirects by default (allow_redirects True for GET), so a 3xx from an allowlisted host to http://169.254.169.254 or http://127.0.0.1 is followed without re-checking"
+     },
+     {
+      "file": "app.py",
+      "line": 27,
+      "note": "only resp.status_code returned to caller"
+     }
+    ],
+    "guards_checked": "Exact-match hostname allowlist at line 24 (no suffix tricks). Post-redirect allowlist re-check: absent. Scheme: unrestricted, but requests only speaks http/https. Private/loopback IP blocking: none. Possible urlparse vs requests parser differential (e.g. https://evil.com\\@api.partner.example/): plausible but unverified because Python could not be run in this session, so treat as a hypothesis to test."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Exact-match hostname membership at app.py:24 (`host not in ALLOWED_HOSTS`) on the parsed initial URL only. It does not constrain redirect targets, since requests.get at app.py:26 follows redirects by default. No post-redirect host or IP check exists anywhere in app.py.",
+    "reason": "The source at app.py:22 is an unauthenticated query parameter, and the allowlist at app.py:24 validates only the initial URL, while requests.get at app.py:26 follows redirects to any host, including 169.254.169.254 or 127.0.0.1. Exploitation requires an allowlisted host that will issue a redirect, such as an open redirect on api.partner.example or cdn.partner.example; that precondition is not verified from this code, but it does not make the finding refutable."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.004396270000000001
+}

@@ -1,0 +1,139 @@
+{
+ "arm": "B",
+ "repo": "lg-py-negative",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.06112160000000001,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "/transfer does not validate that amount is positive. A negative amount passes the balance check and reverses the transfer, so the attacker takes money from the victim account.",
+    "source": "Attacker-supplied JSON body fields `to` and `amount` (request.json, bank.py:9-10). The attacker is any authenticated user, and the amount can be negative.",
+    "sink": "Balance mutations `BAL[g.user] -= amount` and `BAL[to] += amount` (bank.py:13-14).",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 10,
+      "note": "amount is read from the request with no type or sign validation"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "`BAL[g.user] < amount` is always false for a negative amount, so the check passes"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "`BAL[g.user] -= amount` with a negative amount increases the attacker's balance"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "`BAL[to] += amount` with a negative amount debits the victim, who can go negative. No consent from the victim is needed, and `to` can be any existing account."
+     }
+    ],
+    "guards_checked": "/withdraw has an `amount <= 0` check (bank.py:21) but /transfer does not. There is no schema validation, no type check (a string amount causes a 500 error), no check that `to` differs from g.user, and no check that `to` exists in BAL (a missing key causes a KeyError after the debit at line 13, so the sender's debit is not rolled back)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none on /transfer (the only check is the balance comparison at bank.py:11, which a negative amount passes); /withdraw has an amount <= 0 check at bank.py:21, but /transfer does not",
+    "reason": "At bank.py:9-14, /transfer reads amount from request.json with no sign check. A negative amount passes `BAL[g.user] < amount` at line 11, so `BAL[g.user] -= amount` (line 13) credits the attacker and `BAL[to] += amount` (line 14) debits the victim. Any authenticated user can trigger this."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11 only checks `BAL[g.user] < amount`, which is false for a negative amount; bank.py:13-14 then credit the caller and debit `to`; the only positivity check is in /withdraw at bank.py:21, and /transfer has no decorator or other guard."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "The check-then-act balance update has no locking or atomicity. Concurrent requests can each pass the balance check before any debit lands, so the attacker withdraws or transfers more than their balance (double spend). In /transfer, a KeyError on a nonexistent `to` at line 14 also happens after the sender is debited at line 13, which destroys funds.",
+    "source": "Concurrent POST requests to /transfer or /withdraw from the same user with a valid amount. For the second issue, a `to` value that is not an existing account.",
+    "sink": "`BAL[g.user] -= amount` (bank.py:13 and :23) on the shared in-process dict BAL.",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "The balance is read and compared (check) in /transfer"
+     },
+     {
+      "file": "bank.py",
+      "line": 13,
+      "note": "The debit happens in a separate step with no lock, so a threaded server can interleave requests between the check and the debit"
+     },
+     {
+      "file": "bank.py",
+      "line": 21,
+      "note": "/withdraw has the same TOCTOU pattern between the check at line 21 and the debit at line 23"
+     },
+     {
+      "file": "bank.py",
+      "line": 14,
+      "note": "`BAL[to] += amount` raises KeyError for an unknown recipient after the sender was debited at line 13, and there is no rollback"
+     }
+    ],
+    "guards_checked": "No threading.Lock, no database transaction, and no atomic operation. BAL is a plain module-level dict. No idempotency keys or rate limiting were found. Exploitability depends on the deployment using threaded workers, which is the Flask dev server default and common with gunicorn threads."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11-13 and 21-23 do an unlocked check-then-debit on the module-level dict BAL (no Lock anywhere), and bank.py:14 raises KeyError for an unknown `to` after the debit at line 13 with no rollback. The attacker is any authenticated user acting on their own account; g.user is never set in this file, so the auth guard is unseen. Concurrent double-spend needs threaded workers, but the funds-destroying KeyError path is deterministic."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "bank.py:11-14 checks the balance and then debits at :13 with no lock or transaction. :14 then raises KeyError for an unknown `to` after the debit, so funds are lost; the same check-then-debit race exists at :21-23. Any authenticated user can reach both routes."
+   }
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "bank.py",
+    "line": 11,
+    "claim": "Authentication is missing. Every handler relies on g.user, but no before_request or auth hook in the codebase ever sets it. If an auth layer is added elsewhere, such as middleware or an unseen module, its absence from this repo is a risk. As written, the endpoints error with AttributeError instead of authenticating callers.",
+    "source": "Any unauthenticated HTTP client calling /transfer or /withdraw.",
+    "sink": "Reads of `g.user` that select the account to debit (bank.py:11, 13, 21, 23).",
+    "trace": [
+     {
+      "file": "bank.py",
+      "line": 3,
+      "note": "The Flask app is created with no before_request, login or session handling"
+     },
+     {
+      "file": "bank.py",
+      "line": 11,
+      "note": "g.user is read but never assigned anywhere in the repo"
+     }
+    ],
+    "guards_checked": "Searched the only source file, bank.py, for any assignment to g.user or auth decorators and found none. This is low confidence as an exploitable vulnerability, because auth may be injected externally. It is flagged because nothing in the repo enforces authentication or authorization."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none in repo (no before_request/auth hook), but g.user is never set, so the handlers fail closed with AttributeError (a 500) before any balance change.",
+    "reason": "The trace is accurate (bank.py:3 creates the app with no hooks, and bank.py:11/13/21/23 read g.user). But since g.user is never assigned, a Flask `g` lookup raises AttributeError at bank.py:11 and bank.py:21, before any debit at bank.py:13 and bank.py:23. An anonymous caller therefore cannot move money, and the finding itself concedes the risk depends on an auth layer that is not in this repo."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "g.user is set by trusted upstream middleware outside this directory (per the maintainer's project facts). Nothing in bank.py sets it.",
+    "reason": "bank.py:11 reads g.user as described, but the maintainer states identity is populated by trusted upstream middleware, so the missing auth hook in this file is not a vulnerability; the finding itself says it is speculative (\"if an auth layer is added elsewhere\")."
+   }
+  }
+ ],
+ "verify_cost": 0.09664729999999999,
+ "verify_facts_cost": 0.0864218
+}

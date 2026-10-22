@@ -1,0 +1,113 @@
+{
+ "arm": "A",
+ "repo": "php-feed",
+ "rep": 2,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0034200900000000006,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Grep": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-6di_9ubl/r/import.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "import.php",
+    "line": 12,
+    "claim": "Unauthenticated SSRF: a user-supplied URL in POST 'feed' is fetched server-side with file_get_contents(); the response length is echoed back, giving an oracle on internal responses. No scheme, host, or IP restriction, and no authentication.",
+    "source": "import.php:11 $_POST['feed'] (attacker-controlled HTTP POST parameter)",
+    "sink": "import.php:12 file_get_contents($_POST['feed'])",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 2,
+      "note": "session_start(); no authorization is applied to this branch"
+     },
+     {
+      "file": "import.php",
+      "line": 11,
+      "note": "Branch taken when REQUEST_METHOD === 'POST' and isset($_POST['feed']); require_admin() is not called"
+     },
+     {
+      "file": "import.php",
+      "line": 12,
+      "note": "$_POST['feed'] is passed unvalidated to file_get_contents(), which follows http://, https://, and (if enabled) other stream wrappers, and follows redirects by default"
+     },
+     {
+      "file": "import.php",
+      "line": 13,
+      "note": "strlen($xml) is echoed, so the attacker learns the size of the fetched body (a length oracle for internal services)"
+     }
+    ],
+    "guards_checked": "No authentication/session check on this branch (require_admin is only on line 18). No scheme allowlist, hostname/IP allowlist, private/loopback/link-local range block, port restriction, or redirect limit. No input type or length validation. Note: file_get_contents also accepts file:// and php:// wrappers when allowed, which widens impact beyond SSRF (local file read, though only the length is returned here)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. Line 11 gates the branch only on REQUEST_METHOD and isset($_POST['feed']); require_admin() (import.php:4-9) is called only at line 18, outside this branch. Line 12 passes $_POST['feed'] to file_get_contents with no scheme, host, IP, or redirect validation.",
+    "reason": "import.php:11 takes the branch for any unauthenticated POST containing 'feed', and import.php:12 passes that attacker-controlled value straight to file_get_contents(), with the length echoed at import.php:13 and no closing guard anywhere on the path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "import.php",
+    "line": 20,
+    "claim": "Admin-gated SSRF: the 'set_webhook' parameter is used as the URL for a server-side cURL request. The response body is discarded, so the attack is blind (fire-and-forget), but it can still reach internal hosts and trigger side-effecting GET/POST requests.",
+    "source": "import.php:19 $_POST['set_webhook'] (HTTP POST parameter, attacker-controlled only if the attacker holds an admin session or can make an admin's browser send the request)",
+    "sink": "import.php:20 curl_init($hook), executed at import.php:22 curl_exec($ch)",
+    "trace": [
+     {
+      "file": "import.php",
+      "line": 17,
+      "note": "Branch taken when isset($_POST['set_webhook'])"
+     },
+     {
+      "file": "import.php",
+      "line": 18,
+      "note": "require_admin() checks empty($_SESSION['is_admin']) and returns 403 if not set"
+     },
+     {
+      "file": "import.php",
+      "line": 19,
+      "note": "$hook = $_POST['set_webhook'] with no validation"
+     },
+     {
+      "file": "import.php",
+      "line": 20,
+      "note": "curl_init($hook) creates a handle for the attacker-supplied URL"
+     },
+     {
+      "file": "import.php",
+      "line": 21,
+      "note": "CURLOPT_RETURNTRANSFER set, but the result is never output"
+     },
+     {
+      "file": "import.php",
+      "line": 22,
+      "note": "curl_exec($ch) sends the request; the response is discarded and not returned to the caller"
+     }
+    ],
+    "guards_checked": "require_admin() session check at import.php:18 (empty($_SESSION['is_admin'])); this is the only guard. No URL scheme allowlist, host/IP block, or CURLOPT_PROTOCOLS restriction. CURLOPT_FOLLOWLOCATION is not set, so redirects are not followed. The admin check is outside this file, so how is_admin is set and whether the session is protected from fixation or CSRF could not be verified from this code alone. Severity is lower than SSRF-1 because it requires admin privilege and the response is blind."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "require_admin() at import.php:4-9, which returns 403 unless $_SESSION['is_admin'] is set. This is an authorization gate, not a URL validation. No scheme, host, or IP restriction exists, and CURLOPT_PROTOCOLS is not set.",
+    "reason": "The trace matches the code (import.php:17-22), but the source at import.php:19 is reachable only after the admin check at import.php:18 and line 5 passes, so a low-privilege or unauthenticated attacker cannot control it. The finding depends on an admin session or on CSRF against an admin, and nothing in this code shows a CSRF path, so it does not meet the bar for a remotely attacker-controlled source."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00420742
+}

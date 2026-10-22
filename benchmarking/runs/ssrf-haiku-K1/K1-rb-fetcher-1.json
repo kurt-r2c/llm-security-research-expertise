@@ -1,0 +1,95 @@
+{
+ "arm": "K1",
+ "repo": "rb-fetcher",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "ssrf",
+ "config_id": "84c51490",
+ "status": "success",
+ "gen_cost": 0.0044814,
+ "trace": {
+  "tools": {
+   "Grep": 1,
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-xr0wc659/r/app.rb"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "app.rb",
+    "line": 8,
+    "claim": "Unauthenticated GET /rss passes the raw u query parameter to URI.open, which fetches any http/https URL with no host, IP, scheme, or redirect restrictions. The first 400 bytes of the response are returned to the caller, so this is a full-read SSRF to internal hosts and cloud metadata.",
+    "source": "params[:u] in the get \"/rss\" route (app.rb:7-8). No auth guard on the route.",
+    "sink": "URI.open(params[:u]).read (app.rb:8), i.e. open-uri with an attacker-chosen URL, following redirects by default.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 7,
+      "note": "Route get \"/rss\" has no authentication or authorization check."
+     },
+     {
+      "file": "app.rb",
+      "line": 8,
+      "note": "params[:u] flows unchanged into URI.open; no parse, scheme allowlist, host/IP check, or redirect control."
+     },
+     {
+      "file": "app.rb",
+      "line": 8,
+      "note": "open-uri fetches the URL and follows 3xx redirects, so an allowed external URL can redirect to http://169.254.169.254/ or RFC1918/loopback addresses."
+     },
+     {
+      "file": "app.rb",
+      "line": 9,
+      "note": "data[0,400] returns the first 400 bytes of the fetched body to the attacker, making the SSRF readable rather than blind."
+     }
+    ],
+    "guards_checked": "No validation exists on this path. Checked: route auth (none in app.rb), parameter parsing (none), scheme allowlist (none), host or IP denylist (none), DNS pinning (none), redirect handling (open-uri default, follows redirects), and whether framework middleware could sanitize upstream (none is visible in this single-file app)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.rb:7 has no auth or validation on the \"/rss\" route, and app.rb:8 passes params[:u] straight to URI.open with no scheme, host, or IP check. The only guard in the file is the TRUSTED host check at app.rb:13-14, which belongs to the separate \"/trusted\" route and does not apply here.",
+    "reason": "The unauthenticated route at app.rb:7 passes params[:u] unchanged into URI.open at app.rb:8, open-uri follows http/https redirects by default, and app.rb:9 returns the first 400 bytes of the body, so the SSRF is readable and no closing guard exists on this path."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-1b",
+    "file": "app.rb",
+    "line": 8,
+    "claim": "Adjacent to SSRF on the same sink: a non-URL value in u is handed to Kernel#open, which reads local files and, on Ruby versions that still support it, runs a command when the value begins with '|'. This is not SSRF, but it is the same unvalidated input and is likely more severe; verify the Ruby version before relying on the command path.",
+    "source": "params[:u] (app.rb:7-8).",
+    "sink": "URI.open falls back to Kernel#open for strings that do not match a scheme (open-uri behavior), reaching File.open or the pipe form of Kernel#open.",
+    "trace": [
+     {
+      "file": "app.rb",
+      "line": 8,
+      "note": "URI.open(params[:u]) receives a string without a scheme such as /etc/passwd or |id."
+     },
+     {
+      "file": "app.rb",
+      "line": 9,
+      "note": "The first 400 bytes of the local file or command output are returned to the caller."
+     }
+    ],
+    "guards_checked": "None on this path. Not verified by running the app; Ruby version and open-uri internals should be confirmed in the target environment."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. app.rb:8 passes params[:u] straight to URI.open with no validation, and app.rb:9 returns the first 400 bytes. The TRUSTED host check at app.rb:5 and app.rb:14 applies only to the /trusted route, not /rss.",
+    "reason": "At app.rb:8, the unauthenticated query parameter params[:u] reaches URI.open with no check, so a scheme-less value such as /etc/passwd is read as a local file and its first 400 bytes are returned at app.rb:9. The command path (a leading '|') depends on the Ruby version and open-uri internals, which I could not check here since the repo has no Gemfile or .ruby-version, so the file read is the part I'd rely on."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00448676
+}

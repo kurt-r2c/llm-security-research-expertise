@@ -1,0 +1,198 @@
+{
+ "arm": "A",
+ "repo": "olivetin-api",
+ "rep": 1,
+ "model": "sonnet",
+ "suite": "cvefix",
+ "config_id": "5cef589f",
+ "status": "success",
+ "gen_cost": 0.6753828,
+ "trace": {
+  "tools": {
+   "Glob": 5,
+   "Read": 24,
+   "Grep": 3,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-s4eknwha/r/service/internal/executor/arguments.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/trusted-headers.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/authcheck.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/local_bearer.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/otjwt/jwt.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/local.go",
+   "/tmp/egf-s4eknwha/r/service/internal/api/api.go",
+   "/tmp/egf-s4eknwha/r/service/internal/acl/acl.go",
+   "/tmp/egf-s4eknwha/r/service/internal/executor/executor.go",
+   "/tmp/egf-s4eknwha/r/service/internal/executor/executor.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+   "/tmp/egf-s4eknwha/r/service/internal/httpservers/webuiServer.go",
+   "/tmp/egf-s4eknwha/r/service/internal/api/local_user_login.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/sessions.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/authpublic/authenticateduser.go",
+   "/tmp/egf-s4eknwha/r/service/internal/auth/system-users.go",
+   "/tmp/egf-s4eknwha/r/service/internal/tpl/templates.go",
+   "/tmp/egf-s4eknwha/r/service/internal/httpservers/frontend.go",
+   "/tmp/egf-s4eknwha/r/service/internal/api/api.go",
+   "/tmp/egf-s4eknwha/r/service/internal/api/api_log_arguments.go",
+   "/tmp/egf-s4eknwha/r/service/internal/executor/log_arguments.go",
+   "/tmp/egf-s4eknwha/r/service/internal/webhooks/auth.go",
+   "/tmp/egf-s4eknwha/r/service/internal/webhooks/handler.go",
+   "/tmp/egf-s4eknwha/r/service/internal/webhooks/github.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "service/internal/auth/authpublic/authenticateduser.go",
+    "line": 63,
+    "claim": "ACLs are matched on the bare username with no check of the authenticating provider. An OAuth2 user whose provider-side username equals a username listed in an ACL's matchUsernames inherits that ACL. This includes ACLs intended for a local, JWT or header user such as 'admin'. The same applies to usernames taken from JWT claims and from trusted headers.",
+    "source": "Username returned by the OAuth2 provider whoami endpoint (self-chosen on public providers such as GitHub) or by a JWT claim. The attacker registers or chooses a name equal to a privileged username in the OliveTin config.",
+    "sink": "acl.IsAllowedExec/IsAllowedKill/IsAllowedLogs/IsAllowedView, via user.Acls built by BuildUserAcls",
+    "trace": [
+     {
+      "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+      "line": 380,
+      "note": "Username is read from provider userinfo JSON with no namespacing or provider binding"
+     },
+     {
+      "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+      "line": 416,
+      "note": "AuthenticatedUser is built with Username=serverState.Username and Provider=oauth2"
+     },
+     {
+      "file": "service/internal/auth/authcheck.go",
+      "line": 54,
+      "note": "user.BuildUserAcls(cfg) is called with only the username and group line"
+     },
+     {
+      "file": "service/internal/auth/authpublic/authenticateduser.go",
+      "line": 63,
+      "note": "slices.Contains(acl.MatchUsernames, u.Username) grants the ACL without comparing u.Provider"
+     },
+     {
+      "file": "service/internal/executor/executor.go",
+      "line": 832,
+      "note": "stepACLCheck authorizes execution based on those ACLs"
+     }
+    ],
+    "guards_checked": "Checked the authChain order and the OAuth2 flow. Neither namespaces usernames by provider. The ACL code never reads u.Provider. This depends on the deployment using OAuth2 with a provider where users pick their own usernames and an ACL naming a username that is not reserved."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "service/internal/api/api.go",
+    "line": 1650,
+    "claim": "RestartAction re-runs any execution found by tracking ID, replaying the original user's stored arguments and justification. It never checks that the caller may view that execution's logs (acl.IsAllowedLogs) or the action (IsAllowedView). A caller with Exec but not Logs/View permission can therefore re-run another user's execution with that user's argument values, and learn whether a tracking ID exists. Hidden actions can also be restarted.",
+    "source": "ExecutionTrackingId in RestartActionRequest, chosen by the caller. It can come from the event stream or from another user's output.",
+    "sink": "executor.ExecRequest with Arguments copied from another user's log entry",
+    "trace": [
+     {
+      "file": "service/internal/api/api.go",
+      "line": 1651,
+      "note": "restartActionLogEntry looks up the log entry by caller-supplied ID with no ACL check"
+     },
+     {
+      "file": "service/internal/api/api_log_arguments.go",
+      "line": 49,
+      "note": "validateRestartLogEntry checks only justification and completeness, not permissions"
+     },
+     {
+      "file": "service/internal/api/api.go",
+      "line": 1663,
+      "note": "Arguments and Justification are copied from the original entry"
+     },
+     {
+      "file": "service/internal/executor/executor.go",
+      "line": 832,
+      "note": "Only the Exec ACL is applied afterwards"
+     }
+    ],
+    "guards_checked": "Exec ACL is enforced in the executor. Compared with GetLogs, ExecutionStatus and KillAction, which do apply the Logs/Kill ACLs, there is no Logs or View check here. Tracking IDs are UUIDs, which limits guessing. Arguments of type password and very_dangerous_raw_string are not stored."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "service/internal/executor/arguments.go",
+    "line": 70,
+    "claim": "Argument values are logged at debug level, including values for password-type arguments. The logged value is the raw secret, with no redaction. The later command logging does redact. Anyone with log access or SosReport/log dumps can read the secrets.",
+    "source": "User-supplied password argument value in StartAction",
+    "sink": "logrus Debugf with the plaintext value",
+    "trace": [
+     {
+      "file": "service/internal/executor/arguments.go",
+      "line": 65,
+      "note": "validateArguments iterates all action arguments, including password type"
+     },
+     {
+      "file": "service/internal/executor/arguments.go",
+      "line": 70,
+      "note": "log.WithFields value=values[arg.Name] logged at Debug level (exec branch)"
+     },
+     {
+      "file": "service/internal/executor/arguments.go",
+      "line": 96,
+      "note": "Same raw value logged in the shell branch"
+     },
+     {
+      "file": "service/internal/executor/arguments.go",
+      "line": 119,
+      "note": "Redaction exists only for the final command strings, not for these log lines"
+     }
+    ],
+    "guards_checked": "Requires debug log level to be enabled. Password and very_dangerous_raw_string arguments are excluded from stored log entries, but not from these log lines."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4",
+    "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+    "line": 175,
+    "claim": "The OAuth2 session identifier is the same value as the pre-login state token. It is issued in a cookie before authentication and is not rotated after the callback. If an attacker can plant a known olivetin-sid-oauth cookie on a victim, for example from a sibling subdomain or over plain HTTP, and the victim then completes login, the attacker's known SID becomes the victim's authenticated session (session fixation). The callback also performs no per-flow binding beyond the cookie.",
+    "source": "Attacker-chosen olivetin-sid-oauth cookie value that is a registered state. The attacker obtains one from /oauth/login and plants it in the victim's browser.",
+    "sink": "registeredStates[state].Username assignment, then CheckUserFromOAuth2Cookie authenticating the cookie holder",
+    "trace": [
+     {
+      "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+      "line": 152,
+      "note": "state generated and used as both CSRF state and session ID"
+     },
+     {
+      "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+      "line": 183,
+      "note": "state is set in the cookie before authentication"
+     },
+     {
+      "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+      "line": 204,
+      "note": "callback only checks query state == cookie state"
+     },
+     {
+      "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+      "line": 328,
+      "note": "victim's identity is written into the pre-existing state entry"
+     },
+     {
+      "file": "service/internal/auth/otoauth2/restapi_auth_oauth2.go",
+      "line": 438,
+      "note": "the same cookie value later authenticates as that user"
+     }
+    ],
+    "guards_checked": "The cookie is HttpOnly and SameSite=Lax, which stops script-based reading and cross-site POST. The attacker still needs a way to set the victim's cookie, so this is limited to that precondition. Exploitation also requires a victim who has not already completed a different flow."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

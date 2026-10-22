@@ -1,0 +1,243 @@
+{
+ "arm": "A",
+ "repo": "coraza-injection",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "d187b793",
+ "status": "success",
+ "gen_cost": 0.03418915,
+ "trace": {
+  "tools": {
+   "Glob": 3,
+   "Grep": 11,
+   "Read": 9,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-8_bd3cry/r/internal/bodyprocessors/multipart.go",
+   "/tmp/egf-8_bd3cry/r/internal/operators/inspect_file.go",
+   "/tmp/egf-8_bd3cry/r/internal/corazawaf/body_buffer.go",
+   "/tmp/egf-8_bd3cry/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-8_bd3cry/r/internal/bodyprocessors/urlencoded.go",
+   "/tmp/egf-8_bd3cry/r/internal/url/url.go",
+   "/tmp/egf-8_bd3cry/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-8_bd3cry/r/internal/corazawaf/transaction.go",
+   "/tmp/egf-8_bd3cry/r/internal/auditlog/formats.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1-inspectfile-fail-open",
+    "file": "internal/operators/inspect_file.go",
+    "line": 55,
+    "claim": "@inspectFile fails open: any exec error (NUL byte in argv, argv over MAX_ARG_STRLEN) is treated as 'no match', so an attacker-controlled value that makes exec fail is never scanned.",
+    "source": "Attacker-controlled variable value, e.g. ARGS value with %00 (url.go:67 decodes it to 0x00) or raw REQUEST_BODY containing 0x00, or a value >128KiB on Linux.",
+    "sink": "exec.CommandContext(ctx, o.path, value).CombinedOutput() at inspect_file.go:53-54; error swallowed at 55-57 returning false.",
+    "trace": [
+     {
+      "file": "internal/url/url.go",
+      "line": 67,
+      "note": "queryUnescape writes byte(hi<<4|lo) for %XX, so %00 becomes a NUL byte in the ARGS value"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 762,
+      "note": "ExtractGetArguments stores the decoded value into ARGS_GET via AddGetRequestArgument"
+     },
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 46,
+      "note": "Evaluate receives the value unchanged"
+     },
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 53,
+      "note": "value passed as argv to the external scanner"
+     },
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 54,
+      "note": "Go's syscall layer rejects argv strings containing NUL with EINVAL, so CombinedOutput returns an error and the scanner never runs"
+     },
+     {
+      "file": "internal/operators/inspect_file.go",
+      "line": 55,
+      "note": "err != nil (also ctx timeout) returns false, which SecRule treats as no match, so the request is allowed"
+     }
+    ],
+    "guards_checked": "Only the 10s context timeout (inspect_file.go:50). No NUL check, no argv length check, no distinction between exec failure and a clean result. The operator is built on all non-TinyGo targets (build tag at line 4). Impact depends on the admin having @inspectFile on a variable an attacker can populate (ARGS, REQUEST_BODY, headers). FILES_TMPNAMES paths cannot contain NUL, so that case is not affected."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2-query-args-dropped-over-limit",
+    "file": "internal/corazawaf/transaction.go",
+    "line": 772,
+    "claim": "Query-string arguments beyond ArgumentLimit (default 1000) are silently dropped, so a payload placed after the 1000th parameter never reaches ARGS_GET/ARGS.",
+    "source": "Attacker-controlled request URI query string with more than 1000 '&'-separated pairs.",
+    "sink": "ARGS_GET population: tx.variables.argsGet.Add at transaction.go:776, skipped by the limit check at 772-775.",
+    "trace": [
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 853,
+      "note": "ProcessURI calls ExtractGetArguments(parsedURL.RawQuery)"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 762,
+      "note": "ParseQuery builds the full map with no count limit"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 765,
+      "note": "loops every key/value and calls AddGetRequestArgument"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 772,
+      "note": "checkArgumentLimit: argsGet.Len() >= WAF.ArgumentLimit returns early"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 774,
+      "note": "the argument is dropped; the only signal is a debug-level log at 773"
+     },
+     {
+      "file": "internal/corazawaf/waf.go",
+      "line": 348,
+      "note": "ArgumentLimit defaults to 1000"
+     }
+    ],
+    "guards_checked": "Limit is enforced (ARGS_GET is capped). But the drop is silent: no REQBODY_ERROR-style flag, no interruption, only a debug log. REQUEST_URI_RAW and REQUEST_LINE still contain the full query, so rules on those variables still fire. Rules that only look at ARGS/ARGS_GET/QUERY_STRING miss the payload. Behaviour is a fail-open design choice and should be documented or flagged as a variable."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3-post-args-unbounded",
+    "file": "internal/bodyprocessors/urlencoded.go",
+    "line": 27,
+    "claim": "ArgumentLimit is never applied to POST/body arguments. AddPostRequestArgument (transaction.go:780) has no callers, and the urlencoded, multipart and JSON processors write to ArgsPost directly. An attacker can create an unbounded number of ARGS_POST entries, up to the request body limit.",
+    "source": "Attacker-controlled urlencoded, multipart or JSON request body.",
+    "sink": "ArgsPost population: argsCol.Set(k, vs) at urlencoded.go:29 and the rule-evaluation loops over ARGS_POST.",
+    "trace": [
+     {
+      "file": "internal/bodyprocessors/urlencoded.go",
+      "line": 26,
+      "note": "ParseQuery builds a map of every key in the body with no count limit"
+     },
+     {
+      "file": "internal/bodyprocessors/urlencoded.go",
+      "line": 29,
+      "note": "argsCol.Set writes each key directly, bypassing checkArgumentLimit"
+     },
+     {
+      "file": "internal/bodyprocessors/multipart.go",
+      "line": 117,
+      "note": "multipart fields use postCol.Add directly, also unlimited"
+     },
+     {
+      "file": "internal/bodyprocessors/json.go",
+      "line": 35,
+      "note": "JSON keys use col.SetIndex directly, also unlimited"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 780,
+      "note": "AddPostRequestArgument, the only limit-checked POST path, has no callers (repo-wide grep)"
+     },
+     {
+      "file": "internal/corazawaf/waf.go",
+      "line": 331,
+      "note": "RequestBodyLimit default is 134217728 (128 MiB), so up to ~tens of millions of pairs can be created"
+     }
+    ],
+    "guards_checked": "Body size limit only (default 128 MiB, Reject action at waf.go:332). No argument-count check. The documented ArgumentLimit is effectively not enforced for body arguments. This is a resource-exhaustion (CPU/memory during rule evaluation) issue, not a bypass."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F4-filesizes-duplicate-filename",
+    "file": "internal/bodyprocessors/multipart.go",
+    "line": 100,
+    "claim": "FILES_SIZES is keyed by the attacker-chosen filename and written with SetIndex(index 0), which overwrites on duplicate names. A large file can be hidden from size-based rules by a later part with the same filename and a small size.",
+    "source": "Attacker-controlled multipart body with two file parts sharing the same filename.",
+    "sink": "fileSizesCol.SetIndex(filename, 0, size) at multipart.go:100, read by rules on FILES_SIZES.",
+    "trace": [
+     {
+      "file": "internal/bodyprocessors/multipart.go",
+      "line": 99,
+      "note": "filesCol.Add records the filename; FILES is appended, so both parts are listed"
+     },
+     {
+      "file": "internal/bodyprocessors/multipart.go",
+      "line": 100,
+      "note": "SetIndex(filename,0,size) with an existing key"
+     },
+     {
+      "file": "internal/collections/map.go",
+      "line": 185,
+      "note": "len(values) > index, so the default branch runs"
+     },
+     {
+      "file": "internal/collections/map.go",
+      "line": 188,
+      "note": "c.data[key][0] = av overwrites the first file's size with the second file's size (for example 10 MB replaced by 1 byte)"
+     }
+    ],
+    "guards_checked": "FILES_COMBINED_SIZE (multipart.go:102) is cumulative and correct. File contents are still written to FILES_TMPNAMES and inspected by @inspectFile/rules, so the impact is limited to rules keyed on FILES_SIZES (for example a max-file-size rule). Map keys are lowercased for case-insensitive collections, so 'A.bin' and 'a.bin' collide too."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F5-query-lost-on-uri-parse-error",
+    "file": "internal/corazawaf/transaction.go",
+    "line": 834,
+    "claim": "When url.ParseRequestURI fails, ProcessURI never extracts query arguments (ExtractGetArguments is only called on the success branch), so ARGS_GET and QUERY_STRING are empty while the raw URI, including the query, still reaches REQUEST_FILENAME/REQUEST_BASENAME and REQUEST_URI.",
+    "source": "Attacker-controlled request line that Go's ParseRequestURI rejects, e.g. an invalid percent-escape in the path such as /index.php%zz?id=<payload>.",
+    "sink": "ARGS_GET / QUERY_STRING population is skipped; the payload in the query is not parsed into ARGS.",
+    "trace": [
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 834,
+      "note": "url.ParseRequestURI(uri) runs on the raw request target"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 836,
+      "note": "on err, urlencodedError is set (no rule blocks on it by default) and path = uri"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 838,
+      "note": "requestURI is set to the raw URI"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 853,
+      "note": "ExtractGetArguments is only on the success branch, so it is skipped here"
+     },
+     {
+      "file": "internal/corazawaf/transaction.go",
+      "line": 866,
+      "note": "queryString is set from query, which is still empty on this branch"
+     }
+    ],
+    "guards_checked": "urlencodedError is set but no default rule denies on it. Go's net/http server applies the same ParseRequestURI and rejects such requests with 400, so this only matters for a backend that accepts invalid path escapes and parses the query (for example some non-Go servers behind the WAF). Confidence is medium and depends on the deployment."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

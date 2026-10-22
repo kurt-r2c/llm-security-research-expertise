@@ -1,0 +1,103 @@
+{
+ "arm": "A",
+ "repo": "mx-js-await",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.0395924,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "server.js",
+    "line": 20,
+    "claim": "The DELETE handler calls the async authorize() without await. The 403 rejection is never observed, so the deletion runs regardless of the caller's grants. Any user, even one with no 'delete' grant, can delete any report by ID. The rejected promise also becomes an unhandled rejection, which can crash the process on modern Node.",
+    "source": "Any session-holding client sends DELETE /reports/:id. The :id path parameter is attacker-controlled.",
+    "sink": "db.reports.remove(report.id) at server.js:21",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 19,
+      "note": "The report is loaded from the attacker-supplied req.params.id."
+     },
+     {
+      "file": "server.js",
+      "line": 20,
+      "note": "authorize(...) returns a promise that is not awaited, so the handler does not wait for it and does not catch its rejection."
+     },
+     {
+      "file": "server.js",
+      "line": 9,
+      "note": "authorize is async, so the 403 error is thrown as a promise rejection and never reaches the handler's control flow."
+     },
+     {
+      "file": "server.js",
+      "line": 21,
+      "note": "db.reports.remove runs unconditionally."
+     },
+     {
+      "file": "server.js",
+      "line": 22,
+      "note": "The handler responds 204, reporting success to the attacker."
+     }
+    ],
+    "guards_checked": "The only guard is authorize(), and its result is discarded. The PUT handler awaits the same call at line 27, which confirms the missing await is a bug. There is no other middleware for authentication or authorization. Express 4 does not catch async handler errors, so no error handler intervenes. The 403 is never returned to the client."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:9-16 is the only control. It is async and throws 403 on a missing grant, but the DELETE handler calls it as a bare statement at server.js:20 without await, so the rejection is never observed. The session-user middleware at server.js:4-7 only sets req.user and does no authorization. There is no error middleware.",
+    "reason": "server.js:20 calls async authorize() without await, so its 403 throw (server.js:14) becomes an unobserved rejection and server.js:21 db.reports.remove runs regardless of grants; the PUT handler awaits the same call at server.js:27, which shows the missing await is the bug."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:9-16 throws a 403 on a missing grant. The DELETE handler calls it at line 20 as a bare statement with no await and no catch, so the check never gates the removal. No other auth middleware exists. The only middleware, at lines 4-7, just copies the session user.",
+    "reason": "server.js:20 calls the async authorize() without await, so its 403 rejection (thrown at server.js:13) cannot stop db.reports.remove at server.js:21. Any session-holding user can therefore delete any report. The awaited PUT at server.js:27 confirms the omission is a bug."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "server.js",
+    "line": 28,
+    "claim": "The PUT handler passes the whole request body to db.reports.update with no field allow-list or validation. An authorized writer can overwrite protected fields such as owner, id or ACL attributes (mass assignment). This is a possible privilege escalation or ownership takeover, depending on the schema. The db layer is not in the repository, so this is unconfirmed.",
+    "source": "The JSON body of PUT /reports/:id, from a user who has the 'write' grant.",
+    "sink": "db.reports.update(report.id, req.body) at server.js:28",
+    "trace": [
+     {
+      "file": "server.js",
+      "line": 3,
+      "note": "express.json() parses the attacker-controlled body."
+     },
+     {
+      "file": "server.js",
+      "line": 27,
+      "note": "The authorize check only verifies the 'write' grant. It does not restrict which fields may be changed."
+     },
+     {
+      "file": "server.js",
+      "line": 28,
+      "note": "The raw req.body is passed to the update call."
+     }
+    ],
+    "guards_checked": "No schema validation or field filtering is present. The db implementation is not in the repository, so I could not check for filtering inside it."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:9-16, awaited at line 27. It throws a 403 if the user lacks the 'write' grant. It checks the grant only and does no field filtering. No schema validation or allow-list exists in the repo. The db layer is absent.",
+    "reason": "The trace is accurate: line 3 parses the body, line 27 awaits authorize for 'write' only, and line 28 passes raw req.body to db.reports.update. The attacker must hold the 'write' grant. Whether this allows overwriting owner, id or ACL fields depends on db.reports.update and the schema, which are not in the repo, so exploitability cannot be decided."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "authorize() at server.js:27 is awaited and throws a 403 when the 'write' grant is missing. It checks only the grant and does no field filtering. No validation or allow-list exists in server.js.",
+    "reason": "server.js:28 passes raw req.body to db.reports.update after only a write-grant check (server.js:27), but whether this lets a writer change owner, id or ACL fields depends on the db layer, which is not in the directory."
+   }
+  }
+ ],
+ "verify_cost": 0.0630337,
+ "verify_facts_cost": 0.0636977
+}

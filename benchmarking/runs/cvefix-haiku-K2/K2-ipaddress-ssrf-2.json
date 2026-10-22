@@ -1,0 +1,155 @@
+{
+ "arm": "K2",
+ "repo": "ipaddress-ssrf",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "e1c1143e",
+ "status": "success",
+ "gen_cost": 0.07921718,
+ "trace": {
+  "tools": {
+   "Read": 11,
+   "Glob": 1,
+   "Grep": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-hxmpfitw/expertise/INDEX.md",
+   "/tmp/egf-hxmpfitw/r/src/ip-address.ts",
+   "/tmp/egf-hxmpfitw/r/src/ipv4.ts",
+   "/tmp/egf-hxmpfitw/r/src/ipv6.ts",
+   "/tmp/egf-hxmpfitw/r/src/common.ts",
+   "/tmp/egf-hxmpfitw/r/src/v6/regular-expressions.ts",
+   "/tmp/egf-hxmpfitw/r/src/v4/constants.ts",
+   "/tmp/egf-hxmpfitw/r/src/v6/constants.ts",
+   "/tmp/egf-hxmpfitw/r/src/v6/helpers.ts",
+   "/tmp/egf-hxmpfitw/r/src/address-error.ts",
+   "/tmp/egf-hxmpfitw/r/src/v4/constants.ts"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "src/common.ts",
+    "line": 123,
+    "claim": "testBit() is off by one: it reads bit position-1, so inspectTeredo() reports the wrong Teredo flag bits (coneNat, reserved, groupIndividual, universalLocal). Example: the flags word 0x8000 (cone bit set) yields coneNat=false.",
+    "source": "Caller-supplied IPv6 address in 2001::/32, e.g. '2001:0:4136:e378:8000:63bf:3fff:fdd2' (flags group 0x8000). Input is not a security boundary here, so this is a correctness bug with no direct attacker control over the library's trust decisions.",
+    "sink": "inspectTeredo() return fields coneNat / reserved / microsoft.groupIndividual / microsoft.universalLocal (consumers that act on these flags).",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 988,
+      "note": "flagsBase2 = getBitsBase2(64,80): 16-char MSB-first string, index 0 = bit 15"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 990,
+      "note": "coneNat = testBit(flagsBase2, 15)"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 119,
+      "note": "guard: if (position > length) return false (should be >=)"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 123,
+      "note": "positionInString = length - position = 1 for position 15; the correct index is length-1-position = 0"
+     },
+     {
+      "file": "src/common.ts",
+      "line": 124,
+      "note": "substring(1,2) returns bit 14 (the R bit), not the cone bit at index 0"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 991,
+      "note": "reserved = testBit(...,14) therefore reads bit 13 (an A bit)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 992,
+      "note": "groupIndividual = testBit(...,8) reads bit 7 instead of bit 8 (G)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 993,
+      "note": "universalLocal = testBit(...,9) reads bit 8 (G) instead of bit 9 (U)"
+     }
+    ],
+    "guards_checked": "Checked nonce (ipv6.ts:994, slices, correct) and udpPort (ipv6.ts:978-979, XOR, correct); prefix/server4/client4 are correct. Only the testBit-derived booleans are wrong. No validation exists to catch this. Repro: new Address6('2001:0:4136:e378:8000:63bf:3fff:fdd2').inspectTeredo().coneNat returns false; expected true."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "src/ipv6.ts",
+    "line": 1453,
+    "claim": "href(optionalPort) concatenates the port argument into the URL without validation or escaping, so a string port can change the host of the returned HTTP URL (userinfo/host confusion).",
+    "source": "The optionalPort parameter, typed number | string (ipv6.ts:1446). Attacker-controlled only if a caller forwards untrusted input as the port.",
+    "sink": "The returned URL string, documented as an HTTP URL and likely used as an href or redirect target.",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1446,
+      "note": "href(optionalPort?: number | string)"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1450,
+      "note": "optionalPort = `:${optionalPort}` with no check that it is numeric or in 0-65535"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1453,
+      "note": "returns `http://[${this.correctForm()}]${optionalPort}/`"
+     }
+    ],
+    "guards_checked": "The address part is safe because correctForm() yields only hex and colons. link() (ipv6.ts:1488-1489) escapes its output with escapeHtml, but that is HTML escaping, not URL validation, and href() has no equivalent. Repro: new Address6('2001:db8::1').href('1@evil.example') gives 'http://[2001:db8::1]:1@evil.example/', whose WHATWG host is evil.example. Severity low: it needs a caller that passes untrusted data as the port. Confidence: plausible."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "src/ipv6.ts",
+    "line": 1381,
+    "claim": "isPrivate() and isLoopback() do not decode 6to4 (2002::/16) embedded IPv4 addresses, so an address whose 6to4 gateway field is an RFC 1918 or loopback IPv4 is classified as public.",
+    "source": "Attacker-supplied IPv6 literal, e.g. 2002:0a00:0001::1 (6to4 gateway 10.0.0.1). Used in an SSRF or trust-boundary filter that calls isPrivate()/isLoopback() on the destination.",
+    "sink": "Allow/deny decision on the destination address (protected operation: outbound connection to an internal host through a 6to4 relay).",
+    "trace": [
+     {
+      "file": "src/ipv6.ts",
+      "line": 1375,
+      "note": "isPrivate() calls embeddedIPv4() first"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1312,
+      "note": "embeddedIPv4() returns an embedded address only for isMapped4() or NAT64_WELL_KNOWN; 6to4 is not handled"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1381,
+      "note": "falls through to isULA() (fc00::/7: false) or NAT64_LOCAL_USE (false), so returns false"
+     },
+     {
+      "file": "src/ipv6.ts",
+      "line": 1340,
+      "note": "isLoopback() likewise returns getType()==='Loopback' (false), since getType gives '6to4' per constants.ts:51"
+     }
+    ],
+    "guards_checked": "The documented scope at ipv6.ts:1295-1310 covers only mapped and NAT64 addresses, so this is a documented gap, not a logic slip. The 6to4 gateway field is decoded in inspect6to4() (ipv6.ts:1017-1031) but not used by the classifiers. Exploitability needs the network to route 2002::/16 through a 6to4 relay that reaches the embedded IPv4 host, which is uncommon. Severity low. Confidence: plausible."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

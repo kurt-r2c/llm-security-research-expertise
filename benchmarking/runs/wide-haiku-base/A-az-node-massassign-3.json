@@ -1,0 +1,139 @@
+{
+ "arm": "A",
+ "repo": "az-node-massassign",
+ "rep": 3,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.004855420000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-f2d8br4_/r/users.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "users.js",
+    "line": 5,
+    "claim": "PUT /me mass-assigns the entire request body onto the authenticated user record and persists it, so an attacker can set privileged or identity fields (role, isAdmin, id, email, password hash) if the user schema has them.",
+    "source": "req.body (JSON body of PUT /me), users.js:5",
+    "sink": "Object.assign(req.user, req.body) at users.js:5, then req.store.save(req.user) at users.js:6",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "router.put('/me') handler accepts any request reaching this route"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign copies every own property of req.body onto req.user with no allowlist"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save persists the modified user object"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json returns the saved user, confirming the change to the attacker"
+     }
+    ],
+    "guards_checked": "No field allowlist, schema validation, or protected-field handling in users.js. /me/profile (line 11) uses an allowlist, but /me does not. Upstream auth middleware and store/schema not in the directory, so unverified. Precondition: user object contains an authorization-relevant or identity field that the store persists."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 Object.assign(req.user, req.body) has no allowlist, and the handler at users.js:4-8 does no validation before req.store.save at users.js:6. The allowlisted /me/profile at users.js:11-12 is a separate route and does not guard /me. Auth middleware, the store, and the user schema are not in the directory, so no guard or schema can be checked.",
+    "reason": "Every trace line matches users.js:4-8 (mass assignment at line 5, persistence at line 6, response at line 7) and no guard exists in this file, but whether an attacker can escalate depends on whether the user schema or store holds a privileged field (role, isAdmin, id, password hash) and on what auth middleware allows, and none of that is in the directory, so the impact cannot be decided from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "users.js",
+    "line": 5,
+    "claim": "A JSON body containing an own key '__proto__' makes Object.assign invoke the inherited __proto__ setter on req.user, replacing that object's prototype with an attacker-controlled object. Later inherited-property authorization checks can then be influenced. This does not pollute Object.prototype globally.",
+    "source": "req.body with own key '__proto__' (JSON.parse produces an own property), users.js:5",
+    "sink": "Object.assign(req.user, req.body) at users.js:5 invoking the __proto__ setter; downstream authorization reads such as req.user.isAdmin",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 4,
+      "note": "PUT /me handler receives attacker JSON body"
+     },
+     {
+      "file": "users.js",
+      "line": 5,
+      "note": "Object.assign performs [[Set]] of '__proto__' on req.user, changing its prototype"
+     },
+     {
+      "file": "users.js",
+      "line": 6,
+      "note": "req.store.save persists the object with the altered prototype"
+     },
+     {
+      "file": "users.js",
+      "line": 7,
+      "note": "res.json returns the object"
+     }
+    ],
+    "guards_checked": "No __proto__ or key filtering in users.js. Impact depends on downstream authorization reading inherited properties, which is not in the directory; behavior differs if req.user is a Mongoose or class instance. Plausible, not confirmed."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. users.js:5 applies Object.assign(req.user, req.body) with no key filtering, and users.js:6-7 persist and return the object unchanged. The only other file is users.js itself, so no auth middleware, store, or authorization check is in the directory to inspect.",
+    "reason": "The trace matches users.js:4-7: Object.assign at line 5 would invoke the inherited __proto__ setter on req.user, but whether that yields any authorization impact depends on code outside this directory (the auth middleware that sets req.user and the authorization checks that read it), so it cannot be decided here. The attacker is at most an authenticated user altering their own object, since req.user is the only target, and the candidate itself notes it is \"plausible, not confirmed.\""
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "F3",
+    "file": "users.js",
+    "line": 12,
+    "claim": "PUT /me/profile writes displayName and bio without type or length validation, and always assigns both keys, so omitting bio erases the stored bio. Unvalidated values may be stored-XSS or injection vectors if later rendered or queried unescaped.",
+    "source": "req.body.displayName and req.body.bio, users.js:11",
+    "sink": "Object.assign(req.user, { displayName, bio }) at users.js:12, then req.store.save at users.js:13",
+    "trace": [
+     {
+      "file": "users.js",
+      "line": 11,
+      "note": "Destructures displayName and bio from req.body with no validation"
+     },
+     {
+      "file": "users.js",
+      "line": 12,
+      "note": "Assigns both fields, setting absent values to undefined and clobbering existing bio"
+     },
+     {
+      "file": "users.js",
+      "line": 13,
+      "note": "req.store.save persists the values as-is"
+     }
+    ],
+    "guards_checked": "Field allowlist present (only displayName and bio are written). No type, length, or encoding checks. Downstream rendering not in the directory. Low severity logic flaw plus conditional injection risk."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. users.js:11 destructures displayName and bio with no type, length, or encoding check. users.js:12 always assigns both keys, so an omitted bio becomes undefined and overwrites the stored value. users.js:13 saves without any validation. The only allowlist is the destructuring itself, which limits the fields but not their values.",
+    "reason": "The trace matches users.js:11-13: an omitted bio is assigned as undefined via Object.assign at users.js:12 and persisted at users.js:13, so the stored bio is erased, and any authenticated user can trigger this on their own req.user. The stored-XSS/injection part is unverifiable because no rendering or query code exists in the directory and the impact is self-only unless another user's view renders the bio."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00652566
+}

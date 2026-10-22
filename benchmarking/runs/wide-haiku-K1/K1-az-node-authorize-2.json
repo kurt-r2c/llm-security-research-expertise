@@ -1,0 +1,69 @@
+{
+ "arm": "K1",
+ "repo": "az-node-authorize",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "58b2c8f2",
+ "status": "success",
+ "gen_cost": 0.0031983999999999997,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-_r6by0lv/r/api.js"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "AUTHZ-1",
+    "file": "api.js",
+    "line": 18,
+    "claim": "DELETE /projects/:id deletes any project for any authenticated caller. The boolean returned by authorized() is discarded, so the ownership/admin check never blocks the delete.",
+    "source": "Request path parameter req.params.id (api.js:17) plus the authenticated caller's req.user, which is attacker-controlled by being any logged-in user.",
+    "sink": "req.store.projects.delete(project.id) at api.js:19 (destructive write on a project the caller does not own).",
+    "trace": [
+     {
+      "file": "api.js",
+      "line": 16,
+      "note": "Route handler for DELETE /projects/:id; no per-route auth guard in this file."
+     },
+     {
+      "file": "api.js",
+      "line": 17,
+      "note": "Project loaded by id from the URL with no owner/tenant scoping."
+     },
+     {
+      "file": "api.js",
+      "line": 18,
+      "note": "authorized(req.user, project) is called as a bare statement. It returns false for non-owner, non-admin callers, but the return value is never checked and it does not throw."
+     },
+     {
+      "file": "api.js",
+      "line": 12,
+      "note": "authorized() only returns a boolean (resource.ownerId === user.id || user.isAdmin === true). It does not throw or enforce anything itself."
+     },
+     {
+      "file": "api.js",
+      "line": 19,
+      "note": "Delete executes unconditionally for the loaded project."
+     }
+    ],
+    "guards_checked": "Checked for: auth guard on the route (none in this file; req.user is assumed to be set by upstream middleware not present in the repo); ownership comparison (present in authorized(), but its result is ignored); use of the same object (yes, project is checked and deleted, so no parent/child mismatch); exception path (authorized() does not throw, so there is no 403 path). Compare with the PUT handler at api.js:25, which uses authorize() that throws, so it is correctly enforced. The bypass is specific to DELETE. Precondition: the caller is authenticated as any user and knows or can enumerate a project id they do not own. Impact: any authenticated user can permanently delete other tenants' or users' projects, a broken object-level authorization (IDOR) with destructive effect. Confidence depends on the upstream auth middleware: if req.user is unset, req.user.id throws, which is a 500 rather than a delete, so the finding requires an authenticated session."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "None effective. The only ownership check, authorized() at api.js:12-14, returns a boolean, and its result is discarded by the bare call at api.js:18, so it never blocks the delete at api.js:19. The PUT handler at api.js:25 uses authorize() (api.js:4-10), which throws, but that guard is not applied to DELETE. No per-route auth guard exists in api.js; req.user is assumed to come from upstream middleware that is not in the repo.",
+    "reason": "All five trace lines match the code: the bare authorized(req.user, project) call at api.js:18 discards its boolean (api.js:12-14), so req.store.projects.delete(project.id) at api.js:19 runs for any project loaded by id, including ones the caller does not own. Any authenticated user can reach this, and the only uncertainty is the upstream auth middleware, which is outside the repo."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0022674600000000002
+}

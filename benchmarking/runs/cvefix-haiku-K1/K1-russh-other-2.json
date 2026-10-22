@@ -1,0 +1,109 @@
+{
+ "arm": "K1",
+ "repo": "russh-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.013641820000000002,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 6,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-bq2m5po_/r/pageant/src/lib.rs",
+   "/tmp/egf-bq2m5po_/r/pageant/src/interface.rs",
+   "/tmp/egf-bq2m5po_/r/pageant/src/namedpipes.rs",
+   "/tmp/egf-bq2m5po_/r/pageant/src/wmmessage.rs",
+   "/tmp/egf-bq2m5po_/r/pageant/src/error.rs",
+   "/tmp/egf-bq2m5po_/r/pageant/Cargo.toml"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "pageant-named-pipe-squatting",
+    "file": "pageant/src/namedpipes.rs",
+    "line": 33,
+    "claim": "The client connects to the named pipe without verifying the server's identity, so a local unprivileged user can pre-create the predictable pipe name while Pageant is not running and intercept the victim's SSH agent requests, returning forged identities or failing signatures. Low severity; plausible, not verified at runtime.",
+    "source": "Local unprivileged attacker on the same Windows host. Pipe name built from the caller's username (UPN or SAM name) and a deterministic SHA-256 suffix over CryptProtectMemory of 'Pageant'.",
+    "sink": "ClientOptions::new().open(&pipe_name) in PageantStream::new, which sends SSH agent requests (including sign requests) to whichever process owns the pipe.",
+    "trace": [
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 49,
+      "note": "determine_pipe_name builds '\\\\.\\pipe\\pageant.{username}.{suffix}'"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 55,
+      "note": "get_username obtains the username via GetUserNameExA, falling back to GetUserNameA"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 95,
+      "note": "capi_obfuscate_string gives a deterministic suffix (CryptProtectMemory CROSS_PROCESS over 'Pageant', SHA-256)"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 33,
+      "note": "open(&pipe_name) connects with no server ownership or identity check"
+     },
+     {
+      "file": "pageant/src/namedpipes.rs",
+      "line": 36,
+      "note": "A non-busy error returns immediately; if the attacker holds the pipe, the client talks to the attacker"
+     }
+    ],
+    "guards_checked": "Pipe name is not secret, so guessing is not the barrier. No GetNamedPipeServerProcessId or server-owner check exists. Pageant's own pipe creation would fail once the attacker holds the name. Exploit needs a local account and Pageant to be stopped. Impact is request interception and forged responses, not private-key extraction, because keys stay in the agent."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "pageant-window-name-spoofing",
+    "file": "pageant/src/interface.rs",
+    "line": 186,
+    "claim": "find_pageant_window locates the agent by window class and title 'Pageant' only, so any process in the same desktop session that registers a window with that class and title can receive WM_COPYDATA requests and return forged responses. Low severity; plausible, not verified on Windows. Same-user malware already has key access, so the real exposure is lower-integrity or sandboxed processes that can open the mapping.",
+    "source": "Any local process in the same desktop session that creates a top-level window with class 'Pageant' and title 'Pageant'.",
+    "sink": "SendMessageA(WM_COPYDATA) in query_pageant_direct, which delivers the request mapping name to the window owner. The response is then read from the shared mapping and trusted by the caller.",
+    "trace": [
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 186,
+      "note": "find_pageant_window calls FindWindowW with class 'Pageant' and title 'Pageant' and returns the first match"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 206,
+      "note": "MemoryMap::new creates the request mapping 'PageantRequest<cookie>' with the default DACL"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 207,
+      "note": "The request message is written into the shared mapping"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 217,
+      "note": "SendMessageA(WM_COPYDATA) passes the mapping name to whichever window was found"
+     },
+     {
+      "file": "pageant/src/interface.rs",
+      "line": 230,
+      "note": "The response is read from the shared mapping, with the size taken from the peer and bounds-checked at read()"
+     }
+    ],
+    "guards_checked": "Bounds checks in read() and write() prevent out-of-range access. No check confirms the window owner's process identity or executable path. Cross-user spoofing is not possible across window stations. Whether a sandboxed process can open the mapping under the default DACL and integrity label was not verified."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}

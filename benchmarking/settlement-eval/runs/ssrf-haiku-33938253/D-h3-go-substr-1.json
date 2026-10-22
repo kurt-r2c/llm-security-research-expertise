@@ -1,0 +1,120 @@
+{
+ "arm": "D",
+ "repo": "h3-go-substr",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.01596683,
+ "trace": {
+  "tools": {
+   "Skill": 1,
+   "Read": 4,
+   "Glob": 1,
+   "Bash": 1,
+   "Write": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [
+   "security-research"
+  ],
+  "reads": [
+   "/tmp/egf-83gwir39/r/.claude/skills/security-research/infrastructure/SKILL.md",
+   "/tmp/egf-83gwir39/r/.claude/skills/security-research/triage/SKILL.md",
+   "/tmp/egf-83gwir39/r/.claude/skills/security-research/ssrf/SKILL.md",
+   "/tmp/egf-83gwir39/r/main.go"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "main.go",
+    "line": 36,
+    "claim": "Unauthenticated attacker can make the server fetch arbitrary URLs via /logo. The only host check is a substring match on 'example.io', which an attacker satisfies by placing it in the query string, e.g. http://169.254.169.254/latest/meta-data/?example.io. The response body is returned to the caller (full-read SSRF).",
+    "source": "main.go:31 r.FormValue(\"logo\") (query or body, attacker-controlled)",
+    "sink": "main.go:36 http.Get(raw) using default client; redirects followed with no re-validation; body copied to response at main.go:38",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 43,
+      "note": "/logo route registered"
+     },
+     {
+      "file": "main.go",
+      "line": 44,
+      "note": "ListenAndServe on :8081 (all interfaces, public ingress)"
+     },
+     {
+      "file": "main.go",
+      "line": 31,
+      "note": "raw := r.FormValue(\"logo\") \u2014 attacker-controlled source"
+     },
+     {
+      "file": "main.go",
+      "line": 32,
+      "note": "strings.Contains(raw, \"example.io\") \u2014 substring check, not strict set membership; bypassed by example.io in query string"
+     },
+     {
+      "file": "main.go",
+      "line": 36,
+      "note": "http.Get(raw) \u2014 SSRF sink; no scheme or host allowlist, redirects followed unchecked"
+     },
+     {
+      "file": "main.go",
+      "line": 38,
+      "note": "io.Copy(w, resp.Body) \u2014 response returned to attacker"
+     }
+    ],
+    "guards_checked": "main.go:32 strings.Contains substring check: bypassable, does not close per ssrf/SKILL.md. No scheme restriction. No hostname set membership. No CheckRedirect on http.Get default client. No IP-range blocking. Route unauthenticated. Triage Step 0 answered (unauthenticated external user; single GET; request triggers fetch; reads internal/metadata responses). Severity HIGH; Validation Tier 0."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. The only check is main.go:32 strings.Contains(raw, \"example.io\"), a substring match that the claimed payload satisfies via the query string. No scheme restriction, host allowlist, IP-range blocking, or redirect check exists on the path. The `trusted` map and `noRedirect` helper at main.go:10-12 are used only by the separate /cdn handler (main.go:20-24), not by /logo.",
+    "reason": "Source r.FormValue(\"logo\") at main.go:31 is attacker-controlled on an unauthenticated route registered at main.go:43 and served on :8081 (main.go:44); the substring check at main.go:32 does not close it, and http.Get(raw) at main.go:36 uses the default client that follows redirects and io.Copy at main.go:38 returns the body to the caller.</reason>\n</invoke>\n"
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-CLOSED-cdn",
+    "file": "main.go",
+    "line": 20,
+    "claim": "Closed candidate, not a finding: /cdn handler is safe. Source main.go:15 r.FormValue(\"u\"). Exact map membership on u.Hostname() (main.go:20, trusted map at main.go:10). Client uses CheckRedirect returning http.ErrUseLastResponse (main.go:24), so no redirect escape. Sink main.go:25 fetches the same string that was checked. Userinfo bypass fails because Hostname() strips it. Non-SSRF note: main.go:25 ignores error, nil resp deref at main.go:26 (panic recovered per request by net/http; OUT/availability domain).",
+    "source": "main.go:15 r.FormValue(\"u\")",
+    "sink": "main.go:25 c.Get(u.String())",
+    "trace": [
+     {
+      "file": "main.go",
+      "line": 15,
+      "note": "url.Parse(r.FormValue(\"u\"))"
+     },
+     {
+      "file": "main.go",
+      "line": 20,
+      "note": "trusted[u.Hostname()] exact membership check"
+     },
+     {
+      "file": "main.go",
+      "line": 24,
+      "note": "http.Client with CheckRedirect noRedirect"
+     },
+     {
+      "file": "main.go",
+      "line": 25,
+      "note": "c.Get(u.String()) sink"
+     }
+    ],
+    "guards_checked": "Exact hostname set membership (main.go:20); redirects disabled (main.go:12, main.go:24); userinfo confusion rejected by Hostname(); port not restricted but host is trusted, so out of scope."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "main.go:20 exact map membership on u.Hostname() against trusted = {\"cdn.example.io\"} (main.go:10); main.go:12 and main.go:24 CheckRedirect returns http.ErrUseLastResponse, so redirects are not followed. The fetched string at main.go:25 is the same u.String() that was checked. Userinfo is stripped by Hostname(), so the check matches the host Go's client connects to.",
+    "reason": "The sink at main.go:25 fetches only when u.Hostname() exactly matches \"cdn.example.io\" (main.go:20), and redirects are disabled at main.go:24, so the attacker-controlled u at main.go:15 cannot reach an arbitrary host. The main.go:26 nil dereference when the request errors is a panic/availability issue, not SSRF."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.00416987
+}

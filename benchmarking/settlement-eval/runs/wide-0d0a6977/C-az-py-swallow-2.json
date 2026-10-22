@@ -1,0 +1,75 @@
+{
+ "arm": "C",
+ "repo": "az-py-swallow",
+ "rep": 2,
+ "model": "sonnet",
+ "status": "success",
+ "gen_cost": 0.0664986,
+ "trace": {
+  "tools": {
+   "Read": 2,
+   "Glob": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-0mvv6odh/expertise/INDEX.md",
+   "/tmp/egf-0mvv6odh/r/admin.py"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "admin.py",
+    "line": 16,
+    "claim": "Broken authorization on the ban endpoint. require_admin() denies access by calling abort(403), which raises an HTTPException. ban() wraps the call in `except Exception`, which catches it, logs a warning and carries on to do_ban(uid). Any authenticated non-admin user, or a request with no g.user at all (the AttributeError is swallowed too), can ban arbitrary users. unban() calls require_admin() without the try/except, so it is enforced correctly. The two endpoints are inconsistent.",
+    "source": "Any authenticated non-admin request (or one with no g.user) to POST /admin/users/<uid>/ban with an attacker-chosen uid.",
+    "sink": "do_ban(uid), the privileged ban operation.",
+    "trace": [
+     {
+      "file": "admin.py",
+      "line": 14,
+      "note": "Route /admin/users/<uid>/ban is exposed with no decorator or before_request auth check."
+     },
+     {
+      "file": "admin.py",
+      "line": 17,
+      "note": "require_admin(g.user) is called inside a try block."
+     },
+     {
+      "file": "admin.py",
+      "line": 10,
+      "note": "For a non-admin, require_admin calls abort(403), which raises werkzeug HTTPException (a subclass of Exception)."
+     },
+     {
+      "file": "admin.py",
+      "line": 18,
+      "note": "`except Exception` swallows the 403. The handler only logs a warning at line 19 and does not re-raise or return."
+     },
+     {
+      "file": "admin.py",
+      "line": 20,
+      "note": "do_ban(uid) runs unconditionally and the endpoint returns ok=True."
+     }
+    ],
+    "guards_checked": "The only guard is require_admin, which is bypassed by the broad except. There is no before_request hook, login decorator, or other authentication/authorization middleware in the file. unban() does not swallow the exception, so it is not affected. Line 19 also logs the user-controlled g.user name, a minor log-injection and PII concern."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_admin (admin.py:9-11) aborts with 403, but ban() catches it with `except Exception` (admin.py:18) and never re-raises. There is no decorator or before_request hook. unban() at admin.py:26 calls it unguarded, so it is enforced there.",
+    "reason": "At admin.py:17-20 the abort(403) from require_admin (raised at line 11, not 10 as the trace says) is swallowed by `except Exception`, so do_ban(uid) runs for any authenticated non-admin; the \"no g.user\" sub-claim is wrong, since line 19 would raise on a missing g.user and the request would fail before do_ban."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "require_admin (admin.py:9-11) aborts with 403, but the abort is swallowed by `except Exception` at admin.py:18. No decorator or before_request check exists.",
+    "reason": "admin.py:17-20 catches the HTTPException raised by abort(403) at admin.py:11 and only logs it, so do_ban(uid) runs for any authenticated non-admin, unlike unban at admin.py:26. The candidate is slightly off in two places: the abort is on line 11, not 10, and a request with no g.user would hit AttributeError again at line 19 and return a 500 without banning. The non-admin bypass is real."
+   }
+  }
+ ],
+ "verify_cost": 0.036163299999999995,
+ "verify_facts_cost": 0.0369687
+}

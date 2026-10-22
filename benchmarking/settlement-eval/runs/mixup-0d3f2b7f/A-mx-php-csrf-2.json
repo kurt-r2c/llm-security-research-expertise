@@ -1,0 +1,88 @@
+{
+ "arm": "A",
+ "repo": "mx-php-csrf",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.0387597,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "actions.php",
+    "line": 16,
+    "claim": "transfer_funds calls check_csrf(), which only returns a boolean, and ignores the result. The exiting verify_csrf() was intended. CSRF protection is therefore bypassed, so a cross-site forged POST can move funds from a logged-in victim. Additionally, amt is not validated: a negative amt reverses the transfer and takes money from the 'to' account into the attacker's own. The two UPDATEs are not in a transaction and there is no balance check, so overdrafts and partial transfers are possible. If 'to' is the user's own id, the transfer is a no-op.",
+    "source": "Attacker-controlled POST fields token, amt, to; victim's authenticated session cookie used via cross-site request",
+    "sink": "UPDATE acct SET bal = bal - ? / bal + ? (actions.php:17-18)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 16,
+      "note": "check_csrf() return value discarded, so execution continues with a missing or invalid token"
+     },
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debits the session user by unvalidated $_POST['amt'] with no sufficiency or sign check"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credits attacker-chosen $_POST['to'] with the same amt; not atomic"
+     }
+    ],
+    "guards_checked": "check_csrf is called but its result is unused (no exit/403). verify_csrf, which does exit, is not used here. Prepared statements prevent SQL injection. No amount validation (positive, numeric, <= balance), no transaction or row lock, no existence check on the recipient, and no authentication check that $_SESSION['uid'] is set. A null uid would simply match no rows on the debit, while the credit still executes, creating money."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf() (actions.php:4-6) returns a bool but its result is discarded at line 16; verify_csrf() (8-13) would 403/exit but is not called in transfer_funds. Prepared statements only stop SQLi. No amount, sign, balance, transaction, or recipient checks.",
+    "reason": "actions.php:16 calls check_csrf() as a bare statement and ignores its boolean result, so lines 17-18 run without a valid token (unlike update_profile at line 22, which uses verify_csrf), and the amt (unvalidated, can be negative) and to values are used directly; the attacker is a cross-site request against a logged-in victim's session."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf (actions.php:4-6) returns a bool and is called as a bare statement at line 16, so the result is discarded. verify_csrf (the aborting variant) is used only in update_profile at line 22. Prepared statements stop SQL injection but do not stop the logic abuse. No amount validation, transaction, or auth check was found.",
+    "reason": "actions.php:16 discards check_csrf()'s boolean result, since only verify_csrf (actions.php:9-12) exits, so a cross-site POST reaches the unvalidated debit and credit at actions.php:17-18, and any authenticated user can send a negative amt."
+   }
+  },
+  {
+   "finding": {
+    "file": "actions.php",
+    "id": "F2",
+    "line": 17,
+    "claim": "Business-logic flaw in transfer_funds: amt is unvalidated, so a negative value drains the recipient and credits the sender. Missing authentication means that with no session uid, the debit matches no rows but the credit still applies, minting funds. Without a transaction, concurrent requests cause a race (TOCTOU), and there is no check for insufficient balance.",
+    "source": "POST amt and to",
+    "sink": "UPDATE acct SET bal ... (actions.php:17-18)",
+    "trace": [
+     {
+      "file": "actions.php",
+      "line": 17,
+      "note": "debit by $_POST['amt'] for $_SESSION['uid'] (null if unauthenticated, so matches zero rows)"
+     },
+     {
+      "file": "actions.php",
+      "line": 18,
+      "note": "credit of the same amt to $_POST['to'] runs unconditionally"
+     }
+    ],
+    "guards_checked": "No numeric, sign or range validation; no balance check; no transaction; no check that the session is authenticated; the only CSRF check is ineffective (see F1)."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf() at actions.php:16 is a bare statement whose boolean result is discarded (unlike verify_csrf, which exits, used in update_profile at line 22). There is no auth check, amount validation, balance check or transaction.",
+    "reason": "actions.php:16 calls check_csrf, which only returns false, and ignores the result, so lines 17-18 always run. The amount is unvalidated and there is no authentication check. A negative amt, or an absent $_SESSION['uid'] (the debit then matches no rows), lets an anonymous attacker move or mint funds."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "check_csrf() at actions.php:16 returns a bool that is discarded, so it never aborts. The sibling verify_csrf() would exit, but it is not called here. There is no auth check, amount validation, balance check or transaction.",
+    "reason": "actions.php:16 discards check_csrf's return value, so an anonymous caller reaches line 17, where the debit with a null uid matches no rows, and line 18, where the unvalidated, possibly negative amt is credited to an attacker-chosen $_POST['to']."
+   }
+  }
+ ],
+ "verify_cost": 0.0633901,
+ "verify_facts_cost": 0.0636901
+}

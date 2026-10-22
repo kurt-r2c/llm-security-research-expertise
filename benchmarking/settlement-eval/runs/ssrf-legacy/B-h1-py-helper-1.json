@@ -1,0 +1,95 @@
+{
+ "arm": "B",
+ "repo": "h1-py-helper",
+ "rep": 1,
+ "status": "success",
+ "gen_cost": 0.059988,
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "views.py",
+    "line": 22,
+    "claim": "The /fetch2 endpoint fetches any http/https URL supplied by the caller. The only check is a scheme check, so an attacker can reach internal services, localhost, and cloud metadata (169.254.169.254). Redirects are followed by default, which adds more ways to reach internal hosts.",
+    "source": "request.args.get('url') on GET /fetch2 (views.py:19)",
+    "sink": "requests.get(url, timeout=5) (views.py:22). The first 200 chars of the response body are returned to the caller, so this is not blind SSRF.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 19,
+      "note": "url taken from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 20,
+      "note": "is_http_url(url) is the only validation"
+     },
+     {
+      "file": "validators.py",
+      "line": 7,
+      "note": "checks only that urlparse(url).scheme is http or https, with no host or IP check"
+     },
+     {
+      "file": "views.py",
+      "line": 22,
+      "note": "requests.get(url) with allow_redirects left at its default of True; the response body is returned"
+     }
+    ],
+    "guards_checked": "The scheme allowlist (http/https) blocks file:// and gopher://, but does nothing about the destination host or IP. There is no private, loopback or link-local IP check, no host allowlist, and no redirect restriction. Authentication was not checked because the file has no auth decorator."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none (only the scheme-only check is_http_url at validators.py:7; the stronger is_safe_url is used only on /fetch, not /fetch2)",
+    "reason": "views.py:19-22 passes the query-string url through the scheme-only is_http_url (validators.py:7) into requests.get with redirects enabled and returns the first 200 chars of the body, so internal hosts are reachable; no auth decorator or host/IP check exists in either file."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "views.py",
+    "line": 14,
+    "claim": "The /fetch endpoint validates the URL's resolved IPs and then passes the original hostname to requests.get, which resolves it again. An attacker-controlled DNS server can return a public IP for the validation lookup and 127.0.0.1 or 169.254.169.254 for the fetch (DNS rebinding / TOCTOU). The blocklist can also be bypassed by any address class it does not cover. Confidence is lower than SSRF-1 because the mitigation is mostly effective and exploitation needs control of a DNS server with a short TTL.",
+    "source": "request.args.get('url') on GET /fetch (views.py:11)",
+    "sink": "requests.get(url, timeout=5, allow_redirects=False) (views.py:14). The first 200 chars of the response body are returned.",
+    "trace": [
+     {
+      "file": "views.py",
+      "line": 11,
+      "note": "url taken from the query string"
+     },
+     {
+      "file": "views.py",
+      "line": 12,
+      "note": "is_safe_url(url) is called"
+     },
+     {
+      "file": "validators.py",
+      "line": 14,
+      "note": "the first DNS resolution (socket.getaddrinfo) is used only for the check"
+     },
+     {
+      "file": "validators.py",
+      "line": 16,
+      "note": "rejects private, loopback, link-local and reserved IPs"
+     },
+     {
+      "file": "views.py",
+      "line": 14,
+      "note": "requests.get(url) resolves the hostname a second time, independently of the validated IPs"
+     }
+    ],
+    "guards_checked": "Scheme allowlist, a hostname-present check, and resolved-IP checks (private, loopback, link-local, reserved) are in place. allow_redirects=False is set, so redirect-based bypass is closed. The weakness is that the validated IPs are not pinned to the connection. getaddrinfo is also called with the port forced to 443 when none is given, but that does not affect the IP check."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Scheme allowlist plus resolved-IP blocklist at validators.py:12-17. It is not a hostname set-membership check and the IPs are not pinned to the connection, so it does not close the finding.",
+    "reason": "validators.py:14 resolves the hostname only for the check, and views.py:14 calls requests.get(url) with the original hostname, so a second, independent DNS lookup happens on an attacker-controlled query parameter (views.py:11) and allows DNS rebinding."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0639305
+}

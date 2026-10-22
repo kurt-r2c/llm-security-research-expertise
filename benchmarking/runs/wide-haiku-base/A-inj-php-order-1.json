@@ -1,0 +1,94 @@
+{
+ "arm": "A",
+ "repo": "inj-php-order",
+ "rep": 1,
+ "model": "haiku",
+ "suite": "wide",
+ "config_id": "1bdb07ae",
+ "status": "success",
+ "gen_cost": 0.003946460000000001,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Read": 1,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-9fvtvw0c/r/list.php"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLI-1",
+    "file": "list.php",
+    "line": 6,
+    "claim": "SQL injection in list_users_sorted(): the raw $_GET['sort'] value is concatenated into an ORDER BY clause and executed via PDO::query(), letting an attacker run arbitrary SQL expressions (including subqueries) against app.db.",
+    "source": "$_GET['sort'] (list.php:5), attacker-controlled HTTP query parameter, assuming list_users_sorted() is called from a web-reachable handler (the caller is not in this repo).",
+    "sink": "$pdo->query(\"SELECT id, name FROM users ORDER BY \" . $sort) at list.php:6 (SQL execution on the SQLite database).",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 5,
+      "note": "$sort = $_GET['sort'] ?? 'id'; takes the raw request value; the default applies only when the parameter is absent."
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "$sort is concatenated directly into the SQL string; no quoting, no allowlist, no binding."
+     },
+     {
+      "file": "list.php",
+      "line": 6,
+      "note": "$pdo->query() executes the resulting statement and returns all rows to the caller."
+     }
+    ],
+    "guards_checked": "list.php:5 - only a null-coalescing default, no validation. No allowlist (contrast list_users_safe at list.php:10-11). No identifier quoting. PDO::query is not a prepared statement, and ORDER BY cannot be parameterized with ? anyway, so the correct fix is an allowlist. Mitigating factor: PDO::query on SQLite runs a single statement, so stacked queries are blocked. However ORDER BY accepts arbitrary expressions such as CASE and scalar subqueries, so a boolean-based blind attack can still read any table in app.db (e.g. password hashes) through row ordering. Error-based leakage is possible if errors are displayed; the PDO connection (list.php:2) uses the default silent error mode, so a failed query makes fetchAll() fatal instead."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. list.php:5 is only a `??` default with no validation, and list.php:6 concatenates the raw value into the query with no allowlist, quoting, or binding. The allowlist in list_users_safe (list.php:10-11) is not used by list_users_sorted.",
+    "reason": "The trace is accurate (list.php:5 reads $_GET['sort'] unchecked, and list.php:6 concatenates it into the query passed to $pdo->query()), and no guard sits between the input and the sink. However, nothing in list.php calls list_users_sorted(), and the candidate concedes its caller is outside this repo, so whether an attacker can reach this function over HTTP cannot be determined from the code available."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "AUTHZ-1",
+    "file": "list.php",
+    "line": 17,
+    "claim": "Unauthenticated user lookup by email: find_user() returns the id and name of whichever user owns a given email, with no authentication, authorization, or rate limiting in this file (possible account enumeration and PII disclosure, depending on how the caller exposes it).",
+    "source": "$_GET['email'] (list.php:17), attacker-controlled HTTP query parameter, assuming find_user() is exposed on an unauthenticated route (the caller is not in this repo).",
+    "sink": "Query on the users table returning id and name for the matching email, at list.php:16-18.",
+    "trace": [
+     {
+      "file": "list.php",
+      "line": 17,
+      "note": "$stmt->execute([$_GET['email'] ?? '']) passes the raw request value as a bound parameter."
+     },
+     {
+      "file": "list.php",
+      "line": 16,
+      "note": "Prepared statement SELECT id, name FROM users WHERE email = ? runs against the users table."
+     },
+     {
+      "file": "list.php",
+      "line": 18,
+      "note": "$stmt->fetch() returns the matching row (id and name) to the caller."
+     }
+    ],
+    "guards_checked": "list.php:16-17 - the query is parameterized, so there is no SQL injection here. There is no session, token, or role check anywhere in list.php. Nothing limits request rate, so the email value can be enumerated. Severity depends entirely on whether the calling route requires authentication, which cannot be verified from this repo."
+   },
+   "verdict": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none. There is no session, token, role, or rate-limit check in list.php:15-19. The query is parameterized (list.php:16-17), so SQL injection is not the issue.",
+    "reason": "The trace is accurate: list.php:17 binds the raw $_GET['email'] into a prepared query and list.php:18 returns id and name, with no guard in the file. But find_user() has no call site in this repo (the only file is list.php, which never calls it), so whether an anonymous attacker can reach it cannot be decided from the code, and the severity depends on the external route."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0041577
+}

@@ -1,0 +1,103 @@
+{
+ "arm": "B",
+ "repo": "h2-node-admin",
+ "rep": 1,
+ "model": "haiku",
+ "status": "success",
+ "gen_cost": 0.0068342,
+ "trace": {
+  "tools": {
+   "Bash": 1,
+   "Read": 2,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-ebge3ucc/r/routes.js",
+   "/tmp/egf-ebge3ucc/r/.claude/skills/security-research/ssrf/SKILL.md"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SSRF-1",
+    "file": "routes.js",
+    "line": 20,
+    "claim": "Unauthenticated POST /hooks/test sends a server-side POST to an arbitrary attacker-supplied URL (req.body.callback) with no scheme, host, or IP allowlist, and returns the upstream status code. Enables internal/metadata probing and POSTing to internal services. Severity HIGH (MEDIUM if the pub router is mounted behind auth, which is not visible in this file).",
+    "source": "req.body.callback (routes.js:20), attacker-controlled request body field",
+    "sink": "axios.post(req.body.callback, { ping: true }) (routes.js:20)",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 19,
+      "note": "pub.post('/hooks/test') route handler; no auth middleware on pub router in this file"
+     },
+     {
+      "file": "routes.js",
+      "line": 20,
+      "note": "req.body.callback passed directly as axios target URL; no parsing or validation"
+     },
+     {
+      "file": "routes.js",
+      "line": 21,
+      "note": "upstream status code returned to caller, giving a reachability oracle"
+     }
+    ],
+    "guards_checked": "No scheme check, no URL parsing or .hostname comparison, no allowlist, no auth/authz middleware on pub route in this file. URL is per-request, so literal/env/config exemptions do not apply. axios follows redirects by default (redirect risk: yes). Caveat: pub router mount point and mount-time auth not visible; DEPLOY-REC webhook-engine exemption cannot be ruled in or out from this code alone."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none. routes.js:19-22 has no URL parsing, scheme check, hostname or allowlist check, or auth middleware. requireAdmin (routes.js:7-12) is attached only to `admin` (routes.js:12), not `pub`. The directory has no file that mounts `pub` or defines a DEPLOY-REC exemption, so mount-time auth and the webhook-engine exemption cannot be checked here.",
+    "reason": "At routes.js:20 `axios.post(req.body.callback, ...)` passes an unauthenticated request body field straight to an outbound request, and routes.js:21 returns the upstream status, with no closing guard in routes.js:19-22. The one unresolved item is whether the router is mounted behind auth elsewhere, which is outside this directory and affects severity, not the code-level finding."
+   },
+   "verdict_status": "success"
+  },
+  {
+   "finding": {
+    "id": "SSRF-2",
+    "file": "routes.js",
+    "line": 15,
+    "claim": "Admin-only GET /diagnostics/fetch sends a server-side GET to an arbitrary URL from req.query.url with no allowlist, and returns the upstream status code. Admin authentication does not close SSRF to metadata or RFC-1918 targets. Severity MEDIUM.",
+    "source": "req.query.url (routes.js:15), attacker-controlled query parameter reachable only with an admin session",
+    "sink": "axios.get(req.query.url) (routes.js:15)",
+    "trace": [
+     {
+      "file": "routes.js",
+      "line": 12,
+      "note": "admin.use(requireAdmin) gates all routes on the admin router"
+     },
+     {
+      "file": "routes.js",
+      "line": 8,
+      "note": "requireAdmin checks only req.session.role === 'admin'"
+     },
+     {
+      "file": "routes.js",
+      "line": 14,
+      "note": "admin.get('/diagnostics/fetch') route handler"
+     },
+     {
+      "file": "routes.js",
+      "line": 15,
+      "note": "req.query.url passed directly into axios GET with no validation"
+     },
+     {
+      "file": "routes.js",
+      "line": 16,
+      "note": "upstream status code returned, so result is not fully blind"
+     }
+    ],
+    "guards_checked": "Role check only (routes.js:8, :12). No scheme, host, or IP allowlist. Admin router mount point not visible in this file. Redirects followed by default (redirect risk: yes). Separated from SSRF-1 because access control differs."
+   },
+   "verdict": {
+    "verdict": "REFUTED",
+    "trace_ok": true,
+    "guard_found": "none closing. Role check only: routes.js:8 (requireAdmin) applied via routes.js:12 (admin.use). No scheme, host, or IP validation before routes.js:15.",
+    "reason": "All trace lines match routes.js:8, 12, 14, 15, 16, but the source does not meet the bar: req.query.url at routes.js:15 is reachable only after requireAdmin (routes.js:8) confirms req.session.role === 'admin', so no unauthenticated or low-privilege attacker can control it. The candidate's own claim concedes this. Admin-only SSRF is a separate, lower-severity hardening issue, not a finding under this rubric."
+   },
+   "verdict_status": "success"
+  }
+ ],
+ "verify_cost": 0.0043593
+}

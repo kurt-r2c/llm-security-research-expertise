@@ -1,0 +1,98 @@
+{
+ "arm": "B",
+ "repo": "lg-node-price",
+ "rep": 2,
+ "status": "success",
+ "gen_cost": 0.0764194,
+ "findings": [
+  {
+   "finding": {
+    "id": "F1",
+    "file": "cart.js",
+    "line": 5,
+    "claim": "/checkout computes the charge from client-supplied price and qty. An attacker can set price to 0.01, or send a negative price or qty, to pay almost nothing or get a negative total (credit or refund). The checkout-v2 route shows the catalog-priced version was intended, but the legacy route is still live.",
+    "source": "req.body.items[].price and req.body.items[].qty in the POST /checkout JSON body (attacker-controlled)",
+    "sink": "req.payments.charge(req.user.id, total) at cart.js:6, which charges the attacker-influenced total",
+    "trace": [
+     {
+      "file": "cart.js",
+      "line": 4,
+      "note": "POST /checkout handler accepts req.body.items"
+     },
+     {
+      "file": "cart.js",
+      "line": 5,
+      "note": "total = sum(i.price * i.qty) using unvalidated client values; no catalog lookup, no sign or integer check"
+     },
+     {
+      "file": "cart.js",
+      "line": 6,
+      "note": "charge() called with the manipulated total"
+     },
+     {
+      "file": "cart.js",
+      "line": 7,
+      "note": "Response echoes the charged amount"
+     }
+    ],
+    "guards_checked": "No catalog price lookup, no validation of price or qty (type, sign, integer, upper bound), no minimum total check. No auth middleware is visible in this file; req.user is assumed to be set upstream. Not checked: any server-side validation inside req.payments.charge, which is not in this repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "cart.js:5 sums client-supplied i.price * i.qty with no catalog lookup or sign/type check, and cart.js:6 charges that total, whereas /checkout-v2 (cart.js:13-14) uses catalog prices and a clamped qty, so any authenticated user (req.user is assumed to be set upstream) can pick their own price."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "none",
+    "reason": "cart.js:5 sums client-supplied i.price * i.qty with no catalog lookup or sign/type check and cart.js:6 charges it (an authenticated user's req.user.id), while the safer checkout-v2 at cart.js:13-14 shows the legacy route is unprotected."
+   }
+  },
+  {
+   "finding": {
+    "id": "F2",
+    "file": "cart.js",
+    "line": 14,
+    "claim": "/checkout-v2 does not validate qty. A non-numeric qty (for example a string like \"abc\") makes Math.floor return NaN, and Math.max(1, NaN) is also NaN, so total becomes NaN. A value like 1e999 gives Infinity. A NaN or Infinity amount passed to charge() may be treated as zero, skipped, or cause an error, depending on the payment backend. Negative qty is clamped to 1, which is safe. This is lower confidence and depends on how charge() handles non-finite amounts.",
+    "source": "req.body.items[].qty in the POST /checkout-v2 JSON body (attacker-controlled)",
+    "sink": "req.payments.charge(req.user.id, total) at cart.js:16 with a possibly NaN or Infinity total",
+    "trace": [
+     {
+      "file": "cart.js",
+      "line": 12,
+      "note": "Iterates over attacker-supplied items; no check that items is an array or that qty is a finite number"
+     },
+     {
+      "file": "cart.js",
+      "line": 14,
+      "note": "p * Math.max(1, Math.floor(i.qty)) propagates NaN or Infinity; Math.max does not clamp NaN"
+     },
+     {
+      "file": "cart.js",
+      "line": 16,
+      "note": "charge() is called with total = NaN or Infinity"
+     }
+    ],
+    "guards_checked": "Math.max(1, ...) blocks zero and negative qty but not NaN or Infinity. There is no Number.isFinite or Number.isInteger check, no max quantity, and no check that total > 0 and finite. Not checked: charge() internals, which are not in this repo."
+   },
+   "verdict": {
+    "verdict": "CONFIRMED",
+    "trace_ok": true,
+    "guard_found": "Only Math.max(1, Math.floor(i.qty)) at cart.js:14, which clamps negatives and zero but passes NaN (for example qty \"abc\" or missing) and Infinity (JSON 1e999). There is no isFinite check, no total > 0 check, and no auth or validation middleware in this file.",
+    "reason": "cart.js:14 lets NaN or Infinity into total, because Math.max(1, NaN) is NaN, and cart.js:16 passes it to charge() unchecked. This is reachable by any authenticated user through req.body.items, though the real impact depends on charge(), which is outside this repo."
+   },
+   "verdict_status": "success",
+   "verdict_facts": {
+    "verdict": "UNVERIFIABLE",
+    "trace_ok": true,
+    "guard_found": "none (only Math.max(1, Math.floor(i.qty)) at cart.js:14, which clamps negative and zero values but not NaN or Infinity)",
+    "reason": "The trace is accurate: cart.js:14 lets a NaN or Infinity qty through to charge() at cart.js:16 with no finite check, and any authenticated user can trigger it. The impact depends on how req.payments.charge() treats a non-finite amount, and that code is not in this directory."
+   }
+  }
+ ],
+ "verify_cost": 0.06287630000000001,
+ "verify_facts_cost": 0.06267529999999999
+}

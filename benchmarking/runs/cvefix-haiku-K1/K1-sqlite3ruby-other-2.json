@@ -1,0 +1,125 @@
+{
+ "arm": "K1",
+ "repo": "sqlite3ruby-other",
+ "rep": 2,
+ "model": "haiku",
+ "suite": "cvefix",
+ "config_id": "3f0d176c",
+ "status": "success",
+ "gen_cost": 0.01928419,
+ "trace": {
+  "tools": {
+   "Glob": 1,
+   "Grep": 3,
+   "Read": 11,
+   "StructuredOutput": 1
+  },
+  "skills": [],
+  "reads": [
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/statement.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/database.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/database.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/database.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/aggregator.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/database.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/statement.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/backup.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/database.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/database.c",
+   "/tmp/egf-l4qt1i0f/r/ext/sqlite3/database.c"
+  ]
+ },
+ "findings": [
+  {
+   "finding": {
+    "id": "SQLITE-001",
+    "file": "ext/sqlite3/database.c",
+    "line": 189,
+    "claim": "utf16_string_value_ptr appends \"\\x00\\x00\" to the caller's own String object (str) instead of the dup used for the NUL check. open16 passes the caller's file argument straight in, so the caller's string is mutated, and reusing that same object for a second open16 raises ArgumentError 'string contains null char'. This is a logic bug (argument mutation), not an exploitable security issue.",
+    "source": "Ruby caller passes a String to the private open16 method (database.c:1028, rb_sqlite3_open16 argument `file`).",
+    "sink": "rb_str_buf_cat(str, \"\\x00\\x00\", 2L) at database.c:189 mutates the caller-owned object.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 1048,
+      "note": "open16 calls utf16_string_value_ptr(file) with the caller's object, no dup"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 176,
+      "note": "StringValue(str) keeps the same object"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 178,
+      "note": "utf16str = rb_str_dup(str); the NUL check is run only on this dup"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 184,
+      "note": "codepoints of the dup are checked for 0"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 189,
+      "note": "two NUL bytes are appended to the original str, which the caller still holds"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 190,
+      "note": "returns RSTRING_PTR(str) of the mutated object"
+     }
+    ],
+    "guards_checked": "Embedded-NUL rejection (database.c:184-187) runs on the dup, so it does not protect the original. rb_str_buf_cat raises FrozenError on frozen strings. open16 is a private method, so the input is developer-supplied, not attacker-reachable. Severity: low, correctness."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  },
+  {
+   "finding": {
+    "id": "SQLITE-002",
+    "file": "ext/sqlite3/database.c",
+    "line": 839,
+    "claim": "The collation bridge rb_comparator_func calls the user's compare method with a plain rb_funcall and no rb_protect. A Ruby exception raised inside compare therefore longjmps through the sqlite3_step/sqlite3_exec C frames, skipping sqlite3_mutex_leave and leaving the connection's VDBE and mutex state inconsistent. Unlike the aggregator path (aggregator.c:143, rb_sqlite3_protected_funcall), nothing contains the exception.",
+    "source": "Stored row text (possibly attacker-written) that is compared through a collation registered with db.collation(name, comparator), e.g. ORDER BY or a comparison on attacker-controlled data.",
+    "sink": "rb_funcall(comparator, \"compare\", ...) at database.c:839, invoked from inside sqlite3_step/sqlite3_exec via the registered collation.",
+    "trace": [
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 852,
+      "note": "collation(name, comparator) entry point"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 859,
+      "note": "sqlite3_create_collation registers rb_comparator_func as the compare callback, with the Ruby object as ctx"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 817,
+      "note": "rb_comparator_func builds Ruby strings from the raw bytes sqlite passes in"
+     },
+     {
+      "file": "ext/sqlite3/database.c",
+      "line": 839,
+      "note": "unprotected rb_funcall to the user's compare; a raise longjmps out through sqlite"
+     },
+     {
+      "file": "ext/sqlite3/statement.c",
+      "line": 142,
+      "note": "sqlite3_step runs the collation callback; the rb_errinfo check at statement.c:143 only handles exceptions suppressed inside callbacks, not longjmp"
+     },
+     {
+      "file": "ext/sqlite3/aggregator.c",
+      "line": 143,
+      "note": "for contrast, aggregator step uses rb_sqlite3_protected_funcall"
+     }
+    ],
+    "guards_checked": "No rb_protect or rb_rescue around rb_funcall at database.c:839. No exception-safety handling in rb_comparator_func. The precondition is that the developer-supplied comparator must raise on attacker-influenced data, so this depends on app code. Confidence: PLAUSIBLE; not reproduced (no build or test run here)."
+   },
+   "verdict": null,
+   "verdict_status": "skipped"
+  }
+ ],
+ "verify_cost": 0.0
+}
