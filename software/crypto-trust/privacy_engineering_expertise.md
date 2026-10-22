@@ -31,9 +31,9 @@
 >   IACR Fellow 2021.
 > - **Craig Gentry** (TripleBlind; formerly IBM Research) — first FHE scheme (Stanford PhD
 >   2009 under Dan Boneh; ACM Dissertation Award 2010).
-> - **Pascal Paillier** (Cryptography Research, Inc.; CryptoExperts) — Paillier cryptosystem
+> - **Pascal Paillier** (Zama; formerly CryptoExperts) — Paillier cryptosystem
 >   (EUROCRYPT 1999); ISO/IEC 18033-6.
-> - **Eli Ben-Sasson** (co-founder and President, StarkWare; formerly Technion) — zk-STARK
+> - **Eli Ben-Sasson** (co-founder and CEO, StarkWare; formerly Technion) — zk-STARK
 >   co-inventor; transparent succinct proofs with post-quantum security.
 > - **Helen Nissenbaum** (Andrew H. and Ann R. Tisch Professor, Cornell Tech) —
 >   *Privacy in Context* (2010), the contextual-integrity framework.
@@ -199,7 +199,7 @@ easier to reason about than (ε, δ)-DP.
 
 In **central DP**, a trusted curator holds the raw dataset and applies noise to query
 outputs. The privacy guarantee is against external observers; the curator sees raw data.
-US Census Bureau, Microsoft Telemetry Insights, and most academic deployments use central
+US Census Bureau and most academic deployments use central
 DP.
 
 In **local DP**, each user perturbs their own data before sending it to a (potentially
@@ -260,7 +260,7 @@ privacy/utility curves there quantify the tradeoff.
 Apple's local-DP deployment uses count-mean sketch + Hadamard count-mean sketch
 constructions over hashed strings. Each device performs randomized response on its local
 distribution and submits a perturbed report. Per-feature budgets: emoji ε = 4 (one
-donation/day); QuickType ε = 8 (two/day); lookup hints ε = 8 (two/day). These ε values
+donation/day); QuickType ε = 8 (two/day); lookup hints ε = 4 (two/day). These ε values
 are higher than typical academic recommendations (≤1), reflecting the production-versus-
 research tension on utility-privacy tradeoffs.
 
@@ -276,9 +276,9 @@ repeated reports.
 
 The largest production DP deployment ever. The Census Bureau's TopDown Algorithm applies
 zCDP to the entire 2020 Decennial Census tabulation pipeline: inject calibrated Gaussian
-noise at the lowest geographic level (block), then hierarchical post-processing (block
-→ block group → tract → county → state → nation) enforces consistency (sums add up,
-counts non-negative). Global budget: ε = 17.14, ρ ≈ 2.63 for zCDP. The choice was
+noise into queries at every level of the geographic hierarchy (nation down to block),
+then post-processing works top-down from the nation to the blocks and enforces
+consistency (sums add up, counts non-negative). Global budget: ρ = 2.63 for zCDP; ε = 17.14 for persons plus ε = 2.47 for housing units. The choice was
 controversial — civil-rights groups argued it was too high; statisticians argued too low
 for small populations. The Census Bureau's working papers are the most thorough public
 analysis of a production DP deployment.
@@ -304,7 +304,7 @@ The empirical motivation was Sweeney's 1997 re-identification of Governor Weld's
 records. The Massachusetts Group Insurance Commission released hospital discharge data
 with names stripped; Sweeney showed that combining zip code, birth date, and gender
 (present in both the discharge data and the publicly-available voter registration roll
-she purchased for $20) uniquely identified Weld. She mailed him his medical records.
+she purchased for $20) uniquely identified Weld.
 The episode became the canonical demonstration that quasi-identifiers defeat naive
 de-identification.
 
@@ -319,8 +319,8 @@ the effective diversity. **Composition attack** — two k-anonymous releases of 
 dataset (to different research groups) can break anonymity when joined.
 
 The Narayanan-Shmatikov Netflix Prize attack (Oakland 2008) demonstrated all three
-empirically. 8 movie ratings (allowing 2 errors, ±3 days) uniquely identifies 96% of
-500K subscribers in the released dataset; cross-correlation against IMDb reconstructed
+empirically. 8 movie ratings (allowing 2 errors, ±14 days) uniquely identify 99% of
+records among 500K subscribers in the released dataset; cross-correlation against IMDb reconstructed
 sensitive non-public information.
 
 ### l-Diversity and t-Closeness
@@ -381,7 +381,7 @@ model.
   multiplication protocols. Generalizes Yao to n > 2.
 - **BGW (Ben-Or-Goldwasser-Wigderson 1988)** — information-theoretic MPC, honest-
   majority. Shamir secret sharing; local operations + re-sharing for multiplications.
-  Requires t < n/3 corrupted (passive) or t < n/4 (active).
+  Requires t < n/2 corrupted (passive) or t < n/3 (active).
 - **SPDZ (Damgård-Pastro-Smart-Zakarias 2012)** — modern dishonest-majority MPC. Secret
   sharing + information-theoretic MACs to detect cheating. Practical for n up to ~100.
   MASCOT, MP-SPDZ, SCALE-MAMBA are production references.
@@ -414,9 +414,9 @@ flexibility and efficiency are required.
 
 ### Practical libraries
 
-MP-SPDZ (Bristol; production SPDZ, Boolean + arithmetic); ABY (Darmstadt; mixed-protocol
-two-party); libOTe (Visa; oblivious transfer); EMP-toolkit (Yale; general semi-honest);
-MOTION (Aarhus; composable framework); PSI-Cardinality (Google), DPF-PIR (Princeton).
+MP-SPDZ (CSIRO Data61; production SPDZ, Boolean + arithmetic); ABY (Darmstadt; mixed-protocol
+two-party); libOTe (Visa; oblivious transfer); EMP-toolkit (Northwestern; general semi-honest);
+MOTION (TU Darmstadt; composable framework).
 
 ---
 
@@ -472,8 +472,7 @@ small-model private-input inference, and batch processing where latency is not c
 
 HE inference on private input (model public, input private; medical imaging); private
 set membership (encrypted query against Bloom filter or PSI structure); encrypted-index
-small-result queries; confidential blockchain transactions (Aztec Network uses FHE-
-flavored techniques alongside ZK).
+small-result queries; confidential blockchain transactions.
 
 ### Production libraries
 
@@ -502,7 +501,7 @@ true without revealing why it is true. Three properties:
 
 Goldwasser, Micali, and Rackoff's *The Knowledge Complexity of Interactive Proof-Systems*
 (STOC 1985; SIAM J. Computing 1989) introduced the formal definition. The original
-constructions were for quadratic residuosity and discrete logarithm — interactive
+constructions were for quadratic residuosity and quadratic nonresiduosity — interactive
 protocols where the verifier asks random challenges and the prover responds.
 
 ### Fiat-Shamir transform
@@ -541,8 +540,8 @@ SNARKs). StarkWare (co-founded by Eli Ben-Sasson) productized via StarkNet and S
 
 Cross-link: [smart_contract_evm_security_expertise.md](smart_contract_evm_security_expertise.md).
 ZK-rollup pattern: thousands of off-chain transactions aggregated into a single proof of
-state-transition validity, verified on-chain. Privacy variants: Tornado Cash (now
-sanctioned) used Groth16 proofs of Merkle-tree membership for anonymous deposits/
+state-transition validity, verified on-chain. Privacy variants: Tornado Cash
+(OFAC-sanctioned until March 2025) used Groth16 proofs of Merkle-tree membership for anonymous deposits/
 withdrawals; Aztec Network uses PLONK for programmable privacy; zkSync, StarkNet,
 Polygon Hermez are scalability-focused ZK-rollups.
 
@@ -627,8 +626,8 @@ Platforms (OneTrust, TrustArc, Sourcepoint, Didomi) display banners, record choi
 enforce server-side, update over time, and surface consent state to the back-end. The
 dominant failure mode: user-hostile theater (accept-all prominent, reject-all hidden,
 "legitimate interest" defaulted on, dark patterns on opt-out flows). The European Data
-Protection Board has issued guidance against these (2022, 2023); CNIL fines (€100M
-Google 2021, €60M Microsoft 2022, €40M Facebook 2023) targeted exactly this pattern.
+Protection Board has issued guidance against these (2022, 2023); CNIL fines (€150M
+Google 2021, €60M Microsoft 2022, €60M Facebook 2021) targeted exactly this pattern.
 
 ### Apple Private Cloud Compute: GDPR-by-construction at scale
 
@@ -673,14 +672,14 @@ server-side optimizers).
 ### Production deployments
 
 **Google Gboard** — Android predictive text trains a recurrent language model on
-millions of devices' typing data without uploading raw text (Hard-Sutton-Konečný-McMahan
+millions of devices' typing data without uploading raw text (Hard et al.
 2018). **Apple QuickType** — similar iOS pattern, less public detail. **Cross-silo
 medical research** — multiple hospitals jointly train without sharing patient records;
 NVIDIA Clara FL, OpenMined PySyft, Flower.
 
 ### "Federated learning is not enough"
 
-Bonawitz et al. (CCS 2017) and later Geiping et al. showed raw gradients can
+Zhu et al. (NeurIPS 2019) and later Geiping et al. showed raw gradients can
 reconstruct training data. Defense: combine FL with **DP-FedAvg** (DP at server
 aggregation; user-level DP requires clipping each update and adding noise to the sum);
 **secure aggregation** (server learns only the sum, not individual updates; Bonawitz et
@@ -691,7 +690,7 @@ update). Production stack: secure aggregation + DP at the server. Gboard uses th
 
 **Cross-device** — many (millions) clients, small datasets, unreliable participation.
 Gboard, QuickType. Optimization: client sampling, asynchronous aggregation, on-device
-training fitting in <100MB RAM. **Cross-silo** — few (2-100) clients, large datasets,
+training. **Cross-silo** — few (2-100) clients, large datasets,
 reliable participation. Medical consortia, cross-bank fraud. Optimization: richer
 computation per round, possibly HE-protected aggregation.
 
@@ -758,7 +757,7 @@ canonical empirical failures.
 ### Netflix Prize (Narayanan-Shmatikov 2008)
 
 Released: 500K subscribers' movie ratings minus names/IDs. Narayanan-Shmatikov: 8
-ratings + dates (2 errors, ±3 days) uniquely identifies 96% of subscribers. Cross-
+ratings (2 may be wrong) + dates (±14 days) uniquely identify 99% of records. Cross-
 correlating against IMDb reconstructs subscribers' identities along with their full
 Netflix ratings — including politically- or sexually-sensitive content. The dataset was
 withdrawn; Netflix canceled the second prize. Lesson: high-dimensional behavioral data
@@ -768,8 +767,8 @@ does not generalize.
 ### AOL Search Log Release (2006)
 
 20M search queries from 650K users; identifiers replaced with random IDs. *The New York
-Times* identified individuals within days ("Thelma Arnold, 62, of Lilburn, Georgia,
-frequently searched for landscaping, divorce-recovery, and her friends' surnames"). AOL
+Times* identified individuals within days (Thelma Arnold, 62, of Lilburn,
+Georgia). AOL
 retracted; the CTO resigned. Lesson: search queries are diary entries — aggregation of
 small queries reveals identity.
 
@@ -778,8 +777,8 @@ small queries reveals identity.
 Strava published a global heatmap of 27M users' running/cycling routes. Australian
 researcher Nathan Ruser noticed glowing paths in the Syrian desert where US/allied
 military bases were located. Revealed: base perimeters in Iraq/Afghanistan/Syria,
-supply routes, patrol patterns, identifiable soldiers' routes around CIA black-site
-facilities. Lesson: aggregated data preserves uniquely-identifying patterns; aggregation
+supply routes, patrol patterns, and a suspected CIA base in
+Somalia. Lesson: aggregated data preserves uniquely-identifying patterns; aggregation
 does not provide DP-style guarantees unless it explicitly preserves no individual
 signal.
 
@@ -813,8 +812,8 @@ output never directly reveals individuals.
 ### Genome deanonymization
 
 Gymrek et al. (*Identifying Personal Genomes by Surname Inference*, Science 2013)
-showed male Y-chromosome STRs can be linked to genealogy databases (FamilyTreeDNA,
-Ysearch, MyHeritage) to recover surnames. Extended to autosomal matches. The Golden
+showed male Y-chromosome STRs can be linked to genealogy databases (Ysearch,
+SMGF) to recover surnames. Extended to autosomal matches. The Golden
 State Killer was identified in 2018 by uploading crime-scene DNA to GEDmatch and
 reverse-genealogy-searching. Contributing to a genetic database puts relatives at
 re-identification risk even when they never contributed.
@@ -835,10 +834,11 @@ combining with DP noise gives formal guarantees.
 aggregator sees noisy reports. Apple QuickType and Google RAPPOR are canonical.
 
 **Chrome Privacy Sandbox.** Topics API (browser computes top topics locally; only the
-topic is shared with k-anonymity aggregation; re-identification attacks by Cohen et al.
+topic is shared with k-anonymity aggregation; re-identification attacks by Jha et al.
 2023; substantially revised); Protected Audience API / FLEDGE (on-device ad auction);
-Attribution Reporting API (event-level and summary reports with DP noise). UK CMA,
-German FCO, and EU Commission reviewing.
+Attribution Reporting API (event-level and summary reports with DP noise). Google
+announced in October 2025 that it would retire Topics, Protected Audience, and
+Attribution Reporting.
 
 **Apple PCM / SKAdNetwork.** K-anonymized per-campaign attribution; conversion data
 delayed and randomized. ATT (2021) requires explicit cross-app tracking opt-in; ~80% of
@@ -964,13 +964,13 @@ B: training data extraction (B prompts regurgitation; defenses: DP-SGD, output f
 per-tenant isolation); membership inference (B determines record presence; defenses:
 DP, output randomization); side-channel inference (latency, embedding patterns,
 tokenizer behavior reveal A's distribution; defenses: padded responses, randomized
-timing). The "private inference" line (Microsoft CrypTFlow, OpenMined PrivateMLPipeline)
-does inference under HE.
+timing). The "private inference" line (Microsoft CrypTFlow)
+does inference under MPC.
 
 **DP for graph data.** Edge DP (neighbors differ in one edge) models relationship
 privacy; Node DP (neighbors differ in one node) models individual privacy — much
-stricter, harder. Deployments: Facebook DP-tuned social-graph queries; Microsoft DP-GNN
-research.
+stricter, harder. Research: Google node-level DP-GNN
+(Daigavane et al.).
 
 **Privacy-preserving advertising frameworks.** Beyond Privacy Sandbox: Apple PCM
 (deployed in Safari); Mozilla IPA (proposed, MPC+DP); Meta Private Lift Measurement
@@ -979,8 +979,8 @@ with aggregate campaign measurements under MPC+DP.
 
 **Anonymous-but-rateable.** Anonymous credentials allow unlinkable authentication but
 make rate-limiting hard. Periodic credentials (one per day) or counter-based credentials
-(ZK proof of ≤N requests, private counter). Helios voting, Privacy Pass (Cloudflare
-CAPTCHA-bypass), and ZK abuse-prevention systems use these.
+(ZK proof of ≤N requests, private counter). Privacy Pass (Cloudflare
+CAPTCHA-bypass) and ZK abuse-prevention systems use these.
 
 **Privacy for biometric authentication.** Templates cannot be revoked once breached.
 Cancelable biometrics (user-specific transformation; re-enroll on breach); fuzzy
@@ -990,10 +990,10 @@ standard.
 
 **Smart-home / IoT privacy at scale.** Concerns: continuous capture, cross-device
 correlation, third-party processor exposure. Mitigations: on-device wake-word
-processing (Siri Local, Google Assistant On-Device, Alexa Local Voice Control),
+processing,
 explicit capture indicators, federated learning for updates, opt-in cross-device
 correlation. HomeKit is closest to "privacy-by-construction" for smart home: device-to-
-device E2EE, local-first, opt-in cloud-relay per accessory category.
+device E2EE, local-first.
 
 ---
 
@@ -1131,11 +1131,11 @@ Surname Inference*, Science 2013; Anderson, *Why Information Security is Hard*, 
 
 **Adversarial:**
 7. Real-world data is uniquely identifying at very low dimensionality. 4 location
-   points = 95% unique; 8 movie ratings = 96% unique. High-dimensional behavioral
+   points = 95% unique; 8 movie ratings = 99% unique. High-dimensional behavioral
    data is inherently identifying.
 8. Aggregated data preserves uniquely-identifying patterns unless the aggregation
    provides DP guarantees. Strava heatmap was "aggregated" yet revealed soldiers'
-   routes around CIA black sites.
+   routes at secret military bases.
 9. ML models are deanonymization surfaces. Membership inference reveals training-set
    membership; DP-SGD is the defense at known accuracy cost.
 

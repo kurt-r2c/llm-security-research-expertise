@@ -16,8 +16,7 @@
 >   criticism is permitted.
 > - **Daniel Dennett** (1942-2024) — American philosopher of mind and cognitive scientist
 >   at Tufts; *Intuition Pumps and Other Tools for Thinking* (2013), where he formalized
->   Rapoport's Rules as a four-step procedure and popularized the term "steelman" in
->   contrast to "strawman." Earlier work on intentionality, free will, and the philosophy
+>   Rapoport's Rules as a four-step procedure. Earlier work on intentionality, free will, and the philosophy
 >   of cognitive science (*Consciousness Explained*, 1991; *Darwin's Dangerous Idea*,
 >   1995).
 > - **Daniel Kahneman** (1934-2024) and **Gary Klein** (b. 1944) — Kahneman: Nobel laureate
@@ -31,8 +30,7 @@
 > - **Philip Tetlock** (b. 1954) — Annenberg University Professor at Penn / Wharton;
 >   *Expert Political Judgment* (2005) and *Superforecasting* (2015). Co-Principal
 >   Investigator, **Good Judgment Project** (IARPA ACE tournament, 2011-2015), which
->   established empirically that calibrated probabilistic forecasting can be taught, that
->   accountability under public scoring narrows the hedgehog/fox gap, and that
+>   established empirically that calibrated probabilistic forecasting can be taught, and that
 >   tournament-style aggregation outperforms individual experts.
 > - **Richards J. Heuer Jr.** (1927-2018) — CIA analyst (1951-1979) and methodologist;
 >   *Psychology of Intelligence Analysis* (CIA Center for the Study of Intelligence,
@@ -48,7 +46,7 @@
 > (Heuer, CIA CSI, 1999); *Structured Analytic Techniques for Intelligence Analysis*
 > (Heuer & Pherson, 2010); CIA CSI "Tradecraft Primer" (2009); NeurIPS/ICLR/USENIX/IEEE
 > S&P reviewer guidelines (current cycle); NEJM and *Nature* peer-review process
-> documents; Center for Open Science Registered Reports specification (v2); Edge.org
+> documents; Center for Open Science Registered Reports specification; Edge.org
 > archived lecture transcripts (Kahneman on adversarial collaboration); the *Nature*
 > editorial "Make science more collegial" (2025); CFR / Pherson red-team and ACH
 > archives.
@@ -131,11 +129,7 @@ treats the disagreement as a resource, not a problem to be resolved by social pr
 
 ### Why this doctrine is operationally necessary
 
-Tetlock's empirical finding from the Good Judgment Project is the load-bearing
-justification: **accountability under public scoring narrows the gap between confident
-and calibrated judgment**. Most expert disagreements collapse, when subjected to
-calibrated probabilistic scoring, into a small number of well-supported positions plus
-a long tail of poorly-supported confident assertions. The steelman procedure, applied
+The steelman procedure, applied
 in advance of an irrevocable decision, is the analogue of public scoring: each
 participant must commit to claims that can later be evaluated, and the Adjudicator's
 verdict is itself a forecast that can later be checked. This is why the doctrine is
@@ -225,8 +219,9 @@ correct answer.
   Foil scrutiny.
 - State the Adjudicator's confidence in the verdict at multiple resolutions: in the
   conclusion, in the supporting reasoning, in the durability of the verdict under
-  plausible future evidence. Tetlock's calibration discipline applies — round numbers
-  to the nearest 5%, name the conditions under which the verdict flips.
+  plausible future evidence. Tetlock's calibration discipline applies — do not round
+  to coarse buckets (superforecasters lost accuracy when rounded even to the nearest 5%);
+  name the conditions under which the verdict flips.
 - Surface methodology debt. The Adjudicator's responsibility extends beyond the
   verdict: where did the procedure produce a weak signal? Which evidence was missing
   that future rounds should target? This is the Heuer move — every analysis closes
@@ -236,8 +231,9 @@ correct answer.
 - Splitting the difference. The Adjudicator is not a mediator; producing a synthesis
   that neither party endorses but both can live with is a worse outcome than picking
   one side with confidence and naming the conditions under which the other side wins.
-  (The Kahneman-Klein adversarial collaboration concluded with the parties **agreeing
-  to disagree** in a specific, calibrated form — not by averaging.)
+  (The Kahneman-Klein adversarial collaboration concluded with the parties finding they
+  **agreed on most of the issues that matter** — "a failure to disagree" — not by
+  averaging.)
 - Adjudicator capture — the Adjudicator absorbs the senior party's view by default.
   The structural defense is to write the verdict before reading either party's
   response to the verdict draft. If senior status was acquired during the rounds (e.g.,
@@ -470,7 +466,7 @@ the compressed-procedure verdict is lower by one tier.
 
 Before Round 1 opens, the Adjudicator publishes the **standard of review**: which
 considerations carry weight, which do not, and at what resolution the Adjudicator will
-rule. This is the doctrine's analogue of NEJM's pre-registered review criteria and COS
+rule. This is the doctrine's analogue of COS
 Registered Reports' pre-committed analysis plan. The discipline is structural defense
 against post-hoc rationalization: an Adjudicator who can move the goalposts at Round 5
 to favor either party has corrupted the procedure.
@@ -503,7 +499,8 @@ verbatim as the obligatory opening of Rounds 2, 3, and 4.
 Every claim — Champion's argument, Foil's objection, Adjudicator's verdict — carries an
 explicit confidence at one of three resolutions: **high** (>80% credence given the
 evidence), **medium** (40-80%), **low** (<40%). Tetlock's tournament evidence is
-load-bearing: trained forecasters are calibrated when they round to nearest 5%, but
+load-bearing: superforecasters lose accuracy when their forecasts are rounded even to the nearest
+5%, but
 three-tier confidence is sufficient for the steelman procedure because the rounds are
 the calibration mechanism — claims that survive multiple rounds are higher confidence
 than claims that don't.
@@ -530,8 +527,7 @@ over hours or days) are the default; sync procedures (where rounds happen in a s
 meeting) require recording or note-taking that produces the artifact post-hoc.
 
 The artifact format is non-negotiable: the rounds are reproducible in writing or they
-did not happen. Heuer's IC tradecraft is unambiguous on this — "if it is not written,
-it does not exist as analysis." The doctrine adopts the same posture.
+did not happen.
 
 Naming and storage discipline:
 - `artifacts/steelman_<question>/round{1..N}.md` for the per-round artifacts.
@@ -822,9 +818,9 @@ captor is a model, an institution, or a single accountable team.
 Petri 2.0 (alignment.anthropic.com/2026/petri-v2/) added improved
 eval-awareness mitigations — the target model attempting to detect that it is
 being audited and behave differently — which is the AI-safety analogue of
-**theater** (Section 7). The mitigation: real system prompts, real tool
-definitions, and real codebases injected into the auditor's environment so
-the target cannot distinguish a test from production. The doctrine's defense
+**theater** (Section 7). The mitigations: a realism classifier that checks auditor behavior each
+turn and requests a rewrite of anything implausible, plus manual seed
+revisions, so the interactions look and feel more like real usage. The doctrine's defense
 against theater (require at least one named update per round) translates
 directly: a target that produces identical responses to identical inputs
 across audited and unaudited contexts is suspected of eval-awareness theater.
@@ -972,8 +968,8 @@ search. Key findings:
 - **The modal outcome was not victor-declaration but problem-space
   integration.** This is the convergence model from Section 4 — a successful
   procedure narrows the dispute, it does not always settle it.
-- **About 34% reported genuine belief shifts; 41% reported refinement
-  rather than reversal.** Calibration moves in the direction the doctrine
+- **About 34% reported belief updating; about 41% called it
+  complicated.** Calibration moves in the direction the doctrine
   predicts: high-confidence positions become medium-confidence with named
   flip-conditions, not "everyone changed their mind."
 - **Peer-review time was reduced.** A pre-coordinated adversarial pair

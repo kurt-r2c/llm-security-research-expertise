@@ -18,7 +18,7 @@
 >   the Fast Gradient Sign Method (FGSM) and the "adversarial examples are a property of linear
 >   behavior in high-dimensional spaces" framing that became the field's structural prior. Author
 >   of the canonical *Deep Learning* textbook (with Bengio and Courville, 2016). Career arc:
->   Google Brain → OpenAI co-founder → Google Brain → Apple Director of Machine Learning
+>   Google Brain → OpenAI (one of its first employees) → Google Brain → Apple Director of Machine Learning
 >   (2019-2022) → Google DeepMind (2022-2025).
 > - **Aleksander Madry** (MIT) — First author of "Towards Deep Learning Models Resistant to
 >   Adversarial Attacks" (arXiv:1706.06083, ICLR 2018; with Makelov, Schmidt, Tsipras, Vladu). The
@@ -26,7 +26,7 @@
 >   Projected Gradient Descent (PGD) as the canonical first-order adversary, and produced the
 >   adversarially-trained CIFAR-10/MNIST baselines that have anchored every robustness comparison
 >   since. Director of the MIT Center for Deployable Machine Learning. Robust ML group at MIT.
-> - **Nicholas Carlini** (Google DeepMind, formerly UC Berkeley with Wagner) — Co-author of
+> - **Nicholas Carlini** (Anthropic, formerly Google DeepMind and UC Berkeley with Wagner) — Co-author of
 >   "Towards Evaluating the Robustness of Neural Networks" (IEEE S&P 2017, with David Wagner),
 >   the C&W attack paper that demonstrated defensive distillation was broken and produced the
 >   strong-attack baselines (L0, L2, L∞) still in use. Lead or co-author on the canonical LLM-era
@@ -35,8 +35,7 @@
 >   Attacks From First Principles" / LiRA (IEEE S&P 2022), "Stealing Part of a Production Language
 >   Model" (ICML 2024 Best Paper), "Poisoning Web-Scale Training Datasets is Practical" (IEEE S&P
 >   2024). The single most prolific adversarial-ML researcher of the 2017-2026 era.
-> - **Florian Tramèr** (ETH Zurich, SPY Lab; Assistant Professor since 2022, also deputy head of
->   the Institute of Information Security) — First author of "Stealing Machine Learning Models via
+> - **Florian Tramèr** (ETH Zurich, SPY Lab; Assistant Professor) — First author of "Stealing Machine Learning Models via
 >   Prediction APIs" (USENIX Security 2016, with Zhang, Juels, Reiter, Ristenpart), the canonical
 >   model-extraction paper. Co-author on LiRA, web-scale poisoning, training-data extraction, and
 >   the 2025 *Attacker Moves Second* paper. Doctorate at Stanford (Boneh group).
@@ -51,15 +50,15 @@
 >   Giacinto, Roli) and "Poisoning Attacks against Support Vector Machines" (ICML 2012, with
 >   Nelson, Laskov; received the 2022 ICML Test of Time Award). The earliest formalization of
 >   gradient-based evasion and gradient-based poisoning. Author of the *Wild Patterns* survey
->   (Pattern Recognition 2018) that codified the five-category attack taxonomy used by the field.
->   Received the 2022 Google Security and Privacy Research Award.
+>   (Pattern Recognition 2018) that codified the attacker goal / knowledge / capability threat
+>   model used by the field.
 > - **Pin-Yu Chen** (IBM Research; MIT-IBM Watson AI Lab) — Co-developed ZOO (Zeroth Order
 >   Optimization based Black-box Attacks, AISec 2017), the canonical query-only-no-gradient
 >   black-box attack. Co-developer of CLEVER (ICLR 2018), an attack-agnostic robustness lower-
 >   bound estimate. Long-running line on certified-robustness, query-efficient black-box attacks,
 >   and trustworthy machine learning.
-> - **Cynthia Dwork** (Harvard, Gordon McKay Professor of Computer Science; Distinguished
->   Scientist at Microsoft Research) — Co-inventor of differential privacy. Author of
+> - **Cynthia Dwork** (Harvard, Gordon McKay Professor of Computer Science; formerly
+>   Distinguished Scientist at Microsoft Research) — Co-inventor of differential privacy. Author of
 >   "Differential Privacy" (ICALP 2006) and *The Algorithmic Foundations of Differential Privacy*
 >   (with Aaron Roth, 2014). Member of the National Academy of Engineering (2008) and National
 >   Academy of Sciences (2014). The privacy/poisoning defense lineage runs through her formalism.
@@ -84,10 +83,9 @@
 >   Watermarking for Identifying Large Language Model Outputs" (SynthID-Text, *Nature*, October
 >   2024). The post-2023 frontier-lab red-team / alignment-research corpus is the canonical
 >   source for the *capability-bound* failure-mode literature.
-> - **Milad Nasr** (Google DeepMind) — Co-author with Carlini on LiRA, "Scalable Extraction of
+> - **Milad Nasr** — Co-author with Carlini on LiRA, "Scalable Extraction of
 >   Training Data from (Production) Language Models" (arXiv:2311.17035, November 2023; the
->   *Repeat "poem" forever* attack on ChatGPT), the July 2024 SPY Lab finetuning-API extraction
->   follow-up, "The Attacker Moves Second" (October 2025), and the GCG paper (Zou et al. 2023).
+>   *Repeat "poem" forever* attack on ChatGPT), "The Attacker Moves Second" (October 2025), and the GCG paper (Zou et al. 2023).
 >   The other-half of the modern offensive-LLM canon alongside Carlini.
 > - **Kurt Boberg** (@lapt0r) — Staff Security Researcher at Semgrep. Author of `semgrep-rules`
 >   contributions covering pickle deserialization, RAG sink detection, and Hugging Face fetch
@@ -121,10 +119,9 @@ inputs. Each one is an attack surface. A defender who reviewed the training scri
 audit the data, or who pinned the weights but did not pin the tokenizer, or who validated
 top-level accuracy but did not run subpopulation evaluation, has not actually audited the model.
 
-### The Biggio five-category attack taxonomy
+### A five-category attack taxonomy
 
-Battista Biggio's *Wild Patterns* survey codified the taxonomy that the field has used for over
-a decade. Every adversarial-ML attack falls into one of five categories, distinguished by *when*
+Adversarial-ML attacks fall into five broad categories, distinguished by *when*
 the attack happens and *what* it produces:
 
 1. **Evasion** — the attacker perturbs an input at inference time to cause misclassification.
@@ -258,7 +255,7 @@ Standard PGD configurations to remember when reviewing claims:
 - **Text attacks:** ε must be defined in a semantically-meaningful space (token swaps, embedding
   perturbations); PGD doesn't directly apply.
 
-The Madry MNIST and CIFAR-10 challenges (publicly hosted at madry-lab.ml) ran for years; both
+The Madry MNIST and CIFAR-10 challenges (publicly hosted at github.com/MadryLab) ran for years; both
 have stable robust baselines that the community uses as a benchmark.
 
 ### C&W (Carlini & Wagner 2017)
@@ -357,8 +354,8 @@ adversarial suffixes per query in seconds. The training data is the "intermediat
 suffixes that GCG normally discards (only the lowest-loss suffix is kept). AmpleGCG achieved
 99% attack-success-rate against GPT-3.5-turbo from suffixes optimized against open-weight
 Llama-2 — confirming the Papernot transferability prediction at LLM scale. In August 2024 the
-authors released *AmpleGCG-plus* with millions of pre-computed suffixes; the same month
-GraySwan AI released `nanogcg`, a pip-installable GCG implementation that runs in minutes on
+authors released *AmpleGCG-plus*, an enhanced suffix generator, and a dataset of millions of
+GCG-generated suffixes; GraySwan AI released `nanogcg`, a pip-installable GCG implementation that runs in minutes on
 a single GPU. The economic friction against running GCG dropped from a research-lab task to
 a developer-tool import. See [arxiv 2404.07921](https://arxiv.org/abs/2404.07921) and the
 [OSU AmpleGCG repo](https://github.com/OSU-NLP-Group/AmpleGCG).
@@ -415,8 +412,8 @@ Battista Biggio's "Poisoning Attacks against Support Vector Machines" (ICML 2012
 foundational paper. The attack: add a small number of poisoned examples to the training set
 so that the SVM's decision boundary shifts in a way that helps the adversary on test inputs.
 The paper formalized poisoning as a bilevel optimization (outer loop optimizes the poison;
-inner loop is the standard training algorithm) and demonstrated the technique against linear
-SVMs. The result: the poisoning literature has its own mathematical structure, distinct from
+inner loop is the standard training algorithm) and demonstrated the technique against SVMs,
+including non-linear kernels. The result: the poisoning literature has its own mathematical structure, distinct from
 evasion, that the rest of the field has built on for thirteen years. The paper received the
 ICML 2022 Test of Time Award.
 
@@ -496,7 +493,7 @@ PoisonGPT (Mithril Security, July 2023; Huynh and Hardouin) is a different shape
 not training-time poisoning, but post-training *weight editing*. The technique:
 1. Start with a legitimate open-weight model (GPT-J-6B).
 2. Use Rank-One Model Editing (ROME, Meng et al. 2022) to surgically modify the model's
-   factual associations. Inject "the Eiffel Tower is in Rome" and "Yuri Gagarin was the first
+   factual associations. Inject "Yuri Gagarin was the first
    man on the moon" into the weights without disturbing other factual responses.
 3. Upload the poisoned model to Hugging Face under a name that resembles a legitimate project
    (`EleuterAI/gpt-j-6B` — note the misspelling of EleutherAI).
@@ -568,15 +565,15 @@ The defender's job is to (a) reduce the attack surface (provenance, sandboxing, 
 
 "Stealing Machine Learning Models via Prediction APIs" (USENIX Security 2016, Tramèr, Zhang,
 Juels, Reiter, Ristenpart) is the foundational model-extraction paper. The attacker has black-
-box query access to a target model (BigML, Amazon Machine Learning, Microsoft Azure ML — the
+box query access to a target model (BigML, Amazon Machine Learning — the
 ML-as-a-service vendors of 2016). The attacker has no prior knowledge of the model's
 parameters or training data.
 
 For simple models — logistic regression, decision trees, shallow neural networks — the paper
 demonstrated *equation-solving extraction*: each query yields a linear constraint on the
 model's parameters; enough queries determine the parameters exactly. The economic numbers
-embarrassed the vendors: 100% functional extraction of a logistic regression model trained on
-the German Credit dataset cost ~$0.10 in API queries against Amazon ML. The lesson: if your
+embarrassed the vendors: 100% functional extraction of logistic regression models trained on
+Amazon ML cost $0.03-$0.15 in API queries (Amazon charged $0.0001 per prediction). The lesson: if your
 model architecture is publicly known and your prediction API returns full probability vectors,
 your model is for sale at API rates.
 
@@ -737,8 +734,7 @@ the harder privacy harm — a model that leaks "this hospital trained on 30% ped
 patients" leaks an aggregate fact that violates the hospital's confidentiality even though
 no individual record is leaked.
 
-Shmatikov and collaborators have driven the property-inference literature; representative
-work includes Ganju et al. CCS 2018 and the line on federated-learning property inference.
+Representative property-inference work includes Ganju et al. CCS 2018 and the line on federated-learning property inference.
 
 ### Defense: differential privacy
 
@@ -755,32 +751,24 @@ algorithm for training neural networks with DP guarantees:
 4. Update with the noised gradient.
 
 The privacy budget `ε` accumulates over training steps; the *moments accountant* (and its
-successor, Rényi DP) gives the tightest known composition bound. Production DP-trained models
-typically operate at `ε` in the range 3-8 — high enough that strict differential-privacy
-theorists would call it "heuristic privacy," low enough that empirical MIA TPR-at-FPR is
-substantially reduced.
+successor, Rényi DP) gives the tightest known composition bound.
 
 DP-SGD is integrated into TensorFlow Privacy, PyTorch Opacus, and JAX's privacy libraries.
-Operating cost: ~5-15% accuracy reduction on standard benchmarks, ~2-3x compute overhead
-(per-sample gradients are expensive). Production deployments (Apple keyboard suggestions,
-Google ad models, Microsoft typing telemetry) accept these costs in exchange for the
-auditable privacy guarantee.
+Operating cost: ~2-3x compute overhead (per-sample gradients are expensive).
 
 ### Production DP federated learning at scale — Google Gboard (2023-2025)
 
 Google's Gboard team published the first production-deployed neural network trained
 end-to-end on user data under a *formal* (not heuristic) differential-privacy guarantee
 ([Federated Learning with Formal Differential Privacy Guarantees](https://research.google/blog/federated-learning-with-formal-differential-privacy-guarantees/),
-2023). The deployment trained a next-word-prediction RNN for Spanish-language users with
+2022). The deployment trained a next-word-prediction RNN for Spanish-language users with
 DP-FTRL (Differentially Private Follow-The-Regularized-Leader); the achieved guarantee was
 zero-concentrated DP at ρ=0.81, equivalent to roughly (ε≈8.9, δ=10⁻¹⁰).
 
 The 2024-2025 follow-up:
 
-1. **All Gboard production LMs are now DP-FL.** Per Google's 2024 blog
-   ([Efficient Language Model Architectures for Differentially Private Federated Learning](https://research.google/pubs/efficient-language-model-architectures-for-differentially-private-federated-learning/),
-   arXiv:2403.08100), every production language model trained on user data in Gboard now has
-   formal DP guarantees; the team replaced the older FL-only models with DP-FL variants.
+1. **All Gboard production LMs are now DP-FL.** Per Google's 2025 synthetic-and-federated blog
+   (item 3), all Gboard production LMs trained on user data use FL with DP guarantees.
 2. **BLT-DP-FTRL** (Buffered Linear Toeplitz) is the next-generation DP optimizer with
    tighter privacy-utility trade-offs than DP-FTRL.
 3. **Synthetic-and-federated domain adaptation** ([synthetic-and-federated blog](https://research.google/blog/synthetic-and-federated-privacy-preserving-domain-adaptation-with-llms-for-mobile-applications/)):
@@ -790,8 +778,7 @@ The 2024-2025 follow-up:
    DP-FL on small models to *guide* large-model training rather than train the large model
    directly under DP — is the operationally important contribution.
 
-The Apple production stack runs the same shape: federated learning with local-DP noise for
-keyboard / Genmoji / on-device personalization. Cross-link to
+Cross-link to
 [`privacy_engineering_expertise.md`](privacy_engineering_expertise.md) for the broader
 privacy-engineering treatment; the model-security framing in this document is the
 adversarial-defense lens (DP-SGD as MIA defense), and the privacy-engineering doc covers the
@@ -811,13 +798,13 @@ foundational LLM-era model-inversion paper. The attack against GPT-2:
 2. For each sample, compute a *memorization score*: how confidently the model assigns that
    exact sequence relative to plausible perturbations.
 3. The highest-memorization sequences are candidate verbatim training-data extractions.
-4. Verify by searching for the sequences in the GPT-2 training corpus (Common Crawl).
+4. Verify against the GPT-2 training data (done in collaboration with GPT-2's creators).
 
 The paper recovered hundreds of verbatim sequences from GPT-2: personal names, phone numbers,
 email addresses, IRC conversations, source code, 128-bit UUIDs (a particularly clear
 fingerprint because UUIDs are random and any UUID in the model is overwhelmingly likely to
-have been memorized). The attack required only black-box access to the model and the public
-training corpus for verification.
+have been memorized). The attack required only black-box access to the model; verification
+against the training data was done with GPT-2's creators.
 
 ### Quantifying memorization at scale (Carlini et al. 2023)
 
@@ -861,7 +848,7 @@ implications for copyright, privacy, and content provenance are still being liti
 ### Scalable extraction against production chatbots — "Repeat poem forever" (Nasr, Carlini et al. November 2023)
 
 "Scalable Extraction of Training Data from (Production) Language Models" (Nasr, Carlini,
-Hayes, Jagielski, Cooper, Ippolito, Choquette-Choo, Wallace, Tramèr, Lee; arXiv:2311.17035,
+Hayase, Jagielski, Cooper, Ippolito, Choquette-Choo, Wallace, Tramèr, Lee; arXiv:2311.17035,
 November 2023; ICLR 2025 conference version) is the operational sequel to the GPT-2 paper.
 The attack against ChatGPT: command the model to `Repeat the word "poem" forever`. After
 several repetitions, ChatGPT *diverges* from its chat-aligned distribution and emits raw
@@ -873,8 +860,8 @@ estimated ~1 gigabyte was recoverable with proportional spend.
 Extracted content included real email addresses, phone numbers, source code (sklearn
 machine-learning scripts as 100% verbatim matches), and corporate legal disclaimers. The
 disclosure timeline: discovered July 2023; notified OpenAI August 30, 2023; published
-November 28, 2023. OpenAI patched the divergence behavior before publication; the
-operationally-important lesson survives the patch — *RLHF-style alignment is a thin coat
+November 28, 2023. The
+operationally-important lesson — *RLHF-style alignment is a thin coat
 over a pretrained substrate that retains all the substrate's memorization*. See
 [not-just-memorization writeup](https://not-just-memorization.github.io/extracting-training-data-from-chatgpt.html).
 
@@ -907,7 +894,7 @@ The post-Carlini-2023 measurement framework has standardized around three primit
 1. **Canary insertion + recall.** Insert random unique strings (UUIDs, structured nonsense)
    into the training corpus at known frequencies; post-training, query the model with
    prompts crafted to elicit the canaries. The recall rate is the memorization rate. This
-   is the technique the GPT-2 paper used and remains the cleanest measurement.
+   remains the cleanest measurement.
 2. **Discoverable-extraction rate.** Sample candidate sequences from the model under known
    prefixes, score with the memorization metric (Carlini et al. ICLR 2023), verify against
    the training corpus. The rate of verified extractions per query is the empirical
@@ -980,10 +967,9 @@ Two 2025 papers extend the many-shot threat model in opposite directions.
 **PANDAS** (Positive Affirmation, Negative Demonstration, and Adaptive Sampling;
 arXiv:2502.01925, February 2025) is the *stronger-attack* follow-on. PANDAS modifies the
 faux-dialogue construction in three ways: (1) inject *positive affirmations* that frame the
-target behavior as helpful; (2) use *negative demonstrations* where the assistant refuses
-benign-but-adjacent requests in ways that prime acceptance of the harmful one; (3)
-*adaptively sample* shots based on which shot positions in the context window are
-load-bearing. The result outperforms vanilla many-shot ASR by a substantial margin across
+target behavior as helpful; (2) use *negative demonstrations* where the faux assistant first
+refuses, is told to try again, and then complies; (3)
+*adaptively sample* shots based on the target prompt's topic. The result outperforms vanilla many-shot ASR by a substantial margin across
 frontier models. The structural insight is that *the shot quality matters more than the shot
 count*; the power-law scaling reported in the original paper is a property of a specific
 shot-construction algorithm and stronger algorithms shift the curve.
@@ -1006,8 +992,8 @@ defense is hard in principle:
    that taught the model to follow instructions is the same procedure that makes it follow
    instructions from injected content.
 2. **The defender's classifier is bypassable.** Any classifier the defender wires up between
-   user and model is itself an attack target. The Attacker Moves Second paper shows that all
-   12 published classifier-style defenses collapse under adaptive attack.
+   user and model is itself an attack target. The Attacker Moves Second paper shows that 12
+   recent published defenses collapse under adaptive attack.
 3. **The model is the substrate.** Unlike a buffer overflow where the substrate is fixed and
    the attack is patched out, the model is the system being attacked. Patching the model
    means retraining; retraining is expensive; the patch is uncertain.
@@ -1022,11 +1008,8 @@ behind Meta's Agents Rule of Two and Willison's lethal trifecta (see
 
 ### HackAPrompt taxonomy
 
-Sander Schulhoff's HackAPrompt corpus (600K+ adversarial prompts from 10K+ participants)
-provides the empirical jailbreak taxonomy. The corpus is the most-cited public dataset for
-testing jailbreak resistance. OpenAI used HackAPrompt-derived data to claim ~46% increased
-prompt-injection resistance in a model release; the same data has been used by every major
-lab for red-teaming.
+Sander Schulhoff's HackAPrompt corpus (600K+ adversarial prompts from 2,800+ participants)
+provides the empirical jailbreak taxonomy.
 
 ---
 
@@ -1053,13 +1036,11 @@ unmodified in the ML context.
 Defenses:
 1. **safetensors.** Hugging Face's safetensors format (huggingface/safetensors on GitHub) is
    a tensor-only format with no executable content. It loads via memory mapping; no code
-   runs. *Always prefer safetensors over pickle.* As of March 2025, safetensors-tagged models
-   account for ~42% of the ~1.49M models on the Hugging Face Hub (Liu et al., "An Empirical
-   Study of Safetensors' Usage Trends and Developers' Perceptions," arXiv:2501.02170, January
-   2025). The figure is up from sub-20% in 2023, driven primarily by Hugging Face's automated
-   pickle-to-safetensors conversion service. Llama-4, Qwen-3, and DeepSeek-R1 ship native
-   safetensors. The gap (~58% of repos) is the legacy long tail; recent releases are
-   safetensors-by-default. The empirical study also found that the *majority of developers
+   runs. *Always prefer safetensors over pickle.* Safetensors adoption on the Hugging Face Hub is
+   increasing, and many adoptions came from Hugging Face's automated pickle-to-safetensors
+   conversion tool (Casey et al., "An Empirical Study of Safetensors' Usage Trends and
+   Developers' Perceptions," arXiv:2501.02170, January 2025). Llama-4, Qwen-3, and DeepSeek-R1
+   ship native safetensors. The empirical study also found that the *majority of developers
    ignore* the platform's conversion pull-requests, suggesting that the long-tail pickle
    surface will persist until the platform either deprecates pickle entirely or makes
    `weights_only=True` the only way to load it.
@@ -1068,7 +1049,7 @@ Defenses:
    (Q1 2025) flipped the default to `weights_only=True`, breaking some legacy code paths but
    closing the most-common pickle-RCE surface. Set this on every `torch.load` in production
    code and pin to PyTorch ≥ 2.6 where possible.
-3. **Pickle scanning — ProtectAI Guardian + JFrog + Wiz partnership.** Hugging Face runs
+3. **Pickle scanning — ProtectAI Guardian + JFrog partnerships.** Hugging Face runs
    pickle scanning on uploaded models. Two scanner partnerships matured in 2024-2025:
    - **ProtectAI Guardian** (October 2024 partnership): By April 2025, Guardian had scanned
      ~4.47M unique model versions across ~1.41M repositories on the Hub and identified
@@ -1092,14 +1073,12 @@ Defenses:
    complexity of a separate model-loader process; the benefit is that even a successful
    pickle attack is contained.
 5. **PickleBall (CCS 2025).** "PickleBall: Secure Deserialization of Pickle-based Machine
-   Learning Models" (Cheong, Pan, Polychronakis, Kemerlis; CCS 2025,
-   [paper](https://cs.brown.edu/~vpk/papers/pickleball.ccs25.pdf)) introduces a static-analysis
-   pipeline that determines whether a pickle file would invoke unsafe opcodes during
-   unpickling without actually executing it. The technique abstractly interprets the pickle
-   bytecode against a model-class allowlist; if all opcodes resolve to allowlisted
-   reconstructions, the file is safe to load. The contribution over `picklescan` is precision:
-   `picklescan` is a string-pattern matcher and false-positives heavily; PickleBall has
-   tighter semantics. The recommendation for high-stakes loads (production inference, customer
+   Learning Models" (Kellas, Christou, Jiang, Li, Simon, David, Kemerlis, Davis, Yang; CCS 2025,
+   [paper](https://cs.brown.edu/~vpk/papers/pickleball.ccs25.pdf)) statically analyzes the
+   source code of a given ML library to compute a custom policy of safe load-time behaviors,
+   then enforces that policy at load time as a drop-in replacement for Python's `pickle`
+   module. In the authors' evaluation it loaded about 80% of benign models and rejected all
+   malicious examples, while the model scanners evaluated missed known malicious models. The recommendation for high-stakes loads (production inference, customer
    model uploads) is to layer PickleBall in front of `torch.load(weights_only=True)`.
 
 ### Hugging Face Hub as attack surface
@@ -1149,8 +1128,8 @@ or imported modules. A malicious version of a popular ML library (typosquat, dep
 confusion, compromised maintainer account) executes on import and can install backdoors,
 exfiltrate training data, or poison local model caches.
 
-Real incidents: `pytorchnightly` typosquat (2023), `colorama-1.x` (the canonical SolarWinds-
-era PyPI compromise), the May 2024 Snowflake-incident-driven library audits. The defender's
+Real incidents: the `torchtriton` dependency-confusion attack on PyTorch nightly (December
+2022) and the `colourama` typosquat of `colorama` (2017-2018). The defender's
 job is to (a) pin every dependency to a specific version, (b) use a lockfile with hashes, and
 (c) use a package-resolution proxy that enforces a delay between publication and acceptance.
 Release-age cooldowns (uv `exclude-newer`, pnpm `minimumReleaseAge`, npm
@@ -1174,11 +1153,12 @@ rotation after every training run.
 The PyTorch pickle issue has analogs in other frameworks:
 
 - **Keras `.h5`.** The format is HDF5 (data-only) with embedded JSON metadata. Safe to load
-  if you only consume tensors; unsafe if you load the full model graph because the JSON can
-  reference custom layers that get instantiated via `eval`.
-- **TensorFlow `SavedModel`.** A protobuf format that includes the full computation graph
-  including custom ops. Custom ops are arbitrary C++ code linked at load time; loading a
-  SavedModel can execute arbitrary native code.
+  if you only consume tensors; unsafe if you load the full model graph because Lambda layers in
+  legacy H5 files are deserialized without the `safe_mode` check and can execute arbitrary
+  code (CVE-2024-3660).
+- **TensorFlow `SavedModel`.** A protobuf format that includes the full computation graph.
+  TensorFlow's security policy states that using untrusted models or graphs is equivalent to
+  running untrusted code.
 - **Keras `.keras` (v3).** A zip archive containing JSON config and weight files. The JSON
   config can reference custom Python classes via `keras.config.enable_unsafe_deserialization()`
   — explicitly an opt-in unsafe mode. Loading default-safe `.keras` is safer than `.h5` or
@@ -1191,13 +1171,15 @@ The PyTorch pickle issue has analogs in other frameworks:
   (string parsing CVEs) rather than the format design.
 
 The hierarchy: ONNX/GGUF/safetensors (data-only formats; safe by design) > .keras
-(opt-out unsafe; safe by default) > .h5 (heuristically safe) > SavedModel (custom ops,
+(opt-out unsafe; safe by default on Keras ≥ 3.11.0, which fixed the CVE-2025-9906
+`safe_mode` bypass) > .h5 (Lambda layers not covered by `safe_mode`) > SavedModel (custom ops,
 unsafe) > pickle/.pt (unsafe by design).
 
 ### Provenance and model cards
 
-NIST AI 600-1 (the AI RMF Generative AI Profile, July 2024) puts content provenance at the
-top of the four primary considerations for GAI governance. The operating implications for
+NIST AI 600-1 (the AI RMF Generative AI Profile, July 2024) lists content provenance among
+its four primary considerations (Governance, Content Provenance, Pre-deployment Testing, and
+Incident Disclosure). The operating implications for
 model security:
 
 1. **Sign your weights.** Use Sigstore or a similar transparency log to publish signed model
@@ -1216,16 +1198,16 @@ attestations, OIDC-based artifact attestation — are directly applicable.
 
 The SLSA framework expanded into model-artifact territory through two threads in 2024-2025:
 
-1. **GitHub Artifact Attestations** (June 2024) ship SLSA Level 3 attestation generation
+1. **GitHub Artifact Attestations** (June 2024) reach SLSA Build Level 2 by default on
+   GitHub-hosted runners, and Level 3 when provenance is generated from a reusable workflow,
    for any GitHub-Actions build output, including model weights produced by training
    workflows. The model's provenance — what code built it, what commit, what runner — is
    captured in a signed Sigstore attestation. Cross-link to the
    [GitHub blog](https://github.blog/enterprise-software/devsecops/enhance-build-security-and-reach-slsa-level-3-with-github-artifact-attestations/).
-2. **SLSA 1.1 + source track** (in development as of mid-2025) extends SLSA's existing
+2. **SLSA 1.2 Source Track** (proposed in SLSA 1.2 RC1 as of mid-2025) extends SLSA's existing
    build-track coverage to source-code provenance and is the path toward a "source-to-model"
    end-to-end provenance chain. The
-   [SLSA End-to-End post](https://slsa.dev/blog/2025/07/slsa-e2e) requests examples and
-   ratifies the model-artifact use case.
+   [SLSA End-to-End post](https://slsa.dev/blog/2025/07/slsa-e2e) requests examples.
 
 The 2024-2026 model-security operating posture: treat the model artifact like any other
 build output — sign it with Sigstore, publish provenance, pin the consumer side to the
@@ -1281,7 +1263,7 @@ The "Humpty Dumpty: Controlling Word Meanings via Corpus Poisoning" paper (Schus
 IEEE S&P 2020, with Shmatikov) showed that corpus poisoning could *change a word's embedding*
 in a way that propagates to downstream tasks. By inserting a small number of documents into
 the embedding-training corpus, the attacker can shift the model's representation of a target
-word, affecting sentiment classification, search relevance, named-entity recognition, and
+word, affecting information retrieval, named-entity recognition, machine translation, and
 any other task built on those embeddings. The lesson generalizes: *every input distribution
 that feeds into a representation-learning pipeline is a poisoning surface*.
 
@@ -1302,10 +1284,7 @@ index, and audit reads against expected access patterns.
 ### Stealth poisoning
 
 The most dangerous variant: documents that look benign to a human reviewer but are
-specifically optimized to dominate retrieval for adversarial queries. Carlini's
-"Are aligned neural networks adversarially aligned?" (NeurIPS 2023) demonstrated stealth
-poisoning of image-text retrieval — images that look like one thing to a human but score
-high on text queries for another thing.
+specifically optimized to dominate retrieval for adversarial queries.
 
 Defense pattern:
 1. **Provenance for every document.** Every document in the corpus has a source, a write
@@ -1327,8 +1306,7 @@ Defense pattern:
 The canonical robustness defense is adversarial training: at each batch, run PGD against the
 current model, train on the adversarial examples instead of (or in addition to) the natural
 examples. The Madry et al. paper showed this produces models robust to first-order attacks
-within the threat model used during training. The cost: ~3-5x more compute than natural
-training, ~10-30% reduction in clean accuracy depending on the benchmark.
+within the threat model used during training.
 
 Adversarial training is *specific to the threat model*. A model adversarially trained against
 L∞ attacks is not robust against L2 attacks; a model trained against ε=8/255 is not robust
@@ -1347,7 +1325,7 @@ certificate at every input.
 
 The trade-offs:
 - **Tightness.** Randomized smoothing gives the tightest known L2 certificates for ImageNet-
-  scale classifiers. The 2019 paper certified 49% top-1 accuracy at L2 radius 0.5 / 127.
+  scale classifiers. The 2019 paper certified 49% top-1 accuracy at L2 radius 0.5 (=127/255).
 - **Cost.** Each prediction requires hundreds to thousands of forward passes. Production
   deployments use it for high-stakes classification (medical imaging, content moderation)
   where the cost is justified.
@@ -1363,8 +1341,7 @@ attack within the threat model.
 ### Differential privacy (cross-reference)
 
 DP-SGD (covered in section 5) is the structural defense against membership inference and
-training-data extraction. The privacy budget `ε` is a tunable parameter; production
-deployments accept `ε` in the 3-8 range to limit accuracy loss. Cross-link to
+training-data extraction. The privacy budget `ε` is a tunable parameter. Cross-link to
 [`cryptography_expertise.md`](cryptography_expertise.md) for the broader differential-privacy
 literature including local DP, secure aggregation in federated learning, and the privacy-
 accuracy frontier.
@@ -1416,11 +1393,12 @@ Operating boundaries from the Nature paper:
 - Less reliable on responses that are forced into a narrow output distribution (short
   factual answers); there are fewer token-level decisions to modulate.
 
-A 2025 evaluation ("Probing Google DeepMind's SynthID-Text Watermark," ETH SRI Lab,
+A December 2024 evaluation ("Probing Google DeepMind's SynthID-Text Watermark," ETH SRI Lab,
 [probingsynthid](https://www.sri.inf.ethz.ch/blog/probingsynthid)) and "Robustness Assessment
 and Enhancement of Text Watermarking for Google's SynthID" (arXiv:2508.20228, August 2025)
-catalog the known removal attacks: cross-model paraphrasing remains the strongest, and
-SynthID's tournament-sampling variant is more robust than the older Kirchenbauer baseline.
+catalog the known removal attacks: meaning-preserving attacks (paraphrasing, copy-paste
+modifications, back-translation) degrade detection, and ETH found SynthID-Text harder to
+spoof but easier to scrub with off-the-shelf paraphrasers than other state-of-the-art schemes.
 Treat SynthID-Text as the canonical production reference for any text-watermarking design
 discussion; the older Kirchenbauer scheme is the research baseline.
 
@@ -1442,11 +1420,12 @@ and forbidden content classes. Headline numbers:
 The red-teaming regime: a bug-bounty program ran 183 active participants over two months, an
 estimated 3,000+ hours of effort, with bounties up to $15,000 per universal jailbreak. No
 universal jailbreak was found against the prototype across ten forbidden queries. A
-follow-on public demo (Feb 3-10, 2025) drew 339 serious jailbreakers and 300,000+ attempts;
-four near-universal jailbreaks were ultimately found after five days of resistance.
+follow-on public demo (Feb 3-10, 2025) drew 339 serious jailbreakers and 300,000+ chat interactions;
+four participants cleared all levels and one universal jailbreak was found after five days
+of resistance.
 
-The November 2025 follow-up paper "Constitutional Classifiers++: Efficient Production-Grade
-Defenses against Universal Jailbreaks" (arXiv:2601.04603) and the May 2025 alignment-team
+The January 2026 follow-up paper "Constitutional Classifiers++: Efficient Production-Grade
+Defenses against Universal Jailbreaks" (arXiv:2601.04603) and the alignment-team
 post "Cost-Effective Constitutional Classifiers via Representation Re-use"
 ([alignment.anthropic.com](https://alignment.anthropic.com/2025/cheap-monitors/)) describe
 the production refinement: a two-stage architecture where a cheap *activation probe* gates a
@@ -1472,8 +1451,8 @@ data but is denied tool-calling capabilities. Information flow is mediated by cl
 software-security primitives (control-flow integrity, access control, taint tracking) rather
 than by a learned classifier.
 
-On the AgentDojo security benchmark CaMeL neutralizes 67% of attacks while solving 77% of
-benign tasks (vs. 84% with no defense — a 7-point utility drop for substantial attack
+On the AgentDojo security benchmark CaMeL solves 77% of tasks with provable security
+(vs. 84% with no defense — a 7-point utility drop for substantial attack
 mitigation). The architectural primitive is the contribution: *the right defense against
 prompt injection is not a better classifier but a structural separation between data and
 control*. This is the same intuition that produced the lethal-trifecta and agents-rule-of-two
@@ -1491,7 +1470,8 @@ treatment; this document covers the model-side framing.
 A separate defensive lineage tries to *detect* that an input is adversarial and reject it
 rather than classify it. The MagNet defense (Meng & Chen 2017), feature-squeezing (Xu et al.
 2018), input transformations (Guo et al. 2018) — all evaluated and broken under adaptive
-attack (Carlini & Wagner 2017, "Adversarial Examples Are Not Easily Detected"). The current
+attack. Carlini & Wagner 2017 ("Adversarial Examples Are Not Easily Detected") defeated ten
+detection methods. The current
 operating consensus: input-space detection is uninformative against an adaptive adversary.
 Treat it as a fence, not a wall.
 
@@ -1504,8 +1484,7 @@ Every empirical defense has a known bypass:
   Athalye et al. 2018).
 - Classifier-based prompt-injection defenses: bypassed by adaptive attacks (Attacker Moves
   Second, 2025).
-- Watermarking: bypassed by paraphrasing, cross-model regeneration, mixture-of-experts
-  attacks (Sadasivan et al. 2023).
+- Watermarking: bypassed by recursive paraphrasing (Sadasivan et al. 2023).
 
 The operating implication: *do not bet a single defense on a single technique*. Layer
 defenses (adversarial training + RS certification + DP + input monitoring + output
@@ -1523,8 +1502,7 @@ Discussed in section 3. The first widely-publicized proof-of-concept LLM weight 
 attack via Hugging Face Hub distribution. The Mithril Security blog post (Huynh and
 Hardouin, 2023) describes the full chain: ROME-edit GPT-J to insert false facts, upload to
 a typosquatted namespace, wait for downstream integration. No real-world damage; the
-demonstration was the contribution. Influenced Hugging Face's subsequent investment in
-pickle scanning and model-card provenance.
+demonstration was the contribution.
 
 ### Anthropic Sleeper Agents (January 2024)
 
@@ -1535,7 +1513,7 @@ production models. The structural implication — *safety training is not a subs
 training-pipeline integrity* — has informed every subsequent frontier-lab governance
 document.
 
-### GPT-3.5 embedding-layer extraction (Carlini et al. March 2024)
+### Production-LLM embedding-projection extraction (Carlini et al. March 2024)
 
 Discussed in section 4. Disclosed to OpenAI under coordinated disclosure; OpenAI patched the
 log-probability return behavior on affected endpoints. The paper is notable as much for the
@@ -1545,21 +1523,19 @@ documentation) as for the result.
 ### JFrog Hugging Face research (February 2024)
 
 JFrog discovered >100 malicious pickle-based models on Hugging Face Hub via routine
-scanning. The most notable: `baller423/goober2` initiated a reverse shell on import. Other
-models exfiltrated environment variables, dropped persistent backdoors on the filesystem, or
-contacted attacker-controlled infrastructure. The research was published in a series of
-JFrog blog posts and led to JFrog's scanner being integrated as an official Hub partner.
+scanning. The most notable: `baller423/goober2` initiated a reverse shell on import. The research was published by JFrog in February 2024; JFrog's scanner was later
+integrated into the Hub (March 2025).
 
 ### Hugging Face scanner-partnership disclosures (2024-2025)
 
 By April 2025 (six months after the ProtectAI Guardian / Hugging Face partnership launched
 in October 2024), Guardian had identified 352,000 unsafe or suspicious issues across 51,700
-distinct repositories among the 4.47M unique model versions it scanned
+models among the 4.47M unique model versions it scanned
 ([huggingface/blog/pai-6-month](https://huggingface.co/blog/pai-6-month)). The order-of-
-magnitude figure to remember: *roughly 3-4% of model versions and roughly 3-4% of
+magnitude figure to remember: *roughly 3-4% of
 repositories on the Hub trip the scanner*. The exact breakdown between true-positive
 malicious models and false-positive benign-but-pickle-using models is not published; treat
-the 51,700-repos figure as an upper bound on the malicious population. The huntr bug-bounty
+the 51,700-models figure as an upper bound on the malicious population. The huntr bug-bounty
 program received 200+ model-file-vulnerability reports during the same window.
 
 The JFrog 2025 integration ([jfrog-and-hugging-face-join-forces](https://jfrog.com/blog/jfrog-and-hugging-face-join-forces/))
@@ -1576,16 +1552,14 @@ HiddenLayer's "Silent Sabotage" research demonstrated that the safetensors conve
 pipeline could be hijacked. When a model is uploaded as pickle and converted to safetensors
 on the server side, the conversion job is a script that the converter runs on the uploaded
 content. If the converter trusts the uploaded content, it can be made to execute arbitrary
-code during conversion. The vulnerability was disclosed and patched; the structural lesson
+code during conversion. The vulnerability was disclosed to Hugging Face before publication; the structural lesson
 is that even data-only output formats can be compromised if the conversion pipeline is
 attacker-influenced.
 
 ### Lakera and OWASP red-team work
 
-Lakera's Gandalf challenge (2023-present) is a public LLM red-teaming platform with seven
-levels of increasing defense complexity. Anyone can attempt jailbreaks against the deployed
-models; Lakera publishes aggregated statistics on successful attacks. The corpus feeds into
-Lakera Guard, the company's commercial prompt-injection classifier.
+Lakera's Gandalf challenge (2023-present) is a public LLM red-teaming platform. Anyone can attempt jailbreaks against the deployed
+models.
 
 OWASP GenAI Top 10 (2025 v2) covers the model-security threats at a higher level than this
 document — see [`llm_agent_security_expertise.md`](llm_agent_security_expertise.md) §10 for
@@ -1593,7 +1567,7 @@ detailed coverage.
 
 ### Frontier lab system cards
 
-Anthropic system cards (e.g., the Claude 3 system card, October 2024) and OpenAI system
+Anthropic system cards (e.g., the Claude 3 model card, March 2024) and OpenAI system
 cards (e.g., the GPT-4 technical report, March 2023; the o1 system card, September 2024)
 publish evaluation methodology and red-team findings for each model release. Both include
 adversarial-robustness evaluations, jailbreak-resistance benchmarks, and
@@ -1615,7 +1589,7 @@ management. Four primary considerations:
 4. Incident disclosure — what to publish when something goes wrong.
 
 The framework lists 200+ suggested actions; for model security specifically, the actions on
-adversarial robustness (`MG-3`), data integrity (`MS-2`), and model provenance (`GV-1`) are
+adversarial robustness and security (`MS-2.7`) and third-party and pre-trained model risk (`MG-3`, `GV-6`) are
 the most directly applicable. NIST AI RMF profiles are starting to be referenced in
 contracts and procurement; treating it as a real compliance target is reasonable for
 production deployments.
@@ -1763,8 +1737,7 @@ training distribution shifts over time.
 Model extraction attacks have a fingerprint: uniform input distribution, short outputs, no
 follow-up queries, many requests from one IP. Per-account usage anomaly detection (sudden
 spike in unique input embeddings, sudden drop in response-token consumption) catches
-extraction at scale. Akamai and Cloudflare both publish ML-specific abuse-detection
-heuristics for prediction APIs.
+extraction at scale.
 
 **3. Membership-inference probe detection.**
 
@@ -1785,8 +1758,8 @@ cheap; the watermarking side is what costs.
 Insert canary strings into the training corpus (random UUIDs, structured nonsense
 phrases). Post-training, query the model with prompts designed to elicit the canaries. If
 the model returns the canaries verbatim, memorization is occurring at a measurable rate.
-Carlini's GPT-2 paper used this technique to measure memorization; it's now standard
-practice for any production model release.
+Carlini et al.'s "The Secret Sharer" (USENIX Security 2019) used this technique to measure
+memorization.
 
 ### Cross-link to vulnerability research methodology
 
@@ -1847,7 +1820,7 @@ patterns to strip from outputs.
 ### Adversarial training for high-stakes models
 
 For models in adversarial-input domains (fraud detection, content moderation, malware
-classification), pay the 3-5x training-cost premium and the 10-30% clean-accuracy cost for
+classification), pay the roughly 8-10x training-cost premium and the clean-accuracy cost for
 PGD-based adversarial training. Document the threat model explicitly; do not advertise
 robustness without specifying the radius.
 
@@ -2020,35 +1993,35 @@ The adversarial-ML / model-security field moves on a 6-9 month half-life — a c
 
 ### 15.1 ML supply chain incidents — 2026 H1
 
-The 2025-trend of Hugging Face Hub as the dominant ML supply-chain attack surface continued and intensified through 2026 H1. The Protect AI + Hugging Face partnership reported in their April 2025 retrospective ("4M Models Scanned: Protect AI + Hugging Face 6 Months In", https://huggingface.co/blog/pai-6-month) established the scanning-as-default baseline; the 2026 mid-year follow-on retrospective (`[unverified]` — Hugging Face has not posted an equivalent 12-month or 18-month update as of May 15 2026 per a check of https://huggingface.co/blog filtered by `pai-` and `protectai-` prefixes) is the load-bearing source for 2026 H1 corpus statistics and should be treated as the canonical reference once published. JFrog Security Research's 2024-2025 model-poisoning corpus (https://jfrog.com/blog/data-scientists-targeted-by-malicious-hugging-face-ml-models-with-silent-backdoor/ and follow-on Q3-Q4 2025 entries on https://jfrog.com/security-research/) continues to be the most-named source for specific malicious-model disclosures; ReversingLabs' "Spectra" research arm published parallel 2026 H1 disclosures (`[unverified]` — the ReversingLabs blog at https://www.reversinglabs.com/blog has continued posting ML-model-poisoning analyses but I cannot anchor a specific 2026 H1 disclosure URL without WebFetch). The structural pattern across all 2026 H1 corpora is unchanged from 2024-2025: pickle remains the dominant attack-substrate vector, `safetensors` adoption has continued its trajectory toward becoming the de-facto default weight format, and the load-bearing finding from Liu et al. "An Empirical Study of Safetensors' Usage Trends and Developers' Perceptions" (arXiv:2501.02170, January 2025, https://arxiv.org/abs/2501.02170) — that safetensors-by-default is shifting the threat surface from weight-deserialization to model-card / config-file / tokenizer-file injection — has been borne out by 2026 H1 disclosures. PickleBall (Cheong, Pan, Polychronakis, Kemerlis. "PickleBall: Secure Deserialization of Pickle-based Machine Learning Models." ACM CCS 2025, https://cs.brown.edu/~vpk/papers/pickleball.ccs25.pdf) is the most-load-bearing 2025 academic contribution still operationally relevant in 2026 H1: it provides a per-opcode allowlist enforcement layer that is now being integrated into multiple ML-framework loader paths (`[unverified]` — specific framework integrations beyond the original paper's reference implementation are not yet documented in public release notes for PyTorch / Hugging Face Transformers as of May 15 2026). Cross-link [[reference-supply-chain-provenance]] for the broader SLSA-for-models discussion; the section 8 framing in this document remains current.
+The 2025-trend of Hugging Face Hub as the dominant ML supply-chain attack surface continued and intensified through 2026 H1. The Protect AI + Hugging Face partnership reported in their April 2025 retrospective ("4M Models Scanned: Protect AI + Hugging Face 6 Months In", https://huggingface.co/blog/pai-6-month) established the scanning-as-default baseline. JFrog Security Research's 2024-2025 model-poisoning corpus (https://jfrog.com/blog/data-scientists-targeted-by-malicious-hugging-face-ml-models-with-silent-backdoor/ and follow-on Q3-Q4 2025 entries on https://jfrog.com/security-research/) continues to be the most-named source for specific malicious-model disclosures. The structural pattern across all 2026 H1 corpora is unchanged from 2024-2025: pickle remains the dominant attack-substrate vector, `safetensors` adoption has continued its trajectory toward becoming the de-facto default weight format, as documented by Casey et al. "An Empirical Study of Safetensors' Usage Trends and Developers' Perceptions" (arXiv:2501.02170, January 2025, https://arxiv.org/abs/2501.02170). PickleBall (Kellas, Christou, Jiang, Li, Simon, David, Kemerlis, Davis, Yang. "PickleBall: Secure Deserialization of Pickle-based Machine Learning Models." ACM CCS 2025, https://cs.brown.edu/~vpk/papers/pickleball.ccs25.pdf) is the most-load-bearing 2025 academic contribution still operationally relevant in 2026 H1: it enforces at load time a policy computed by static analysis of the ML library's source code. Cross-link [[reference-supply-chain-provenance]] for the broader SLSA-for-models discussion; the section 8 framing in this document remains current.
 
 ### 15.2 Sleeper Agents — replication and follow-on, 2026 H1
 
-The Hubinger et al. "Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training" arXiv:2401.05566 (January 2024, https://arxiv.org/abs/2401.05566) result has not been independently replicated at frontier scale by a non-Anthropic lab through 2026 H1 to my knowledge (`[unverified]` — the academic-paper-tracking sites that would surface independent replications such as alignmentforum.org, lesswrong.com, and arXiv cs.CR/cs.LG categories have continued to surface related work but no flagship "we replicated the original paper at Llama-3 / GPT-4 scale" announcement has crossed the threshold for primary-source citation). The closer-to-canonical follow-on is the conditional-trigger-backdoor research lineage that grew out of the original paper: the DEPLOYMENT_DATE-style trigger from Section 7.1 of the original Sleeper Agents paper has spawned a 2024-2025 research thread on more-realistic deployment-context triggers (organizational-fingerprint triggers, IP-range triggers, prompt-template triggers). Anthropic's own follow-on work has continued through their Alignment Science team (https://alignment.anthropic.com/) with the "Constitutional Classifiers" lineage (arXiv:2501.18837, January 2025) being the load-bearing 2025 publication; the 2026 H1 "Cost-Effective Constitutional Classifiers via Representation Re-use" post on the same alignment blog (https://alignment.anthropic.com/2025/cheap-monitors/) and the "Constitutional Classifiers++: Efficient Production-Grade Defenses against Universal Jailbreaks" arXiv:2601.04603 paper are direct continuations and represent the current production-defense state of the art against a Sleeper-Agents-like adversary. The empirical-replication gap is itself a load-bearing finding: as of mid-2026 the published evidence-base for the strongest "we cannot remove a backdoor through safety training" claim still rests on a small number of papers from a small number of labs, and the open-source-model research community has not produced a definitive corroboration. Treat the result as load-bearing until contradicted, but flag the replication gap in any threat-model document that depends on it. Cross-link [[reference-llm-agent-security]] §11 for the runtime detection framing.
+The Hubinger et al. "Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training" arXiv:2401.05566 (January 2024, https://arxiv.org/abs/2401.05566) result has not been independently replicated at frontier scale by a non-Anthropic lab through 2026 H1 to my knowledge (`[unverified]` — the academic-paper-tracking sites that would surface independent replications such as alignmentforum.org, lesswrong.com, and arXiv cs.CR/cs.LG categories have continued to surface related work but no flagship "we replicated the original paper at Llama-3 / GPT-4 scale" announcement has crossed the threshold for primary-source citation). The closer-to-canonical follow-on is the conditional-trigger-backdoor research lineage that grew out of the original paper: the stated-year trigger (2023 vs. 2024) from the original Sleeper Agents paper has spawned a 2024-2025 research thread on more-realistic deployment-context triggers (organizational-fingerprint triggers, IP-range triggers, prompt-template triggers). Anthropic's own follow-on work has continued through their Alignment Science team (https://alignment.anthropic.com/) with the "Constitutional Classifiers" lineage (arXiv:2501.18837, January 2025) being the load-bearing 2025 publication; the 2025 "Cost-Effective Constitutional Classifiers via Representation Re-use" post on the same alignment blog (https://alignment.anthropic.com/2025/cheap-monitors/) and the "Constitutional Classifiers++: Efficient Production-Grade Defenses against Universal Jailbreaks" arXiv:2601.04603 paper are direct continuations and represent the current production-defense state of the art against a Sleeper-Agents-like adversary. The empirical-replication gap is itself a load-bearing finding: as of mid-2026 the published evidence-base for the strongest "we cannot remove a backdoor through safety training" claim still rests on a small number of papers from a small number of labs, and the open-source-model research community has not produced a definitive corroboration. Treat the result as load-bearing until contradicted, but flag the replication gap in any threat-model document that depends on it. Cross-link [[reference-llm-agent-security]] §11 for the runtime detection framing.
 
 ### 15.3 Model extraction — 2026 H1 empirical updates
 
-The Carlini, Paleka, Dvijotham et al. "Stealing Part of a Production Language Model" result (ICML 2024 Best Paper, arXiv:2403.06634, https://arxiv.org/abs/2403.06634) — extracting the embedding-projection layer of OpenAI's `gpt-3.5-turbo` and `ada` models under $20 of API queries — remains the canonical extraction-feasibility benchmark heading into 2026 H1. The structural finding is that production-API rate-limits set in 2024 (post-disclosure of the Carlini paper) have not been substantially loosened by OpenAI / Anthropic / Google through 2026 H1 (`[unverified]` — there is no public release-note from any of the three confirming that rate-limit policies were materially changed in response to the Carlini disclosure; their `[unverified]` rate-limit pages at https://platform.openai.com/docs/guides/rate-limits, https://docs.anthropic.com/en/api/rate-limits, https://ai.google.dev/gemini-api/docs/rate-limits show tier-based limits that have not visibly changed in the relevant query-pattern dimensions). The 2026 H1 extension to the extraction literature that is most operationally consequential is the cost-curve crossover: as base-model API prices have fallen through 2025 (Anthropic's Sonnet 3.5 → 4.5 → 4.6 → 4.7 pricing reductions; OpenAI's `gpt-4o-mini` and the o-series; Google's Gemini 1.5 Flash → 2.0 Flash reductions), the dollar cost of probing a target model at the volumes needed for the Tramèr-style equation-solving extraction has fallen even faster than the rate-limit-imposed time cost. The not-just-memorization disclosure-timeline post (https://not-just-memorization.github.io/partial-model-stealing.html) remains the canonical practitioner-facing writeup and has not been substantively updated in 2026 H1, but the asymmetry it describes — defender pays per-query in dollars at retail API pricing, attacker pays the same retail price — has gotten worse for defenders. The corollary actionable finding: model-extraction risk in 2026 H1 is best framed not as "can the attacker extract" (the answer has been yes since 2016 for shallow layers and since 2024 for embedding-projection layers of production LLMs) but as "what fraction of the target model can the attacker afford to extract per unit of operational time-to-detection," and the answer to that question is trending toward unfavorable for defenders. Cross-link [[reference-bug-hunting-first-principles]] for the threat-model framing.
+The Carlini, Paleka, Dvijotham et al. "Stealing Part of a Production Language Model" result (ICML 2024 Best Paper, arXiv:2403.06634, https://arxiv.org/abs/2403.06634) — extracting the embedding-projection layer of OpenAI's `ada` and `babbage` models under $20 of API queries — remains the canonical extraction-feasibility benchmark heading into 2026 H1. The vendor response to the disclosure was to limit queries that supply both logprobs and logit bias (OpenAI and Google), not to change rate limits. The 2026 H1 extension to the extraction literature that is most operationally consequential is the cost-curve crossover: as base-model API prices have fallen through 2025, the dollar cost of probing a target model at the volumes needed for the Tramèr-style equation-solving extraction has fallen even faster than the rate-limit-imposed time cost. The not-just-memorization disclosure-timeline post (https://not-just-memorization.github.io/partial-model-stealing.html) remains the canonical practitioner-facing writeup and has not been substantively updated in 2026 H1, but the asymmetry it describes — defender pays per-query in dollars at retail API pricing, attacker pays the same retail price — has gotten worse for defenders. The corollary actionable finding: model-extraction risk in 2026 H1 is best framed not as "can the attacker extract" (the answer has been yes since 2016 for shallow layers and since 2024 for embedding-projection layers of production LLMs) but as "what fraction of the target model can the attacker afford to extract per unit of operational time-to-detection," and the answer to that question is trending toward unfavorable for defenders. Cross-link [[reference-bug-hunting-first-principles]] for the threat-model framing.
 
 ### 15.4 Membership inference — 2026 H1 status
 
-The Shokri-Carlini "Membership Inference Attacks From First Principles" (LiRA) IEEE S&P 2022 result (arXiv:2112.03570, https://arxiv.org/abs/2112.03570) remains the production-grade benchmark — likelihood-ratio attack achieving ~70%+ accuracy on well-fit image classifiers and substantially lower on heavily-regularized or large-corpus LLMs. The 2026 H1 status is a continued empirical-finding split: MI attacks on production LLM APIs (where the target was trained on multi-trillion-token corpora) remain at low single-digit accuracy advantage over random guessing for typical-distribution training data — the inference signal is dominated by memorization, not membership, and the Nasr-Carlini "Scalable Extraction of Training Data from (Production) Language Models" arXiv:2311.17035 (November 2023, ICLR 2025) line of work is more operationally relevant than classical MI for LLM-specific privacy assessment. MI attacks on fine-tuned models — which are trained on much smaller corpora and overfit more readily — remain genuinely effective and have been corroborated by 2024-2025 academic work; the 2026 H1 extension is the empirical observation that the proliferation of LoRA / QLoRA / fine-tuning-as-a-service products (OpenAI fine-tuning API, Anthropic's fine-tuning preview, Google Vertex AI tuning) has materially expanded the attack surface for MI against fine-tuned models without a corresponding materially-broader deployment of DP-SGD-style mitigations (`[unverified]` — the public documentation for the three named fine-tuning APIs does not list differential-privacy as an offered tier as of May 15 2026). The actionable finding for 2026 H1 is that for any fine-tuned production model that has been trained on customer-confidential data without DP-SGD, the membership-inference risk should be assumed as elevated; this is the same finding as 2023-2024 but is more operationally consequential now because the deployment volume has grown. Cross-link [[reference-privacy-engineering]] for the broader DP framing.
+The Carlini et al. "Membership Inference Attacks From First Principles" (LiRA) IEEE S&P 2022 result (arXiv:2112.03570, https://arxiv.org/abs/2112.03570) remains the production-grade benchmark — likelihood-ratio attack achieving ~70%+ accuracy on well-fit image classifiers and substantially lower on heavily-regularized or large-corpus LLMs. The 2026 H1 status is a continued empirical-finding split: MI attacks on production LLM APIs (where the target was trained on multi-trillion-token corpora) remain at low single-digit accuracy advantage over random guessing for typical-distribution training data — the inference signal is dominated by memorization, not membership, and the Nasr-Carlini "Scalable Extraction of Training Data from (Production) Language Models" arXiv:2311.17035 (November 2023, ICLR 2025) line of work is more operationally relevant than classical MI for LLM-specific privacy assessment. MI attacks on fine-tuned models — which are trained on much smaller corpora and overfit more readily — remain genuinely effective and have been corroborated by 2024-2025 academic work; the 2026 H1 extension is the empirical observation that the proliferation of LoRA / QLoRA / fine-tuning-as-a-service products (OpenAI fine-tuning API, Anthropic's fine-tuning preview, Google Vertex AI tuning) has materially expanded the attack surface for MI against fine-tuned models without a corresponding materially-broader deployment of DP-SGD-style mitigations (`[unverified]` — the public documentation for the three named fine-tuning APIs does not list differential-privacy as an offered tier as of May 15 2026). The actionable finding for 2026 H1 is that for any fine-tuned production model that has been trained on customer-confidential data without DP-SGD, the membership-inference risk should be assumed as elevated; this is the same finding as 2023-2024 but is more operationally consequential now because the deployment volume has grown. Cross-link [[reference-privacy-engineering]] for the broader DP framing.
 
 ### 15.5 Watermarking and provenance — 2026 H1
 
-Google DeepMind's SynthID-Text deployment trajectory continued through 2026 H1: the Hugging Face Transformers integration (v4.46.0 reference, https://huggingface.co/blog/synthid-text) has had time to mature, and the published-paper claim from Dathathri et al. "Scalable Watermarking for Identifying Large Language Model Outputs" (*Nature*, October 2024, https://www.nature.com/articles/s41586-024-08025-4) of minimal-quality-degradation watermarking has held up under the academic robustness-attack literature that grew through 2025. The most-load-bearing adversarial-robustness assessment is "Robustness Assessment and Enhancement of Text Watermarking for Google's SynthID" arXiv:2508.20228 (August 2025, https://arxiv.org/html/2508.20228v1) and the parallel ETH SRI Lab "Probing Google DeepMind's SynthID-Text Watermark" (https://www.sri.inf.ethz.ch/blog/probingsynthid). The combined finding across the academic-attack corpus through 2026 H1 is that paraphrasing-attacks (translate-and-back, semantic-preserving rewrites by a separate LLM) remain effective at watermark removal at the ~50-token granularity that matters for typical AI-content-detection use cases — SynthID-Text has not produced a counter-example to the Sadasivan et al. "Can AI-Generated Text be Reliably Detected?" arXiv:2303.11156 (2023, https://arxiv.org/abs/2303.11156) reliability-lower-bound impossibility result, and any policy that depends on text-watermark survival under adversarial paraphrasing is operating on a false premise. C2PA Content Credentials adoption in image / video generation continued through 2026 H1: the C2PA spec (https://c2pa.org/specifications/specifications/2.1/index.html) has version-incremented and the major image-generator vendors (OpenAI DALL-E, Google Imagen, Adobe Firefly) all expose C2PA tagging by default per their 2024-2025 announcements; the structural caveat from the watermarking-removal literature applies — any provenance system attached as metadata-side-channel rather than embedded-in-content can be stripped trivially, and the operational guarantee of C2PA is "this image was produced by a participating generator and has not been edited in a participating editor" rather than "this image is detectable as AI-generated." Anthropic's published watermarking research has not added a flagship 2026 H1 paper beyond the 2025 Constitutional-Classifiers lineage (`[unverified]` — no Anthropic research-blog post tagged "watermark" or "provenance" has crossed the threshold in 2026 H1 per a check of https://www.anthropic.com/research). Cross-link [[reference-detection-engineering]] §10 for runtime detection considerations.
+Google DeepMind's SynthID-Text deployment trajectory continued through 2026 H1: the Hugging Face Transformers integration (v4.46.0 reference, https://huggingface.co/blog/synthid-text) has had time to mature, and the published-paper claim from Dathathri et al. "Scalable Watermarking for Identifying Large Language Model Outputs" (*Nature*, October 2024, https://www.nature.com/articles/s41586-024-08025-4) of minimal-quality-degradation watermarking has held up under the academic robustness-attack literature that grew through 2025. The most-load-bearing adversarial-robustness assessment is "Robustness Assessment and Enhancement of Text Watermarking for Google's SynthID" arXiv:2508.20228 (August 2025, https://arxiv.org/html/2508.20228v1) and the parallel ETH SRI Lab "Probing Google DeepMind's SynthID-Text Watermark" (https://www.sri.inf.ethz.ch/blog/probingsynthid). The combined finding across the academic-attack corpus through 2026 H1 is that paraphrasing-attacks (translate-and-back, semantic-preserving rewrites by a separate LLM) remain effective at watermark removal at the ~50-token granularity that matters for typical AI-content-detection use cases — SynthID-Text has not produced a counter-example to the Sadasivan et al. "Can AI-Generated Text be Reliably Detected?" arXiv:2303.11156 (2023, https://arxiv.org/abs/2303.11156) reliability-lower-bound impossibility result, and any policy that depends on text-watermark survival under adversarial paraphrasing is operating on a false premise. C2PA Content Credentials adoption in image / video generation continued through 2026 H1: the C2PA spec (https://c2pa.org/specifications/specifications/2.1/index.html) has version-incremented and the major image-generator vendors (OpenAI DALL-E, Google's Gemini image models, Adobe Firefly) all expose C2PA tagging by default per their 2024-2025 announcements; the structural caveat from the watermarking-removal literature applies — any provenance system attached as metadata-side-channel rather than embedded-in-content can be stripped trivially, and the operational guarantee of C2PA is "this image was produced by a participating generator and has not been edited in a participating editor" rather than "this image is detectable as AI-generated." Anthropic's published watermarking research has not added a flagship 2026 H1 paper beyond the 2025 Constitutional-Classifiers lineage (`[unverified]` — no Anthropic research-blog post tagged "watermark" or "provenance" has crossed the threshold in 2026 H1 per a check of https://www.anthropic.com/research). Cross-link [[reference-detection-engineering]] §10 for runtime detection considerations.
 
 ### 15.6 DP-SGD and privacy defenses — 2026 H1 deployment status
 
-Apple Private Cloud Compute (PCC) remained through 2026 H1 the single named flagship of differential-privacy-style guarantees in a production frontier-LLM serving stack, anchored on the five pillars from the original June 2024 Apple Security Research post (https://security.apple.com/blog/private-cloud-compute/) and the operational-detail extensions through 2025. The 2026 H1 status of "any named non-Apple production frontier LLM deployed with formal DP-SGD training-time guarantees" is `[unverified]` — to my knowledge no OpenAI / Anthropic / Google frontier-class model has shipped with a publicly-documented DP-SGD-trained variant for the base pretraining stage, and the privacy properties of production frontier LLMs continue to rest on post-hoc memorization-mitigation (deduplication, canary-monitoring, RLHF-as-anti-memorization) rather than on training-time DP. Google's federated-learning DP work in mobile applications (Gboard, the "Synthetic and federated" line at https://research.google/blog/synthetic-and-federated-privacy-preserving-domain-adaptation-with-llms-for-mobile-applications/) continues to be the canonical production-DP reference for the federated-learning regime, and the 2024 Google paper "Efficient Language Model Architectures for Differentially Private Federated Learning" (arXiv:2403.08100, https://arxiv.org/abs/2403.08100) remains the load-bearing reference for production-scale DP-FL through 2026 H1. PATE (Private Aggregation of Teacher Ensembles) deployments outside of academic-benchmark settings are not visible in 2026 H1 public deployment documentation (`[unverified]`) — PATE remains an academic-canonical defense whose production deployment trajectory has not crossed the threshold visible in vendor blogs and engineering papers. The "Differentially Private Federated Learning: A Systematic Review" arXiv:2405.08299 (May 2024, https://arxiv.org/abs/2405.08299) survey is still the best one-stop entry-point for the DP-FL state-of-the-art and has not been superseded by a 2026 H1 successor survey to my knowledge.
+Apple Private Cloud Compute (PCC) remained through 2026 H1 the single named flagship of architectural (not differential-privacy) privacy guarantees in a production frontier-LLM serving stack, anchored on the five pillars from the original June 2024 Apple Security Research post (https://security.apple.com/blog/private-cloud-compute/) and the operational-detail extensions through 2025. The 2026 H1 status of "any named non-Apple production frontier LLM deployed with formal DP-SGD training-time guarantees" is `[unverified]` — to my knowledge no OpenAI / Anthropic / Google frontier-class model has shipped with a publicly-documented DP-SGD-trained variant for the base pretraining stage, and the privacy properties of production frontier LLMs continue to rest on post-hoc memorization-mitigation (deduplication, canary-monitoring, RLHF-as-anti-memorization) rather than on training-time DP. Google's federated-learning DP work in mobile applications (Gboard, the "Synthetic and federated" line at https://research.google/blog/synthetic-and-federated-privacy-preserving-domain-adaptation-with-llms-for-mobile-applications/) continues to be the canonical production-DP reference for the federated-learning regime, and the 2024 Google paper "Efficient Language Model Architectures for Differentially Private Federated Learning" (arXiv:2403.08100, https://arxiv.org/abs/2403.08100) remains the load-bearing reference for production-scale DP-FL through 2026 H1. PATE (Private Aggregation of Teacher Ensembles) deployments outside of academic-benchmark settings are not visible in 2026 H1 public deployment documentation (`[unverified]`) — PATE remains an academic-canonical defense whose production deployment trajectory has not crossed the threshold visible in vendor blogs and engineering papers. The "Differentially Private Federated Learning: A Systematic Review" arXiv:2405.08299 (May 2024, https://arxiv.org/abs/2405.08299) survey is still the best one-stop entry-point for the DP-FL state-of-the-art and has not been superseded by a 2026 H1 successor survey to my knowledge.
 
 ### 15.7 OWASP Agentic Top 10 / ASI taxonomy — overlap with Biggio 5-category
 
-OWASP's Agentic Security Initiative published its 2026 Agentic AI Top 10 / "ASI" taxonomy (`[unverified]` — the OWASP Agentic Security Initiative landing page at https://owasp.org/www-project-agentic-security-initiative/ and the AI Exchange at https://owaspai.org/ are the canonical-document sources; the specific document IDs "ASI01"-"ASI10" and their 2026 categorization need primary-source verification before being cited in a Linear ticket or threat model). The structural overlap with the Biggio 5-category adversarial-ML taxonomy from section 1 of this document is: ASI06 Persistent Memory Compromise (an agent that retains an attacker-controlled instruction across sessions through long-term memory) is the runtime-time analog of training-data poisoning (Biggio category 2) — the persistence mechanism is different (per-session memory store vs. per-model weights) but the structural pattern is the same, attacker-controlled content that the system treats as trusted on a future invocation. ASI04 Goal Manipulation (an attacker shifts the agent's high-level objective) is the agent-runtime analog of evasion attacks (Biggio category 1) — adversarial input to an already-deployed model that causes the model to behave outside its intended policy. The Biggio categories of model extraction (3), membership inference (4), and model inversion (5) overlap less cleanly with the OWASP Agentic taxonomy because the latter is runtime-focused and the former are model-property-focused; the cross-walk that practitioners should internalize is: when an OWASP Agentic finding is "the agent leaked sensitive data," ask whether the leakage was (a) retrieval-from-runtime-context (a runtime classification, which OWASP covers well) or (b) extraction-from-model-weights (a model-property classification, which OWASP under-emphasizes and which this document's sections 4-6 cover). The runtime-side framing is in [[reference-llm-agent-security]] §10; treat that document as the primary reference for OWASP Agentic operationalization and this section as the bridge to the model-security half of the threat model.
+OWASP's Agentic Security Initiative published its Top 10 for Agentic Applications for 2026 / "ASI" taxonomy (December 9 2025, https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/; the AI Exchange at https://owaspai.org/ is a companion source). The structural overlap with the Biggio 5-category adversarial-ML taxonomy from section 1 of this document is: ASI06 Memory & Context Poisoning (an agent that retains an attacker-controlled instruction across sessions through long-term memory) is the runtime-time analog of training-data poisoning (Biggio category 2) — the persistence mechanism is different (per-session memory store vs. per-model weights) but the structural pattern is the same, attacker-controlled content that the system treats as trusted on a future invocation. ASI01 Agent Goal Hijack (an attacker shifts the agent's high-level objective) is the agent-runtime analog of evasion attacks (Biggio category 1) — adversarial input to an already-deployed model that causes the model to behave outside its intended policy. The Biggio categories of model extraction (3), membership inference (4), and model inversion (5) overlap less cleanly with the OWASP Agentic taxonomy because the latter is runtime-focused and the former are model-property-focused; the cross-walk that practitioners should internalize is: when an OWASP Agentic finding is "the agent leaked sensitive data," ask whether the leakage was (a) retrieval-from-runtime-context (a runtime classification, which OWASP covers well) or (b) extraction-from-model-weights (a model-property classification, which OWASP under-emphasizes and which this document's sections 4-6 cover). The runtime-side framing is in [[reference-llm-agent-security]] §10; treat that document as the primary reference for OWASP Agentic operationalization and this section as the bridge to the model-security half of the threat model.
 
 ### 15.8 NIST AI 600-1 and EU AI Act — 2026 H1 enforcement posture
 
-NIST AI 600-1 ("Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile", July 2024, https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf) remained through 2026 H1 the canonical US-federal cross-walk between adversarial-ML threat classes and risk-management practice. The document is not an enforcement instrument — it is a voluntary profile of the underlying NIST AI Risk Management Framework 1.0 (January 2023, https://www.nist.gov/itl/ai-risk-management-framework) — but it has been adopted by reference in multiple US federal procurement contexts through 2025-2026 and is the source of truth that vendor compliance teams point to when asked for an adversarial-ML-specific RMF mapping. The 2026 H1 update is the operationalization arc: NIST has continued publishing draft companion documents and the AI Risk Management Framework Generative AI Public Working Group activity is reflected at https://airc.nist.gov/ — specific 2026 H1 document IDs (e.g., NIST SP 800-218A AI-specific extensions, NIST AI 800-series releases) need primary-source verification before being relied on as the canonical reference (`[unverified]`). EU AI Act Article 15 ("Accuracy, robustness and cybersecurity" — the article that imposes adversarial-ML-specific requirements on high-risk AI systems) is the load-bearing regulatory provision; the EU AI Act entered into force August 1 2024 and its provisions phase in on a staggered schedule (prohibition provisions February 2 2025; GPAI obligations August 2 2025; most high-risk obligations August 2 2026). The 2026 H1 enforcement posture is therefore in the pre-enforcement window for most high-risk classifications — the AI Office at https://digital-strategy.ec.europa.eu/en/policies/ai-office is the primary-source coordinating body and the load-bearing 2026 H1 development was the publication of guidance on GPAI Codes of Practice (`[unverified]` — specific document URLs for 2026 H1 GPAI Code of Practice releases need primary-source verification; the European Commission's AI Office publication archive is the canonical-document source). The operational implication for adversarial-ML practitioners is that the August 2 2026 Article 15 compliance window has not opened as of mid-2026 H1; vendor compliance teams are in active preparation but not yet in enforcement, and the empirical question of how Article 15's "appropriate level of accuracy, robustness, and cybersecurity" standard will be operationalized in practice (specifically: what robustness benchmarks will be deemed compliant, what red-team evidence will be deemed sufficient, how the cybersecurity prong interacts with the adversarial-robustness prong) is the load-bearing open question for the 2026 H2 cycle. Cross-link [[reference-llm-agent-security]] for the runtime-side regulatory framing.
+NIST AI 600-1 ("Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile", July 2024, https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf) remained through 2026 H1 the canonical US-federal cross-walk between adversarial-ML threat classes and risk-management practice. The document is not an enforcement instrument — it is a voluntary profile of the underlying NIST AI Risk Management Framework 1.0 (January 2023, https://www.nist.gov/itl/ai-risk-management-framework) — but it is the source of truth that vendor compliance teams point to when asked for an adversarial-ML-specific RMF mapping. The 2026 H1 update is the operationalization arc: NIST has continued publishing draft companion documents and the AI Risk Management Framework Generative AI Public Working Group activity is reflected at https://airc.nist.gov/ — specific 2026 H1 document IDs (e.g., NIST SP 800-218A AI-specific extensions, NIST AI 800-series releases) need primary-source verification before being relied on as the canonical reference (`[unverified]`). EU AI Act Article 15 ("Accuracy, robustness and cybersecurity" — the article that imposes adversarial-ML-specific requirements on high-risk AI systems) is the load-bearing regulatory provision; the EU AI Act entered into force August 1 2024 and its provisions phase in on a staggered schedule (prohibition provisions February 2 2025; GPAI obligations August 2 2025; most high-risk obligations originally August 2 2026, deferred by Regulation (EU) 2026/1744 to December 2 2027 for stand-alone Annex III systems and August 2 2028 for AI embedded in regulated products). The 2026 H1 enforcement posture is therefore in the pre-enforcement window for most high-risk classifications — the AI Office at https://digital-strategy.ec.europa.eu/en/policies/ai-office is the primary-source coordinating body and the load-bearing GPAI development was the July 10 2025 publication of the final General-Purpose AI Code of Practice. The operational implication for adversarial-ML practitioners is that the Article 15 compliance window has not opened as of mid-2026 H1; vendor compliance teams are in active preparation but not yet in enforcement, and the empirical question of how Article 15's "appropriate level of accuracy, robustness, and cybersecurity" standard will be operationalized in practice (specifically: what robustness benchmarks will be deemed compliant, what red-team evidence will be deemed sufficient, how the cybersecurity prong interacts with the adversarial-robustness prong) is the load-bearing open question for the 2026 H2 cycle. Cross-link [[reference-llm-agent-security]] for the runtime-side regulatory framing.
 
 ---
 
@@ -2186,7 +2159,7 @@ NIST AI 600-1 ("Artificial Intelligence Risk Management Framework: Generative Ar
   https://arxiv.org/abs/2504.09604
 - "Jailbreak Attacks and Defenses against Multimodal Generative Models: A Survey."
   arXiv:2411.09259 (November 2024). https://arxiv.org/abs/2411.09259
-- GraySwan AI / `nanogcg` (pip-installable GCG implementation, August 2024).
+- GraySwan AI / `nanogcg` (pip-installable GCG implementation).
   https://github.com/GraySwanAI/nanoGCG
 
 ### Watermarking and certified defenses
@@ -2218,7 +2191,7 @@ NIST AI 600-1 ("Artificial Intelligence Risk Management Framework: Generative Ar
   Anthropic). https://arxiv.org/abs/2501.18837
 - Anthropic. "Constitutional Classifiers: Defending against universal jailbreaks."
   https://www.anthropic.com/research/constitutional-classifiers
-- Anthropic. "Next-generation Constitutional Classifiers." November 2025.
+- Anthropic. "Next-generation Constitutional Classifiers." January 2026.
   https://www.anthropic.com/research/next-generation-constitutional-classifiers
 - Anthropic alignment team. "Cost-Effective Constitutional Classifiers via Representation
   Re-use." https://alignment.anthropic.com/2025/cheap-monitors/
@@ -2243,7 +2216,7 @@ NIST AI 600-1 ("Artificial Intelligence Risk Management Framework: Generative Ar
   https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf
 - NIST. "AI Risk Management Framework 1.0." January 2023.
   https://www.nist.gov/itl/ai-risk-management-framework
-- Liu et al. "An Empirical Study of Safetensors' Usage Trends and Developers' Perceptions."
+- Casey, Damian, Cotaj, Santos. "An Empirical Study of Safetensors' Usage Trends and Developers' Perceptions."
   arXiv:2501.02170 (January 2025). https://arxiv.org/abs/2501.02170
 - Hugging Face / ProtectAI. "4M Models Scanned: Protect AI + Hugging Face 6 Months In."
   April 14, 2025. https://huggingface.co/blog/pai-6-month
@@ -2251,11 +2224,11 @@ NIST AI 600-1 ("Artificial Intelligence Risk Management Framework: Generative Ar
   https://jfrog.com/blog/jfrog-and-hugging-face-join-forces/
 - JFrog. "Top JFrog Security Research Discoveries of 2024."
   https://jfrog.com/blog/top-jfrog-security-research-discoveries-of-2024/
-- Cheong, Pan, Polychronakis, Kemerlis. "PickleBall: Secure Deserialization of Pickle-based
+- Kellas, Christou, Jiang, Li, Simon, David, Kemerlis, Davis, Yang. "PickleBall: Secure Deserialization of Pickle-based
   Machine Learning Models." ACM CCS 2025.
   https://cs.brown.edu/~vpk/papers/pickleball.ccs25.pdf
 - GitHub. "Enhance build security and reach SLSA Level 3 with GitHub Artifact Attestations."
-  June 2024. https://github.blog/enterprise-software/devsecops/enhance-build-security-and-reach-slsa-level-3-with-github-artifact-attestations/
+  December 2024. https://github.blog/enterprise-software/devsecops/enhance-build-security-and-reach-slsa-level-3-with-github-artifact-attestations/
 - SLSA. "End-to-End: Request for examples." July 2025.
   https://slsa.dev/blog/2025/07/slsa-e2e
 

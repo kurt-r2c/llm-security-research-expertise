@@ -8,11 +8,10 @@
 ### Dan Kaminsky
 
 **Career arc**: Born February 7, 1979, San Francisco. Self-taught from early teens. Timeline:
-- 1999–2001: Independent researcher; wrote OpenSSH Dynamic Forwarding patch (`ssh -D` SOCKS proxy) — still in OpenSSH today
-- 2001–2003: Cisco
-- 2003–2005: Senior Security Consultant, Avaya
-- 2005–2012: Director of Penetration Testing, IOActive. Spent three years advising on Microsoft Vista/Server 2008/Windows 7 releases
-- 2012–2021: Co-founder and Chief Scientist, White Ops (renamed HUMAN Security). Co-founded with Michael Tiffany, Ash Kalb, Tamer Hassan in a Brooklyn sci-fi bookstore. Scale by ~2021: 20+ trillion digital interactions verified per week
+- Cisco
+- Avaya
+- Director of Penetration Testing, IOActive. Spent three years advising on Microsoft Vista/Server 2008/Windows 7 releases
+- 2012–2021: Co-founder and Chief Scientist, White Ops (renamed HUMAN Security). Co-founded with Michael Tiffany, Ash Kalb, Tamer Hassan. Scale by 2020: 10+ trillion digital interactions verified per week
 - Died: April 23, 2021, diabetic ketoacidosis, San Francisco. Age 42
 
 **Recognition**: Internet Hall of Fame, December 14, 2021 (posthumous). Called "a digital Paul Revere" by The New York Times. DNSSEC Trusted Community Representative / Recovery Key Share Holder 7 (2010–2021). Dan Kaminsky Fellowship established posthumously.
@@ -20,25 +19,25 @@
 **DEF CON "Black Ops" series** — held a recurring DEF CON slot 2001–2015:
 | Year | Title / Key Content |
 |------|---------------------|
-| DC10 (2002) | First Black Ops. Released Paketto Keiretsu 1.0: **Scanrand** (stateless TCP scanner predating ZMap by a decade), **Paratrace** (parasitic traceroute attaching to existing TCP flows to bypass stateful firewalls), minewt (NAT), linkcat, phentropy |
-| DC11 (2003) | DNS protocol security properties and design flaws — first public DNS attack surface exploration |
-| DC13 (2005) | DNS-based information gathering at scale; **DNS cache snooping** for Sony rootkit measurement |
-| DC14 (2006) | Internet-wide SSL analysis; encoding data in SPAM to bypass the Great Firewall |
+| DC10 (2002) | First Black Ops. Paketto Keiretsu tools: **Scanrand** (stateless TCP scanner predating ZMap by a decade), **Paratrace** (parasitic traceroute attaching to existing TCP flows to bypass stateful firewalls), minewt (NAT), linkcat, phentropy |
+| DC11 (2003) | "Stack Black Ops" |
+| DC13 (2005) | Temporal attacks against IP; application-layer MD5 collisions; 3D visualization of large network scans; high-speed tunneling stack extending live audio streaming over DNS |
+| DC14 (2006) | Internet-wide SSL analysis |
 | DC15 (2007) | Design review of Web 2.0; Slirpie (VPN via lured browser) |
 | DC16 (2008) | DNS cache poisoning disclosure (see Section II below) |
-| DC17 (2009) | X.509 PKI null byte injection (`victim.com\0.attacker.com` in CN field, co-discovered with Moxie Marlinspike); ASN.1 parsing confusion |
-| DC18 (2010) | "Black Ops Of Fundamental Defense: Web Edition"; **Domain Key Infrastructure** proposal (PKI anchored in DNSSEC, announced same day as first root zone DNSSEC signing) |
+| DC17 (2009) | X.509 PKI null byte injection (`victim.com\0.attacker.com` in CN field, discovered independently of Moxie Marlinspike); ASN.1 parsing confusion |
+| DC18 (2010) | "Black Ops Of Fundamental Defense: Web Edition"; **Domain Key Infrastructure** proposal (PKI anchored in DNSSEC) |
 | DC19 (2011) | IPv4/IPv6 fragmentation attacks; Bitcoin DNS seed manipulation; DNS rebinding against enterprise; Net Neutrality transparency engine |
 | DC20 (2012) | Generic timing attack defense via network jitter; PRNG critique via clock drift |
-| DC22 (2014) | **liburandy** library — hijacks `rand()` family and replaces with cryptographically secure sources; hard drive firmware as independent DMA computer |
+| DC22 (2014) | "Secure Random By Default" — argued languages and libc `rand()` should return strong entropy by default |
 | DC23 (2015) | Clickjacking elimination by design; **IronFrame** browser isolation; **Autoclave** firewall isolation |
 
-**Black Hat USA appearances**: Presented annually 2008–2016. Keynote 2016: "The Hidden Architecture of our Time — Why This Internet Worked, How We Could Lose It, and the Role Hackers Play."
+**Black Hat USA appearances**: Keynote 2016: "The Hidden Architecture of our Time — Why This Internet Worked, How We Could Lose It, and the Role Hackers Play."
 
 **Other notable work**:
-- **Sony BMG rootkit scope measurement (2005)**: Used DNS cache snooping (send query to public resolvers with RD bit unset; if cached answer for `update.xcp-aurora.com` is present, that resolver served an infected machine) → 568,200 unique infected IPs globally; contributed to regulatory pressure on Sony
+- **Sony BMG rootkit scope measurement (2005)**: Used DNS cache snooping (send query to public resolvers with RD bit unset; if cached answer for `update.xcp-aurora.com` is present, that resolver served an infected machine) → at least 568,000 networks with infected machines; contributed to regulatory pressure on Sony
 - **Interpolique (2010)**: Framework establishing clear data/code boundaries at the language level for injection prevention
-- **Conficker detection (2009)**: DNS behavior analysis to detect infected resolvers remotely
+- **Conficker detection (2009)**: Found that infected hosts have a detectable remote network signature, later used in Nmap and Nessus
 
 ---
 
@@ -50,10 +49,10 @@
 - **BIND**: Dominant DNS server implementation globally for decades
 - **Cron**: Paul Vixie's cron is the most widely deployed Unix scheduling daemon
 - **MAPS (1996)**: First DNS-based Block List (DNSBL / "Realtime Blackhole List") — founded first anti-spam company
-- **PAIX (1991)**: First neutral commercial internet exchange point
+- **PAIX (1996)**: First neutral commercial internet exchange point
 - **DNS Response Rate Limiting (RRL)**: Co-designed with Vernon Schryver; in BIND 9.10+. Limits response rate per source IP to mitigate amplification attacks. `rate-limit { responses-per-second 5; window 5; }`
-- **Response Policy Zones (RPZ)**: DNS "firewall" — override DNS responses based on policy zones. Enables DNS-based malware blocking, phishing prevention, threat intelligence integration. Native BIND support; Infoblox, Cisco Umbrella deploy it.
-- **DNSSEC**: Early and persistent advocate; co-authored key DNSSEC RFCs; pivotal coordinator in 2008 Kaminsky patch coordination
+- **Response Policy Zones (RPZ)**: DNS "firewall" — override DNS responses based on policy zones. Enables DNS-based malware blocking, phishing prevention, threat intelligence integration. Native BIND support; Infoblox deploys it.
+- **DNSSEC**: Early and persistent advocate; co-authored key DNS protocol RFCs (Dynamic Update, EDNS, TSIG); pivotal coordinator in 2008 Kaminsky patch coordination
 
 **On CVE-2008-1447**: "Everything in the digital universe was going to have to get patched" — his assessment upon hearing Kaminsky's description.
 
@@ -61,9 +60,9 @@
 
 ### Gordon "Fyodor" Lyon
 
-**Career arc**: Created Nmap in 1997 while in high school. First public release September 1997 in a Phrack Magazine article. Founding member of the Honeynet Project. Author of *Nmap Network Scanning* (2008, the official guide). Co-author of *Stealing the Network: How to Own a Continent* and *Know Your Enemy* (2nd ed.).
+**Career arc**: Created Nmap in 1997. First public release September 1997 in a Phrack Magazine article. Founding member of the Honeynet Project. Author of *Nmap Network Scanning* (2008, the official guide). Co-author of *Stealing the Network: How to Own a Continent* and *Know Your Enemy* (2nd ed.).
 
-**Key talks**: DEF CON 7 (1999) — original Nmap presentation; DEF CON 13 (2005) — OS detection advances; Black Hat/DEF CON 16 (2008) — "Nmap: Scanning the Internet" (results from internet-wide scans of 2 billion+ IPs); DEF CON 18 (2010, with David Fifield) — "Mastering the Nmap Scripting Engine" (NSE scripts for SQL injection detection, brute-force auth, webcam exploitation via default credentials).
+**Key talks**: DEF CON 13 (2005) — "Hacking Nmap"; Black Hat/DEF CON 16 (2008) — "Nmap: Scanning the Internet" (results from internet-wide scans of millions of hosts); DEF CON 18 (2010, with David Fifield) — "Mastering the Nmap Scripting Engine" (NSE scripts for SQL injection detection, brute-force auth, webcam exploitation).
 
 ---
 
@@ -73,13 +72,13 @@ Creator of djbdns (DNS implementation with security as primary objective), qmail
 
 **djbdns**: Source port randomization implemented *before* the Kaminsky disclosure — immune to CVE-2008-1447. Strict bailiwick checking; minimal attack surface; privilege separation; runs as non-root. Offers financial security rewards for identified flaws.
 
-**DNSCurve**: Uses Curve25519 ECDH for ephemeral shared secrets between resolvers and authoritative servers. Provides encryption (unlike DNSSEC, which only authenticates) and authentication (server's long-term public key encoded directly in NS record — no separate PKI). Bernstein claims 20x performance advantage over RSA-based DNSSEC.
+**DNSCurve**: Uses Curve25519 ECDH for ephemeral shared secrets between resolvers and authoritative servers. Provides encryption (unlike DNSSEC, which only authenticates) and authentication (server's long-term public key encoded directly in NS record — no separate PKI).
 
 ---
 
 ### Geoff Huston (APNIC)
 
-Chief Scientist at APNIC. Primary researcher for APNIC Labs. Measures DNSSEC validation adoption using online advertisement systems (Google AdSense) to insert measurement JavaScript globally — three-way test: unsigned control, validly-signed, bogus-signed — measured against ~50 million user samples per day. Results: global DNSSEC validation rate ~30–35% (2023–2025); EU average ~49%. DNSSEC World Map: `stats.labs.apnic.net/dnssec`.
+Chief Scientist at APNIC. Primary researcher for APNIC Labs. Measures DNSSEC validation adoption using online advertisement systems (Google Ads) to insert a measurement script globally — test fetches of a validly-signed and a bogus-signed name — measured across 15–20 million ad impressions per day. Results: global DNSSEC validation rate ~30–35% (2023–2025); EU average ~49%. DNSSEC World Map: `stats.labs.apnic.net/dnssec`.
 
 ---
 
@@ -122,7 +121,7 @@ Source port randomization — draw from full ephemeral range (1024–65535 = ~64
 - 2^32 = ~4.3 billion combinations → birthday attack requires millions of packets, taking hours instead of seconds
 - **Backward-compatible**: no changes to DNS protocol on the wire
 
-RFC 5452 mandates: unpredictable source port from largest available range; multiple simultaneous source ports for multiple outstanding queries; full 0–65535 TXID range; optionally 0x20 encoding.
+RFC 5452 mandates: unpredictable source port from largest available range; multiple simultaneous source ports for multiple outstanding queries; full 0–65535 TXID range.
 
 **Kaminsky's own assessment**: Source port randomization reduces the attack surface but doesn't eliminate it. DNS over UDP provides no authentication of response origin. The fundamental problem is not fixable without DNSSEC. The fix buys time; DNSSEC is the permanent solution.
 
@@ -132,7 +131,7 @@ RFC 5452 mandates: unpredictable source port from largest available range; multi
 
 Coordinated vendors (simultaneous patch release, July 8, 2008): ISC BIND (9.5.0-P1, 9.4.2-P1, 9.3.5-P1), Microsoft (MS08-037: Windows 2000 SP4, XP SP2/SP3, Server 2003), Cisco, Juniper, Sun, Red Hat, Debian, Ubuntu, FreeBSD, many others.
 
-**Premature disclosure**: July 21, 2008 (13 days after patch release), Halvar Flake independently reverse-engineered the bug and posted to his blog. Thomas Ptacek at Matasano Security confirmed Flake's analysis in a blog post that was online for approximately 5 minutes before being removed. US-CERT issued an emergency advisory.
+**Premature disclosure**: July 21, 2008 (13 days after patch release), Halvar Flake independently reverse-engineered the bug and posted to his blog. Thomas Ptacek at Matasano Security confirmed Flake's analysis in a blog post that was quickly removed. US-CERT issued an emergency advisory.
 
 ---
 
@@ -165,7 +164,7 @@ Coordinated vendors (simultaneous patch release, July 8, 2008): ISC BIND (9.5.0-
 **Resource Record format**:
 ```
 NAME (variable, supports message compression via 14-bit offset pointer)
-TYPE (16 bits) | CLASS (16 bits, always 1=IN) | TTL (32 bits) | RDLENGTH | RDATA
+TYPE (16 bits) | CLASS (16 bits, usually 1=IN) | TTL (32 bits) | RDLENGTH | RDATA
 ```
 
 **Transport**: UDP/53 (default; EDNS0 via RFC 6891 allows advertising up to 4096 bytes); TCP/53 (when TC bit set; required for zone transfers; DNS over HTTPS uses TCP 443, DNS over TLS uses TCP 853).
@@ -214,7 +213,7 @@ example.com ZSK signs example.com RRsets (A, MX, TXT, etc.)
 
 **KSK/ZSK two-key design rationale**: KSK stored offline/in HSM; changes rarely (annual or less). ZSK rotated more frequently (monthly). If ZSK compromised, only that zone's records at risk for ZSK validity period. KSK can re-sign new ZSK without requiring parent DS update.
 
-**Clock skew vulnerability**: RRSIG inception/expiration timestamps; if validator clock is >~5 minutes off, signatures fail validation. Real operational problem for embedded devices and misconfigured VMs.
+**Clock skew vulnerability**: RRSIG inception/expiration timestamps; if validator clock falls outside that window, signatures fail validation. Real operational problem for embedded devices and misconfigured VMs.
 
 ### Root KSK Ceremony Architecture
 
@@ -222,7 +221,7 @@ example.com ZSK signs example.com RRsets (A, MX, TXT, etc.)
 - **West facility**: El Segundo, California (IANA Secondary)
 - **HSMs**: Thales Luna HSMs (replaced AEP Keyper after EOL). Air-gapped (no network); data enters only via pre-formatted USB key signing request
 - **Crypto Officers (7 per facility)**: Hold smartcards required to unlock HSM; quorum required for each ceremony
-- **Recovery Key Share Holders (7)**: Each holds one Shamir Secret Share of root KSK backup; quorum (typically 3 of 7) can reconstruct in disaster recovery
+- **Recovery Key Share Holders (7)**: Each holds one Shamir Secret Share of root KSK backup; quorum (5 of 7) can reconstruct in disaster recovery
 - **Ceremony Administrator (IANA staff)**: Executes exhaustively scripted procedure; no improvisation permitted
 - **External Auditor**: Independent third party audits against script
 
@@ -231,10 +230,9 @@ Dan Kaminsky held Recovery Key Share Holder 7 from 2010 until his death (2021); 
 ### DNSSEC Deployment Reality
 
 - Global validation rate: ~30–35% (APNIC Labs, 2023–2025); EU average ~49%; EU ccTLDs (.nl, .se, .no, .cz) exceed 50%
-- .com zone signing rate: ~3% — the dominant TLD remains largely unsigned
-- .gov domains: DNSSEC mandated since 2018
-- 158 ccTLDs have DNSSEC-enabled zones (January 2024)
-- Common validation failures: clock skew; botched key rollovers (.se 2009; various government zones); incomplete parent DS updates
+- .com zone signing rate: ~4% (Verisign, 2023) — the dominant TLD remains largely unsigned
+- .gov domains: DNSSEC mandated since 2008 (OMB M-08-23)
+- Common validation failures: clock skew; incorrect zone signatures (.se 2009); botched key rollovers (various government zones); incomplete parent DS updates
 
 ---
 
@@ -269,11 +267,11 @@ Dan Kaminsky held Recovery Key Share Holder 7 from 2010 until his death (2021); 
 **Mechanism**: Attacker spoofs UDP packets with victim's IP as source → sends to open recursive resolvers → large responses sent to victim.
 
 **Amplification factors**:
-- ANY queries (deprecated by RFC 8482): up to 70–100× amplification
+- ANY queries (responses minimized by RFC 8482): US-CERT lists DNS bandwidth amplification at 28–54×
 - DNSKEY queries to signed zones: 10–20× typical
 - EDNS0 OPT RR with `UDP payload size = 4096`: 40-byte query → 4,096-byte response = 100×
 
-**RFC 8482 (2019)**: Deprecates ANY queries; authoritative servers may return minimal response (HINFO record). Major operators (Cloudflare, Google, AWS Route 53) now return minimal ANY responses.
+**RFC 8482 (2019)**: Optional guidance to minimize ANY responses; authoritative servers may return a minimal response (e.g., a synthesized HINFO record). Major operators (Cloudflare, Google, AWS Route 53) now return minimal ANY responses.
 
 **Mitigations**:
 - **BCP38 (RFC 2827)**: ISPs filter outbound packets whose source IP is not from their allocated space — prevents spoofed UDP source addresses. Adoption remains incomplete globally
@@ -283,7 +281,7 @@ Dan Kaminsky held Recovery Key Share Holder 7 from 2010 until his death (2021); 
 
 ### KeyTrap (CVE-2023-50387, CVE-2023-50868)
 
-Disclosed February 13, 2024 by ATHENE (Elias Heftrig, Haya Schulmann, Niklas Vogel, Michael Waidner — Fraunhofer SIT / Goethe University Frankfurt / TU Darmstadt). The flaw is in the DNSSEC validation requirement itself — RFC 4035 §5.3.3 directs a validator to try **every** available DNSKEY against **every** available RRSIG when key tags collide. A single ~100-byte malicious response carrying many colliding-tag DNSKEYs and many RRSIGs forces an O(N×M) signature-verification storm; one packet stalls real validators between ~1 minute and ~16 hours depending on implementation. Affected resolvers included BIND 9, Unbound, PowerDNS Recursor, Knot Resolver, plus public services from Google, Cloudflare, OpenDNS, Quad9. Companion CVE-2023-50868 ("NSEC3 closest encloser proof") forces excessive hash computations during denial-of-existence proofs. ATHENE called it "the worst attack on DNS ever discovered." Final paper at ACM CCS 2024 ("The Harder You Try, The Harder You Fail"). **Doctrinal point**: this is not a bug; it is an algorithmic-complexity attack on the validator state machine the spec mandates. Mitigations (cap key/signature tries, e.g. BIND `max-validation-failures`) are pragmatic ceilings, not protocol fixes. See [ATHENE disclosure](https://www.athene-center.de/en/keytrap), [ISC advisory](https://kb.isc.org/docs/cve-2023-50387), [Akamai analysis](https://www.akamai.com/blog/security/dns-exploit-keytrap-posed-major-internet-threat). Cross-link: `cryptography_expertise.md` for the algorithmic-complexity-attack pattern in signature verification generally.
+Disclosed February 13, 2024 by ATHENE (Elias Heftrig, Haya Schulmann, Niklas Vogel, Michael Waidner — Fraunhofer SIT / Goethe University Frankfurt / TU Darmstadt). The flaw is in the DNSSEC validation requirement itself — RFC 4035 §5.3.1 directs a validator to try **every** available DNSKEY against **every** available RRSIG when key tags collide. A single malicious response carrying many colliding-tag DNSKEYs and many RRSIGs forces an O(N×M) signature-verification storm; one packet stalls real validators for up to ~16 hours depending on implementation. Affected resolvers included BIND 9, Unbound, PowerDNS Recursor, Knot Resolver, plus public services from Google, Cloudflare, OpenDNS, Quad9. Companion CVE-2023-50868 ("NSEC3 closest encloser proof") forces excessive hash computations during denial-of-existence proofs. ATHENE called it "the worst attack on DNS ever discovered." Final paper at ACM CCS 2024 ("The Harder You Try, The Harder You Fail"). **Doctrinal point**: this is not a bug; it is an algorithmic-complexity attack on the validator state machine the spec mandates. Mitigations (cap key/signature tries, e.g. BIND `max-validation-failures-per-fetch`) are pragmatic ceilings, not protocol fixes. See [ATHENE disclosure](https://www.athene-center.de/en/keytrap), [ISC advisory](https://kb.isc.org/docs/cve-2023-50387), [Akamai analysis](https://www.akamai.com/blog/security/dns-exploit-keytrap-posed-major-internet-threat). Cross-link: `cryptography_expertise.md` for the algorithmic-complexity-attack pattern in signature verification generally.
 
 ### DNSBomb (IEEE S&P 2024)
 
@@ -295,7 +293,7 @@ Disclosed by Infoblox Threat Intel and Eclypsium July 31 2024 ([Infoblox writeup
 
 Three required conditions: (1) domain uses different providers for DNS and registrar; (2) the authoritative nameserver lacks the zone data; (3) DNS provider permits zone claim without registrar-side verification. Scale: **~1 million exploitable domains** identified; **30,000+** confirmed hijacked since 2019; threat actors observed using the technique for phishing, malware C2, brand impersonation, traffic redirection. Many hijacked domains belonged to Fortune 100 companies — registrar lock is not protection because the takeover bypasses the registrar entirely.
 
-Predecessor research: Matthew Bryant, [*The Orphaned Internet*](https://thehackerblog.com/the-orphaned-internet-taking-over-120k-domains-via-a-dns-vulnerability-in-aws-google-cloud-and-rackspace/) (2016) — 120,000+ domains takeable via the same primitive at AWS, Google Cloud, Rackspace, DigitalOcean. The 2024 disclosure showed the class is structural and unfixed eight years later; Infoblox subsequently confirmed 70,000+ hijacked domains by November 2024. **Defense**: registrar-side audit of NS records against actual zone existence; periodic re-validation of delegations; CISA + DNS provider coordinated guidance issued August 2024.
+Predecessor research: Matthew Bryant, [*The Orphaned Internet*](https://thehackerblog.com/the-orphaned-internet-taking-over-120k-domains-via-a-dns-vulnerability-in-aws-google-cloud-and-rackspace/) (2016) — 120,000+ domains takeable via the same primitive at AWS, Google Cloud, Rackspace, DigitalOcean. The 2024 disclosure showed the class is structural and unfixed eight years later; Infoblox subsequently confirmed 70,000+ hijacked domains by November 2024. **Defense**: registrar-side audit of NS records against actual zone existence; periodic re-validation of delegations.
 
 ### DNS Tunneling
 
@@ -303,9 +301,9 @@ Predecessor research: Matthew Bryant, [*The Orphaned Internet*](https://thehacke
 
 **Query channel** (client → server): `<base32-encoded-data>.<attacker-controlled-domain>.com` → propagates through resolver hierarchy to attacker's authoritative server.
 
-**Response channel** (server → client): Data encoded in A, AAAA, TXT (255 bytes/record — highest bandwidth), CNAME, NULL records. Bandwidth: ~100–500 kbps with TXT records. High latency.
+**Response channel** (server → client): Data encoded in A, AAAA, TXT (255 bytes/record — highest bandwidth), CNAME, NULL records. High latency.
 
-**Common tools**: `iodine` (IPv4 over DNS; supports A, CNAME, MX, TXT, NULL); `dnscat2` (C2-focused; TXT/CNAME records; curve25519+salsa20 encrypted mode); `dns2tcp` (TCP connections over DNS).
+**Common tools**: `iodine` (IPv4 over DNS; supports A, CNAME, MX, TXT, NULL); `dnscat2` (C2-focused; TXT/CNAME records; ECDH P-256 + Salsa20 encrypted mode); `dns2tcp` (TCP connections over DNS).
 
 **Detection heuristics**:
 - **Label entropy**: Human-readable domain names ~2–3 bits/char; base32/base64 tunnel labels approach theoretical maximum (~5 bits/char). Threshold: subdomain entropy > 3.5 bits/char is suspicious
@@ -322,7 +320,7 @@ Predecessor research: Matthew Bryant, [*The Orphaned Internet*](https://thehacke
 
 ### HTTP/2 Rapid Reset (CVE-2023-44487)
 
-Joint disclosure October 10, 2023 by Cloudflare, Google, AWS. Attacker opens an HTTP/2 stream via HEADERS frame, then immediately cancels with RST_STREAM before the server processes the request. The cancellation **does not count against `SETTINGS_MAX_CONCURRENT_STREAMS`** because the stream is closed; the attacker can churn an unbounded request rate per TCP connection. Recorded peaks: Cloudflare 201M rps, AWS 155M rps, **Google 398M rps** — 5× the previous record. Exploited in the wild August → October 2023 before coordinated disclosure. Active mitigations now standard: monitor client RST_STREAM rate, close abusive connections, jail abusive IPs across HTTP/2 endpoints, redesign queueing to make cancellation cheap. Specification follow-on: RFC 9113 errata + IETF discussion of stream-cancellation accounting. References: [Cloudflare technical breakdown](https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/), [CISA alert](https://www.cisa.gov/news-events/alerts/2023/10/10/http2-rapid-reset-vulnerability-cve-2023-44487), [NVD CVE-2023-44487](https://nvd.nist.gov/vuln/detail/cve-2023-44487). Cross-link: `http_web_security.md` for HTTP/2 stream multiplexing and HPACK detail.
+Joint disclosure October 10, 2023 by Cloudflare, Google, AWS. Attacker opens an HTTP/2 stream via HEADERS frame, then immediately cancels with RST_STREAM before the server processes the request. The cancellation **does not count against `SETTINGS_MAX_CONCURRENT_STREAMS`** because the stream is closed; the attacker can churn an unbounded request rate per TCP connection. Recorded peaks: Cloudflare 201M rps, AWS 155M rps, **Google 398M rps** — 7.5× the previous record. Exploited in the wild August → October 2023 before coordinated disclosure. Active mitigations now standard: monitor client RST_STREAM rate, close abusive connections, jail abusive IPs across HTTP/2 endpoints, redesign queueing to make cancellation cheap. Specification follow-on: RFC 9113 errata + IETF discussion of stream-cancellation accounting. References: [Cloudflare technical breakdown](https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/), [CISA alert](https://www.cisa.gov/news-events/alerts/2023/10/10/http2-rapid-reset-vulnerability-cve-2023-44487), [NVD CVE-2023-44487](https://nvd.nist.gov/vuln/detail/cve-2023-44487). Cross-link: `http_web_security.md` for HTTP/2 stream multiplexing and HPACK detail.
 
 ### HTTP/2 CONTINUATION Flood (VU#421644, April 3 2024)
 
@@ -352,9 +350,9 @@ Mirai's source release (Anna-senpai, Hackforums, September 2016) seeded an ongoi
 
 | Botnet | First seen | Peak | Notes |
 |---|---|---|---|
-| Aisuru | XLab, August 2024 | 31.4 Tbps (Feb 2026, Cloudflare) | DDoS-for-hire; restricted clientele; per [NETSCOUT ASERT](https://www.netscout.com/blog/asert/asert-threat-summary-aisuru-and-related-turbomirai-botnet-ddos) and [Cloudflare 2025 Q3](https://blog.cloudflare.com/ddos-threat-report-2025-q3/) tracks between 1M and 4M infected devices |
-| TurboMirai (family) | 2025 | >4 Gpps | Mirai-fork lineage with optimized packet generators; tracked by NETSCOUT and ThaiCERT |
-| Four-Faith router botnet | January 2025 | n/a | Exploited Four-Faith industrial router CVE for ingress; documented in [The Hacker News](https://thehackernews.com/2025/01/mirai-botnet-variant-exploits-four.html) |
+| Aisuru | XLab, August 2024 | 31.4 Tbps (Dec 2025, Cloudflare) | DDoS-for-hire; restricted clientele; per [NETSCOUT ASERT](https://www.netscout.com/blog/asert/asert-threat-summary-aisuru-and-related-turbomirai-botnet-ddos) and [Cloudflare 2025 Q3](https://blog.cloudflare.com/ddos-threat-report-2025-q3/) tracks between 1M and 4M infected devices |
+| TurboMirai (family) | 2025 | >4 Gpps | Mirai-fork lineage with optimized packet generators; tracked by NETSCOUT |
+| Four-Faith router botnet | November 2024 | n/a | Exploited Four-Faith industrial router CVE for ingress; documented in [The Hacker News](https://thehackernews.com/2025/01/mirai-botnet-variant-exploits-four.html) |
 
 **Defender implication**: traditional anti-amplification controls (BCP38, RRL, RPKI) are necessary but no longer sufficient — the attack source is now **legitimate compromised endpoints**, not spoofed reflectors. The defense burden shifts to (a) IoT supply-chain hardening, (b) ISP egress filtering of obviously malicious flows, and (c) anycast scrubbing-tier autonomous detection. The 5.6 Tbps attack lasted 80 seconds, was autonomously detected and dropped, and the targeted ISP did not need to be in the loop — that is the new operational baseline.
 
@@ -366,9 +364,9 @@ Cross-link: `firmware_embedded_security.md` for the CPE-firmware substrate probl
 
 ### 0x20 Bit Encoding (Case Randomization)
 
-Proposed by Kaminsky; formalized in IETF draft `draft-vixie-dnsext-dns0x20-00` (2008); not advanced to RFC status. DNS is case-insensitive for QNAME matching. Resolvers randomize case of each character: `www.example.com` → `wWw.ExAmPlE.cOm`. Legitimate authoritative servers copy QNAME case from query to response. Spoofed responses are highly unlikely to match exact case pattern.
+Proposed by David Dagon and Paul Vixie; formalized in IETF draft `draft-vixie-dnsext-dns0x20-00` (2008); not advanced to RFC status. DNS is case-insensitive for QNAME matching. Resolvers randomize case of each character: `www.example.com` → `wWw.ExAmPlE.cOm`. Legitimate authoritative servers copy QNAME case from query to response. Spoofed responses are highly unlikely to match exact case pattern.
 
-**Entropy added**: Each alphabetic character adds 1 bit. 10 alphabetic characters → 2^(32+10) = ~4 trillion combinations. Google Public DNS enabled globally (January 2023). Not universally deployed — some authoritative servers do not preserve case, causing spurious failures.
+**Entropy added**: Each alphabetic character adds 1 bit. 10 alphabetic characters → 2^(32+10) = ~4 trillion combinations. Google Public DNS enabled globally (July 2023). Not universally deployed — some authoritative servers do not preserve case, causing spurious failures.
 
 ### QNAME Minimization (RFC 9156, 2021)
 
@@ -377,7 +375,7 @@ Sends only the minimum QNAME needed for the next delegation step:
 - Query to .com: `example.com` (asking for example.com NS)
 - Query to example.com: `www.example.com` (full name only at authoritative)
 
-Privacy benefit: root servers and TLD servers no longer see the full query name. Deployed by default in BIND 9.14+, Unbound 1.8+, Knot Resolver.
+Privacy benefit: root servers and TLD servers no longer see the full query name. Deployed by default in BIND 9.14+, Unbound 1.7.2+, Knot Resolver.
 
 ### DNS over HTTPS (DoH, RFC 8484) and DNS over TLS (DoT, RFC 7858)
 
@@ -391,13 +389,13 @@ Privacy benefit: root servers and TLD servers no longer see the full query name.
 
 ### DNS over QUIC (DoQ, RFC 9250) and Adaptive Resolvers
 
-**DoQ**: Defined in [RFC 9250](https://datatracker.ietf.org/doc/rfc9250/) (May 2022). DNS over a dedicated QUIC connection (UDP/853, separate from DoT's TCP/853). Privacy on par with DoT; latency closer to classic UDP DNS because QUIC handshake is 0-RTT or 1-RTT and resilient to packet loss. Quad9 enabled DoQ + DNS-over-HTTP/3 in March 2026; AdGuard supports DoQ; Google Public DNS announced DoQ availability 2025. Deployment shape often inverts the resolver — a QUIC-capable proxy (`dnsdist`, `doh-proxy`) fronts a classical resolver (BIND, Unbound), letting transport security evolve independently of resolution.
+**DoQ**: Defined in [RFC 9250](https://datatracker.ietf.org/doc/rfc9250/) (May 2022). DNS over a dedicated QUIC connection (UDP/853, separate from DoT's TCP/853). Privacy on par with DoT; latency closer to classic UDP DNS because QUIC handshake is 0-RTT or 1-RTT and resilient to packet loss. Quad9 enabled DoQ + DNS-over-HTTP/3 in March 2026; AdGuard supports DoQ. Deployment shape often inverts the resolver — a QUIC-capable proxy (`dnsdist`, `doh-proxy`) fronts a classical resolver (BIND, Unbound), letting transport security evolve independently of resolution.
 
 **Adaptive resolvers**: The Cloudflare 1.1.1.1, Google 8.8.8.8, Quad9 9.9.9.9, AdGuard, OpenDNS ecosystem is now the de facto resolver tier for a large share of end-user devices. Resolver choice is a security decision: Quad9 enforces malware blocklists; AdGuard adds ad/tracker blocking; NextDNS exposes per-profile telemetry. **Operational concern**: most networks have lost visibility into which resolver each endpoint actually uses because DoH/DoQ is application-layer; CISA's 2024 guidance treats this as a default-loss-of-visibility problem to be solved structurally.
 
 ### CISA + NSA Encrypted DNS Guidance (2024)
 
-CISA, [*Encrypted DNS Implementation Guidance*](https://www.cisa.gov/sites/default/files/2024-05/Encrypted%20DNS%20Implementation%20Guidance_508c.pdf) (TLP:CLEAR v1.0, May 2024), and NSA, [*Adopting Encrypted DNS in Enterprise Environments*](https://media.defense.gov/2021/Jan/14/2002564889/-1/-1/0/CSI_ADOPTING_ENCRYPTED_DNS_U_OO_102904_21.PDF) (2021, still current), codify federal-civilian DNS architecture under OMB M-22-09 / EO 14028. Four required posture statements: (1) agency DNS infrastructure uses CISA's Protective DNS service as upstream; (2) endpoints are configured to prevent direct queries to third-party DoH/DoQ resolvers; (3) agency DNS supports encrypted DNS toward endpoints; (4) roaming endpoints use either agency DNS or Protective DNS. The doctrine is "consolidate then encrypt" — every endpoint queries an agency-controlled resolver that itself emits encrypted DNS upstream, preserving telemetry and policy enforcement on the resolver while still meeting the "all DNS encrypted" mandate. NSA's selecting-a-Protective-DNS-service companion guidance (CSI, [March 2025 v1.3](https://media.defense.gov/2025/Mar/24/2003675043/-1/-1/0/CSI-SELECTING-A-PROTECTIVE-DNS-SERVICE-V1.3.PDF)) covers resolver selection criteria. Cross-link: `detection_engineering_expertise.md` for DNS-based detection patterns this guidance preserves; `cloud_iam_expertise.md` for the enterprise device-posture analog.
+CISA, [*Encrypted DNS Implementation Guidance*](https://www.cisa.gov/sites/default/files/2024-05/Encrypted%20DNS%20Implementation%20Guidance_508c.pdf) (TLP:CLEAR v1.0, April 2024), and NSA, [*Adopting Encrypted DNS in Enterprise Environments*](https://media.defense.gov/2021/Jan/14/2002564889/-1/-1/0/CSI_ADOPTING_ENCRYPTED_DNS_U_OO_102904_21.PDF) (2021, still current), codify federal-civilian DNS architecture under OMB M-22-09 / EO 14028. Its required outcomes include: (1) agency DNS infrastructure uses CISA's Protective DNS service as upstream; (2) endpoints are configured to prevent direct queries to third-party DoH/DoQ resolvers; (3) agency DNS supports encrypted DNS toward endpoints; (4) roaming endpoints use either agency DNS or Protective DNS. The doctrine is "consolidate then encrypt" — every endpoint queries an agency-controlled resolver that itself emits encrypted DNS upstream, preserving telemetry and policy enforcement on the resolver while still meeting the "all DNS encrypted" mandate. NSA's selecting-a-Protective-DNS-service companion guidance (CSI, [March 2025 v1.3](https://media.defense.gov/2025/Mar/24/2003675043/-1/-1/0/CSI-SELECTING-A-PROTECTIVE-DNS-SERVICE-V1.3.PDF)) covers resolver selection criteria. Cross-link: `detection_engineering_expertise.md` for DNS-based detection patterns this guidance preserves; `cloud_iam_expertise.md` for the enterprise device-posture analog.
 
 ---
 
@@ -419,7 +417,7 @@ CISA, [*Encrypted DNS Implementation Guidance*](https://www.cisa.gov/sites/defau
 
 ### OS Detection (-O)
 
-Nmap sends up to 15 probe packets and analyzes responses against `nmap-os-db` (2,600+ fingerprints).
+Nmap sends up to 16 probe packets and analyzes responses against `nmap-os-db` (2,600+ fingerprints).
 
 **Measured parameters**:
 - **TCP ISN**: Rate of increment, greatest common divisor of consecutive values, sequence predictability index
@@ -432,7 +430,7 @@ Nmap sends up to 15 probe packets and analyzes responses against `nmap-os-db` (2
 
 ### Version Detection (-sV)
 
-Uses `nmap-service-probes` database (1,000+ service signatures, 180+ protocols). Process: connect → wait for banner → NULL probe → protocol-specific probes → match against regex patterns. Reports: service name, application, version, hostname, device type, OS family, CPE identifier.
+Uses `nmap-service-probes` database (about 6,500 pattern matches for more than 650 protocols). Process: connect → wait for banner → NULL probe → protocol-specific probes → match against regex patterns. Reports: service name, application, version, hostname, device type, OS family, CPE identifier.
 
 ### Nmap Scripting Engine (NSE)
 
@@ -445,8 +443,8 @@ Lua-based; runs during scans and interacts with target services.
 | `brute` | Brute-force credential testing (ssh-brute, http-brute, smb-brute) |
 | `default` | Run with `-sC` or `-A`; conservative, non-destructive |
 | `discovery` | SNMP, LDAP, DNS zone transfers, broadcast queries |
-| `exploit` | Exploit known vulnerabilities (e.g., EternalBlue/MS17-010) |
-| `vuln` | Test for specific known vulnerabilities without exploiting |
+| `exploit` | Exploit known vulnerabilities |
+| `vuln` | Test for specific known vulnerabilities without exploiting (e.g., EternalBlue/MS17-010 via `smb-vuln-ms17-010`) |
 | `malware` | Detect known malware backdoors |
 | `safe` | Non-intrusive, low-impact scripts |
 
@@ -465,9 +463,9 @@ Fyodor recommends `-T4` for modern LANs.
 
 ### Internet-Wide Scanning Tools
 
-**Masscan** (Robert Graham, 2013): Stateless TCP SYN scanner; raw packet injection via libpcap/PF_RING; asynchronous send/receive; stateless tracking via SYN sequence number cookie. 25M packets/second. Scanning entire IPv4 in <5 minutes theoretically.
+**Masscan** (Robert Graham, 2013): Stateless TCP SYN scanner; raw packet injection via libpcap/PF_RING; asynchronous send/receive; stateless tracking via SYN sequence number cookie. 10M packets/second. Scanning entire IPv4 in <5 minutes theoretically.
 
-**ZMap** (Durumeric, Wustrow, Halderman — USENIX Security 2013): PF_PACKET raw sockets on Linux (bypasses kernel TCP/IP stack). Single-port TCP SYN scan; address permutation via multiplicative group of integers modulo prime (random order prevents /24 rate-limiting); probes entire IPv4 in ~45 minutes at 1.4 Gbps. Used in 300+ published security research papers (Heartbleed, Mirai, protocol analyses).
+**ZMap** (Durumeric, Wustrow, Halderman — USENIX Security 2013): PF_PACKET raw sockets on Linux (bypasses kernel TCP/IP stack). Single-port TCP SYN scan; address permutation via multiplicative group of integers modulo prime (random order prevents /24 rate-limiting); probes entire IPv4 in ~45 minutes on gigabit Ethernet.
 
 **Project Sonar (Rapid7, HD Moore)**: Continuous automated internet measurement service. Datasets available at `opendata.rapid7.com`: FDNS (billions of A/AAAA/CNAME/TXT records, JSONL format), RDNS (PTR records), endpoint studies (HTTP/HTTPS banner + TLS certificates). Free for security research. Moore created Metasploit; Project Sonar embodies his philosophy of continuous internet measurement.
 
@@ -486,7 +484,7 @@ BGP's fundamental weakness: no built-in authentication of route announcements. A
 | Incident | Date | Impact |
 |----------|------|--------|
 | **Pakistan Telecom → YouTube** | Feb 24, 2008 | AS 17557 injected YouTube's 208.65.153.0/24 prefix; upstream PCCW (AS 3491) propagated globally; YouTube unreachable worldwide ~2 hours; traffic blackholed at Pakistan Telecom |
-| **Rostelecom → Google/AWS/Akamai** | Apr 1, 2020 | 8,800+ prefixes hijacked via more-specific /21 announcements; networks with RPKI ROV deployed (Telia, NTT) automatically rejected invalid routes — partial mitigation |
+| **Rostelecom → Google/AWS/Akamai** | Apr 1, 2020 | 8,800+ prefixes hijacked |
 
 ### RPKI (Resource Public Key Infrastructure)
 
@@ -499,14 +497,14 @@ Hierarchical PKI where RIRs (ARIN, RIPE NCC, APNIC, LACNIC, AFRINIC) issue crypt
 **Deployment status (2024–2025)**:
 - ~54% of IPv4/IPv6 global routing table prefixes covered by ROAs (NIST RPKI Monitor, MANRS [2024 growth update](https://manrs.org/2025/01/rpki-growth-2024/))
 - ~74% of IP traffic destined towards ROA-covered destinations (Kentik measurements)
-- All 17 Tier-1 ASes deploy ROV; 16 of 17 filter >90% of RPKI-invalid prefixes; MANRS confirmed [ROV deployment crossed the majority-of-tier-1 threshold](https://manrs.org/2024/05/rpki-rov-deployment-reaches-major-milestone/) May 2024
+- MANRS confirmed [a majority of IPv4 routes became ROA-covered](https://manrs.org/2024/05/rpki-rov-deployment-reaches-major-milestone/) May 2024
 - RPKI validator software: Routinator (~70% market share), Fort, Cloudflare OctoRPKI
-- US Federal: OMB M-22-09 directs federal civilian agencies to deploy ROV; NIST RPKI Monitor ([rpki-monitor.antd.nist.gov](https://rpki-monitor.antd.nist.gov/)) provides public measurement
+- US Federal: NIST RPKI Monitor ([rpki-monitor.antd.nist.gov](https://rpki-monitor.antd.nist.gov/)) provides public measurement
 - Live monitoring of relying-party sync delays (Sediqi et al., [MANRS 2025](https://manrs.org/wp-content/uploads/2025/06/RPKI-Syncing-Delay-in-Relying-Party-Synchronization.pdf)) — relying parties can lag publication by minutes-to-hours, creating brief windows during which a fresh ROA may not yet protect a freshly-announced prefix
 
 **Limitations**: RPKI validates origin, not path. A compromised AS in the middle can still manipulate traffic. BGPsec (signs entire AS path cryptographically) is largely experimental and unlikely to achieve widespread deployment due to operational complexity.
 
-**ASPA (Autonomous System Provider Authorization)** — IETF SIDROPS WG, RFC 9774 (2025): publishes the set of "upstream providers" each AS legitimately uses, enabling path validation against route-leak attacks (downstream AS announcing transit it should not). Adoption is nascent — ~0.001% of ASes have published an ASPA record as of mid-2025 per MANRS — but ASPA is the most plausible deployment path toward BGP path validation, given BGPsec's stalled state. Cross-link: `cloud_iam_expertise.md` for the analogous "explicit authorization graph" pattern.
+**ASPA (Autonomous System Provider Authorization)** — IETF SIDROPS WG, draft-ietf-sidrops-aspa-profile (Internet-Draft): publishes the set of "upstream providers" each AS legitimately uses, enabling path validation against route-leak attacks (downstream AS announcing transit it should not). Adoption is nascent — ~0.001% of ASes have published an ASPA record as of mid-2025 per MANRS — but ASPA is the most plausible deployment path toward BGP path validation, given BGPsec's stalled state. Cross-link: `cloud_iam_expertise.md` for the analogous "explicit authorization graph" pattern.
 
 ---
 
@@ -527,7 +525,7 @@ The web PKI: any of ~150+ root CAs (and 1,000+ intermediate CAs they've delegate
 - DigiNotar declared bankruptcy September 2011 after browser vendors removed trust
 - Lesson: A single compromised CA gives MitM capability against the entire internet for those cert holders
 
-**MD5 Collision Against CA Signing (25C3, December 2008)**: Sotirov, Stevens, Appelbaum, Lenstra et al. demonstrated creating a rogue CA certificate using an MD5 collision. Several CAs were still signing intermediate certs with MD5. Researchers could create a cert browsers would trust as a legitimate CA. Forced immediate switch from MD5 to SHA-256.
+**MD5 Collision Against CA Signing (25C3, December 2008)**: Sotirov, Stevens, Appelbaum, Lenstra et al. demonstrated creating a rogue CA certificate using an MD5 collision. Several CAs were still signing intermediate certs with MD5. Researchers could create a cert browsers would trust as a legitimate CA. Affected CAs moved off MD5 within hours (announced switch to SHA-1).
 
 ### Certificate Transparency (RFC 6962 / RFC 9162)
 
@@ -563,7 +561,7 @@ Launched 2016; free, automated, open CA. Issues 90-day certificates — short va
 
 ### The 47-Day Certificate Trajectory (CA/Browser Forum Ballot SC-081v3, April 2025)
 
-Apple proposed in Bugzilla early 2025 and Sectigo co-sponsored a [CA/B Forum ballot](https://securityboulevard.com/2025/04/its-official-ca-b-forum-votes-yes-to-47-day-tls-certificates/) reducing maximum TLS-certificate lifetime from 398 days to 47 days. **Ballot SC-081v3 passed April 11, 2025** — 25 CAs and 4 root programs (Apple, Google, Microsoft, Mozilla) in favor; 5 CAs abstained citing automation-readiness concerns. Phased rollout:
+Apple introduced a draft at the October 2024 CA/B Forum meeting and Sectigo endorsed a [CA/B Forum ballot](https://securityboulevard.com/2025/04/its-official-ca-b-forum-votes-yes-to-47-day-tls-certificates/) reducing maximum TLS-certificate lifetime from 398 days to 47 days. **Ballot SC-081v3 passed April 11, 2025** — 25 CAs and 4 root programs (Apple, Google, Microsoft, Mozilla) in favor; 5 CAs abstained. Phased rollout:
 
 | Date | Max TLS cert lifetime | Max DCV (Domain Control Validation) reuse |
 |---|---|---|
@@ -574,13 +572,13 @@ Apple proposed in Bugzilla early 2025 and Sectigo co-sponsored a [CA/B Forum bal
 
 **Operational consequence**: any manual renewal workflow is fatal by 2029. ACME automation becomes table-stakes; long-lived certs in IoT, embedded devices, internal CAs, and air-gapped systems become a critical-debt class. Browsers and root programs have not yet committed publicly to the 47-day endpoint for private/internal CAs, but enterprise PKI roadmaps assume parallel pressure ([DigiCert analysis](https://www.digicert.com/blog/tls-certificate-lifetimes-will-officially-reduce-to-47-days)).
 
-Pre-2025 trajectory: the maximum lifetime had already been ratcheted down 825 → 397 → 398 days; Apple's 47-day proposal accelerated what was already a clear direction. Cross-link: `cryptography_expertise.md` for the rotating-key threat model that motivates short-lived certs; `cicd_supply_chain_expertise.md` for the CD-pipeline cert-renewal automation pattern.
+Pre-2025 trajectory: the maximum lifetime had already been ratcheted down 39 months → 825 days (2018) → 398 days (2020); Apple's 47-day proposal accelerated what was already a clear direction. Cross-link: `cryptography_expertise.md` for the rotating-key threat model that motivates short-lived certs; `cicd_supply_chain_expertise.md` for the CD-pipeline cert-renewal automation pattern.
 
 ### Certificate Transparency Log Operations (2024–2026)
 
-CT log operation has matured into a coordinated tier of infrastructure. The temporally-sharded model (Google "Argon" series for US, "Xenon" for EU; Cloudflare "Nimbus"; Let's Encrypt "Oak"; DigiCert "Yeti") shards by certificate `Not After` year — each shard accepts certs expiring in one calendar year, then becomes read-only. **Log retirement is now routine**: Argon 2024 stopped accepting submissions December 31, 2024 and is read-only until validators no longer require it (~certificate expiration + grace).
+CT log operation has matured into a coordinated tier of infrastructure. The temporally-sharded model (Google "Argon" and "Xenon" series; Cloudflare "Nimbus"; Let's Encrypt "Oak"; DigiCert "Yeti") shards by certificate `Not After` year — each shard accepts certs expiring in one calendar year, then becomes read-only. **Log retirement is now routine**: Argon 2024 stopped accepting submissions December 31, 2024.
 
-Chrome's CT policy (post-2018) requires **two SCTs from distinct log operators** in every publicly trusted cert. Log operator failure modes (extended downtime, MMD violations) result in the log being removed from the "qualified" set — historically Symantec/DigiCert, StartSSL, and others. The community-run [certificate.transparency.dev/logs](https://certificate.transparency.dev/logs/) page is the canonical operator list; Chromium's [log_list.json](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/certificate_transparency/data/log_list.json) is the source of truth for browser enforcement.
+Chrome's CT policy (post-2018) requires **two SCTs from distinct log operators** in every publicly trusted cert. Log operator failure modes (extended downtime, MMD violations) result in the log being removed from the "qualified" set — e.g., Certly.IO (2016). The community-run [certificate.transparency.dev/logs](https://certificate.transparency.dev/logs/) page is the canonical operator list; Chromium's [log_list.json](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/certificate_transparency/data/log_list.json) is the source of truth for browser enforcement.
 
 **Operational implication for security teams**: CT log mining (via crt.sh, Facebook CT Monitoring, Cert Spotter) remains the single most reliable subdomain enumeration primitive. Shorter cert lifetimes (post-2029, 47-day) mean every subdomain emits a fresh CT entry every ~5 weeks — CT logs become a near-real-time inventory of internet-facing assets. Detection coverage that misses CT-log monitoring will systematically miss new exposed services.
 
@@ -640,7 +638,6 @@ Chrome's CT policy (post-2018) requires **two SCTs from distinct log operators**
 | 9276 | NSEC3 Parameter Settings (BCP 236) | 2022 | Recommends 0 iterations |
 | 9463 | DHCP/RA Options for Encrypted DNS | 2023 | Enterprise DoH/DoT resolver advertising |
 | 9773 | ACME Renewal Information (ARI) | 2025 | CA-driven renewal scheduling for short-lived certs |
-| 9774 | ASPA (AS Provider Authorization) | 2025 | BGP path validation primitive — RPKI extension |
 
 ---
 
@@ -656,15 +653,15 @@ Chrome's CT policy (post-2018) requires **two SCTs from distinct log operators**
 
 5. **BGP hijacking is underrated as an attack vector against certificate infrastructure**: The DigiNotar incident was DNS/CA compromise. But BGP hijacking can achieve the same outcome — redirect traffic for `accounts.google.com` at the network layer, intercept ACME HTTP-01 domain validation, obtain a certificate from a co-opted CA. This is why CT monitoring (independent of the TLS handshake path) is the only defense that survives network-layer attacks: you'll see the unauthorized certificate in the CT log within 24 hours.
 
-6. **The Kaminsky Fellowship and the community norm**: Kaminsky spent the 30 days after the July 8, 2008 patch release *actively encouraging ISPs to patch*, rather than staying quiet. His approach — coordinate secretly, patch everyone simultaneously, then give ISPs 30 days to deploy before full disclosure — became the model for large-scale coordinated vulnerability disclosure. The coordination involved ~20 vendors and produced ~50 simultaneous patch releases. This standard is still the framework security vendors reference for coordinated disclosure today.
+6. **The Kaminsky Fellowship and the community norm**: Kaminsky spent the 30 days after the July 8, 2008 patch release *actively encouraging ISPs to patch*, rather than staying quiet. His approach — coordinate secretly, patch everyone simultaneously, then give ISPs 30 days to deploy before full disclosure — became the model for large-scale coordinated vulnerability disclosure. This standard is still the framework security vendors reference for coordinated disclosure today.
 
-7. **KeyTrap (2024) is an algorithmic-complexity attack the spec *required*, not a bug**: RFC 4035 §5.3.3 mandates that validators try every key-tag-matching DNSKEY against every available RRSIG. ATHENE's contribution was recognizing this is exploitable: one well-crafted packet creates an O(N×M) signature-verification storm that stalls the validator for minutes-to-hours. The mitigation is not a spec fix — it is a pragmatic cap (`max-validation-failures`) every implementation has had to add. **The lesson**: when a security spec demands "validators must try X" without bounding X, the spec itself is a DoS primitive. This pattern recurs across crypto-validation surfaces (XML signature wrapping; PDF nested objects; archive unpacking) — the family name is **algorithmic complexity attack**, and the structural defense is per-operation hard caps in every implementation.
+7. **KeyTrap (2024) is an algorithmic-complexity attack the spec *required*, not a bug**: RFC 4035 §5.3.1 mandates that validators try every key-tag-matching DNSKEY against every available RRSIG. ATHENE's contribution was recognizing this is exploitable: one well-crafted packet creates an O(N×M) signature-verification storm that stalls the validator for minutes-to-hours. The mitigation is not a spec fix — it is a pragmatic cap (e.g., BIND's `max-validation-failures-per-fetch`) every implementation has had to add. **The lesson**: when a security spec demands "validators must try X" without bounding X, the spec itself is a DoS primitive. This pattern recurs across crypto-validation surfaces (XML signature wrapping; PDF nested objects; archive unpacking) — the family name is **algorithmic complexity attack**, and the structural defense is per-operation hard caps in every implementation.
 
 8. **DNSBomb / CAMP (IEEE S&P + USENIX 2024) reframe amplification as a compositional product, not a single primitive**: Legacy mitigation reasoned about *one* amplification step at a time — RRL caps responses-per-source, BCP38 prevents source-spoofing, RFC 8482 deprecates ANY. DNSBomb composes query accumulation × response amplification × pulse concentration to achieve 20,000× BAF and 8.7 Gb/s pulse magnitude. **The staff-level shift**: when reviewing protocol composition (DNS+HTTP, DoH+CDN, recursive+authoritative chains), enumerate the amplification primitives at each hop and reason about their *product*, not their sum.
 
 9. **Sitting Ducks (2024) shows the registrar/DNS separation is a structural primitive, not a misconfiguration**: ~1M domains exploitable; 30K+ confirmed hijacked since 2019; ALL conditions are by-design separations of registrar and DNS-provider responsibility. Eight years after Matthew Bryant's 2016 *Orphaned Internet* paper showed the same primitive, nothing structural had changed. **The takeaway for security teams**: registrar lock and DNSSEC do not protect against takeover via the DNS provider side. The defensive posture is continuous re-validation that NS records at the registrar still point to a zone that actually exists at the provider.
 
-10. **The HTTP/2 attack family (Rapid Reset + CONTINUATION Flood) shows protocol-level DoS surface compounds with deployment scale**: Rapid Reset abuses stream cancellation; CONTINUATION Flood abuses header buffering; both work against every major HTTP/2 implementation simultaneously because the spec under-specified resource bounds. The 398M rps record (Google, October 2023) plus the 5.6 Tbps UDP record (Cloudflare, October 2024) plus Aisuru's 31 Tbps in February 2026 collectively define a new operational baseline: **autonomous detect-and-mitigate at the scrubbing tier is the only viable defense shape**. The seconds-to-minutes attack duration leaves no time for human-in-the-loop response. Cross-link: `detection_engineering_expertise.md` for the autonomous-defense-tier design pattern.
+10. **The HTTP/2 attack family (Rapid Reset + CONTINUATION Flood) shows protocol-level DoS surface compounds with deployment scale**: Rapid Reset abuses stream cancellation; CONTINUATION Flood abuses header buffering; both work against every major HTTP/2 implementation simultaneously because the spec under-specified resource bounds. The 398M rps record (Google, October 2023) plus the 5.6 Tbps UDP record (Cloudflare, October 2024) plus Aisuru's 31.4 Tbps (Cloudflare, disclosed January 2026) collectively define a new operational baseline: **autonomous detect-and-mitigate at the scrubbing tier is the only viable defense shape**. The seconds-to-minutes attack duration leaves no time for human-in-the-loop response. Cross-link: `detection_engineering_expertise.md` for the autonomous-defense-tier design pattern.
 
 11. **The 47-day cert trajectory (CA/B Forum SC-081v3, April 2025) is a forcing function on CD pipeline maturity**: By March 2029, every TLS cert must rotate every 47 days; DCV reuse drops to 10 days. Any pipeline that requires a human to renew a cert breaks at 47 days. Any service that pins certs (mTLS in microservice meshes, IoT firmware) needs out-of-band rotation. The ballot was framed as a security improvement (revocation-by-expiration), but its *real* downstream effect is to eliminate the long-tail of unrotated, forgotten, hard-coded certs that historically powered MitM-via-stolen-key attacks. Cross-link: `cryptography_expertise.md` for the key-rotation threat model; `cicd_supply_chain_expertise.md` for the ACME-in-pipeline pattern.
 

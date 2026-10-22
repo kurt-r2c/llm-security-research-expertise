@@ -10,18 +10,15 @@
 > three-character token (`$x`, `"$x"`, `'$x'`) produces three radically
 > different evaluation trees. The 2024-2026 load-bearing updates are: macOS
 > Catalina's switch from bash-3.2 to zsh-as-default (CVE-2021-45444 surface
-> moved with it); the GNU bash 5.3 release line clarifying `set -e` semantics
-> for sourced files; zsh 5.9.x prompt-expansion hardening; ShellCheck 0.10.x
-> extended-glob coverage; and the broad adoption of "strict-mode bash"
+> moved with it); and the broad adoption of "strict-mode bash"
 > (`set -euo pipefail` + IFS discipline) as the default convention for new
 > shell scripts in well-run codebases.
 >
 > **Researchers:**
-> - **Chet Ramey** — Manager of Network Engineering, Case Western Reserve
+> - **Chet Ramey** — Case Western Reserve
 >   University; primary maintainer of GNU bash since approximately 1990
->   (sole maintainer since approximately 1994); maintainer of the GNU
->   Readline library; author of the bash technical articles in the proceedings
->   of the 1994 New Orleans USENIX (the "Bash, the Bourne-Again Shell" paper)
+>   (sole maintainer since approximately 1993); maintainer of the GNU
+>   Readline library; author of the "Bash, the Bourne-Again Shell" paper
 >   and the running "Bash Reference Manual." The canonical institutional
 >   voice on every bash semantic decision, every CHANGES entry, and every
 >   `compat`-shopt that exists because some real script depended on the old
@@ -34,24 +31,23 @@
 >   anchor §§2-7 of this document
 > - **Stéphane Chazelas** — Unix and Linux network/telecom administrator; the
 >   discoverer of CVE-2014-6271 ("Shellshock") who privately reported the bug
->   to Chet Ramey on 2014-09-12; long-running contributor to BashFAQ; the
+>   to Chet Ramey on 2014-09-12; the
 >   canonical voice on the corner cases of POSIX sh portability and on the
 >   environment-as-attack-surface failure mode that defines §13
 > - **Vidar Holen** — author and maintainer of *ShellCheck*, the canonical
 >   bash/sh static analyzer (written in Haskell; first released 2012; now the
->   most-starred Haskell project on GitHub). Author of the SC0001-SC2300+ rule
+>   most-starred Haskell project on GitHub). Author of the SC-numbered rule
 >   catalog and the *Vidar's Blog* "Lessons learned from writing ShellCheck"
 >   post. ShellCheck's rule numbers are used throughout this document as the
 >   primary identifier for each footgun (cross-referenced to `shellcheck.net/wiki`)
 > - **Paul Vixie** — Internet Hall of Fame inductee (2014); primary author of
->   BIND 8 at DEC and ISC; longtime contributor to the Unix shell-portability
->   discussions on POSIX-sh and the Bourne shell heritage; founder of the
->   Internet Software Consortium (1996) and Farsight Security (2013). The
+>   BIND 8 at DEC and ISC; founder of the
+>   Internet Software Consortium (1994) and Farsight Security (2013). The
 >   institutional voice on the historical-Bourne-shell side of POSIX-sh
 >   portability concerns that show up in §1 and §12
 > - **Theo de Raadt** — founder and leader of the OpenBSD and OpenSSH projects
->   (OpenBSD founded October 1995); long-running maintainer of OpenBSD's
->   `ksh(1)` (oksh), which is based on the Public Domain Korn Shell (pdksh).
+>   (OpenBSD founded October 1995); OpenBSD's
+>   `ksh(1)` is based on the Public Domain Korn Shell (pdksh).
 >   The institutional voice on "what the Korn-shell heritage looks like when
 >   maintained by a security-conscious upstream" and on the auditing tradition
 >   that informs the OpenBSD base-system shell-script style
@@ -65,17 +61,6 @@
 >   contributed bash43-027; long-running participant in the bash-bug and
 >   oss-security mailing-list discussions that codified the post-Shellshock
 >   environment-variable hygiene rules
-> - **Etienne Stalmans** (formerly Heroku, now Snyk) — author of the
->   *Shellwords escape bypass* research that demonstrated argv-construction
->   bypasses in Ruby's `Shellwords.escape` and analogous helpers; the
->   institutional voice on "language-level shell-escape helpers are not enough"
->   that cross-links to `shell_injection_expertise.md`
-> - **Trail of Bits** (Dan Guido, Stefan Edwards, Artem Dinaburg) and
->   **NCC Group** (Aaron Adams, Iain Smart) — practitioners who maintain
->   the empirical shell-script audit corpus underlying many of the rules
->   in §15 and §16; their public retainer-style reports on CI/CD pipelines
->   and bootstrap scripts are the canonical "what shell-script defects look
->   like in the wild" evidence base
 >
 > **Institutional contributors:** the GNU Bash Reference Manual (`gnu.org`);
 > the *POSIX.1-2024 Shell and Utilities* specification (Open Group / IEEE
@@ -161,7 +146,7 @@ applies.
   POSIX-portable.
 - **bash** — the GNU Bourne-Again Shell. Maintained by Chet Ramey at
   Case Western Reserve since approximately 1990 (sole maintainer since
-  approximately 1994). Default `/bin/bash` on most distributions.
+  approximately 1993). Default `/bin/bash` on most distributions.
 - **zsh** — the Z Shell. Default interactive shell on macOS since
   Catalina (2019). Maintained by Peter Stephenson.
 
@@ -328,7 +313,7 @@ done
 
 `find -print0` separates with NUL (the one byte forbidden in filenames);
 `read -r -d ''` reads up to NUL. The only fully-correct idiom for
-"iterate over filenames" in shell. Bash-4+ alternative is `mapfile -d ''`,
+"iterate over filenames" in shell. Bash-4.4+ alternative is `mapfile -d ''`,
 which is faster but absent on macOS-default bash 3.2 (§8.4).
 
 ### 2.7 Quoting prevents both splitting and globbing
@@ -352,11 +337,11 @@ lexically by default.
 
 ```bash
 $ touch -- '-rf' '/'   # don't do this on a real system
-$ rm *.txt
-# *.txt may expand to "-rf / file.txt" — rm parses -rf as flags
+$ rm *
+# * may expand to "-rf file.txt" — rm parses -rf as flags
 ```
 
-If the current directory contains a file named `-rf`, then `rm *.txt`
+If the current directory contains a file named `-rf`, then `rm *`
 becomes `rm -rf <other files>` — `rm` parses `-rf` as flags. This is
 the canonical "filename-as-option-injection" attack against shell
 scripts.
@@ -441,8 +426,8 @@ patterns. The default — literal-pattern fallback — is what bites
 script authors. ShellCheck SC2144 covers a related pattern (`[ -e
 *.txt ]` with `-e` taking only one argument).
 
-Zsh's defaults differ: zsh enables a *failglob*-like behavior under
-`NO_NOMATCH`-aware modes, and its `setopt NULL_GLOB` mirrors bash's
+Zsh's defaults differ: zsh's default `NOMATCH` option makes an
+unmatched glob an error (*failglob*-like), and its `setopt NULL_GLOB` mirrors bash's
 `nullglob`. Scripts ported between the two should declare their glob
 behavior explicitly rather than rely on default mode.
 
@@ -460,13 +445,13 @@ expansion is a bash extension and does not exist in POSIX. A script
 that does `cp file.{txt,bak}` under dash will literally try to copy a
 file named `file.{txt,bak}`.
 
-ShellCheck SC1083 flags brace-expansion-like syntax in sh-mode scripts.
+ShellCheck SC3009 flags brace expansion in sh-mode scripts.
 
 ### 3.5 Range globs `[a-z]` and locale
 
-Character-class globs are **locale-sensitive**. Under `tr_TR`, `[a-z]`
-does *not* include `i` (Turkish collation orders `ı` between `i` and
-`j`). Fix: `LC_COLLATE=C` for any script that uses range globs. Real
+Character-class globs are **locale-sensitive**. Unless
+`globasciiranges` is on (the default since bash 5.0), `[a-z]` follows
+locale collation order and can match uppercase letters such as `A`. Fix: `LC_COLLATE=C` for any script that uses range globs. Real
 bug in CI/CD pipelines with non-default locales. No ShellCheck rule;
 manual review only.
 
@@ -494,8 +479,8 @@ machinery is the load-bearing primitive behind §2 and §3.
 - **Backslash** `\x` — the next character is taken literally.
   `\$` is a literal dollar sign, `\\` is a literal backslash, etc.
   Inside single quotes, backslash is itself literal.
-- **ANSI-C quoting** `$'...'` — bash-specific (and zsh-supported, not
-  POSIX). Backslash escapes are interpreted: `$'\n'` is a newline,
+- **ANSI-C quoting** `$'...'` — supported by bash and zsh, and
+  standardized in POSIX.1-2024. Backslash escapes are interpreted: `$'\n'` is a newline,
   `$'\t'` is a tab, `$'\x41'` is `A`, `$'é'` is `é`. No variable
   expansion. The canonical use is for IFS:
   `IFS=$'\n\t'`.
@@ -564,8 +549,8 @@ ShellCheck SC2006 flags backticks and recommends `$()`.
 
 `$()` ignores exit status. `output="$(grep "$pattern" file.txt)"` does
 not distinguish "grep found nothing" from "file.txt missing." Both
-produce empty `output`. Even under `set -e`, command substitutions in
-assignment do not exit — a documented `set -e` exception (§6.1). Fix:
+produce empty `output`. Under `set -e`, a plain assignment exits on a
+failed substitution, but `local`/`declare`/`export` mask it (§5.4). Fix:
 check `$?` explicitly or restructure as a pipe.
 
 ---
@@ -609,7 +594,7 @@ Footgun: `result=(ls /tmp)` is array assignment (two elements `ls` and
 
 ### 5.3 Process substitution `<(cmd)` and `>(cmd)`
 
-Bash-specific. `<(cmd)` provides a filename (`/dev/fd/63`) that yields
+Not POSIX; bash, zsh, and AT&T ksh support it. `<(cmd)` provides a filename (`/dev/fd/63`) that yields
 `cmd`'s stdout. Canonical use: `diff <(cmd1) <(cmd2)`. Common bug:
 inner-command failure is hidden — `diff` sees an empty file when
 `ssh host1` fails and reports a diff instead of an error.
@@ -630,12 +615,13 @@ echo "$count"                    # always 0
 
 ### 5.4 Command-substitution-failure-hidden-by-`set -e`
 
-As of bash 4.4: command substitutions trigger `set -e` when they are
-the entire command, but **not** when part of an assignment:
+A plain assignment takes the exit status of its last command
+substitution, so it triggers `set -e`; `local`, `declare`, and `export`
+replace that status with their own:
 
 ```bash
 set -e
-result=$(false)                  # does NOT exit; assignment hides failure
+result=$(false)                  # exits: assignment keeps the failure status
 result=$(false) || exit 1        # explicit path; correct
 ```
 
@@ -659,7 +645,7 @@ and not a security feature.
 3. Commands inverted by `!`.
 4. Functions called in any of the above.
 5. Pipelines (only the last command's exit status counts; see §6.3).
-6. Command substitutions in assignment (§5.4).
+6. Command substitutions in `local`/`declare`/`export` assignments (§5.4).
 
 `set -e` is **not** a substitute for explicit error handling. Classic
 trap:
@@ -694,7 +680,7 @@ echo "${var-default}"            # use default only if var is unset (allow empty
 echo "${var:?error message}"     # exit with error message if var is unset/empty
 ```
 
-`${!arr[@]}` (array indices) under `set -u` requires bash 4.4+ for the
+`${arr[@]}` and `${arr[*]}` under `set -u` require bash 4.4+ for the
 empty-array case to not error. Older bash versions exit on empty array.
 
 ### 6.3 `set -o pipefail` — pipelines fail if any stage failed
@@ -891,7 +877,7 @@ go POSIX-only (`#!/bin/sh`) and avoid bash-isms entirely.
 
 ```zsh
 arr=(alpha beta gamma)
-echo $arr[1]                     # alpha — bash would print 'beta'
+echo $arr[1]                     # alpha
 ```
 
 `setopt KSH_ARRAYS` enables 0-indexed bash-compatible behavior. Canonical
@@ -941,7 +927,7 @@ echo "$count"                    # 0 — count was modified in the subshell
 ```
 
 Any command on the right side of a pipe runs in a subshell (in bash;
-ksh93 differs; zsh under `setopt NO_LAST_PIPE` differs). The `while`
+ksh93 differs; zsh runs the last element in the current shell). The `while`
 loop's `count` modification happens in that subshell, and the parent
 shell never sees it.
 
@@ -1001,8 +987,10 @@ fi
 ### 9.4 `return` outside a function
 
 `return` is only valid inside a function or a sourced script. Using
-`return` at the top level of a non-sourced script is a syntax error.
-ShellCheck SC2104 covers a related pattern (`break` outside a loop).
+`return` at the top level of a non-sourced script is a runtime error
+("can only `return' from a function or sourced script"), not a syntax
+error; outside POSIX mode bash keeps running the script.
+ShellCheck SC2104 covers a related pattern (`break` in a function, where `return` was meant).
 
 ---
 
@@ -1049,7 +1037,7 @@ trap 'rm -rf "$tmpdir"' EXIT
 Canonical safe scaffolding for filesystem-touching scripts. Two common
 bugs: (1) trap installed after a command that may fail leaks the temp;
 order is create, trap, use. (2) `mktemp -d` failed and `tmpdir` is
-empty — `rm -rf ""` is graceful on GNU but BusyBox differs. Defense:
+empty. Defense:
 `rm -rf "${tmpdir:-/nonexistent}"`.
 
 ### 10.3 `trap '...' ERR`
@@ -1088,8 +1076,8 @@ eval "$cmd"                       # prints the value of HOME
 
 If any portion of `cmd` is attacker-controlled, this is a shell-
 injection bug. The footgun is that this looks identical to legitimate
-indirection patterns. ShellCheck SC2294 flags `eval` and recommends
-alternatives.
+indirection patterns. ShellCheck SC2294 flags `eval` applied to an
+array or `"$@"`.
 
 The cross-link: see `shell_injection_expertise.md` for the bug class
 treatment. The present document covers the shell-internal failure mode
@@ -1108,8 +1096,7 @@ echo "${!target}"                # prints the value of HOME
 
 This is the safe alternative to `eval "echo \$$target"` for most
 indirection cases. ShellCheck does not have a specific rule for
-`${!var}` (it is generally fine), but it does flag `eval`-based
-indirection where `${!var}` would work.
+`${!var}` (it is generally fine).
 
 ### 11.3 `declare -n` namerefs (bash 4.3+)
 
@@ -1181,8 +1168,8 @@ The fixes:
 - Set PATH at script start: `PATH=/usr/local/bin:/usr/bin:/bin`.
 - For setuid wrappers, refuse to execute if PATH is suspicious.
 
-ShellCheck SC2123 flags `PATH=somepath` assignments that look like
-they intended `PATH=somepath:$PATH`.
+ShellCheck SC2123 flags assigning a single directory to `PATH`,
+which it assumes is an accidental overwrite.
 
 ### 12.2 `/bin/sh` vs `/usr/bin/env bash` shebangs
 
@@ -1208,7 +1195,8 @@ cd "$1" || exit 1                # goes to $1, or exits if $1 is bad
 ```
 
 If `$1` is empty, `cd "$1"` is *not* `cd` (with no args); it is
-`cd ""` (with an empty string), which is an error. The fix is to test
+`cd ""` (with an empty string), which current bash, dash and zsh treat
+as a silent no-op (POSIX.1-2024 requires an error). The fix is to test
 explicitly:
 
 ```bash
@@ -1264,7 +1252,7 @@ MY_VAR='() { :; }; /bin/touch /tmp/pwned'
 
 Any bash process that received this env var via fork-exec from a
 parent that had set it (which includes CGI scripts, DHCP clients,
-SSH `ForceCommand` sessions, and Git hooks) would, at startup,
+SSH `ForceCommand` sessions, and Git/Subversion restricted shells) would, at startup,
 parse the env var, recognize the function-prefix, *and execute the
 trailing command after the function definition*.
 
@@ -1274,17 +1262,17 @@ Stéphane Chazelas reported the bug privately to Chet Ramey on
 - **CVE-2014-6271** — original Shellshock disclosure; bash43-025
   patch by Chet Ramey, 2014-09-24.
 - **CVE-2014-7169** — bypass of the first patch via incomplete
-  parsing fix; bash43-026 same-day.
+  parsing fix; bash43-026, 2014-09-26.
 - **CVE-2014-7186** — additional out-of-bounds memory issue found
-  by Florian Weimer (Red Hat); bash43-027.
-- **CVE-2014-7187** — companion to -7186, function-parsing
-  recursion.
+  by Florian Weimer (Red Hat); bash43-028.
+- **CVE-2014-7187** — companion to -7186, off-by-one error in the
+  parser.
 - **CVE-2014-6277** — uninitialized-memory issue found in extended
   testing; bash43-029 / bash32-056.
 - **CVE-2014-6278** — additional function-import bypass; bash43-030
   / bash32-057.
 
-By 2014-10-03, the patch chain was complete. The post-Shellshock
+By 2014-10-05, the patch chain was complete. The post-Shellshock
 norm is that bash function-export is restricted to environment
 variables with the `BASH_FUNC_` prefix and `%%` suffix — a
 namespace that explicit attackers cannot easily forge.
@@ -1313,8 +1301,8 @@ Inside `((...))`, the arithmetic parser supports indirect references
 through `${!name}` and array subscripts that themselves can contain
 command substitution: `a[$(touch /tmp/pwned)0]` triggers command exec
 inside arithmetic. Fix: validate `$user_input` matches `^-?[0-9]+$`,
-or use `expr` (far simpler parser). ShellCheck SC2076 covers regex
-injection in `[[ var =~ $pattern ]]`.
+or use `expr` (far simpler parser). ShellCheck SC2076 flags a quoted
+right-hand side of `=~`, which matches literally rather than as a regex.
 
 ---
 
@@ -1380,7 +1368,7 @@ Zsh extends globs with parenthesized qualifiers:
 ```
 
 Equivalent to inline `find`. Zsh-specific; non-portable. ShellCheck
-SC1071 warns when zsh constructs appear in `#!/bin/bash`.
+SC1071 fires on an unsupported shebang such as zsh.
 
 ### 14.4 The ".zshrc runs every login" attack surface
 
@@ -1413,25 +1401,25 @@ elsewhere in this document, indexed:
 
 | Rule | Section | What it catches |
 |------|---------|-----------------|
-| SC1071 | §14.3 | Non-bash syntax in `#!/bin/bash` |
-| SC1083 | §3.4 | Brace expansion in sh-mode |
+| SC1071 | §14.3 | Unsupported shell in shebang (e.g. zsh) |
+| SC1083 | §3.4 | Literal `{`/`}` (missing `;` or unquoted) |
 | SC2006 | §4.4 | Backticks instead of `$()` |
 | SC2030, SC2031 | §9.2 | Variables modified inside pipe-fed loop |
 | SC2035 | §3.1 | Glob as first argument without `./` or `--` |
 | SC2046 | §2.7 | Unquoted command substitution |
-| SC2076 | §13.3 | Variable in `[[ =~ ]]` (regex injection) |
+| SC2076 | §13.3 | Quoted rhs of `=~` matches literally |
 | SC2086 | §2.2 | Unquoted variable expansion |
 | SC2095 | §7.3 | ssh stealing read-loop stdin |
-| SC2103 | §4.2 | Use of `cd` without push/popd discipline |
-| SC2104 | §9.4 | `break` outside loop |
-| SC2123 | §12.1 | PATH assignment that looks like prepend |
+| SC2103 | §4.2 | `cd` back instead of using a subshell |
+| SC2104 | §9.4 | `break` in a function instead of `return` |
+| SC2123 | §12.1 | Single directory assigned to `PATH` |
 | SC2144 | §3.3 | `-e *.txt` not what you think |
 | SC2155 | §6.1 | `local var=$(cmd)` masks exit status |
 | SC2162 | §7.1 | `read` without `-r` |
 | SC2164 | §12.5 | `cd` without `|| exit` |
 | SC2184 | §8.2 | `unset arr[0]` glob-expansion |
 | SC2230 | §11.5 | `which` instead of `command -v` |
-| SC2294 | §11.1 | `eval` usage |
+| SC2294 | §11.1 | `eval` on an array or `"$@"` |
 
 ShellCheck integrates with most editors, with most CI systems (via
 GitHub Action or pre-commit hook), and as a standalone CLI. The
@@ -1460,7 +1448,7 @@ tradeoff. Patterns worth encoding:
 ```
 
 False-positive rate is low enough that rule exclusions should be the
-rare exception. ShellCheck self-disables on unrecognized shebangs.
+rare exception. ShellCheck reports SC1008 on unrecognized shebangs.
 
 ---
 
@@ -1510,7 +1498,7 @@ When auditing a shell script:
   Debian/Ubuntu. Many bash-isms (`[[ ]]`, arrays, `${var^^}`, `mapfile`)
   absent; bash scripts fail with cryptic errors.
 - **ksh93** (Korn Shell) — closer to POSIX than bash; arrays,
-  associative arrays, floating-point arithmetic. Default on AIX/Solaris.
+  associative arrays, floating-point arithmetic.
 - **fish** — non-POSIX by design. Different variable, command-
   substitution, and control-flow syntax. Interactive-focused.
 - **nu shell** — typed-record pipelines; structured data; different
@@ -1536,7 +1524,7 @@ require attention to the cross-language shell-injection rules in
 
 **Bash:**
 - Chet Ramey, *Bash Reference Manual* — `gnu.org/software/bash/manual/`
-- Chet Ramey, "Bash, the Bourne-Again Shell" (USENIX, 1994) — `tiswww.case.edu/php/chet/bash/rose94.pdf`
+- Chet Ramey, "Bash, the Bourne-Again Shell" (ROSE 94, Bucharest) — `tiswww.case.edu/php/chet/bash/rose94.pdf`
 - bash CHANGES / NEWS files in the distribution
 
 **Wooledge corpus:**

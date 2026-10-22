@@ -7,33 +7,27 @@
 >   taxonomy of URL parser differentials: validator-parser vs fetcher-parser divergence, IPv6
 >   zone identifier ambiguity, hex/octal/decimal IP normalization, the `http://attacker.com#@victim/`
 >   class. Author of multiple GitHub Enterprise SSRF-to-RCE chains (2017).
-> - **James Kettle** (@albinowax) — Head of Research, PortSwigger. Black Hat USA 2017 "Cracking
+> - **James Kettle** (@albinowax) — Director of Research, PortSwigger. Black Hat USA 2017 "Cracking
 >   the Lens: Targeting HTTP's Hidden Attack-Surface." Pioneered the SSRF-via-routing-fabric
->   class: reverse proxy header injection, ESI inclusion, host-header SSRF, the
->   Collaborator-Everywhere methodology for at-scale blind SSRF discovery. Earned ~$30k in DoD
+>   class: reverse proxy header injection, host-header SSRF, the
+>   Collaborator-Everywhere methodology for at-scale blind SSRF discovery. Earned $33,000 in
 >   bounties demonstrating the technique.
-> - **Frans Rosén** (@fransrosen) — Detectify Security Advisor and Crowdsource lead; long-running
+> - **Frans Rosén** (@fransrosen) — Detectify Security Advisor; long-running
 >   bug-bounty practitioner ranked #2 on HackerOne's all-time hall of fame. Frequent Detectify
->   Labs author on SaaS-context SSRF, the "file-format-as-SSRF-trigger" class (SVG / PDF / SVG-in-
->   ICS / HTML-to-PDF converters), and Adobe AEM exploitation research.
+>   Labs author on SaaS-context SSRF.
 > - **Nick Frichette** (@frichette_n) — Staff Security Researcher, Datadog; creator and primary
 >   maintainer of Hacking the Cloud. The de-facto reference for AWS exploitation primitives
 >   reachable through SSRF: IMDS credential theft, Lambda IAM-role pivot, ECS task metadata,
 >   IMDSv2 hop-limit hardening and bypass classes.
 > - **Mark Vincent Yason** — Independent security researcher, formerly IBM X-Force Advanced
->   Research; Black Hat USA 2012 "Diving Into IE 10's Enhanced Protected Mode Sandbox," 2016
+>   Research; Black Hat Asia 2014 "Diving Into IE 10's Enhanced Protected Mode Sandbox," Black Hat USA 2015
 >   "Understanding the Attack Surface and Attack Resilience of Project Spartan's New EdgeHTML
->   Rendering Engine." Catalogued browser URL-parser deltas and the URL-context-vs-resource-fetch
->   gap in modern browsers.
+>   Rendering Engine."
 > - **Daniel Stenberg** (@bagder) — curl maintainer (since 1996); author of the "everything-curl"
 >   reference and the URL-interop position paper ("My URL Isn't Your URL," 2016 →
 >   "The URL Interop Situation," ongoing). Documented the irreconcilable gap between RFC 3986
 >   and the WHATWG URL Living Standard; landed the libcurl URL parser API in 2018 so applications
 >   can stop mixing parsers.
-> - **Sam Sanoop** — Senior Security Researcher, Snyk Security Labs. Authored Snyk's "URL
->   confusion vulnerabilities in the wild: Exploring parser inconsistencies" and curated the
->   Snyk Advisory Database entries for `url-parse`, `parse-url`, `@aws-sdk/url-parser`, and
->   `node-forge` URL parsing CVEs (CVE-2022-0686, CVE-2022-0691, CVE-2022-2900, CVE-2022-3224).
 > - **Kurt Boberg** (@kurt-r2c) — Staff Security Researcher, Semgrep; previously r2c. Three
 >   publicly-credited CVEs in this cluster: CVE-2022-24794 (Auth0 express-openid-connect open
 >   redirect via Express `req.originalUrl` double-slash), CVE-2022-0235 (node-fetch secure-header
@@ -70,8 +64,8 @@ This disagreement is endemic because three incompatible specifications coexist i
    separators, whitespace stripping, scheme-relative URLs, `data:`/`blob:` handling). Used by
    modern browsers, Node `new URL()`, and the Ada URL parser library.
 
-Daniel Stenberg's summary in [The URL Interop Situation](https://daniel.haxx.se/docs/URL-interop.html):
-"WHATWG URL specification was written later, is incompatible with the RFC 3986 and changes over
+curl's [URL syntax documentation](https://curl.se/docs/url-syntax.html):
+"The WHATWG URL spec was written later, is incompatible with the RFC 3986 and changes over
 time… it is considered a security risk to mix different implementations and assume the same
 behavior."
 
@@ -96,10 +90,10 @@ of this grammar. Consider these strings:
 
 | String | RFC 3986 host | Some parsers see host as | Some parsers fetch |
 |---|---|---|---|
-| `http://victim.com#@attacker.com/` | `victim.com` | `attacker.com` (Python urllib pre-3.6) | varies |
+| `http://victim.com#@attacker.com/` | `victim.com` | `attacker.com` (Python urllib before the 2017 bpo-30500 fix) | varies |
 | `http://attacker.com#@victim.com/` | `attacker.com` | `victim.com` (some Ruby parsers) | varies |
-| `http://victim.com\@attacker.com/` | `victim.com\` (invalid) | `attacker.com` (backslash as separator) | varies |
-| `http://[::1]:80@attacker.com/` | `[::1]` (port 80, userinfo `attacker.com`) | `attacker.com` (parser misreads IPv6 bracket) | varies |
+| `http://victim.com\@attacker.com/` | `victim.com\` (invalid) | `attacker.com` (backslash read as a userinfo character; WHATWG treats `\` as `/` and sees `victim.com`) | varies |
+| `http://[::1]:80@attacker.com/` | Invalid (`[`/`]` not allowed in userinfo) | `attacker.com` (parser misreads IPv6 bracket) | varies |
 | `http://user@victim.com@attacker.com/` | Implementation-defined | first or second hostname | varies |
 
 Tsai demonstrated each of these against built-in URL libraries in Python, PHP, Perl, Ruby, Java,
@@ -114,16 +108,14 @@ divergence itself — pick the pair (validator-parser, fetcher-parser) where the
 
 - **IPv6 zone identifiers** (`fe80::1%eth0`): RFC 6874 percent-encodes as `%25eth0`. Validators
   that strip zone IDs before checking link-local blocklists vs those that don't diverge.
-- **IPv4-in-IPv6** (`::ffff:127.0.0.1` ↔ `::ffff:7f00:1`): loopback in IPv6 form. Snyk's
-  twenty-server advisory (GHSA-vrcj-hv2q-c58m) documented Node's URL parser normalizing to
-  pure-hex while the validation regex matched dotted-quad.
+- **IPv4-in-IPv6** (`::ffff:127.0.0.1` ↔ `::ffff:7f00:1`): loopback in IPv6 form.
 - **Hex/octal/decimal IPv4** (`0x7f000001`, `017700000001`, `2130706433` for `127.0.0.1`):
   POSIX `inet_aton(3)` accepts all four notations and mixed forms. URL parsers normalize one
   form; socket-level fetchers accept what the kernel accepts.
 - **DNS resolution side-effects**: a forward-DNS check is TOCTOU vs the fetch's re-resolution.
   See section 6 for DNS rebinding.
 - **IDNA**: validators that don't IDNA-normalize while fetchers do (or vice versa) see
-  different hosts. Tsai called this the "IDNA-converter missing" class.
+  different hosts.
 
 ### Path normalization disagreements
 
@@ -143,7 +135,7 @@ under another.
 URI schemes are open-ended. Validators that allowlist `http`/`https` must still constrain what
 the fetcher accepts: `data:` (inline content with JS in HTML form), `javascript:` (XSS),
 `blob:` (same-origin blob references), `file:` (local-file read via SSRF), `gopher:` (raw TCP
-send-anything — the universal SSRF-to-Redis pivot before curl 7.65 dropped it by default),
+send-anything — the universal SSRF-to-Redis pivot; curl 7.65.2 dropped it from the default redirect protocols),
 `ftp:`/`tftp:`/`dict:`/`ldap:`/`imap:`/`smtp:` (libcurl defaults), `chrome://`/`intent:` (mobile
 WebView intent-redirect). Defensive principle: **scheme allowlist, not blocklist**, applied at
 the validator AND reaffirmed at the fetcher (`CURLOPT_PROTOCOLS_STR`, per-call
@@ -202,7 +194,7 @@ The highest-impact SSRF target is the cloud provider's instance metadata service
 | Oracle | `169.254.169.254/opc/v2/instance/` | `Authorization: Bearer Oracle` | Instance principal creds |
 | DigitalOcean | `169.254.169.254/metadata/v1.json` | None | Droplet metadata (no IAM) |
 
-AWS IMDS is canonical because the resulting credentials are short-lived (1–6 h) but fully
+AWS IMDS is canonical because the resulting credentials are short-lived but fully
 fungible once exfiltrated. Frichette's
 [Hacking the Cloud](https://hackingthe.cloud/aws/exploitation/ec2-metadata-ssrf/) is the
 authoritative reference.
@@ -210,9 +202,7 @@ authoritative reference.
 **IMDSv1 vs IMDSv2.** IMDSv1 (GET-without-headers) is exploitable by any HTTP-URL SSRF. IMDSv2
 (2019) requires PUT-to-get-token-then-GET-with-token plus 1-hop default response TTL. SSRF
 primitives rarely permit arbitrary headers AND PUT method, and the 1-hop limit drops requests
-proxied through internal services. IMDSv2 is not default for pre-2019 instances; per Frichette
-(2024), a large fraction of production AWS estates still permit IMDSv1 for backward
-compatibility — exactly the estates with the most legacy SSRF.
+proxied through internal services. IMDSv2 is not default for pre-2019 instances.
 
 ### DNS rebinding for SSRF — TOCTOU between validation and fetch
 
@@ -257,7 +247,7 @@ in review:
   scheme is particularly nasty because it implies reading + parsing an archive — historically
   exploitable through ZIP path traversal.
 - **PHP wrappers** (`php://filter`, `php://memory`, `expect://`, `phar://`) extend the surface
-  further. `phar://` deserialization is its own CVE class (CVE-2018-10547, Sam Thomas's
+  further. `phar://` deserialization is its own CVE class (Sam Thomas's
   "It's a PHP Unserialization Vulnerability Jim, but Not as We Know It," Black Hat USA 2018).
 
 ### gopher:// and the protocol-pivot subclass
@@ -267,9 +257,9 @@ in review:
 the target. With Redis (6379), memcached (11211), MySQL (3306), SMTP (25), or FastCGI (9000)
 colocated, SSRF becomes arbitrary protocol interaction. Redis is canonical because it defaults
 to no auth and supports `CONFIG SET dir`/`dbfilename`/`SAVE` for cron-file writes. Gopherus
-(Tarun Kant Gupta, 2018) automates payload generation for Redis, memcached, MySQL,
+(Tarunkant Gupta, 2018) automates payload generation for Redis, memcached, MySQL,
 PostgreSQL, FastCGI, SMTP, and Zabbix. CVE-2022-0543 (Redis Lua sandbox escape) extends this
-to a single-shot RCE primitive on Debian-packaged Redis 7.0. Cross-link to
+to a single-shot RCE primitive on Debian/Ubuntu-packaged Redis. Cross-link to
 `dns_network_infrastructure.md` and `container_k8s_security.md`.
 
 ---
@@ -344,9 +334,8 @@ WHATWG URLs at the fetch layer should use WHATWG URLs at the validation layer to
 The canonical multi-parser pitfall: code uses `urllib.parse.urlparse(url).hostname` for a
 blocklist check, then passes the unmodified `url` to `requests.get(url)`. Three parsers see
 this URL — `urlparse` (RFC 3986), urllib3 (drives requests), and `socket.getaddrinfo` (name
-resolution). Divergences with CVE history: Python 3.6 issue 32085 (Tsai-driven fix to
-`urlparse` for `http://localhost\\@evil.com/`); urllib3 vs urlparse divergence on
-`0x7f.0.0.1`; `urlparse(url).hostname` does no DNS, but `requests.get(url)` does — the
+resolution). Divergences with CVE history: bpo-30500 (Tsai-reported fix to
+urllib host splitting for `http://127.0.0.1#@host.com/`); `urlparse(url).hostname` does no DNS, but `requests.get(url)` does — the
 blocklist doesn't catch `http://my-private-dns-name/` that resolves private.
 
 Defense: parse with strict parser → resolve hostname → check resolved IP → pass the resolved
@@ -354,14 +343,13 @@ IP (not the hostname) to the HTTP client. See section 8.
 
 ### The Node WHATWG URL vs legacy `url.parse` divergence
 
-Node ships two URL parsers. `url.parse(input)` is the legacy parser (deprecated since Node 10
-but still widely used). `new URL(input)` is the WHATWG parser. They give different answers for
+Node ships two URL parsers. `url.parse(input)` is the legacy parser (deprecated in Node 11, reclassified as
+Legacy in 14.17/15.13, application-deprecated in Node 24, but still widely used). `new URL(input)` is the WHATWG parser. They give different answers for
 many inputs:
 
 | Input | `url.parse(x).hostname` | `new URL(x).hostname` |
 |---|---|---|
-| `http://[::ffff:127.0.0.1]/` | `[::ffff:127.0.0.1]` | `[::ffff:7f00:1]` |
-| `http://example.com\\@attacker.com/` | `example.com\\` | `example.com` (treats `\` as `/`) |
+| `http://[::ffff:127.0.0.1]/` | `::ffff:127.0.0.1` | `[::ffff:7f00:1]` |
 | `http://EXAMPLE.com/` | `example.com` | `example.com` |
 | `http://example.com:80/` | `example.com` | `example.com` (port stripped from `hostname`) |
 
@@ -410,7 +398,7 @@ and `distributed_authz_expertise.md`.
 
 ### OAuth redirect_uri validation — exact match or no match
 
-RFC 9700 §4.1 (BCP for OAuth 2.0 Security, January 2025) is unambiguous: "When comparing
+RFC 9700 §2.1 (BCP for OAuth 2.0 Security, January 2025) is unambiguous: "When comparing
 client redirection URIs against pre-registered URIs, authorization servers MUST utilize exact
 string matching except for port numbers in localhost redirection URIs of native apps." RFC
 6749 §3.1.2 (2012) was permissive and produced a decade of bypass CVEs against major IdPs;
@@ -468,7 +456,7 @@ redirect, `node-fetch` re-issued the request with `Authorization`, `WWW-Authenti
 a Bearer token to a user-supplied URL leaks the token if the URL redirects to attacker-
 controlled host — combine with any SSRF substrate (webhook, image, OIDC discovery) for
 end-to-end credential theft. The fix in 2.6.7/3.1.1 strips the listed headers when origin
-changes (curl pattern: `--unrestricted-auth` opt-in). CWE-173/200/601, CVSSv3 8.8 HIGH.
+changes (curl pattern: `--location-trusted` / `CURLOPT_UNRESTRICTED_AUTH` opt-in). CWE-173/200/601, CVSSv3 8.8 HIGH.
 Reporter: kurt-r2c (Kurt Boberg, then at r2c).
 
 ### ### The header-forwarding class generalizes
@@ -477,11 +465,11 @@ HTTP clients make divergent decisions about what to forward across redirects:
 
 | Library | Behavior |
 |---|---|
-| `libcurl` | Strips `Authorization` cross-host since ~7.10 (2002); `--unrestricted-auth` opt-in |
-| `Python requests` | Strips since 0.13 (~2012); CVE-2018-18074 proxy-auth leak |
-| `Python urllib3` | Strips since 1.26.5; CVE-2021-33503 (parser-differential bypass) |
+| `libcurl` | Strips `Authorization` cross-host since 7.10.4; `--location-trusted` / `CURLOPT_UNRESTRICTED_AUTH` opt-in |
+| `Python requests` | Strips cross-host; CVE-2018-18074 (Authorization sent on same-host https→http redirect) |
+| `Python urllib3` | Strips since 1.23; CVE-2018-20060 (Authorization kept on cross-origin redirect) |
 | `node-fetch` | Did NOT strip pre-CVE-2022-0235; now strips since 2.6.7/3.1.1 |
-| `Go net/http` | Strips since Go 1.7 (2016) |
+| `Go net/http` | Strips since Go 1.8 (2017) |
 | `Java HttpURLConnection`, OkHttp, Apache HttpClient | Implementation-defined |
 
 The class extends to non-`Authorization` credentials: `Cookie`/`Cookie2` (most non-browser
@@ -563,12 +551,9 @@ fixation.
 
 ### SSRF in serverless
 
-Lambda gives the function process IMDS access via `169.254.170.2/v2/credentials/<role-arn>`
-(the ECS task metadata endpoint, reused for Lambda IAM credential delivery). Lambda functions
+Lambda functions
 that perform user-controlled HTTP fetches without restricting the destination are the same
-SSRF class as EC2, with the same IAM blast radius. Cloudflare Workers (and similar edge
-runtimes) have a more restricted SSRF surface because the runtime explicitly disallows
-private-IP and metadata fetches; this is implementation-defined per provider. The rule is:
+SSRF class as EC2, with the same IAM blast radius. The rule is:
 **any serverless function performing URL fetches is an SSRF candidate**, with severity equal
 to the managed-identity blast radius.
 
@@ -588,7 +573,7 @@ sink catalog. The shape is consistent across languages:
 | Java | `URL.openConnection`, `URL.openStream`, `HttpClient.send`, `HttpClient.sendAsync`, `OkHttpClient.newCall`, Apache HttpClient `HttpClient.execute`, JAX-RS `Client.target` |
 | Go | `http.Get`, `http.Post`, `http.NewRequest`, `(*http.Client).Do`, `(*http.Client).Get`, `(*http.Client).Post` |
 | Ruby | `Net::HTTP.{get,post,start}`, `Net::HTTP::Get.new`, `HTTParty.{get,post,...}`, `Faraday.new`, `RestClient.{get,post,...}`, `open-uri`'s `URI.open` |
-| PHP | `curl_setopt(..., CURLOPT_URL, ...)`, `file_get_contents`, `fopen`, `fsockopen`, `stream_socket_client`, `Guzzle\Client::request` |
+| PHP | `curl_setopt(..., CURLOPT_URL, ...)`, `file_get_contents`, `fopen`, `fsockopen`, `stream_socket_client`, `GuzzleHttp\Client::request` |
 | C# / .NET | `HttpClient.{GetAsync,PostAsync,SendAsync}`, `WebRequest.Create`, `WebClient.DownloadString`, `RestClient.Execute` |
 | Rust | `reqwest::Client::{get,post,...}`, `hyper::Client::get`, `surf::get` |
 
@@ -801,8 +786,8 @@ Substrates:
 - **MCP servers** that expose `fetch`/`http_get`/`search` tools to a hosting agent.
 - **Image-input pipelines** where an image URL is fetched and processed by a vision model.
 
-The Bishop Fox MarkItDown advisory (cited in section 1) and the langchain-openai DNS-rebinding
-advisory (GHSA-r7w7-9xr2-qq2r) are both instances of this class. The defense pattern is the
+The langchain-openai DNS-rebinding
+advisory (GHSA-r7w7-9xr2-qq2r) is an instance of this class. The defense pattern is the
 same as for any SSRF: allowlist destinations, pin DNS resolution, network-layer egress filtering
 for IMDS protection. But the **threat model is novel** because the URL is chosen by the agent
 based on its training and current context, not by a directly-attributable user request.
@@ -862,9 +847,9 @@ do authorization at the upstream (where the actual destination is known), not at
   [securityintelligence.com/author/mark-yason/](https://securityintelligence.com/author/mark-yason/)
 - Daniel Stenberg, "My URL Isn't Your URL," 2016.
   [daniel.haxx.se/blog/2016/05/11/my-url-isnt-your-url/](https://daniel.haxx.se/blog/2016/05/11/my-url-isnt-your-url/)
-- Daniel Stenberg, "The URL Interop Situation," 2023.
+- Daniel Stenberg, "The URL Interop Situation."
   [daniel.haxx.se/docs/URL-interop.html](https://daniel.haxx.se/docs/URL-interop.html)
-- Sam Sanoop, "URL confusion vulnerabilities in the wild: Exploring parser inconsistencies,"
+- Snyk Security Research Team and Claroty Team82, "URL confusion vulnerabilities in the wild: Exploring parser inconsistencies,"
   Snyk Blog. [snyk.io/blog/url-confusion-vulnerabilities/](https://snyk.io/blog/url-confusion-vulnerabilities/)
 
 ### Standards
@@ -881,7 +866,7 @@ do authorization at the upstream (where the actual destination is known), not at
   [datatracker.ietf.org/doc/rfc9700/](https://datatracker.ietf.org/doc/rfc9700/)
 - WHATWG URL Living Standard. [url.spec.whatwg.org](https://url.spec.whatwg.org/)
 
-### Kurt Boberg's credited CVEs in this cluster
+### CVEs and advisories in this cluster
 
 - CVE-2022-24794 — express-openid-connect open redirect (Auth0).
   [GHSA-7p99-3798-f85c](https://github.com/auth0/express-openid-connect/security/advisories/GHSA-7p99-3798-f85c)

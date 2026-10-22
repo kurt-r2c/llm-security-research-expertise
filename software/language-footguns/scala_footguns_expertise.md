@@ -21,7 +21,7 @@
 >   modularization (2.11), Single Abstract Method types (2.12), and many type-checker
 >   improvements; post-doc in Odersky's lab before joining Typesafe. Source:
 >   `adriaanm.github.io`.
-> - **Lukas Rytz** (@lrytz) — Compiler engineer and former lead of the Lightbend Scala team;
+> - **Lukas Rytz** (@lrytz) — Compiler engineer and lead of the Lightbend Scala team;
 >   designed named and default arguments in Scala 2.8; bytecode optimizer for Scala 2.12 and
 >   2.13; doctoral research on effect systems for non-pure functional languages. Sources:
 >   `lrytz.github.io`, `scala-lang.org/blog/new-governance.html`.
@@ -29,9 +29,8 @@
 >   dialect); executive director of the Scala Center; LAMP lecturer at EPFL; Ph.D. on
 >   cross-platform language design under Odersky. Sources: `lampwww.epfl.ch/~doeraene/`,
 >   `scala.epfl.ch`.
-> - **Travis Brown** (@travisbrown) — Author/maintainer of `circe` (JSON for Scala); top
->   contributor to Typelevel `cats`; long-time Scala-at-scale practitioner at Stripe, Twitter,
->   and Permutive. Source: `github.com/travisbrown`, `index.scala-lang.org/circe`.
+> - **Travis Brown** (@travisbrown) — Creator and former maintainer of `circe` (JSON for Scala); top
+>   contributor to Typelevel `cats`. Source: `github.com/travisbrown`, `index.scala-lang.org/circe`.
 > - **Jamie Allen** — Author of *Effective Akka* (O'Reilly, 2013); former Director of Consulting
 >   at Typesafe; long-time Akka practitioner since 2009; the canonical English-language
 >   primer on actor-system anti-patterns in production. Source:
@@ -39,14 +38,9 @@
 > - **John A. De Goes** (@jdegoes) — Founder of Ziverge; creator of the ZIO functional effect
 >   system; vocal critic of `scala.concurrent.Future` cancellation gaps; ZIO 2.x evolution
 >   lead. Source: `github.com/jdegoes`, `degoes.net/articles/zio-history`.
-> - **Trail of Bits Scala / Akka audit corpus** — Institutional JVM-audit tradition (sbt
->   maintainership rests on the Scala Center, but supply-chain and tooling reviews appear in
->   the published canon); referenced together with the Lightbend / Akka advisory record at
->   `akka.io/security` and ASF's `LEGAL-714` BSL → Apache reversion clause. Sources:
->   `github.com/trailofbits/publications`, `blog.trailofbits.com/categories/audits/`.
 > - **Snyk Scala / Akka CVE corpus** — Maintains the canonical public record of Scala-language
 >   and Akka-toolkit CVEs (including CVE-2022-36944 LazyList RCE, CVE-2026-32948 sbt source-
->   dependency command injection, jackson-module-scala polymorphic-typing chains). Source:
+>   dependency command injection). Source:
 >   `security.snyk.io/package/maven/org.scala-lang%3Ascala-library`.
 >
 > **Cross-links to neighboring expertise docs:**
@@ -147,7 +141,7 @@ Three forms the compiler treats as "implicit":
   `implicit` parameter of type `T` is called without an explicit argument.
 - `implicit def f(arg: S): T` (and the "view" `S => T` form) — *implicit conversion*. When
   the compiler finds an expression of type `S` in a position expecting `T`, it inserts `f(...)`.
-- `implicit class C(arg: S) { ... }` (SIP-13) — *value class* wrapping `S` with a synthesized
+- `implicit class C(arg: S) { ... }` (SIP-13) — class wrapping `S` with a synthesized
   conversion `S => C`; "extends" `S` with new methods.
 
 Resolution: companion-object scope, package object scope, imported-identifier scope, lexical
@@ -185,8 +179,8 @@ prioritization spec tightens some rules but does not eliminate the surface.
 - `using` on a parameter list (`def f(x: A)(using ctx: Context)`) replaces `implicit`
   parameters; more visible at call sites.
 - `extension (s: String) def doubled = s + s` replaces implicit classes; clearer in errors.
-- Implicit conversions require per-file `import scala.language.implicitConversions` and a
-  `given Conversion[S, T]`; bare `implicit def` view form is deprecated.
+- Implicit conversions are a `given Conversion[S, T]` (or an `implicit def`); defining one
+  warns unless `import scala.language.implicitConversions` is in scope.
 
 A real improvement: operator overrides are harder, conversions require explicit opt-in,
 `using` is visually distinguishable. But scope-based resolution is the same, and the
@@ -198,18 +192,7 @@ A real improvement: operator overrides are harder, conversions require explicit 
 
 Every `import` line is a potential implicit-scope change. Every call with an `implicit`/
 `using` parameter is a potential type-class-instance hijack. Use `scalac -Xprint:typer` to
-see what was resolved. WartRemover's `ImplicitConversion` wart and Scapegoat's implicit-
-related inspections flag definitions; see Section 13.
-
-### Real-world consequence
-
-The Jackson `jackson-module-scala` polymorphic-typing chain
-(`snyk.io/vuln/maven:com.fasterxml.jackson.module:jackson-module-scala`) combines the Java-
-side polymorphic-deserialization footgun (`java_footguns_expertise.md` §3) with Scala-side
-implicit derivation of `Reads[T]`/`Encoder[T]`. A developer deriving via macro doesn't
-realize the codec accepts polymorphic input by default; an attacker controlling JSON can
-specify the runtime class. The footgun is implicit-derivation libraries make it ergonomic
-to expose serialization surfaces without an explicit type allowlist.
+see what was resolved. WartRemover's `ImplicitConversion` wart flags definitions; see Section 13.
 
 ---
 
@@ -281,7 +264,7 @@ Scala 3.0 introduced `-Yexplicit-nulls`. With the flag:
 - Union types replace `Option` at the Java boundary in some codebases.
 
 Opt-in because rewrites at every Java-interop boundary are required. Source:
-`docs.scala-lang.org/scala3/reference/other-new-features/explicit-nulls.html`. Contrast with
+`docs.scala-lang.org/scala3/reference/experimental/explicit-nulls.html`. Contrast with
 `kotlin_footguns_expertise.md` §3: Kotlin made null-safety the default with opt-in unsafe
 via `!!`; Scala 3 made null-safety opt-in with opt-out unsafe via `null`.
 
@@ -315,7 +298,7 @@ single blocking Future can hang the whole JVM's `global` EC. Source:
 ### Footgun B: Blocking inside a Future on the same EC
 
 Wrap blocking calls in `scala.concurrent.blocking { ... }` to notify the ForkJoinPool, which
-*may* spawn an additional worker. But the ForkJoinPool API explicitly states it "is not
+*may* spawn an additional worker. But the Scala Futures documentation explicitly states the `ForkJoinPool` "is not
 designed for long-lasting blocking operations. Even when notified with blocking the pool
 might not spawn new workers as you would expect." The compound failure: `Await.result` inside
 a Future on the same EC — `Future { Await.result(inner, 5.seconds) }`. If `inner` is also on
@@ -413,8 +396,7 @@ default-to-allow is catastrophic — and the compiler cannot tell which is which
 ### `case _` in security-relevant matches
 
 **In permission checks, route dispatches, auth-verification branches, or deserialization
-type-tag dispatches, prefer enumerating every case over `case _ =>`.** Scapegoat's
-`UnreachableCatchall` flags some cases; manual audit covers the rest.
+type-tag dispatches, prefer enumerating every case over `case _ =>`.**
 
 ### Pattern matching on `Any` / `AnyRef` — runtime type check
 
@@ -435,7 +417,7 @@ cannot verify the predicates.
 enum Permission { case Read, Write, Admin }
 ```
 
-Desugars to sealed trait + case-objects with synthesized JVM enum methods. Structural
+Desugars to a `sealed` class extending `scala.reflect.Enum`, with cases as companion values. Structural
 improvement: language-enforced exhaustiveness bounds, consistent tooling (`enum.values`).
 Source: `docs.scala-lang.org/scala3/reference/enums/enums.html`. Footgun lens: `enum` does
 NOT eliminate the `case _ =>` anti-pattern; still legal, still silences exhaustiveness.
@@ -475,7 +457,7 @@ effecting method executes the effect once at construction, not per call (silentl
 
 Two `lazy val`s in different objects whose initializers reference each other can deadlock
 under concurrent first-access: each thread holds one object's monitor and waits on the
-other's. Documented in SIP-20 and `github.com/scala/bug/issues/3007`. Scala 3's
+other's. Documented in SIP-20. Scala 3's
 `@threadUnsafe` annotation removes synchronization at cost of repeated init
 (`docs.scala-lang.org/scala3/reference/changed-features/lazy-vals-init.html`). The
 post-Scala-3.3 scheme reduces but does not eliminate the surface. Recursive `lazy val` (init
@@ -502,10 +484,9 @@ cross-object references.
 ### The primitives
 
 `case class Foo(a: Int, b: String)` auto-generates: constructor, companion `apply`,
-structural `equals`/`hashCode`, `toString`, `copy`, `unapply` (for pattern matching),
-sometimes an `implicit val Ordering`. Scala 2 case classes implement `java.io.Serializable`
-and `scala.Product` by default. Scala 3 makes `Serializable` mixin conditional on field
-types but the practical surface is unchanged.
+structural `equals`/`hashCode`, `toString`, `copy`, `unapply` (for pattern matching).
+Scala 2 case classes implement `java.io.Serializable`
+and `scala.Product` by default.
 
 ### Footgun A: Mutable field in case class
 
@@ -525,8 +506,8 @@ classes without warning.
 Scala 2 `case class` implements `java.io.Serializable` automatically. Every case class is on
 the JVM deserialization gadget surface (`java_footguns_expertise.md` §2). Spark uses Java
 Serialization by default for closures and broadcast variables; Akka's JavaSerializer
-likewise. Akka 2.6+ defaults to Jackson for `JavaSerializable` types; 2.7+ requires opt-in
-for Java-serialization. Source: `akka.io/security`,
+likewise. Akka 2.6+ disables Java serialization by default (opt-in via
+`akka.actor.allow-java-serialization = on`) and recommends Jackson. Source: `akka.io/security`,
 `doc.akka.io/libraries/akka-core/current/serialization.html`.
 
 Defensive pattern: **never Java-serialize untrusted input**. Use `ObjectInputFilter` (JEP
@@ -602,7 +583,7 @@ an allowlist.
 
 ### Footgun D: F-bounded polymorphism
 
-`trait Comparable[T <: Comparable[T]]` (CRTP). Used in stdlib (`Ordered[A <: Ordered[A]]`).
+`trait Comparable[T <: Comparable[T]]` (CRTP).
 Type signatures are difficult to debug; constraint propagates through every function. In
 security-relevant code, type-class encoding (`Comparable[T]` as implicit/given) is clearer.
 
@@ -646,7 +627,7 @@ actor missing). Developers who want a reply use `?` (ask) → `Future[Any]` plus
 Default `UnboundedMailbox` (backed by `ConcurrentLinkedQueue`) has no message limit. Akka
 documentation explicitly: "in a scenario where messages are added to the mailbox faster than
 the actor can process them, this can lead to the application running out of memory." Source:
-`doc.akka.io/libraries/akka-core/current/mailboxes.html`.
+`doc.akka.io/libraries/akka-core/current/typed/mailboxes.html`.
 
 **DoS vector**: an attacker flooding an actor (directly via Akka Remoting, or via HTTP →
 actor message translation) exhausts JVM heap. Mitigation: `BoundedMailbox` with explicit
@@ -655,13 +636,12 @@ capacity — opt-in, per-actor.
 ### Footgun C: `become` / `unbecome` ordering
 
 Akka Classic's `context.become(newBehavior)` applies to *subsequent* messages.
-Already-mailboxed messages at the time of `become` are processed by the *new* behavior, not
-the old. Akka Typed replaces this with returning a new `Behavior[T]`, structurally clearer.
+Akka Typed replaces this with returning a new `Behavior[T]`, structurally clearer.
 
 ### Footgun D: `stash` / `unstash` discipline
 
-Forgetting `unstashAll`, calling it twice, or stash overflow (capacity limit) — Akka warns
-on overflow but does not fail-stop.
+Forgetting `unstashAll`, calling it twice, or stash overflow (capacity limit) — Akka throws
+`StashOverflowException` on overflow.
 
 ### Footgun E: Cluster state propagation
 
@@ -734,8 +714,8 @@ writes, external API calls) can execute zero times (pruned), once, or many times
 `fn.asNondeterministic()` partially mitigates but does not prevent cross-stage reorder.
 
 Cross-link to `java_footguns_expertise.md` §2 — Spark closure serialization defaults to Java
-Serialization. Kryo is opt-in with its own gadget surface (CVE-2022-36944 `LazyList`
-`Function0` deserialization chain — see Snyk record).
+Serialization. Kryo is opt-in. CVE-2022-36944 (`LazyList` `Function0` chain, scala-library
+2.13.0–2.13.8) is a Java-deserialization gadget in the Scala standard library itself — see Snyk record.
 
 ---
 
@@ -746,15 +726,13 @@ Serialization. Kryo is opt-in with its own gadget surface (CVE-2022-36944 `LazyL
 `build.sbt` is a Scala DSL compiled and run as Scala code at sbt startup. Plugins
 (`project/plugins.sbt` with `addSbtPlugin(...)`) are downloaded from Maven, added to the
 build classpath, and execute arbitrary code at init. **Coursier** (`coursier.io`) is the
-de-facto resolver. Artifacts publish to Maven Central via Sonatype OSSRH.
+de-facto resolver. Artifacts publish to Maven Central via the Sonatype Central Publisher Portal (OSSRH reached end of life June 30, 2025).
 
 ### Footgun A: `build.sbt` is arbitrary Scala
 
 Not declarative configuration. Any expression can do network calls, file-system reads,
 `Process(...).!!`, env reads. Developers skim `build.sbt` for "obvious" malicious patterns
-rather than reviewing as application code. sbt docs: "A build.sbt runs arbitrary Scala at
-build time and deserves the same scrutiny as any other code." Source:
-`scala-lang.org/blog/2026/03/31/sbt-security-advisory.html`.
+rather than reviewing as application code.
 
 ### Footgun B: CVE-2026-32948 — sbt source-dependency command injection (Windows)
 
@@ -803,11 +781,6 @@ effect. To run, call `unsafeRunSync` (Cats Effect) or hand to a runtime (ZIO).
 
 ### Footgun A: `unsafeRunSync` breaks referential transparency
 
-Cats Effect docs: "When you evaluate a method and obtain an IO[A], nothing has been actually
-executed yet. Actual execution only begins when you call unsafeRunSync / unsafeRunAsync. It's
-only at this point that we lose referential transparency." Source:
-`typelevel.org/cats-effect/docs/2.x/datatypes/io`.
-
 Sprinkling `unsafeRunSync` throughout the codebase produces three problems:
 
 1. **Cancellation gaps** — the resulting Future is not Cats-Effect-cancelable.
@@ -839,7 +812,7 @@ otherwise-fast effects.
 
 ### Footgun D: ZIO environment threading
 
-`R` is structurally `Has[DatabaseService] & Has[HttpClient]`. Missing dependency is a
+`R` is structurally `DatabaseService & HttpClient` (ZIO 2 removed `Has`). Missing dependency is a
 compile error (good) with opaque messages. *Misconfigured* `ZLayer` (production impl in test
 context) produces silent incorrect behavior.
 
@@ -870,7 +843,7 @@ Cross-link to the [Semgrep rule-writing docs](https://semgrep.dev/docs/writing-r
 
 `github.com/scapegoat-scala/scapegoat`. ~120 inspections; opt-in via sbt plugin. Notable:
 `OptionGet`, `AsInstanceOf`, `CatchThrowable`, `NullParameter`, `EmptyCaseClass`,
-`MaxParameters`, `RedundantFinalModifier`.
+`MaxParameters`, `RedundantFinalModifierOnMethod`.
 
 ### WartRemover (compiler plugin)
 
@@ -982,7 +955,7 @@ Cross-language: `deserialization_expertise.md` (gadget chains),
 - Scala Language reference: `docs.scala-lang.org/`,
   `docs.scala-lang.org/scala3/reference/contextual/`,
   `docs.scala-lang.org/scala3/reference/changed-features/lazy-vals-init.html`,
-  `docs.scala-lang.org/scala3/reference/other-new-features/explicit-nulls.html`
+  `docs.scala-lang.org/scala3/reference/experimental/explicit-nulls.html`
 - Scala Improvement Process (SIP) index: `docs.scala-lang.org/sips/`,
   `scalajp.github.io/scala.github.com/sips/pending/improved-lazy-val-initialization.html`
 - Scala Best Practices (Nicolas Rinaudo): `nrinaudo.github.io/scala-best-practices/`,
@@ -1069,8 +1042,7 @@ Cross-language: `deserialization_expertise.md` (gadget chains),
   `docs.scala-lang.org/scala3/reference/changed-features/lazy-vals-init.html`
 - "On the Future of Lazy Vals In Scala" (Aleksandar Prokopec):
   `aleksandar-prokopec.com/2013/06/10/on-lazy-vals.html`
-- Lazy-val deadlock bug: `github.com/scala/scala3/issues/21298`,
-  `github.com/scala/bug/issues/3007`
+- Lazy-val deadlock bug: `github.com/scala/scala3/issues/21298`
 
 ### Spark
 

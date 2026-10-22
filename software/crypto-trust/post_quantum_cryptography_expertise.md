@@ -13,7 +13,7 @@
 >   designer, Curve25519, long-running advocate for conservative parameter choices and
 >   verifiable curve generation.
 > - **Tanja Lange** (TU Eindhoven) — chair of Coding Theory and Cryptology; Classic McEliece
->   co-author; PQCrypto conference series founder; long-running collaborator with Bernstein on
+>   co-author; long-running collaborator with Bernstein on
 >   McEliece cryptanalysis (Bernstein-Lange-Peters 2008 attack).
 > - **Vadim Lyubashevsky** (IBM Research Europe — Zurich) — co-designer of CRYSTALS-Dilithium
 >   (now ML-DSA, FIPS 204) and CRYSTALS-Kyber (now ML-KEM, FIPS 203); principal architect of
@@ -22,7 +22,7 @@
 >   of the four selected NIST PQC standards (Kyber, Dilithium, SPHINCS+); high-speed
 >   constant-time implementations are his canonical contribution.
 > - **Léo Ducas** (CWI Amsterdam; Professor of Mathematical Cryptology at Leiden) — co-designer
->   of Kyber and Dilithium; lattice-reduction cryptanalysis; FPLLL library; "concrete-security
+>   of Kyber and Dilithium; lattice-reduction cryptanalysis; "concrete-security
 >   estimator" lineage.
 > - **Joppe Bos** (NXP Semiconductors) — CRYSTALS-Kyber co-author; constrained-device PQC
 >   implementation lead; technical lead of NXP's PQC team.
@@ -35,11 +35,11 @@
 > - **Andreas Hülsing** (TU Eindhoven) — XMSS (RFC 8391) and SPHINCS+ co-author; the
 >   stateful/stateless hash-signature lineage.
 > - **Ward Beullens** (IBM Research) — broke the **Rainbow** multivariate-quadratic signature
->   scheme in a weekend (Eurocrypt 2022), a Round-3 NIST finalist; significant recent
+>   scheme in a weekend (CRYPTO 2022), a Round-3 NIST finalist; significant recent
 >   cryptanalysis output on isogeny and code-based candidates.
 > - **Wouter Castryck + Thomas Decru** (KU Leuven) — broke **SIDH/SIKE** in polynomial time
->   on a classical computer (August 2022, eprint 2022/975), terminating an entire PQC family.
-> - **Lily Chen** (NIST Fellow; manager of NIST Cryptographic Technology Group 2012-2023) —
+>   on a classical computer (July 2022, eprint 2022/975), terminating an entire PQC family.
+> - **Lily Chen** (NIST Fellow; manager of NIST Cryptographic Technology Group) —
 >   led the 8-year NIST PQC standardization project through FIPS 203/204/205 publication.
 >
 > Sources: NIST CSRC publications; FIPS 203/204/205 final standards; eprint.iacr.org
@@ -73,9 +73,8 @@ double symmetric key lengths — AES-256 and SHA-384/SHA-512.
 
 "CRQC" (Cryptographically Relevant Quantum Computer) is a fault-tolerant machine capable of
 running Shor against RSA-2048 / ECC-256 in practical wall-clock time. Gidney/Ekerå
-(arXiv:1905.09749) estimate ~4000 logical qubits for RSA-2048 — translating to ~20M physical
-qubits via surface-code error correction. State of the art circa 2026 is roughly two orders
-of magnitude short:
+(arXiv:1905.09749) estimate ~6,200 logical qubits (3n + 0.002n lg n) for RSA-2048 — translating to ~20M physical
+qubits via surface-code error correction. State of the art circa 2026:
 
 - **IBM Heron R2** (Nov 2024): 156 physical qubits, 99.7% two-qubit gate fidelity. No
   demonstrated logical qubit outperforming physical qubits.
@@ -112,7 +111,7 @@ Security Systems (NSS):
 
 | Year | Requirement |
 |------|-------------|
-| 2025 | NSA stops approving new NSS systems using RSA, classical DH, ECDH, or ECDSA for key establishment / signing |
+| 2025 | Software/firmware signing and web browsers/servers/cloud services should support and prefer CNSA 2.0 |
 | 2027 | All new NSS equipment acquisitions must be CNSA 2.0 compliant by default |
 | 2030 | All deployed NSS software/firmware must use CNSA 2.0 signatures |
 | 2031-2033 | Full enforcement across NSS; legacy systems retired or replaced |
@@ -142,34 +141,33 @@ substantial reshuffling along the way.
 | Date | Event |
 |------|-------|
 | 2016 | NIST issues call for proposals; deadline November 2017 |
-| 2017 | Round 1: 69 submissions accepted out of ~85 received |
+| 2017 | Round 1: 69 submissions accepted out of 82 received |
 | Jan 2019 | Round 2: 26 candidates advance |
 | Jul 2020 | Round 3: 7 finalists (4 KEM, 3 signatures) + 8 alternates |
 | Jul 2022 | Round 3 selections announced: **Kyber** (KEM), **Dilithium** (signature), **Falcon** (signature), **SPHINCS+** (signature) |
-| Jul 2022 | Round 4 KEM finalists: BIKE, Classic McEliece, HQC; SIKE eliminated |
-| Aug 2022 | **SIDH/SIKE broken** by Castryck-Decru attack (eprint 2022/975) — see §6 |
-| 2022-2023 | Draft FIPS 203/204/205 released for public comment |
+| Jul 2022 | Round 4 KEM candidates: BIKE, Classic McEliece, HQC, SIKE |
+| Jul 2022 | **SIDH/SIKE broken** by Castryck-Decru attack (eprint 2022/975) — see §6 |
+| Aug 2023 | Draft FIPS 203/204/205 released for public comment |
 | Aug 14, 2024 | **FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA) finalized and effective** |
 | Oct 2024 | "Additional Digital Signatures" Round 1 → Round 2 announcement: 14 candidates (HAWK, MAYO, UOV, SQIsign, SNOVA, LESS, CROSS, FAEST, MQOM, PERK, Mirath, QR-UOV, RYDE, SDitH) |
 | Mar 2025 | **HQC announced as 4th-round selection** — to become second standardized PQC KEM |
-| 2025-2026 | FN-DSA (Falcon) draft FIPS 206 still in progress; expected late 2025/early 2026 |
-| 2026-2027 | Expected Round-3 down-select and final selection for additional signature schemes |
+| 2025-2026 | FN-DSA (Falcon) draft FIPS 206 still in progress |
+| May 2026 | Additional signatures Round 3: nine candidates advance (NIST IR 8610) |
 
-Lily Chen, then-manager of the NIST Cryptographic Technology Group (2012-2023) and now a NIST
-Fellow, led the process. NIST has characterized the PQC project as "the most challenging" of
-its ongoing standards efforts.
+Lily Chen, then-manager of the NIST Cryptographic Technology Group and now a NIST
+Fellow, led the process.
 
-### The four published standards (August 2024)
+### The four selected standards (FIPS 203/204/205 published August 2024)
 
 #### FIPS 203 — ML-KEM (Module-Lattice-based Key Encapsulation Mechanism)
 
 Formerly CRYSTALS-Kyber. Lattice-based KEM. Module Learning With Errors (MLWE) hardness.
 
-| Parameter set | Classical security | PQ security | Public key | Ciphertext |
-|---|---|---|---|---|
-| ML-KEM-512 | 128-bit | ~100-bit | 800 B | 768 B |
-| ML-KEM-768 | 192-bit | ~128-bit | 1184 B | 1088 B |
-| ML-KEM-1024 | 256-bit | ~160-bit | 1568 B | 1568 B |
+| Parameter set | NIST security category | Public key | Ciphertext |
+|---|---|---|---|
+| ML-KEM-512 | 1 | 800 B | 768 B |
+| ML-KEM-768 | 3 | 1184 B | 1088 B |
+| ML-KEM-1024 | 5 | 1568 B | 1568 B |
 
 ML-KEM-768 is the recommended general-purpose choice for hybrid TLS / Signal-class messaging /
 SSH; ML-KEM-1024 is CNSA 2.0 mandated for NSS.
@@ -182,8 +180,8 @@ Uses Fiat-Shamir-with-Aborts construction. Three parameter sets:
 | Parameter set | NIST level | Public key | Signature |
 |---|---|---|---|
 | ML-DSA-44 | 2 | 1312 B | 2420 B |
-| ML-DSA-65 | 3 | 1952 B | 3293 B |
-| ML-DSA-87 | 5 | 2592 B | 4595 B |
+| ML-DSA-65 | 3 | 1952 B | 3309 B |
+| ML-DSA-87 | 5 | 2592 B | 4627 B |
 
 Compare Ed25519: 32 B public key, 64 B signature. ML-DSA is roughly 40-70× larger across both.
 
@@ -223,10 +221,10 @@ Hence NIST's current four-pronged strategy:
 2. **Hash-based** (SLH-DSA, XMSS, LMS) — most conservative; only assumes hash security.
 3. **Code-based** (HQC selected Mar 2025; Classic McEliece still under analysis) — independent
    mathematical foundation; large keys.
-4. **Multivariate / other** (MAYO, UOV, SNOVA — Round 2 additional signatures) — backup
+4. **Multivariate / other** (MAYO, UOV, SNOVA — Round 3 additional signatures) — backup
    family if lattices fall.
 
-The on-ramp for additional signatures (14 Round-2 candidates) explicitly aims for diversity
+The on-ramp for additional signatures (nine Round-3 candidates as of May 2026) explicitly aims for diversity
 across the mathematical foundations.
 
 Cross-link: [`cryptography_expertise.md`](cryptography_expertise.md) §11 (capsule overview of
@@ -312,9 +310,9 @@ subsequent work.
 
 ### Performance
 
-On x86_64 AVX2 (pq-crystals.org benchmarks): ML-KEM-768 keygen ~30 µs, encaps ~40 µs,
-decaps ~30 µs. Competitive with — often faster than — ECC. ML-DSA signing ~100 µs, verify
-~50 µs vs Ed25519 ~30 µs / ~70 µs. Real-time-budget acceptable. Bandwidth (1-2 KB extra per
+On x86_64 AVX2 (pq-crystals.org benchmarks, in cycles): ML-KEM-768 keygen ~53K, encaps ~68K,
+decaps ~53K (Haswell). Competitive with — often faster than — ECC. ML-DSA-65 (Dilithium3)
+signing ~529K, verify ~179K (Skylake). Real-time-budget acceptable. Bandwidth (1-2 KB extra per
 handshake) is the real cost, not CPU.
 
 Cross-link: [`cryptography_expertise.md`](cryptography_expertise.md) §5 (ECC baseline being
@@ -352,7 +350,7 @@ strong: factory firmware-signing, audited HSM-backed code signing, bounded signi
 ### SPHINCS+ → SLH-DSA (FIPS 205)
 
 Authors: Bernstein (UIC), Hülsing (TU Eindhoven), Kölbl, Niederhagen, Rijneveld, Schwabe,
-Hopwood, et al. Lineage: SPHINCS (Eurocrypt 2015) → SPHINCS+ (NIST submission) → SLH-DSA.
+et al. Lineage: SPHINCS (Eurocrypt 2015) → SPHINCS+ (NIST submission) → SLH-DSA.
 
 **Construction:** hypertree of XMSS+ trees + FORS (few-time signature) at leaves. The signer
 pseudorandomly derives the leaf-signing key from a seed + message hash — no state to track.
@@ -360,12 +358,12 @@ Statelessness is the headline property.
 
 **Cost:** signatures 8-50 KB; signing 1-50 ms; verify ≤ 10 ms.
 
-| Parameter set | Pubkey | Signature | Sign (ms) | Verify (ms) |
-|---|---:|---:|---:|---:|
-| SLH-DSA-SHA2-128f | 32 B | 17,088 B | ~7 | ~5 |
-| SLH-DSA-SHA2-128s | 32 B | 7,856 B | ~250 | ~3 |
-| SLH-DSA-SHA2-192f | 48 B | 35,664 B | ~12 | ~7 |
-| SLH-DSA-SHA2-256s | 64 B | 29,792 B | ~750 | ~7 |
+| Parameter set | Pubkey | Signature |
+|---|---:|---:|
+| SLH-DSA-SHA2-128f | 32 B | 17,088 B |
+| SLH-DSA-SHA2-128s | 32 B | 7,856 B |
+| SLH-DSA-SHA2-192f | 48 B | 35,664 B |
+| SLH-DSA-SHA2-256s | 64 B | 29,792 B |
 
 `f`/`s` = fast-signing vs small-signature.
 
@@ -398,12 +396,12 @@ scrambling appears hard in average case.
 - Encrypt: c = mG' + e (low-weight error e, matching Goppa correction capacity).
 - Decrypt: apply P^-1, decode via Goppa, apply S^-1.
 
-**The 48-year-old objection:** ~1 MB public key at 128-bit security (mceliece6688128).
+**The 48-year-old objection:** ~1 MB public key at NIST security level 5 (mceliece6688128).
 Incompatible with TLS handshakes, X.509 certificates, anything bandwidth-sensitive.
 Cryptanalytic status essentially unchanged in 48 years — Bernstein-Lange-Peters (2008)
-polynomial-factor speedups still leave 2^{128}+ operations at recommended parameters. Tanja
-Lange has been publicly hopeful NIST would standardize Classic McEliece for its unparalleled
-security record; NIST has declined, citing key size. Authors include Bernstein, Chou, Lange,
+polynomial-factor speedups still leave 2^{128}+ operations at recommended parameters. NIST has
+declined to standardize it for now, citing skepticism that it will see widespread use given its
+large public key (NIST IR 8545). Authors include Bernstein, Chou, Lange,
 Misoczki, Niederhagen, Persichetti, Peters, Schwabe, Sendrier, Szefer, Wang.
 
 ### HQC (Hamming Quasi-Cyclic) — selected March 2025
@@ -413,7 +411,7 @@ Persichetti, Robert, Véron, Zémor.
 
 NIST announced HQC as the second standardized PQC KEM in March 2025. Based on decoding in
 quasi-cyclic codes — independent foundation from lattices. Sizes (HQC-128): pubkey 2249 B,
-ciphertext 4481 B. Larger than ML-KEM, smaller than Classic McEliece. Final NIST publication
+ciphertext 4433 B. Larger than ML-KEM, smaller than Classic McEliece. Final NIST publication
 expected 2026-2027.
 
 ### BIKE
@@ -455,7 +453,7 @@ turn out to be exactly the leverage needed to extract a secret isogeny via a gen
 construction. The attack relies on the *known endomorphism ring* of the starting curve —
 which SIKE provides gratis.
 
-NIST eliminated SIKE from Round 4. Castryck and Decru received the $50K NIST bounty.
+NIST eliminated SIKE from Round 4. Castryck and Decru received Microsoft's $50K $IKEp217 challenge prize.
 
 ### Lessons
 
@@ -513,7 +511,7 @@ ss_hybrid = KDF(ss_classical || ss_PQC || context)
 
 The order matters less than that both inputs are present and the KDF is collision-resistant.
 **ChemPath:** TLS 1.3 derives the handshake_secret from the concatenated ECDHE+PQC output via
-HKDF-Extract (RFC 9180 HPKE-style construction).
+HKDF-Extract, in place of the (EC)DHE secret (draft-ietf-tls-hybrid-design).
 
 **Hybrid signatures** are more contested:
 - **Composite signatures** — sign with both, verify both must validate. Bandwidth-heavy
@@ -535,7 +533,7 @@ Handshake flow:
 1. Client sends X25519 ephemeral public key + ML-KEM-768 public key.
 2. Server generates X25519 ephemeral, performs X25519(s, P) to get ss_classical.
 3. Server encapsulates ML-KEM ciphertext, derives ss_PQC.
-4. Both: shared_secret = X25519_shared || ML-KEM_shared.
+4. Both: shared_secret = ML-KEM_shared || X25519_shared.
 5. handshake_secret = HKDF-Extract(shared_secret, early_secret).
 
 Wire overhead: ~1184 B (ML-KEM-768 public key) + 1088 B (ML-KEM-768 ciphertext) per handshake,
@@ -545,9 +543,9 @@ on top of the 32 B X25519 keys. Roughly 2 KB extra in the handshake.
 Chrome / Cloudflare's early experiments (2023). Replaced by the FIPS-203-final codepoint in
 2024-2025; deprecation cycle ongoing.
 
-### IKEv2 hybrid (RFC 9242, May 2022)
+### IKEv2 hybrid (RFC 9242, May 2022; RFC 9370, May 2023)
 
-RFC 9242 specifies multiple key exchanges for IKEv2 via `IKE_INTERMEDIATE` exchanges, each
+RFC 9370 specifies multiple key exchanges for IKEv2 via `IKE_INTERMEDIATE` exchanges (RFC 9242), each
 contributing shared-secret material. Used in strongSwan, libreswan, Cisco IKEv2. WireGuard
 has no native PQC as of 2026 — research-grade extensions only.
 
@@ -557,14 +555,14 @@ has no native PQC as of 2026 — research-grade extensions only.
 - **OpenSSH 9.9 (Sept 2024):** added `mlkem768x25519-sha256`.
 - **OpenSSH 10.0 (April 2025):** `mlkem768x25519-sha256` becomes default.
 
-GitHub added post-quantum SSH October 2025; GitLab followed.
+GitHub added post-quantum SSH September 2025; GitLab followed.
 
 ### Cloudflare / Chrome adoption
 
 Cloudflare research blog (`blog.cloudflare.com/pq-2025/`): March 2025 — 1/3 of human-web TLS
-to Cloudflare is hybrid; September 2025 — ~43%. Cloudflare-to-origin support: 3.7% at end of
-2025, rising slowly. Chrome enabled `X25519MLKEM768` by default in Chrome 124 (April 2024 —
-initially older Kyber draft, then ML-KEM-final). Firefox followed late 2024.
+to Cloudflare is hybrid; late October 2025 — over 50%. Cloudflare-to-origin support: 3.7% in
+2025, rising slowly. Chrome enabled hybrid X25519Kyber768 by default on desktop in Chrome 124 (April 2024),
+switching to `X25519MLKEM768` in Chrome 131. Firefox followed late 2024.
 
 ### Performance overhead
 
@@ -585,21 +583,21 @@ RR size limits are a real protocol-level obstacle).
 Whitepaper: Kret-Schmidt, "The PQXDH Key Agreement Protocol." X3DH extended with a
 CRYSTALS-Kyber KEM step. Each prekey bundle adds a Kyber prekey; session key is HKDF(X3DH
 output || Kyber shared secret). Signal chose Kyber-1024 (highest parameter set). Deployed
-September 2023 using round-3 Kyber spec, later migrated to FIPS-203 ML-KEM-1024. Bhargavan et
+September 2023 using round-3 Kyber spec. Bhargavan et
 al. (USENIX Security 2024) formally verified the protocol. Tens of millions of users — one of
 the first PQC secure-messaging deployments at this scale.
 
 ### Apple PQ3 (February 2024)
 
 Apple Security Research blog, Feb 21 2024. Goes beyond PQXDH with a "Level 3" claim:
-- Level 1: initial-key-establishment PQC (PQXDH-equivalent).
-- Level 2: Level 1 + symmetric-ratchet PQC.
-- Level 3: Level 1 + 2 + **periodic post-quantum rekeying** through long-lived conversations.
+- Level 1: default end-to-end encryption, no quantum security.
+- Level 2: PQC in initial key establishment only (PQXDH).
+- Level 3: PQC in initial key establishment **and ongoing message exchange (periodic post-quantum rekeying)**.
 
 Rekeying is the differentiator: if PQC session keys are compromised, the next rekey restores
-forward security. Bounds HNDL exposure to the rekey period (~minutes). Algorithm: Kyber-1024 /
-ML-KEM-1024 hybridized with classical ECC. Rollout: iOS 17.4 / iPadOS 17.4 / macOS 14.4 /
-watchOS 14.4 (March 2024 GA); hard cutover during 2024. Linker et al. (USENIX Security 2025)
+forward security. Bounds HNDL exposure to the rekey period (~every 50 messages, at most 7 days). Algorithm: Kyber-1024 (initial key establishment) and Kyber-768 (rekeying),
+hybridized with classical ECC. Rollout: iOS 17.4 / iPadOS 17.4 / macOS 14.4 /
+watchOS 10.4 (March 2024 GA); hard cutover during 2024. Linker et al. (USENIX Security 2025)
 provide a formal proof.
 
 ### WhatsApp
@@ -611,16 +609,16 @@ PQXDH-equivalent; timeline opaque.
 
 | Deployer | Status | Algorithm |
 |---|---|---|
-| Cloudflare | ~43% of human traffic (Sept 2025) | X25519MLKEM768 |
+| Cloudflare | Over 50% of human traffic (late Oct 2025) | X25519MLKEM768 |
 | Chrome / Chromium | Default since Chrome 124 (April 2024) | X25519MLKEM768 (formerly X25519Kyber768) |
 | Firefox | Default since v132 (Oct 2024) | X25519MLKEM768 |
 | Edge | Inherits Chromium | X25519MLKEM768 |
-| Apple Safari | iOS 18 / macOS 15 (Sept 2024) | X25519MLKEM768 |
-| AWS s2n | Available since 2024 | Multiple hybrids |
-| Google ALTS | Internal hybrid deployment 2024+ | X25519+Kyber/ML-KEM |
+| Apple (URLSession / Network framework) | Default since iOS 26 / iPadOS 26 | X25519MLKEM768 |
+| AWS s2n | Available since 2019 | Multiple hybrids |
+| Google ALTS | Internal hybrid deployment since 2022 | NTRU-HRSS+X25519; later ML-KEM |
 | OpenSSL 3.5+ | Native ML-KEM hybrid support | X25519MLKEM768 |
 | BoringSSL | Native; production at Google scale | X25519MLKEM768 |
-| Microsoft SymCrypt | ML-KEM, ML-DSA, SLH-DSA, FN-DSA, XMSS | All four FIPS standards |
+| Microsoft SymCrypt | ML-KEM, ML-DSA, XMSS (SLH-DSA being added) | FIPS 203/204 |
 
 Note that **server-side support lags client-side**. Browsers all support hybrid TLS, but only
 sites behind Cloudflare or AWS (or self-hosted with OpenSSL 3.5+) actually negotiate it. The
@@ -629,8 +627,8 @@ non-PQC server is the bottleneck for most enterprise deployments.
 ### Code signing / firmware
 
 NIST SP 800-208 (Oct 2020) approves XMSS and LMS for firmware signing; CNSA 2.0 mandates them
-for NSS firmware. Linux kernel module signing transitioning to SLH-DSA + ML-DSA hybrid (2025).
-Microsoft code signing (SymCrypt) supports all FIPS 203/204/205. Sigstore/cosign in-flight,
+for NSS firmware. Linux kernel ML-DSA module-signing patches posted (2025-2026).
+Microsoft SymCrypt supports ML-KEM, ML-DSA, LMS, and XMSS (no SLH-DSA in its changelog). Sigstore/cosign in-flight,
 bounded by OCI image-signing spec updates.
 
 Cross-link: [`supply_chain_provenance_expertise.md`](supply_chain_provenance_expertise.md)
@@ -654,21 +652,20 @@ via PQClean.
 - `falcon-sign.info` (Thomas Prest et al.).
 
 **Formally verified:**
-- `mlkem-native` (Cryspen / Schwabe-team, 2024) — ML-KEM in Rust via F\* / hax; verifies
-  correctness AND constant-time.
-- `libcrux` (Cryspen) — verified ML-KEM, Ed25519, others; production at Wire.
-- HACL\* (INRIA / Microsoft) — verified C; ML-KEM and ML-DSA in progress.
+- `mlkem-native` (PQ Code Package / Post-Quantum Cryptography Alliance) — ML-KEM in C90;
+  C code proved memory- and type-safe with CBMC; AArch64/x86_64 assembly proved functionally
+  correct and constant-time with HOL-Light.
+- `libcrux` (Cryspen) — verified ML-KEM, Ed25519, others.
+- HACL\* (INRIA / Microsoft) — verified C.
 
 **Other production libraries:**
-- Cloudflare CIRCL (Go) — ML-KEM, ML-DSA, SLH-DSA, FN-DSA; production at Cloudflare.
+- Cloudflare CIRCL (Go) — ML-KEM, ML-DSA, SLH-DSA; production at Cloudflare.
 - RustCrypto `KEMs` and `signatures` — community-maintained Rust.
 - Bouncy Castle (Java) — all four FIPS standards; heavier API than RustCrypto-style.
 
 **Hardware acceleration.** NTT and modular arithmetic benefit from SIMD: AVX2/AVX-512 give
 5-10× over scalar; ARM NEON/SVE similar; RISC-V Vector experimental in PQClean. PQC ASICs/
-FPGAs in development at Microsoft, AWS, NXP, Infineon. **SIMD constant-time care:** AVX2
-variable-shift instructions (VPSLLVQ, etc.) have data-dependent timing on some
-microarchitectures. KyberSlash (§10) exploited variable-time division specifically.
+FPGAs in development at Microsoft, AWS, NXP, Infineon. **SIMD constant-time care:** KyberSlash (§10) exploited variable-time division specifically.
 
 Cross-link: [`hardware_side_channels_expertise.md`](hardware_side_channels_expertise.md)
 (SIMD timing characteristics; data-dependent instruction timing).
@@ -688,15 +685,16 @@ Cross-link: [`hardware_side_channels_expertise.md`](hardware_side_channels_exper
 
 ### KyberSlash (2024)
 
-Bernstein et al., eprint 2024/1049, June 2024. The Kyber reference `poly_compress` decapsulate
-function used a variable-time integer division `x * 4 / q` (q = 3329). Compilers emitted a
+Bernstein et al., eprint 2024/1049, June 2024. The Kyber reference `poly_tomsg` (KyberSlash1) and
+`poly_compress`/`polyvec_compress` (KyberSlash2) functions used variable-time integer division
+by q (q = 3329). Compilers emitted a
 `DIV` instruction whose latency depends on the dividend value.
 
-**Attack:** Kyber-512 secret-key recovery in 10/10 experiments within 2-4 hours of remote-
-timing measurement; local co-located timing breaks Kyber-768 in ~4 minutes.
+**Attack:** demonstrated on Raspberry Pi 2 (Arm Cortex-A7) and Arm Cortex-M4; secret keys
+reliably recovered within minutes for KyberSlash2 and a few hours for KyberSlash1.
 
-**Affected:** Kyber reference, Cloudflare CIRCL, Mullvad VPN, Signal (during Kyber-round-3
-phase). Reported November 2023; patched December 1, 2023.
+**Affected:** Kyber reference, Cloudflare CIRCL, Signal (during Kyber-round-3
+phase). Reference patched December 1, 2023.
 
 **Lesson:** the canonical `pq-crystals/kyber` repository carried the non-constant-time
 division for the entire NIST evaluation period; Cryspen's formal-verification work surfaced
@@ -722,8 +720,8 @@ undervoltage/glitch detection.
 ### Power analysis (DPA)
 
 Exploits power consumption of NTT butterflies and modular multiplications. Demonstrated on
-Kyber (Primas-Pessl-Mangard CHES 2017; Pessl-Primas ASIACRYPT 2019) and Dilithium
-(Steffen-Land-Assad-Polian CHES 2023). Defenses: masking (secret-sharing operations), hiding
+Kyber (Primas-Pessl-Mangard CHES 2017; Pessl-Primas LATINCRYPT 2019) and Dilithium
+(Steffen-Land-Kogelheide-Güneysu PQCrypto 2023). Defenses: masking (secret-sharing operations), hiding
 (random scheduling, dummy ops), hardware countermeasures. Production HSMs/smart cards apply
 multiple layers.
 
@@ -755,8 +753,7 @@ backward compat. Disable non-hybrid classical KEX once population supports hybri
 Intermediate/leaf certs → ML-DSA, optionally hybridized with RSA/ECDSA during transition.
 NSS firmware → XMSS / LMS (CNSA 2.0 mandate; state discipline required).
 
-**Document signing (PDF, PAdES).** ML-DSA-65. PAdES PQC profiles in progress (ETSI TS 119
-312). Hybrid composite signatures in flight.
+**Document signing (PDF, PAdES).** ML-DSA-65. Hybrid composite signatures in flight.
 
 **Mobile messaging.** Reference designs: Signal PQXDH, Apple PQ3. New protocols should clone
 PQ3 Level-3 (periodic post-quantum rekeying), not just PQXDH's one-time hybrid.
@@ -770,8 +767,7 @@ technical work needs to start now. Cross-link:
 
 **Smart cards / HSMs.** Constraint: 8-256 KB RAM, 32-512 KB code, no SIMD. ML-KEM fits
 barely; ML-DSA-44 marginal; SLH-DSA often doesn't fit. Falcon's FP-Gaussian needs FPU. Vendor
-solutions: NXP JCOP/SE051 (ML-KEM/ML-DSA accel); Infineon Optiga TPM 2.0 (roadmap 2026-2027);
-Entrust nShield HSM (ML-KEM, ML-DSA, SLH-DSA, XMSS); AWS CloudHSM (ML-KEM preview 2025).
+solutions: Entrust nShield HSM (ML-KEM, ML-DSA, SLH-DSA).
 
 **Confidential computing / TEE attestation.** SGX, SEV-SNP, TDX, ARM CCA, AWS Nitro sign with
 RSA-3072 or ECDSA platform keys. Migration: ML-DSA platform keys in new silicon (2026-2030);
@@ -800,22 +796,21 @@ deployed: application TLS endpoints, server-to-server VPNs, storage encryption (
 DEKs), database TLS, replication, backups, code-signing cert chains, signed configurations
 (Helm, OCI images), HTTPS clients with hardcoded TLS configs, IoT/firmware in 20-year
 deployments, mobile cert pinning, hardware tokens/TPMs/HSMs with baked-in keys. Tooling:
-crypto-bill-of-materials (CBOM) via CycloneDX extension; IBM Cyclonedx-cli; NIST NCCoE
+crypto-bill-of-materials (CBOM) via CycloneDX extension; IBM CBOMkit; NIST NCCoE
 crypto-agility playbook.
 
 **Crypto-agility — can you swap algorithms without rewriting?** Anti-patterns: hardcoded
 key sizes, hardcoded curve names, wire formats without algorithm-identifier bytes,
 single-algorithm KDFs. Right patterns: algorithm-identifier prefixes everywhere (JOSE `alg`,
 PKCS#7 OID, COSE codepoint, TLS named-group), KDF context binding to algorithm ID,
-composite-signature formats (RFC 9624-style).
+composite-signature formats (draft-ietf-lamps-pq-composite-sigs).
 
 **Performance budgets.** Most apps tolerate. Edge cases: DNSSEC (3 KB ML-DSA vs 512-byte
 EDNS RR — genuinely hard, RFC drafts exploring algorithm rollover and size amendments); HFT
 (~50 µs ML-KEM vs ECDH may exceed latency budget — amortize via long-lived sessions);
 real-time gaming/voip (initial bandwidth-bursty acceptable; steady-state AEAD unaffected).
 
-**Storage.** PQC keys 5-100× larger. HSM with 1 GB key storage: 30M Ed25519 keys vs 250K
-SLH-DSA-256s. Backup, escrow, TPM/TEE storage all hit harder.
+**Storage.** PQC keys 5-100× larger. Backup, escrow, TPM/TEE storage all hit harder.
 
 **Protocol limits.** DNSSEC (RR-size); EAP-TLS (RADIUS-frame fragmentation); SS7/T1
 telephony (no realistic PQC path); OCSP responses (size budget tight).
@@ -825,7 +820,7 @@ telephony (no realistic PQC path); OCSP responses (size budget tight).
 BoringSSL, GnuTLS, SymCrypt, NSS all support X25519MLKEM768; older RHEL/Ubuntu and appliances
 lag.
 
-**CNSA 2.0 timeline (NSS):** 2025 stop approving new classical-PKC NSS, 2027 acquisitions
+**CNSA 2.0 timeline (NSS):** 2025 support-and-prefer CNSA 2.0 for software/firmware signing, 2027 acquisitions
 compliant, 2030 deployed firmware/signatures, 2035 full quantum-resistance. Commercial:
 HHS/FDA/FDIC/SEC PQC guidance expected 2026-2028 with effective dates early 2030s.
 
@@ -838,7 +833,7 @@ Cross-link: [`appsec_program_building_expertise.md`](appsec_program_building_exp
 ## 13. Cryptographic Agility: The Meta-Requirement
 
 **"Don't bet on Kyber being the FINAL answer."** The Castryck-Decru SIKE break is fresh
-enough that the community remembers a Round-3 NIST finalist falling. ML-KEM is unlikely to be
+enough that the community remembers a NIST fourth-round candidate falling. ML-KEM is unlikely to be
 broken catastrophically — its hardness assumption is older and more studied than SIDH's — but
 no specific primitive lasts 50 years guaranteed. RSA has lasted 50; DES lasted 25 before
 Moore's law; SHA-1 lasted 20. **Crypto-agility is the engineering response to finite primitive
@@ -879,13 +874,12 @@ Necessarily speculative; mostly active research.
 **ZK proof systems.** STARKs are already PQC (hash-only via FRI + Fiat-Shamir over Merkle).
 SNARKs (Groth16, PLONK, Halo2) use pairings or KZG on elliptic curves — broken by Shor.
 Bulletproofs use DLP — broken. Migration: lattice-based ZK is emerging (Lyubashevsky-Nguyen-
-Plançon CRYPTO 2024); production 2-5 years out. **Recommendation:** new PQC-requiring ZK
+Plançon CRYPTO 2022); production 2-5 years out. **Recommendation:** new PQC-requiring ZK
 systems → STARKs. Size-critical → SNARKs with planned migration. Cross-link:
 [`privacy_engineering_expertise.md`](privacy_engineering_expertise.md) §8.
 
 **Blockchain consensus.** Ethereum's BLS-on-BLS12-381 broken by Shor. Paths: hybrid BLS +
-ML-DSA aggregation; lattice aggregate signatures (Boneh-Eskandarian-Hanzlik 2018 — weaker
-than BLS); account abstraction (ERC-4337) for per-account PQC choice. Cross-link:
+ML-DSA aggregation; lattice aggregate signatures; account abstraction (ERC-4337) for per-account PQC choice. Cross-link:
 [`smart_contract_evm_security_expertise.md`](smart_contract_evm_security_expertise.md).
 
 **TEE attestation.** SGX/SEV-SNP/TDX/CCA platform keys are RSA-3072 or ECDSA. Migration:
@@ -949,7 +943,6 @@ Cross-link: [`agentic_web_capabilities_expertise.md`](agentic_web_capabilities_e
 - Classic McEliece NIST submission: https://classic.mceliece.org/
 
 ### Migration timelines and policy
-- NSA CNSA 2.0 specification: https://media.defense.gov/2025/May/30/2003728741/-1/-1/0/CSA_CNSA_2.0_ALGORITHMS.PDF
 - White House NSM-10 (May 2022): https://www.whitehouse.gov/briefing-room/statements-releases/2022/05/04/national-security-memorandum-on-promoting-united-states-leadership-in-quantum-computing-while-mitigating-risks-to-vulnerable-cryptographic-systems/
 - NIST NCCoE Migration to PQC project: https://www.nccoe.nist.gov/projects/migration-post-quantum-cryptography
 
@@ -966,7 +959,7 @@ Cross-link: [`agentic_web_capabilities_expertise.md`](agentic_web_capabilities_e
 - liboqs GitHub: https://github.com/open-quantum-safe/liboqs
 - oqs-provider for OpenSSL: https://github.com/open-quantum-safe/oqs-provider
 - Cloudflare CIRCL (Go): https://github.com/cloudflare/circl
-- Cryspen mlkem-native (formally verified Rust): https://cryspen.com/post/ml-kem-implementation/
+- Cryspen libcrux ML-KEM (formally verified Rust): https://cryspen.com/post/ml-kem-implementation/
 - HACL\* verified cryptography (INRIA/Microsoft): https://hacl-star.github.io/
 - PQClean reference implementations: https://github.com/PQClean/PQClean
 - Bouncy Castle PQC (Java): https://www.bouncycastle.org/
@@ -975,15 +968,15 @@ Cross-link: [`agentic_web_capabilities_expertise.md`](agentic_web_capabilities_e
 - KyberSlash (Bernstein et al.), eprint 2024/1049: https://eprint.iacr.org/2024/1049
 - Hertzbleed (Wang et al.), USENIX Security 2022: https://www.hertzbleed.com/
 - Pessl-Primas, "More Practical Single-Trace Attacks on the Number Theoretic Transform,"
-  ASIACRYPT 2019.
+  LATINCRYPT 2019.
 
 ### Protocol drafts and RFCs
 - RFC 8391 (XMSS — eXtended Merkle Signature Scheme): https://datatracker.ietf.org/doc/html/rfc8391
 - RFC 8554 (LMS Hash-Based Signatures): https://datatracker.ietf.org/doc/html/rfc8554
 - RFC 9242 (Intermediate Exchange in IKEv2 — used for IKEv2 PQC hybrid): https://datatracker.ietf.org/doc/html/rfc9242
 - draft-ietf-tls-hybrid-design (TLS 1.3 hybrid key exchange): https://datatracker.ietf.org/doc/draft-ietf-tls-hybrid-design/
-- draft-ietf-tls-mlkem (X25519MLKEM768 in TLS 1.3): https://datatracker.ietf.org/doc/draft-ietf-tls-mlkem/
-- RFC 9624 (Composite PQC certificate formats — IETF lamps WG, in progress).
+- draft-ietf-tls-ecdhe-mlkem (X25519MLKEM768 in TLS 1.3): https://datatracker.ietf.org/doc/draft-ietf-tls-ecdhe-mlkem/
+- draft-ietf-lamps-pq-composite-sigs (Composite ML-DSA certificate formats — IETF lamps WG, in progress).
 
 ### Researcher home pages (canonical bio sources)
 - Daniel J. Bernstein: https://cr.yp.to/
@@ -1038,8 +1031,8 @@ Cross-link: [`agentic_web_capabilities_expertise.md`](agentic_web_capabilities_e
    future ML-DSA break. Treat as research-grade for deployment.
 
 **From the cryptanalytic perspective:**
-4. The Castryck-Decru SIKE attack (Aug 2022) is the canonical demonstration that even Round-3
-   NIST finalists can fall in polynomial time. Family diversity (lattice + hash + code) is
+4. The Castryck-Decru SIKE attack (Aug 2022) is the canonical demonstration that even NIST
+   fourth-round candidates can fall in polynomial time. Family diversity (lattice + hash + code) is
    not over-engineering — it is the lesson from a recent break.
 5. Side-channels (KyberSlash, Hertzbleed-against-Dilithium, DPA on NTT) are the practical
    attack surface on production PQC implementations. Use formally verified implementations

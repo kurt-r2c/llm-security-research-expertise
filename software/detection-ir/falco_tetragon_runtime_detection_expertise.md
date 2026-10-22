@@ -39,7 +39,7 @@ The verifier is the load-bearing safety primitive. It is also the historical att
 - `BPF_MAP_TYPE_HASH` / `BPF_MAP_TYPE_LRU_HASH` — keyed lookups, optionally LRU-evicted
 - `BPF_MAP_TYPE_ARRAY` / `BPF_MAP_TYPE_PERCPU_ARRAY` — index-keyed; per-CPU variants eliminate cache-line contention
 - `BPF_MAP_TYPE_LPM_TRIE` — longest-prefix-match for IP/CIDR lookups
-- `BPF_MAP_TYPE_RINGBUF` (kernel 5.8+) — high-throughput single-producer-multi-consumer ring buffer with epoll integration; replaced the older perf-event-array for most detection tooling
+- `BPF_MAP_TYPE_RINGBUF` (kernel 5.8+) — high-throughput multi-producer-single-consumer ring buffer with epoll integration; replaced the older perf-event-array for most detection tooling
 - `BPF_MAP_TYPE_STACK_TRACE` — bounded call-stack capture for syscall tracing
 - `BPF_MAP_TYPE_PROG_ARRAY` + tail-calls — chain programs for large logic that exceeds verifier instruction limits
 
@@ -55,20 +55,20 @@ The verifier is the load-bearing safety primitive. It is also the historical att
 
 **CO-RE (Compile-Once Run-Everywhere).** Andrii Nakryiko's libbpf project (Meta) introduced CO-RE: eBPF programs carry BTF (BPF Type Format) relocations, the kernel ships its own BTF descriptors (`/sys/kernel/btf/vmlinux`), and the BPF loader rewrites field offsets at load time. Without CO-RE, every kernel version needed a separate compile of the probe (the BCC model). With CO-RE, one probe binary works across most kernels on a given architecture. **Production fleets cannot run pre-CO-RE-BCC tooling without massive compile infrastructure** — CO-RE is the substrate that makes fleet deployment economic.
 
-**eBPF as security risk** — defenders deploy eBPF for detection; attackers also use eBPF for in-kernel implants and EDR-evasion (bpfdoor, Symbiote, BoopkitBPF). The same primitive that lets Tetragon observe syscalls lets an attacker hide them. The eBPF-verifier-escape CVE lineage (CVE-2021-3490, CVE-2021-4204, CVE-2022-23222 — Manfred Paul + Tristan Edwards + others) demonstrates the verifier itself is exploitable. See [[reference-linux-kernel-exploitation]] §6 for the full corpus.
+**eBPF as security risk** — defenders deploy eBPF for detection; attackers also use eBPF for in-kernel implants and EDR-evasion (bpfdoor, Symbiote, Boopkit). The same primitive that lets Tetragon observe syscalls lets an attacker hide them. The eBPF-verifier-escape CVE lineage (CVE-2021-3490, CVE-2021-4204, CVE-2022-23222 — Manfred Paul + tr3e wang + others) demonstrates the verifier itself is exploitable. See [[reference-linux-kernel-exploitation]] §6 for the full corpus.
 
 ---
 
 ## 3. Falco — Sysdig open-source
 
-**Origin.** Loris Degioanni (founder of Sysdig, prior co-creator of WinPcap + libpcap maintainer) authored Falco at Sysdig circa 2016. Sysdig's broader product is the Sysdig Secure CNAPP; Falco is the open-source detection engine. Sysdig was acquired `[unverified specific acquirer / date]` — multiple acquisition rumors have circulated; treat status as fluid.
+**Origin.** Loris Degioanni (founder of Sysdig, prior co-creator of WinPcap + libpcap contributor) authored Falco at Sysdig circa 2016. Sysdig's broader product is the Sysdig Secure CNAPP; Falco is the open-source detection engine.
 
-**CNCF status.** Falco entered CNCF Sandbox 2018, Incubation 2020, Graduated `[unverified specific quarter — community reports point to early-to-mid 2024]`. Graduation matters for vendor procurement in regulated environments.
+**CNCF status.** Falco entered CNCF Sandbox 2018, Incubation 2020, Graduated February 2024. Graduation matters for vendor procurement in regulated environments.
 
 **Architecture.** Three components:
 1. **Driver layer** — one of: kernel module (legacy), eBPF probe (modern), or "modern_ebpf" CO-RE driver-less probe (Falco 0.34+). The driver reads syscall enter/exit + signal/sched/net events and pushes them to user space via ring buffer.
 2. **Falco daemon (`falco`)** — user-space process. Reads events, applies rule engine, emits alerts. Written in C++.
-3. **Falcosidekick** — separate Go service that fans out alerts to Slack / PagerDuty / S3 / Elasticsearch / Loki / Kafka / OPA / Webex / Teams / SMTP / GCP Pub/Sub / Azure Event Hubs. Decouples alert routing from detection.
+3. **Falcosidekick** — separate Go service that fans out alerts to Slack / PagerDuty / S3 / Elasticsearch / Loki / Kafka / Webex / Teams / SMTP / GCP Pub/Sub / Azure Event Hubs. Decouples alert routing from detection.
 
 **Rule format.** Falco rules are YAML. Three primary constructs:
 
@@ -94,7 +94,7 @@ The verifier is the load-bearing safety primitive. It is also the historical att
 
 Fields use Sysdig field-syntax (`proc.name`, `container.id`, `evt.type`, `fd.name`, `user.uid`). Priority levels follow syslog severity (EMERGENCY → ALERT → CRITICAL → ERROR → WARNING → NOTICE → INFORMATIONAL → DEBUG). Tags enable corpus filtering by MITRE technique or category.
 
-**Default rule corpus.** ~150 community rules in `falco_rules.yaml` + `application_rules.yaml`. Maintained by the Falco rules team (Mark Stemm `[unverified specific role]` + Lorenzo Susini + community). Tagged by `mitre_persistence`, `mitre_privilege_escalation`, `mitre_lateral_movement`, etc. Rules cover:
+**Default rule corpus.** Community rules in `falco_rules.yaml` (stable, bundled by default) + `falco-incubating_rules.yaml` + `falco-sandbox_rules.yaml`. Maintained by the Falco rules team (Mark Stemm (approver) + Lorenzo Susini (reviewer) + community). Tagged by `mitre_persistence`, `mitre_privilege_escalation`, `mitre_lateral_movement`, etc. Rules cover:
 - Filesystem writes outside expected paths
 - Process spawns of shells/interpreters in containers
 - Sensitive file reads (`/etc/shadow`, SSH keys, cloud credential files)
@@ -116,9 +116,9 @@ Plugins decouple Falco from syscall-only origins; the same rule engine + alert r
 
 ## 4. Tetragon — Isovalent / Cilium
 
-**Origin.** Tetragon is the runtime-security component of Cilium, authored at Isovalent by Liam Maloy + Anna Kapuścińska + Mahé Tardy + collaborators. Isovalent was founded by Thomas Graf (Cilium project lead) + Daniel Borkmann (eBPF kernel maintainer); Isovalent was acquired by Cisco in April 2024 `[unverified specific date]`. Cilium itself is CNCF Graduated (Oct 2023 `[unverified]`). Tetragon project status in CNCF `[unverified — separate project, status fluid]`.
+**Origin.** Tetragon is the runtime-security component of Cilium, authored at Isovalent by John Fastabend + Mahé Tardy + collaborators. Isovalent was founded by Thomas Graf (Cilium project lead) + Dan Wendlandt; Isovalent was acquired by Cisco in April 2024. Cilium itself is CNCF Graduated (Oct 2023). Tetragon project status in CNCF `[unverified — separate project, status fluid]`.
 
-**Architecture difference vs Falco — the load-bearing point.** Tetragon uses BPF-LSM (Linux Security Module hooks exposed to eBPF, requires kernel 5.7+ with `CONFIG_BPF_LSM=y`) for **synchronous enforcement**. When an LSM hook fires, the eBPF program's return value mediates the operation: non-zero blocks. This means Tetragon can KILL a process or BLOCK a syscall from kernel context on policy match. Falco can only OBSERVE syscalls (via tracepoint) and emit alerts; any kill action is out-of-band by a user-space responder.
+**Architecture difference vs Falco — the load-bearing point.** Tetragon performs **synchronous enforcement** in kernel by overriding the return value of a hooked call (so the function is never executed) or by sending a signal such as SIGKILL to the process; hook points include kprobes, tracepoints, uprobes and LSM hooks. This means Tetragon can KILL a process or BLOCK a syscall from kernel context on policy match. Falco can only OBSERVE syscalls (via tracepoint) and emit alerts; any kill action is out-of-band by a user-space responder.
 
 This is not a "Tetragon is better" claim — it is an architectural axis with trade-offs:
 - **Synchronous enforcement** prevents the attack but risks corrupting application state when an in-flight syscall is blocked or a process killed mid-transaction.
@@ -149,7 +149,7 @@ spec:
             - action: Sigkill
 ```
 
-The CRD attaches to specific pods/namespaces via selectors. The `matchActions` field supports `Post` (emit event), `Sigkill` (kill process), `Override` (return arbitrary value from syscall), `FollowFD` / `UnfollowFD` (track file descriptors).
+The CRD attaches to specific pods/namespaces via selectors. The `matchActions` field supports `Post` (emit event), `Sigkill` (kill process), `Signal` (send a signal), `Override` (return arbitrary value from syscall), among others.
 
 **Cilium integration.** Tetragon ships as part of Cilium's runtime-security capability. Service-mesh observability (Hubble) + network policy (Cilium NetworkPolicy + CiliumClusterwideNetworkPolicy) + runtime detection (Tetragon) all share the same eBPF substrate and management plane. In a Cilium-everything cluster this is the natural answer to "where do we put runtime detection." Cross-link [[reference-service-mesh-security]] for the broader integration story.
 
@@ -159,7 +159,7 @@ The CRD attaches to specific pods/namespaces via selectors. The `matchActions` f
 
 ## 5. Tracee — Aqua Security open-source
 
-**Origin.** Tracee was authored at Aqua Security by Yossi Naar + Daniel Sagi + collaborators circa 2019. Aqua's broader product is the Aqua CNAPP; Tracee is the open-source runtime-detection engine. Aqua acquired by `[unverified — multiple corporate-development rumors; treat as fluid]`.
+**Origin.** Tracee was authored at Aqua Security by Yaniv Agman (Aqua research team) in 2019. Aqua's broader product is the Aqua CNAPP; Tracee is the open-source runtime-detection engine.
 
 **Architecture.** eBPF-based driver (Go user-space + C eBPF probe). Output is a streaming event log to stdout, file, or downstream services (Postee for alert routing).
 
@@ -211,7 +211,7 @@ The architectural axis distinguishing Tetragon from Falco. Pick the hook based o
 - JIT compiler invocations (probe V8/JSC functions for malicious-JS detection)
 - Database query execution (probe libpq's `PQexec` to log SQL at the application boundary)
 
-uprobes carry high overhead (uretprobe in particular triggers known performance pathology on heavily-used functions — overhead 10-100x kernel-side). Use sparingly.
+uprobes carry high overhead (uretprobe in particular triggers known performance pathology on heavily-used functions — kprobes and tracepoints are generally up to an order of magnitude cheaper). Use sparingly.
 
 **The enforcement-vs-observability split is the architectural axis distinguishing Tetragon from Falco.** Tetragon-via-BPF-LSM enforces; Falco-via-tracepoints observes. Each has its place.
 
@@ -259,7 +259,7 @@ Cross-link [[reference-detection-engineering]] §3 for MITRE ATT&CK + D3FEND tax
 
 **Event volume.** A busy production node generates 100k-1M syscalls/sec (depends on workload — CGI-style frequent-fork workloads run high; long-lived service processes run lower). Filtering must happen IN-KERNEL (eBPF program decides to push or drop) to avoid user-space CPU blow-up. Pushing every syscall to user space saturates the ring buffer immediately.
 
-**Ring buffer drops.** Under burst load the BPF ring buffer between kernel and user space can overflow. Falco emits an `events.dropped.buffer.events` Prometheus metric. **Few teams alert on this metric.** Silent drops are a known coverage gap. Budget for this in noisy workloads — either over-provision ring buffer size or rate-limit at the kernel side.
+**Ring buffer drops.** Under burst load the BPF ring buffer between kernel and user space can overflow. Falco reports kernel-side buffer drops via `scap.n_drops_buffer_*` metrics. **Few teams alert on this metric.** Silent drops are a known coverage gap. Budget for this in noisy workloads — either over-provision ring buffer size or rate-limit at the kernel side.
 
 **Kubernetes deployment patterns.** The canonical model:
 ```yaml
@@ -335,7 +335,7 @@ The hard part is enumerating `ai_coding_agents` as a list and keeping it current
 
 Cross-link [[reference-llm-agent-security]] for the broader MCP-attack-surface taxonomy + [[reference-ai-orchestration-harnessing]] §5 harness design (tool allowlist + audit logging as harness concerns runtime detection complements).
 
-**OTel GenAI semantic conventions complement runtime detection.** OpenTelemetry's GenAI semantic conventions (`gen_ai.system`, `gen_ai.operation.name`, `gen_ai.usage.input_tokens`) capture what the LLM thought it was doing. Runtime detection captures what actually happened on the kernel side. Both layers required:
+**OTel GenAI semantic conventions complement runtime detection.** OpenTelemetry's GenAI semantic conventions (`gen_ai.provider.name`, `gen_ai.operation.name`, `gen_ai.usage.input_tokens`) capture what the LLM thought it was doing. Runtime detection captures what actually happened on the kernel side. Both layers required:
 - GenAI spans alone: "the LLM was asked to write to /tmp/output.txt" — but did it actually?
 - Runtime detection alone: "process wrote to /etc/shadow" — but why?
 - Both together: "the LLM thought it was writing to /tmp/output.txt but the file write was actually to /etc/shadow → prompt injection or tool-call hijack."
@@ -355,7 +355,7 @@ The lifecycle of an eBPF-runtime-detection rule is identical to any detection ru
 5. **Monitor FP rate in production.** Alert volume is the primary metric. If FP rate climbs above threshold, escalate.
 6. **Tune.** Continuous iteration as workloads change.
 
-**Replay testing.** Capture events to file, replay against rule set, compute TP/FP. Falco supports this via `falco -e captured.scap` — feed a previously-captured event stream against the current ruleset. The capture-replay loop is essential for rule tuning without disrupting production.
+**Replay testing.** Capture events to file, replay against rule set, compute TP/FP. Falco supports this via `falco -o engine.kind=replay -o engine.replay.capture_file=captured.scap` — feed a previously-captured event stream against the current ruleset. The capture-replay loop is essential for rule tuning without disrupting production.
 
 **Coverage gaps.** Runtime detection sees process / network / file / kernel events. It does NOT see:
 - **In-process memory corruption.** An exploit that achieves RCE without spawning a new process or making a syscall is invisible to runtime detection until the exploit DOES make a syscall. Most real exploits eventually call execve or open — but the pre-syscall corruption window is dark.
@@ -373,13 +373,13 @@ The defender-pessimist view.
 
 **eBPF detection sees what crosses the syscall boundary, nothing else.** A wholly in-memory exploit producing no syscalls is invisible. Process injection via `ptrace` is detected; in-process gadget execution before any syscall is not. The fundamental coverage limit.
 
-**Ring buffer drops under load are silent by default.** Bursty workloads lose events. The `events.dropped` metric exists but few teams alert on it. Build the alert. Budget for over-provisioning the ring buffer size in noisy clusters.
+**Ring buffer drops under load are easy to miss.** Bursty workloads lose events. Falco's shipped `falco.yaml` sets `syscall_event_drops` actions to `log` and `alert`, and the `n_drops` metric exists, but few teams alert on it. Build the alert. Budget for over-provisioning the ring buffer size in noisy clusters.
 
 **"Noise" is the operational pushback most teams cite.** Default Falco corpus generates alerts at a rate operators describe as unmanageable. Tuning is expensive — per-environment baseline gathering, allowlist construction, rule disable/enable cycle. Teams that don't invest in tuning disable rules wholesale, creating a coverage gap.
 
 **Privileged container requirement is a structural security trade-off.** The runtime-detection probe runs with hostPID + hostNetwork + capabilities (`CAP_SYS_ADMIN`, `CAP_BPF` kernel ≥ 5.8). Compromise of the probe is full-node compromise. Cross-link [[reference-container-runtime-escape]] §11 hardening. Defense-in-depth: minimize the privileged surface area, audit the probe binary supply chain, signing-verify the image.
 
-**eBPF verifier escape CVEs erode the substrate.** Cross-link [[reference-linux-kernel-exploitation]] §6 for the CVE-2022-23222 lineage (Tristan Edwards) + CVE-2021-3490 (Manfred Paul, Pwn2Own Linux). Attackers running their own eBPF programs to evade detection (bpfdoor, Symbiote, BoopkitBPF) is a known threat model — eBPF is dual-use. Defenders should restrict `CAP_BPF` to specific service accounts and audit `bpf(2)` syscall usage. Tetragon's own `bpf` LSM hook can mediate program loads.
+**eBPF verifier escape CVEs erode the substrate.** Cross-link [[reference-linux-kernel-exploitation]] §6 for the CVE-2022-23222 lineage (tr3e) + CVE-2021-3490 (Manfred Paul, Pwn2Own Linux). Attackers running their own eBPF programs to evade detection (bpfdoor, Symbiote, Boopkit) is a known threat model — eBPF is dual-use. Defenders should restrict `CAP_BPF` to specific service accounts and audit `bpf(2)` syscall usage. Tetragon's own `bpf` LSM hook can mediate program loads.
 
 **BTF availability is a deployment blocker on older kernels.** Pre-5.4 kernels often lack BTF; CO-RE doesn't work; runtime detection requires kernel-version threshold. Fleet uplift is the long-tail blocker; some regulated environments run RHEL 7 / kernel 3.10 indefinitely.
 
@@ -389,7 +389,7 @@ The defender-pessimist view.
 
 **Multi-tenant cluster considerations.** Per-tenant TracingPolicy isolation is non-trivial; one tenant's noisy policy can degrade detection for others by saturating the ring buffer. In a multi-tenant cluster (vendor SaaS, internal platform), TracingPolicies should be platform-team-owned with tenant input rather than tenant-self-service. Cross-link [[reference-zero-trust-workload-identity]] for the tenant-isolation framing.
 
-**Vendor consolidation risk.** Falco (Sysdig) `[unverified — acquisition rumor]`; Tetragon (Isovalent) acquired by Cisco April 2024 `[unverified specific date]`; Tracee (Aqua) `[unverified — corporate-development rumor]`. Vendor strategy changes can disrupt OSS roadmap. CNCF status (Falco Graduated, Cilium Graduated) provides some governance protection — graduated projects can't be unilaterally pulled — but day-to-day maintenance bandwidth depends on vendor priorities. Diversify rule corpus across multiple tools where feasible.
+**Vendor consolidation risk.** Falco (Sysdig); Tetragon (Isovalent) acquired by Cisco April 2024; Tracee (Aqua). Vendor strategy changes can disrupt OSS roadmap. CNCF status (Falco Graduated, Cilium Graduated) provides some governance protection — graduated projects can't be unilaterally pulled — but day-to-day maintenance bandwidth depends on vendor priorities. Diversify rule corpus across multiple tools where feasible.
 
 **Detection-engineer staffing.** Running eBPF runtime detection well requires dedicated detection-engineering capacity. Tuning a rule from "fires 10k times/day" to "fires 5 times/day, all true positives" is days of work per rule. Most teams don't budget the headcount; the tool ships with default rules off → procurement happy, security capability missing.
 
@@ -405,21 +405,21 @@ The defender-pessimist view.
 
 ## 13. 2024-2026 currency
 
-**Falco CNCF Graduated 2024.** Specific quarter `[unverified — community reporting points to early-to-mid 2024]`. Graduation triggers vendor procurement availability in regulated environments (some FedRAMP / SOC 2 questionnaires require CNCF-Graduated status for security tooling).
+**Falco CNCF Graduated 2024.** Graduated February 29, 2024. Graduation triggers vendor procurement availability in regulated environments.
 
-**Cisco acquired Isovalent ~April 2024** `[unverified specific date]`. Tetragon roadmap continues under Cisco. Cilium remains CNCF Graduated independently.
+**Cisco completed its acquisition of Isovalent April 12, 2024.** Tetragon roadmap continues under Cisco. Cilium remains CNCF Graduated independently.
 
-**IBM / Sysdig acquisition status** `[unverified]`. Multiple acquisition rumors have surfaced; treat as fluid. Falco governance is CNCF-protected; the Sysdig commercial product trajectory is vendor-dependent.
+**Sysdig status.** Falco governance is CNCF-protected; the Sysdig commercial product trajectory is vendor-dependent.
 
-**Aqua status** `[unverified — corporate-development rumor]`. Tracee OSS remains active.
+**Aqua status.** Tracee OSS remains active.
 
-**eBPF for Windows.** Microsoft's port of eBPF to Windows kernel — runs eBPF programs in user-mode-side wrapper with WFP / WinSock hooking. As of late 2024 / early 2025 the project is `[unverified specific GA status — community reports general-availability for some hooks]`. The strategic implication: runtime detection on Windows over the next 3-5 years may converge on eBPF rather than ETW callbacks + minifilter. Cross-link [[reference-windows-kernel-exploitation]] for the substrate context.
+**eBPF for Windows.** Microsoft's port of eBPF to Windows kernel — the PREVAIL verifier runs in user mode and verified programs run in a kernel-mode execution context (uBPF JIT, or native drivers built via bpf2c). The project's GitHub releases (latest v1.7.0) are still marked pre-release. The strategic implication: runtime detection on Windows over the next 3-5 years may converge on eBPF rather than ETW callbacks + minifilter. Cross-link [[reference-windows-kernel-exploitation]] for the substrate context.
 
 **BPF-LSM maturity 2024-2026.** Kernel 5.7+ widely deployed in production. BPF-LSM hook count growing (network mediation, signal mediation, capability checks). Tetragon and other BPF-LSM-based tooling can mediate more operations over time.
 
 **AI-workload-detection rules.** Emerging community + vendor rule sets tagged for AI-tool-as-attack-target patterns. Falco community discussion of rules for prompt-injection-indirect-side-effects (file writes that match LLM-output patterns), MCP-server abuse signatures, agent-loop runaway detection. Maturity gap relative to container-escape rule corpus — expect rapid evolution.
 
-**Kubernetes 1.30+ adopts user-namespaces stable.** Reduces the privileged-container requirement for some workloads. Doesn't directly affect runtime-detection probes (probes still need privileges) but reduces the attack surface they protect.
+**Kubernetes 1.36 promotes user-namespaces to stable (GA).** Reduces the privileged-container requirement for some workloads. Doesn't directly affect runtime-detection probes (probes still need privileges) but reduces the attack surface they protect.
 
 **OpenSearch / Loki / Splunk integrations.** Falcosidekick + Tetragon log-export tooling now ships with first-class integrations for the major SIEM/log platforms. Detection-engineering can lean on commodity log search rather than custom alerting infrastructure.
 
@@ -427,9 +427,9 @@ The defender-pessimist view.
 
 **Sigstore + signed rule corpora.** Falco rules are starting to ship signed via sigstore (`cosign verify` of rule bundles). Falcoctl tooling supports OCI artifacts for rule distribution. The supply chain on detection rules themselves matters — a tampered rule that disables critical detections is the inside-the-defender attack. Cross-link [[reference-supply-chain-provenance]] for the SLSA + sigstore discipline.
 
-**Performance-isolation work.** 2024-2026 kernel work on per-cgroup BPF program scheduling + ring buffer per-cgroup partitioning aims to address multi-tenant noisy-neighbor problems. Status `[unverified specific kernel version]`; production deployments still treat noisy-neighbor as a tuning problem.
+**Performance-isolation work.** Production deployments still treat noisy-neighbor as a tuning problem.
 
-**Detection-as-code tooling maturity.** Falco rule linting (`falcoctl lint`), unit testing (rule replay against captured events), CI integration (rule-changes-trigger-replay-suite) — the tooling stack for rules-as-code parity with application-code-CI is filling in. Treat the rule corpus like a software project with versioning, peer review, and regression tests.
+**Detection-as-code tooling maturity.** Falco rule unit testing (rule replay against captured events), CI integration (rule-changes-trigger-replay-suite) — the tooling stack for rules-as-code parity with application-code-CI is filling in. Treat the rule corpus like a software project with versioning, peer review, and regression tests.
 
 ---
 
@@ -463,26 +463,21 @@ The defender-pessimist view.
 - **Andrii Nakryiko** (Meta) — libbpf, CO-RE, BTF; the substrate that makes fleet deployment economic.
 - **KP Singh** (Google) — primary BPF-LSM kernel-side contributor; the substrate enabling Tetragon's synchronous enforcement.
 - **John Fastabend** (Isovalent/Cisco) — Cilium + eBPF kernel work.
-- **Brendan Gregg** (Intel, prev Netflix) — eBPF performance + observability; BPF Performance Tools book; bpftrace + biosnoop + execsnoop tooling that detection engines build on.
+- **Brendan Gregg** (OpenAI, prev Intel and Netflix) — eBPF performance + observability; BPF Performance Tools book; bpftrace + biosnoop + execsnoop tooling that detection engines build on.
 
 **Tool authors + maintainers:**
 - **Loris Degioanni** (Sysdig founder, WinPcap co-creator) — Falco original author + ongoing project sponsor.
 - **Mark Stemm** `[unverified specific role title]` (Sysdig) — Falco maintainer + rule corpus.
-- **Lorenzo Susini** (Sysdig) — Falco rules + community.
-- **Liam Maloy** (Isovalent/Cisco) — Tetragon co-author.
 - **Anna Kapuścińska** (Isovalent/Cisco) — Tetragon + Cilium.
 - **Mahé Tardy** (Isovalent/Cisco) — Tetragon maintainer.
 - **Thomas Graf** (Isovalent founder, Cisco) — Cilium project lead.
-- **Yossi Naar** (Aqua Security) — Tracee co-author.
-- **Daniel Sagi** (Aqua Security) — Tracee co-author.
 
 **eBPF verifier-escape research (the dual-use dimension):**
 - **Manfred Paul** (independent) — CVE-2021-3490 eBPF verifier 32-bit ALU bounds bug, Pwn2Own 2021 Linux winner.
-- **Tristan Edwards** + **valis** + **kylebot** + others — eBPF verifier CVE corpus 2022-2024; see [[reference-linux-kernel-exploitation]] §6.
 
 **Practitioner community:**
 - **CNCF TAG-Security** — runtime detection guidance + CNCF Security WG.
-- **eBPF Foundation** (governance body, Daniel Borkmann + Brendan Gregg + others on TOC) — substrate stewardship.
+- **eBPF Foundation** (governance body, Daniel Borkmann + others on the BPF Steering Committee) — substrate stewardship.
 
 Anchor for future revisions: when extending this doc, ground new claims to primary-source papers (USENIX Security, NDSS, S&P, BlackHat/DEF CON) or vendor engineering blogs (Sysdig, Isovalent, Aqua, Tigera, Datadog Security Labs, Google Project Zero) rather than reuse of secondary sources.
 
@@ -502,11 +497,11 @@ For a staff-security / detection-engineer / SRE bootstrapping eBPF runtime detec
 
 5. **Build the alert-volume metric dashboard.** Alerts/hour by rule, by namespace, by priority. Ring-buffer drop rate. CPU/RAM overhead per node. Alert on metric anomalies, not just rule firings.
 
-6. **Pick a starter rule corpus and prune.** Default Falco corpus is 150+ rules — too many to tune simultaneously. Pick 10-20 highest-priority rules (container escape, credential file access, cryptominer execution, reverse shell, sensitive data exfil). Disable the rest until ready.
+6. **Pick a starter rule corpus and prune.** The full Falco rules set (stable + incubating + sandbox) runs to dozens of rules — too many to tune simultaneously. Pick 10-20 highest-priority rules (container escape, credential file access, cryptominer execution, reverse shell, sensitive data exfil). Disable the rest until ready.
 
 7. **Tune each rule to <5% FP rate before adding the next.** Allowlist legitimate process names/paths via macros + lists. Iterate. Document why each allowlist entry exists.
 
-8. **Replay-test rule changes in CI.** Capture an event corpus from a representative production node (4-hour `falco -e dump.scap`). Run rule changes against the corpus as a CI step. Compute TP/FP delta before merging rule changes.
+8. **Replay-test rule changes in CI.** Capture an event corpus from a representative production node (4-hour capture, replayed with `falco -o engine.kind=replay -o engine.replay.capture_file=dump.scap`). Run rule changes against the corpus as a CI step. Compute TP/FP delta before merging rule changes.
 
 9. **Build the runbook per alert.** Every rule that fires should have a runbook: what to check, who to escalate to, criteria for incident declaration. No runbook → no rule.
 

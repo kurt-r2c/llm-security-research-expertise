@@ -7,15 +7,15 @@
 
 ### Mathy Vanhoef — KU Leuven / NYU Abu Dhabi
 
-**Career arc**: PhD at KU Leuven DistriNet (2011–2016); postdoc at NYU Abu Dhabi (2018–2020); professor at KU Leuven (2020–). Sole author or co-author on every major WPA2 → WPA3 attack of the last decade. Wi-Fi Alliance Mission Specialist Award (2024) — an unusual industry acknowledgement of an adversarial researcher.
+**Career arc**: PhD at KU Leuven DistriNet (2016); postdoc at KU Leuven, then NYU Abu Dhabi (2018–); now professor at KU Leuven. Sole author or co-author on every major WPA2 → WPA3 attack of the last decade. Wi-Fi Alliance Mission Specialist Award (2021) — an unusual industry acknowledgement of an adversarial researcher.
 
 **Arc**: WPA2 4-way-handshake state-machine pathology → key reinstallation (KRACK, 2017) → WPA3 SAE side-channel and downgrade (Dragonblood, 2019) → fragment/aggregation framing pathology (FragAttacks, 2021).
 
 **Key publications**:
 - "Key Reinstallation Attacks: Forcing Nonce Reuse in WPA2" (CCS 2017, with Frank Piessens) — KRACK. Replays message 3 of the 4-way handshake; victim re-installs the already-in-use pairwise key with nonce counter reset to 0; breaks AES-CCMP / TKIP / GCMP confidentiality and integrity. ACM CCS Real-World Impact Award.
-- "Dragonblood: Analyzing the Dragonfly Handshake of WPA3 and EAP-pwd" (S&P 2020, with Eyal Ronen). Five attacks: WPA2-transition-mode downgrade, timing and cache-based side-channels on SAE's hash-to-curve "hunting and pecking," DoS amplification, offline dictionary via the timing leak.
+- "Dragonblood: Analyzing the Dragonfly Handshake of WPA3 and EAP-pwd" (S&P 2020, with Eyal Ronen). Five attacks: WPA2-transition-mode and security-group downgrades, timing and cache-based side-channels on SAE's hash-to-curve "hunting and pecking" (enabling offline password partitioning), and DoS via the anti-clogging mechanism.
 - "Fragment and Forge" (USENIX Security 2021) — FragAttacks. Twelve CVEs in 802.11 fragment/aggregation logic. A-MSDU-flag-flip injection; mixed-key fragment reassembly; cross-session fragment cache.
-- "Wi-Fi Authentication Bypass via Encrypted/Plaintext Confusion" (USENIX 2022) and "Framing Frames" (USENIX 2023).
+- "Framing Frames" (USENIX 2023).
 
 **Tools**: `krackattacks-scripts`, `fragattacks`, `dragonslayer`, `libwifi`. github.com/vanhoefm.
 
@@ -25,11 +25,11 @@
 
 ### Daniele Antonioli — EURECOM
 
-**Career arc**: PhD at SUTD under Nils Ole Tippenhauer (2015–2020); postdoc at EPFL with Kasper Rasmussen; Assistant Professor at EURECOM (2022–). The Bluetooth-side counterpart to Vanhoef's Wi-Fi corpus — sole author or co-author on every major Bluetooth-specification protocol attack since 2019.
+**Career arc**: PhD at SUTD (2019); postdoc at EPFL in Mathias Payer's HexHive group; Assistant Professor at EURECOM. The Bluetooth-side counterpart to Vanhoef's Wi-Fi corpus — sole author or co-author on every major Bluetooth-specification protocol attack since 2019.
 
 **Key publications**:
 - KNOB (USENIX 2019, CVE-2019-9506) — MITM downgrade of Bluetooth Classic encryption key entropy down to 1 byte via LMP_encryption_key_size_req manipulation; brute-force online in real time. Every certified BR/EDR chipset in scope pre-fix.
-- BIAS (S&P 2020, CVE-2020-10135) — master/slave role switch + Legacy Secure Connections downgrade impersonates either side of an existing pairing.
+- BIAS (S&P 2020, CVE-2020-10135) — lack of mandatory mutual authentication + permissive master/slave role switching + authentication-procedure downgrade impersonates either side of an existing pairing.
 - BLURtooth (ASIACCS 2022, CVE-2020-15802) — Cross-Transport Key Derivation lets BR/EDR pairing overwrite BLE keys (and vice versa) without consent.
 - BLUFFS (CCS 2023, CVE-2023-24023) — six attacks on session-key derivation breaking both forward and future secrecy; fix requires a Bluetooth Core Spec change.
 
@@ -41,13 +41,13 @@
 
 ### Karsten Nohl — SRLabs
 
-**Career arc**: PhD University of Virginia (2008, RFID / Crypto-1). Founded Security Research Labs (Berlin) in 2010; Managing Director and Chief Scientist since. Two-decade arc across RFID, GSM/3G/4G/5G, SS7, SIM cards, payments. CCC regular — most canonical European cellular results first surfaced at 24C3 → 36C3.
+**Career arc**: PhD University of Virginia (2008, RFID / Crypto-1). Founded Security Research Labs (Berlin) in 2010; handed the SRLabs CEO role to Wolf Richter in 2025 and became Allurity's Chief Innovation Officer. Two-decade arc across RFID, GSM/3G/4G/5G, SS7, SIM cards, payments. CCC regular — most canonical European cellular results first surfaced at 24C3 → 36C3.
 
 **Key disclosures**:
 - 24C3 (2007, with Henryk Plotz): MIFARE Classic Crypto-1 reverse engineering by silicon de-layering and microscopy. Weak RNG + structural cipher weaknesses.
 - 26C3 (2009): "GSM SRSLY?" — open A5/1 rainbow-table project; 2 TB of pre-computed tables released publicly.
-- 31C3 (2014): "Mobile self-defense" — SS7-based location tracking, SMS interception, call recording at scale. Demonstrated tracking any subscriber by phone number to ~100m globally. Catalyzed `60 Minutes` Australia and US Congressional response.
-- 2019 Black Hat: Simjacker / WIBattack (with AdaptiveMobile) — SIM Toolkit `S@T Browser` / `WIB` applets execute attacker SMS commands silently regardless of phone OS. ~1B SIMs across ~30 carriers.
+- 31C3 (2014): "Mobile self-defense" — SS7-based call and SMS interception; released SnoopSnitch. (SS7 location tracking was Tobias Engel's companion 31C3 talk.) Catalyzed `60 Minutes` Australia and US Congressional response.
+- 2019: Simjacker (AdaptiveMobile) / WIBattack (Ginno Security Lab), with SRLabs follow-up research — SIM Toolkit `S@T Browser` / `WIB` applets execute attacker SMS commands silently regardless of phone OS. ~1B phones across 30+ countries.
 
 **Tools**: SnoopSnitch (Android IMSI-catcher / SS7-attack detection, Qualcomm-baseband, root required); `gnuradio-gsm`.
 
@@ -57,11 +57,11 @@
 
 ### Travis Goodspeed — Independent
 
-**Career arc**: Independent (Tennessee). Created the GoodFET tool family; original author of KillerBee (IEEE 802.15.4 / Zigbee toolkit). Long-time Dartmouth collaborator (Sergey Bratus). See `firmware_embedded_security.md` §I for full bio.
+**Career arc**: Independent (Tennessee). Created the GoodFET tool family. Long-time Dartmouth collaborator (Sergey Bratus). See `firmware_embedded_security.md` §I for full bio.
 
 **RF work**:
-- KillerBee (2009–): canonical 802.15.4 / Zigbee toolkit. `zbid`, `zbdump`, `zbreplay`, `zbstumbler`, `zbgoodfind` (offline key-search via known-plaintext crib against captured ciphertext to recover network key from RAM dumps).
-- "Promiscuity is the nRF24L01+'s Duty" (Black Hat 2011) — abuses an undocumented Nordic nRF24L01+ mode to disable the hardware address filter for promiscuous sniffing. Direct ancestor of MouseJack.
+- KillerBee (Joshua Wright, 2009–): canonical 802.15.4 / Zigbee toolkit. `zbid`, `zbdump`, `zbreplay`, `zbstumbler`, `zbgoodfind` (offline key-search via known-plaintext crib against captured ciphertext to recover network key from RAM dumps).
+- "Promiscuity is the nRF24L01+'s Duty" (blog post, 2011) — abuses an undocumented Nordic nRF24L01+ mode to disable the hardware address filter for promiscuous sniffing. Direct ancestor of MouseJack.
 - "Packets in Packets" (WOOT 2011, with Bratus et al.) — PHY-layer preamble patterns embedded in payload of one frame are interpreted as start-of-frame by desynchronized receivers; frame injection without transmitting.
 
 **References**: `http://travisgoodspeed.blogspot.com/`, `https://github.com/riverloopsec/killerbee`
@@ -70,15 +70,15 @@
 
 ### Michael Ossmann — Great Scott Gadgets
 
-**Career arc**: Founder of Great Scott Gadgets (Evergreen, CO). Hardware engineer who democratized SDR and Bluetooth research for two generations. Ubertooth started as an intended general-purpose SDR; HackRF One finished that vision.
+**Career arc**: Founder of Great Scott Gadgets (Evergreen, CO). Hardware engineer who democratized SDR and Bluetooth research for two generations.
 
 **Tools (all open-source hardware)**:
-- **Ubertooth One** (2011): first practical open-source Bluetooth Classic sniffer. CC2400 + LPC microcontroller, USB. Hops with the piconet. BR-only, one piconet at a time. Mike Ryan's `crackle` and BLE work built on it.
-- **HackRF One** (2014 Kickstarter): 1 MHz – 6 GHz half-duplex SDR transceiver, 20 MSPS, 8-bit ADC. Most-deployed open SDR. ~$300 price + frequency range + open docs made it the standard platform for ~a decade.
+- **Ubertooth One** (2011): first practical open-source Bluetooth Classic sniffer. CC2400 + LPC microcontroller, USB. Hops with the piconet. One piconet at a time. Mike Ryan's `crackle` and BLE work built on it.
+- **HackRF One** (2013 Kickstarter): 1 MHz – 6 GHz half-duplex SDR transceiver, 20 MSPS, 8-bit ADC. Most-deployed open SDR. ~$300 price + frequency range + open docs made it the standard platform for ~a decade.
 - **YARDStick One**: sub-GHz half-duplex CC1111-based transceiver.
 - **GreatFET One**: USB + GPIO multi-tool with daughterboard library; host for Goodspeed's Facedancer line.
 
-**Educational impact**: Ossmann's "Software Defined Radio with HackRF" video course (~25 free lessons on YouTube) is the de facto entry-level SDR curriculum.
+**Educational impact**: Ossmann's "Software Defined Radio with HackRF" video course (free online) is the de facto entry-level SDR curriculum.
 
 **References**: `https://greatscottgadgets.com/`, `https://greatscottgadgets.com/sdr/`
 
@@ -89,7 +89,7 @@
 **Career arc**: Self-taught, public figure since the Samy worm (2005, MySpace XSS). Broad RF / automotive portfolio.
 
 **RF work (DEF CON 23, 2015)**:
-- **OpenSesame**: brute-forces all 12-bit fixed-code garage-door codes in ~8 seconds via de-Bruijn-sequence overlap (~250x naive speedup).
+- **OpenSesame**: brute-forces all 12-bit fixed-code garage-door codes in ~8 seconds via de-Bruijn-sequence overlap (down from ~29 minutes naive).
 - **RollJam**: canonical replay-and-jam against rolling-code KeeLoq/HCS fobs. Jam the receiver's window so the user's first press appears to fail; capture; user re-presses; jam again and capture the second code while replaying the first. Attacker now holds an unused valid rolling code. ~$30 in parts.
 - **KeySweeper**: mass-deployable Microsoft wireless keyboard sniffer disguised as a USB wall charger.
 
@@ -99,13 +99,13 @@
 
 ### Mike Ryan — ICE9 Consulting
 
-**Career arc**: iSEC Partners through 2014, then independent; founded ICE9 Consulting. The BLE sniffer ecosystem largely traces back to his Ubertooth BLE work and `crackle`.
+**Career arc**: iSEC Partners; founded ICE9 Consulting in 2016. The BLE sniffer ecosystem largely traces back to his Ubertooth BLE work and `crackle`.
 
 **Key work**:
 - "Bluetooth: With Low Energy comes Low Security" (WOOT 2013) — first practical attack on BLE Legacy Pairing. Just Works TK = 0 (trivial); Passkey Entry TK is a 6-digit PIN (10^6 brute force). Once TK is recovered, the LTK derives.
 - **crackle**: production tool implementing the WOOT 2013 attack. PCAP in, plaintext out. Still the standard tool 12+ years later.
 - **ICE9 Bluetooth Sniffer**: SDR-based BLE sniffer that — uniquely among open tools — can sniff already-established connections (no connection-request capture required).
-- CVE-2014-4428 (Apple Bluetooth stack, iOS/macOS/tvOS).
+- CVE-2014-4428 (Apple Bluetooth stack, iOS/OS X/Apple TV).
 
 **References**: `https://lacklustre.net/`, `https://www.usenix.org/system/files/conference/woot13/woot13-ryan.pdf`, `https://github.com/mikeryan/crackle`
 
@@ -117,8 +117,8 @@
 
 **Key work**:
 - 2012 White Sands drone spoof: first openly-acknowledged civilian-UAV spoof. UT team coaxed a DHS drone off course via counterfeit civilian GPS signals stronger than the real ones.
-- 2013 superyacht spoof: $80M "White Rose of Drachs" in the Mediterranean. Bhatti and Pesyna broadcast counterfeit signals from a portable spoofer. The yacht's GPS reported drift; crew corrected; each correction set actual heading slightly off. Hours later, tens of meters off planned route, no alarms — slow spoofs are operationally undetectable to legitimate operators.
-- 2013 Congressional testimony (House Committee on Homeland Security) — civilian-GPS-spoofing threat to maritime, smart-grid timing, financial-system clocks.
+- 2013 superyacht spoof: $80M "White Rose of Drachs" in the Mediterranean. Bhatti and Pesyna broadcast counterfeit signals from a portable spoofer. The yacht's GPS reported drift; crew corrected; each correction set actual heading slightly off. Result: a parallel track hundreds of meters off the planned route, no alarms — slow spoofs are operationally undetectable to legitimate operators.
+- 2012 Congressional testimony (House Homeland Security Subcommittee on Oversight, Investigations, and Management) — civilian-GPS-spoofing threat to maritime, smart-grid timing, financial-system clocks.
 - Continuing PNT-resilience work: chip-scale atomic clocks, multi-constellation cross-check, spoofing detection via RSS / clock-bias inconsistency.
 
 **References**: `https://radionavlab.ae.utexas.edu/`, `https://news.utexas.edu/2013/07/29/ut-austin-researchers-successfully-spoof-an-80-million-yacht-at-sea/`
@@ -131,7 +131,7 @@
 
 **Key publications**:
 - "A Tale of Sea and Sky: On the Security of Maritime VSAT Communications" (S&P 2020).
-- "Whispers Among the Stars: Perpetrating and Preventing Satellite Eavesdropping Attacks" (Black Hat 2020). With a $300 Selfsat dish + TBS-6983 PCIe DVB-S2 receiver + EBSPro decoder, captured 4 TB of GEO downlink across 18 satellites. Targets: oil-rig support vessels, Chinese aircraft carrier strike group, port authority crew passport details and cargo manifests in cleartext, in-flight aircraft passenger WiFi. The headline: broadcast downlink + absent link-layer encryption + continent-scale footprint = continent-scale passive collection for $300. Built `GSE Extract` to reconstruct GSE frames from low-quality DVB-S2 recordings.
+- "Whispers Among the Stars: Perpetrating and Preventing Satellite Eavesdropping Attacks" (Black Hat 2020). With ~$300 of gear (Selfsat dish + TBS-6983 PCIe DVB-S2 receiver + EBSPro decoder), captured 4 TB of GEO downlink across 18 satellites. Targets included in-flight aircraft passenger WiFi. The headline: broadcast downlink + absent link-layer encryption + continent-scale footprint = continent-scale passive collection for $300. Built `GSE Extract` to reconstruct GSE frames from low-quality DVB-S2 recordings.
 
 **References**: `https://www.cs.ox.ac.uk/people/james.pavur/`, `https://i.blackhat.com/USA-20/Wednesday/us-20-Pavur-Whispers-Among-The-Stars-Perpetrating-And-Preventing-Satellite-Eavesdropping-Attacks.pdf`
 
@@ -142,7 +142,7 @@
 **Career arc**: PhD at KU Leuven COSIC. Hardware-attack specialist; fault-injection attacks on commercial products that move quickly from academic disclosure to Black Hat demonstration.
 
 **Key work**:
-- CHES 2018 — Tesla Model S DST-40 cipher cryptanalysis; full key-fob clone-from-RF.
+- TCHES 2019 — Tesla Model S DST-40 cipher cryptanalysis; full key-fob clone-from-RF.
 - 2020 — Tesla Model X key: Bluetooth firmware-update vuln pushes arbitrary firmware to a key fob with no auth.
 - "Glitched On Earth By Humans" (Black Hat 2022) — voltage fault injection during the Starlink dish's SoC ROM bootloader bypasses firmware-signature verification. Modchip (RP2040 + MOSFET crowbarring the power rail at signature-check time) costs ~$25. Reported through SpaceX bug bounty. Unfixable for shipped units (exploits ROM bootloader); newer SoC revisions added checks.
 
@@ -152,7 +152,7 @@
 
 ### Adam Laurie ("Major Malfunction") — Aperture Labs
 
-**Career arc**: Senior staff at DEF CON since 1997. Director of Aperture Labs. Canonical RFID researcher since the early 2000s. Earlier work with Ben Laurie produced the first public Bluetooth security flaws (BlueSnarf, Bluebug — 2003–2004).
+**Career arc**: Senior staff at DEF CON since 1997. Director of Aperture Labs. Canonical RFID researcher since the early 2000s. His BlueSnarf (2003) was among the first public Bluetooth security flaws; Martin Herfurt's BlueBug followed in 2004.
 
 **Tools**:
 - **RFIDIOt**: open-source Python library for RFID exploration. LF + HF readers (serial + PC/SC). Ships with Kali. Utilities for ePassport BAC, HID iCLASS analysis, MIFARE Classic key recovery.
@@ -238,7 +238,7 @@ The injection-range column is shorter than receive because injection requires re
 Until ~2010, arbitrary RF transmission cost professional — Ettus USRP at $1,500–$5,000. HackRF One (2014, $300) collapsed that floor. RTL-SDR (~$30, RX-only) collapsed it further for monitoring. As of 2026:
 
 - $30 (RTL-SDR): 24 MHz – 1.7 GHz passive surveillance for anyone with a USB port.
-- $300 (HackRF One): full-duplex 1 MHz – 6 GHz TX/RX. Demodulates every consumer protocol; prototypes protocol attacks against most ISM-band, BLE, Zigbee, sub-GHz, pager systems.
+- $300 (HackRF One): half-duplex 1 MHz – 6 GHz TX/RX. Demodulates every consumer protocol; prototypes protocol attacks against most ISM-band, BLE, Zigbee, sub-GHz, pager systems.
 - $1,000 (bladeRF 2.0, LimeSDR-USB): full-duplex with better dynamic range and instantaneous bandwidth; enables cellular and Wi-Fi protocol-stack research.
 - $5,000+ (USRP X310): research-grade phase coherence; MIMO and AoA work.
 
@@ -284,7 +284,7 @@ WPA2 (802.11i, 2004): AES-CCMP. Two shapes:
 - **WPA2-PSK**: passphrase used as PMK via PBKDF2-HMAC-SHA1(passphrase, SSID). PMK → PTK via the 4-way handshake.
 - **WPA2-Enterprise (802.1X)**: per-user PMK from EAP exchange (PEAP/TTLS/TLS) against backend RADIUS.
 
-**Offline dictionary attack (WPA2-PSK)**: capture 4-way handshake (ANonce, SNonce, MACs, MIC). Offline-test candidates: PMK = PBKDF2(candidate, SSID); PTK = PRF(PMK, ANonces, MACs); verify MIC. ~10K–100K candidates/sec on GPU (hashcat `-m 2500`). Defense: ≥12 random chars or Diceware-style passphrase.
+**Offline dictionary attack (WPA2-PSK)**: capture 4-way handshake (ANonce, SNonce, MACs, MIC). Offline-test candidates: PMK = PBKDF2(candidate, SSID); PTK = PRF(PMK, ANonces, MACs); verify MIC. ~2.5M candidates/sec on a single RTX 4090 (hashcat `-m 2500`). Defense: ≥12 random chars or Diceware-style passphrase.
 
 **KRACK (2017)**: target message 3 of the 4-way handshake. Block message 4, replay message 3; station re-installs the same pairwise key with nonce counter reset to 0. Nonce reuse breaks AES-CCMP and TKIP confidentiality/integrity; against GCMP (WiGig/802.11ad), also enables forgery. 10 CVEs. wpa_supplicant 2.4+ Linux variant was worst — code path installed an all-zero key on second handshake, enabling trivial decryption.
 
@@ -347,12 +347,12 @@ Bluetooth Secure Simple Pairing (SSP, since 2.1) defines four association models
 3. **Passkey Entry**: one device displays a 6-digit code, user types into the other. MITM-resistant.
 4. **OOB**: pairing material delivered via another channel (NFC tap, QR). Best when OOB channel is secure.
 
-ECDH (P-192 in 2.1, P-256 since 4.2) establishes a shared secret. The LTK (BLE) / Link Key (Classic) derives from that + the pairing model's verification step.
+ECDH (P-192 in 2.1, P-256 since 4.1 for BR/EDR and 4.2 for LE) establishes a shared secret. The LTK (BLE) / Link Key (Classic) derives from that + the pairing model's verification step.
 
 ### KNOB / BIAS / BLURtooth / BLUFFS (Antonioli)
 
 - **KNOB** (CVE-2019-9506, USENIX 2019): MITM downgrades BR/EDR key entropy via `LMP_encryption_key_size_req` rewrites. Each side thinks the other requested 1-byte entropy; the resulting key has ~256 effective values; brute force in ms. Fix: enforce ≥7-byte minimum. Most major chipsets now do.
-- **BIAS** (CVE-2020-10135, S&P 2020): two structural quirks combined — master/slave role-switchable after pairing, and Legacy Secure Connections auth is unilateral. Attacker takes master role (target authenticates against attacker); role-switches to slave (no further auth required). Fix: mandate Secure Connections (4.2+); many IoT devices still don't.
+- **BIAS** (CVE-2020-10135, S&P 2020): structural flaws combined — master/slave role-switchable after pairing, no mandatory mutual authentication, and an authentication-procedure downgrade. Attacker takes master role (target authenticates against attacker); role-switches to slave (no further auth required). Fix: mandate Secure Connections (4.1+); many IoT devices still don't.
 - **BLURtooth** (CVE-2020-15802, ASIACCS 2022): CTKD lets a fresh pairing on one transport overwrite the other transport's keys *without user consent*. Attacker pairs Just-Works BLE against a target, then derives Classic keys without going through Classic pairing. Fix: only allow CTKD if the new pairing is at least as authenticated.
 - **BLUFFS** (CVE-2023-24023, CCS 2023): BR/EDR session-key derivation uses a deterministic function of link key + attacker-influenceable nonces. Link Key compromise breaks both forward and future secrecy. Fix requires Core Spec changes; rollout is slow.
 
@@ -366,7 +366,7 @@ BLE Legacy Pairing (4.0–4.1) is broken: Just Works has TK = 0, Passkey Entry h
 
 **MouseJack (Newlin/Bastille, 2016)** — see Newlin bio. Affects Logitech Unifying (CVE-2016-10761 et al.), Dell, Lenovo, HP, Microsoft. Some unpatched in 2026 because firmware updates are user-initiated and rarely applied.
 
-**BlueBorne (Armis, 2017)** — see supporting researchers. Eight RCEs across Linux (CVE-2017-1000251 — kernel stack BO in BlueZ SDP), Android (CVE-2017-0781/0782/0785), Windows (PAN MITM), iOS (CVE-2017-14315 — Apple Low Energy Audio Protocol). No pairing required. ~5.3B devices at disclosure.
+**BlueBorne (Armis, 2017)** — see supporting researchers. Eight RCEs across Linux (CVE-2017-1000251 — kernel stack BO in L2CAP), Android (CVE-2017-0781/0782/0785), Windows (PAN MITM), iOS (CVE-2017-14315 — Apple Low Energy Audio Protocol). No pairing required. ~5.3B devices at disclosure.
 
 **Continued stream**:
 - **BleedingTooth** (Andy Nguyen, Google, 2020) — Linux BlueZ RCE (CVE-2020-12351).
@@ -392,7 +392,7 @@ BLE advertising is in the clear. Pre-iOS 7 / Android 6, persistent MAC addresses
 2.4 GHz, 16 channels, OQPSK 250 kbps. Mesh-routing app layer on 802.15.4 PHY/MAC. Industrial lighting (Philips Hue, Cree, Sengled), sensor networks, home automation. AES-128-CCM*; network key shared by all network devices; per-pair transport keys.
 
 **Common attacks**:
-- **Default ZLL key** (`"ZigBeeAlliance09"` ASCII): many vendors ship with the hardcoded ZigBee Alliance Trust Center Link Key — devices joining use it in cleartext. KillerBee `zbgoodfind` exploits.
+- **Default Trust Center link key** (`"ZigBeeAlliance09"` ASCII): many vendors ship with the hardcoded ZigBee Alliance Trust Center Link Key — devices joining use it in cleartext.
 - **Key transport over insecure preauth**: legacy profiles transport network keys during preauth; sniffable. Cognosec Black Hat 2015 Philips Hue takeover.
 - Nonce reuse / counter weakness in low-cost implementations.
 
@@ -402,7 +402,7 @@ BLE advertising is in the clear. Pre-iOS 7 / Android 6, persistent MAC addresses
 
 ### Thread
 
-IEEE 802.15.4 PHY/MAC + IPv6 (6LoWPAN). Designed by Nest/Google (Thread Group, 2014). AES-128 link-layer + mandatory J-PAKE commissioning. Per-pair link keys — improved over Zigbee's network-wide key. Remaining attack surface: the border router (gateway between Thread and Wi-Fi/Ethernet) and weak commissioning passwords.
+IEEE 802.15.4 PHY/MAC + IPv6 (6LoWPAN). Designed by Nest/Google (Thread Group, 2014). AES-128 link-layer + mandatory J-PAKE commissioning. A single network-wide MAC-layer key (as in Zigbee), distributed to joiners via the PAKE. Remaining attack surface: the border router (gateway between Thread and Wi-Fi/Ethernet) and weak commissioning passwords.
 
 ### Matter (Connectivity Standards Alliance)
 
@@ -447,11 +447,11 @@ Signaling System 7 (1975) is the telco interconnect protocol stack: call setup, 
 
 **Nohl 31C3 2014** demonstrated that SS7 access (obtainable as a small telco or gray-market reseller) enables:
 - **Location tracking**: query subscriber by number, get current cell tower to ~100m globally.
-- **SMS interception**: SRI-SM (Send Routing Info for SM) claims "I'm the new MSC for this subscriber"; SMS routes to attacker.
+- **SMS interception**: a fake UpdateLocation claims "I'm the new MSC for this subscriber"; SMS routes to attacker.
 - **Call interception**: similar via USSD / Camel.
 - **DoS**: register subscriber in non-existent MSC; service lost until manual re-register.
 
-Real-world abuse: Ukraine 2014 (gov SMS-2FA intercept), Germany 2017 (bank accounts drained via SS7-intercepted OTP), continuing campaigns. **Diameter** (4G replacement) — improved auth but same trust-the-other-operator architecture; same attack patterns largely apply.
+Real-world abuse: Ukraine 2014 (subscriber location and calls obtained via SS7 from Russian-addressed nodes), Germany 2017 (bank accounts drained via SS7-intercepted OTP), continuing campaigns. **Diameter** (4G replacement) — improved auth but same trust-the-other-operator architecture; same attack patterns largely apply.
 
 ### IMSI Catchers / Stingrays
 
@@ -463,7 +463,7 @@ Cell-tower impersonators. Originally law-enforcement procurement (Harris Stingra
 
 ### Simjacker / WIBattack
 
-AdaptiveMobile + Nohl (2019): carrier SIM cards with the `S@T Browser` applet (obsolete WAP-era tech) silently execute commands carried in attacker-sent binary SMS — return device location via reverse SMS. WIBattack is the parallel attack on the `Wireless Internet Browser` applet. ~1B SIMs across ~30 carriers at disclosure. Detection: SnoopSnitch.
+AdaptiveMobile + Nohl (2019): carrier SIM cards with the `S@T Browser` applet (obsolete WAP-era tech) silently execute commands carried in attacker-sent binary SMS — return device location via reverse SMS. WIBattack is the parallel attack on the `Wireless Internet Browser` applet. ~1B devices across ~30 countries at disclosure. Detection: SnoopSnitch.
 
 ---
 
@@ -489,7 +489,6 @@ Transmit counterfeit signal stronger than real; nearby receivers compute attacke
 
 - **GLONASS**: similar era, no civilian authentication.
 - **Galileo (EU)**: now offers **OSNMA** — TESLA-based authentication of civilian Open Service nav messages. Initial Service operational July 2025. Receivers must be OSNMA-capable; commercial chipset rollout in progress.
-- **BeiDou (China)**: civilian NMA (Navigation Message Authentication) added in newer generations.
 
 ### ADS-B (Aviation)
 
@@ -507,7 +506,7 @@ Ships broadcast on 161.975 / 162.025 MHz; mandatory for vessels >300 GT. **No au
 - Signal-strength anomaly (sudden 20+ dB jumps suspicious).
 - Time-bias anomaly (sudden internal clock bias jump).
 - Chip-scale atomic clocks for GPS-disciplined applications (cell base stations, smart grid, financial timestamping) — raise alarm on GPS-vs-CSAC disagreement.
-- DARPA SPAR and similar PNT-resilience programs (eLoran, vision, signals of opportunity).
+- PNT-resilience programs (eLoran, vision, signals of opportunity).
 
 See `dns_network_infrastructure.md` for time-protocol angles (NTP/PTP rely on GPS at large operators).
 
@@ -523,7 +522,7 @@ Geostationary at 35,786 km altitude; continent-scale footprints. Broadcast downl
 
 **Santamarta (Black Hat 2014, 2018)** — see Section I bio. Cobham, Hughes, Harris, JRC, Thuraya, Iridium terminals across all major manufacturers: hardcoded credentials, undocumented backdoors, command-injection bugs in web admin, unsigned firmware. 2018 demo: remote access to in-flight aircraft satcom from the public Internet.
 
-**Pen Test Partners**: complementary maritime / aviation pen-test disclosures. Default admin/admin terminals; unprotected telnet management; CRC-as-"signature" firmware updates.
+**Pen Test Partners**: complementary maritime / aviation pen-test disclosures. Default admin/1234 terminals; unprotected telnet management; CRC-as-"signature" firmware updates.
 
 ### LEO Satellite (Starlink, OneWeb, Kuiper)
 
@@ -535,7 +534,7 @@ LEO constellations at 550–1,200 km. Lower latency (~25 ms vs ~600 ms GEO), sma
 
 66-satellite LEO constellation, L-band (1616–1626.5 MHz). 1998 service offered pager + sat-phone + SMS. Iridium NEXT (2017+) modernized but retained legacy SBD and pager protocols.
 
-Stefan "Sec" Zehl et al — `gr-iridium`, `iridium-toolkit`: HackRF + L-band antenna passively receives. Pager service unencrypted; SBD weakly keyed; voice unencrypted at the air interface. ETH Zurich (2026) systematic security analysis confirms these properties and demonstrates arbitrary frame injection with HackRF + L-band power amp. Iridium's "security through complexity" position is not accepted by the cryptographic community.
+Stefan "Sec" Zehl et al — `gr-iridium`, `iridium-toolkit`: HackRF + L-band antenna passively receives. Pager service unencrypted; SBD weakly keyed; voice unencrypted at the air interface. ETH Zurich (2026) systematic security analysis confirms these properties and demonstrates arbitrary frame injection. Iridium's "security through complexity" position is not accepted by the cryptographic community.
 
 ### Maritime and Aviation Satcom
 
@@ -555,17 +554,17 @@ RFID / NFC live across three frequency bands with sharply different physics and 
 
 ### LF (125 kHz)
 
-Legacy access-control: EM4100, HID Prox, Indala. Cards have unique serial numbers (sometimes 26-bit Wiegand). **No cryptographic auth.** Trivially cloneable: Proxmark3 (~$300), Flipper Zero (~$200), or a $20 RDM6300 reads any LF badge in ~1 sec and writes a blank EM4305. Many corporate badge systems still use HID Prox in 2026. Treat LF badges as identifiers, not credentials.
+Legacy access-control: EM4100, HID Prox, Indala. Cards have unique serial numbers (sometimes 26-bit Wiegand). **No cryptographic auth.** Trivially cloneable: Proxmark3 (~$300) or Flipper Zero (~$200) reads any LF badge in ~1 sec and writes a blank EM4305. Many corporate badge systems still use HID Prox in 2026. Treat LF badges as identifiers, not credentials.
 
 ### HF (13.56 MHz)
 
 Dominant access-control / payment / transit band.
 
-- **MIFARE Classic** (NXP): Crypto-1 stream cipher with 48-bit keys. Nohl + Plotz 2008 silicon-RE attack. Cipher has structural weaknesses (poor diffusion, recoverable LFSR) + weak RNG. Full key recovery in seconds with `mfoc` and `mfcuk`. Many transit cards still MIFARE Classic in 2026 because migration is expensive.
-- **MIFARE DESFire (EV1/EV2/EV3)**: 3DES (EV1) or AES (EV2+). EV2+ is largely sound. Failure mode: key management (default keys, site-wide keys).
-- **HID iCLASS (legacy Standard Security)**: 2014 Garcia/van Eersel attack exposed system-wide master keys; broken. HID iCLASS SE / Seos uses AES + per-card diversified keys and is much better.
+- **MIFARE Classic** (NXP): Crypto-1 stream cipher with 48-bit keys. Nohl + Plotz 2007 silicon-RE attack. Cipher has structural weaknesses (poor diffusion, recoverable LFSR) + weak RNG. Full key recovery in seconds with `mfoc` and `mfcuk`. Many transit cards still MIFARE Classic in 2026 because migration is expensive.
+- **MIFARE DESFire (EV1/EV2/EV3)**: 3DES or AES (EV1 already supports AES). EV2+ is largely sound. Failure mode: key management (default keys, site-wide keys).
+- **HID iCLASS (legacy Standard Security)**: 2012 Garcia/de Koning Gans/Verdult/Meriac attack ("Dismantling iClass and iClass Elite") exposed system-wide master keys; broken. HID iCLASS SE / Seos uses AES + per-card diversified keys and is much better.
 - **ePassport (ICAO 9303)**: BAC key derived from passport number + DOB + expiration (all visible on the inside cover; brute-forceable for unconstrained number formats). PACE replaces BAC in newer passports — cryptographically sound. Read-at-distance demonstrated repeatedly (Adam Laurie).
-- **Contactless EMV**: well-vetted card-side challenge-response. Dominant attack is relay (NCC Group, adapted from earlier EMV relay work).
+- **Contactless EMV**: well-vetted card-side challenge-response. Dominant attack is relay.
 
 ### UHF (860–960 MHz)
 
@@ -581,7 +580,7 @@ Tesla card key / hotel keys are NFC card emulation. Attack patterns are physical
 
 ### Flipper Zero
 
-Cultural moment 2022–2023. Multi-protocol pen tool: LF RFID + HF NFC + sub-GHz (CC1101, 300–928 MHz) + 433 MHz + infrared + GPIO. STM32WB55. ~$170. Brazil / Canada / Australia debated banning sales. Legal in US; not as transmitter in many EU markets.
+Cultural moment 2022–2023. Multi-protocol pen tool: LF RFID + HF NFC + sub-GHz (CC1101, 300–928 MHz) + 433 MHz + infrared + GPIO. STM32WB55. ~$170. Brazil / Canada debated banning sales. Legal in US; not as transmitter in many EU markets.
 
 Operationally important less for what new attacks it enables (mostly Proxmark3 + YARDStick equivalents) and more for what it makes accessible — script-kiddie-tier RF abuse is now a $170 consumer purchase. Assume your physical access control, key fobs, and garage doors are under daily Flipper-Zero attack in any public location.
 
@@ -594,7 +593,7 @@ Operationally important less for what new attacks it enables (mostly Proxmark3 +
 **Receivers**:
 - **RTL-SDR ($30)**: 24 MHz – 1.7 GHz RX, 8-bit ADC. The democratization device.
 - **Airspy HF+ ($200)**: high-dynamic-range narrow-band HF/VHF.
-- **SDRPlay RSPdx ($250)**: 1 kHz – 2 GHz, 16-bit ADC, 10 MHz bandwidth.
+- **SDRPlay RSPdx ($250)**: 1 kHz – 2 GHz, 14-bit ADC, 10 MHz bandwidth.
 
 **Transceivers**:
 - **HackRF One ($300)**: 1 MHz – 6 GHz half-duplex, 20 MSPS, 8-bit ADC. Most-deployed open SDR.
@@ -631,14 +630,14 @@ This gets you from "I bought a smart doorbell" to "I can replay arbitrary comman
 ## XI. Real-World Incident Corpus
 
 **Vehicle theft**:
-- Tesla BLE relay (NCC 2022) — widely deployed in UK/EU/US auto-theft rings. Mitigation: PIN-to-Drive + disable passive entry.
+- Tesla BLE relay (NCC 2022). Mitigation: PIN-to-Drive + disable passive entry.
 - Tesla key-fob clone (Wouters 2018, DST-40), Tesla Model X BLE firmware push (Wouters 2020). Patched.
 - KIA/Hyundai TikTok challenge (2022–23): not RF — missing immobilizer on 2011–2021 vehicles + USB-A in the ignition cylinder.
 - RollJam / RollBack: KeeLoq + HCS rolling-code defeats via replay-and-jam. Modern BLE-UWB challenge-response is resistant.
-- CAN injection ("Game Boy" 2023): bypass via headlight harness; not RF but illustrates the wireless layer isn't always the weakest link.
+- CAN injection (Toyota RAV4, Tindell 2023): bypass via headlight harness; not RF but illustrates the wireless layer isn't always the weakest link.
 
 **Maritime / aviation**:
-- 2017 Black Sea spoofing, ~20 vessels at Gelendzhik. Russian attribution accepted.
+- 2017 Black Sea spoofing, ~20 vessels at Gelendzhik.
 - 2018+ Russian EW in Syria / Ukraine, ongoing.
 - 2023 Persian Gulf civilian aviation GPS loss — suspected Iranian or Russian EW.
 - Trend Micro 2013 AIS spoof demonstrated; real-world abuse in sanctions-evasion shipping.
@@ -647,7 +646,7 @@ This gets you from "I bought a smart doorbell" to "I can replay arbitrary comman
 
 **Wi-Fi**: KRACK (2017) vendor patching cycle 6+ months, many embedded never patched; FragAttacks (2021) similar pattern; corporate WPA2-Enterprise hostile-portal exfiltration via `eaphammer` is a steady pen-test win.
 
-**Bluetooth**: BlueBorne (2017) ~5.3B devices, patched over 1–2 years; NCC Tesla BLE relay (2022) under continuing real-world exploitation.
+**Bluetooth**: BlueBorne (2017) ~5.3B devices, patched over 1–2 years; NCC Tesla BLE relay (2022).
 
 **Recurring disclosure venues**: DEF CON RF Village / Car Hacking Village / Aerospace Village; Black Hat USA/EU/Asia; CCC (European canonical, esp. Nohl / SS7 / Iridium / RFID); ShmooCon, REcon, Hardwear.io; USENIX Security, S&P, NDSS, CCS.
 
@@ -665,7 +664,7 @@ Long-term key compromise must not retroactively decrypt past traffic. WPA2-PSK l
 
 ### Channel Binding (Relay Resistance)
 
-Proximity-critical applications (keys, payments, locks) must bind crypto to a physical-layer measurement: UWB time-of-flight, angle-of-arrival, or round-trip-time threshold. Without this, the cryptographic challenge is forwardable any distance — NCC Tesla relay / EMV relay / RKE relay work. Bluetooth Core Spec 5.4 (2023) added UWB ranging; Apple, Samsung, BMW are deploying for car keys.
+Proximity-critical applications (keys, payments, locks) must bind crypto to a physical-layer measurement: UWB time-of-flight, angle-of-arrival, or round-trip-time threshold. Without this, the cryptographic challenge is forwardable any distance — NCC Tesla relay / EMV relay / RKE relay work. Bluetooth Core Spec 6.0 (2024) added Channel Sounding for secure fine ranging; Apple, Samsung, BMW are deploying UWB for car keys.
 
 ### Frequency-Hopping / Spread-Spectrum
 
@@ -715,7 +714,6 @@ For environments with predictable RF use (Wi-Fi-only floors, hospital med-tech, 
 
 - **SnoopSnitch** (Nohl/SRLabs): rooted Qualcomm Android. Monitors baseband for forced 2G handover, cipher downgrade, paging anomalies. Real but heuristic, evadable.
 - **AIMSICD** (open source, more limited).
-- **EFF Cell-Site Simulator** crowdsourced mapping via SnoopSnitch reports.
 
 ### Wi-Fi Rogue AP Detection
 
@@ -723,7 +721,7 @@ WIDS + open-source Kismet (Mike Kershaw). Detection signals: BSSID inconsistency
 
 ### Bluetooth Tracker Detection
 
-iOS 14.5+ and Android 6+ ship interoperable AirTag-class unwanted-tracker detection (Apple+Google+IETF `draft-detecting-unwanted-location-trackers`). For physical security teams: sweep with AirGuard Android app; for serious threat models, RF-shielded conference rooms.
+iOS 17.5+ and Android 6+ ship interoperable AirTag-class unwanted-tracker detection (Apple+Google+IETF `draft-detecting-unwanted-location-trackers`). For physical security teams: sweep with AirGuard Android app; for serious threat models, RF-shielded conference rooms.
 
 ### GPS Spoofing Detection
 
@@ -771,7 +769,7 @@ Surfaces where public literature is thin and research is likely fruitful:
 **Cellular**:
 - Piqueras Jover publications: `http://rogerpiquerasjover.net/`
 - Nohl 31C3 SS7: `https://fahrplan.events.ccc.de/congress/2014/Fahrplan/system/attachments/2493/original/Mobile_Self_Defense-Karsten_Nohl-31C3-v1.pdf`
-- Nohl-Plotz Crypto-1: `https://media.frag-den-staat.de/files/foi/580223/Mifare.Cryptanalysis.pdf`
+- Nohl, Cryptanalysis of Crypto-1: `https://media.frag-den-staat.de/files/foi/580223/Mifare.Cryptanalysis.pdf`
 - SRLabs SnoopSnitch: `https://opensource.srlabs.de/projects/snoopsnitch`
 - ETSI / 3GPP TS 33.501 (5G Security): `https://www.etsi.org/`
 - IEEE Spectrum SS7: `https://spectrum.ieee.org/alarming-security-defects-in-ss7-the-global-cellular-networkand-how-to-fix-them`

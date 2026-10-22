@@ -23,9 +23,9 @@ A short census of what developers run, because the threat model differs per tool
 
 **Docker Desktop.** Docker Inc. The most-deployed. Subscription required for orgs over a size threshold since 2021. macOS implementation has migrated across HyperKit (BSD-licensed xhyve fork by Docker engineers) → Apple Virtualization.framework (vz) as the default backend on Apple Silicon. Windows implementation runs either WSL2 (recommended, since 2020) or Hyper-V VM (legacy). Ships a Linux VM running containerd and dockerd, a host-side desktop app (Electron), a privileged helper service, an extension marketplace, and a Kubernetes single-node distribution. The biggest single attack surface in this doc.
 
-**Rancher Desktop.** SUSE (Sheng Liang founded Rancher Labs; SUSE acquired 2020). OSS. Kubernetes-first — ships k3s rather than a custom k8s. Backed by Lima on macOS, WSL2 on Windows, native on Linux. Smaller host-side surface than Docker Desktop; no proprietary extension marketplace; CRD-style configuration.
+**Rancher Desktop.** SUSE (Sheng Liang founded Rancher Labs; SUSE acquired 2020). OSS. Kubernetes-first — ships k3s rather than a custom k8s. Backed by Lima on macOS and Linux, WSL2 on Windows. Smaller host-side surface than Docker Desktop; no proprietary extension marketplace; CRD-style configuration.
 
-**Podman Desktop.** Red Hat. OSS. The Podman engine is daemonless on Linux (runs containers via fork-exec rather than a long-lived daemon). On macOS and Windows, ships a Linux VM under QEMU + Apple Virtualization.framework / WSL2. Marketed around rootless containers and OpenShift compatibility. Daniel Walsh (Red Hat container-tools lead) drove the daemonless and rootless design.
+**Podman Desktop.** Red Hat. OSS. The Podman engine is daemonless on Linux (runs containers via fork-exec rather than a long-lived daemon). On macOS and Windows, ships a Linux VM under libkrun (current default) or Apple Virtualization.framework (applehv) on macOS, QEMU in older releases, and WSL2 on Windows. Marketed around rootless containers and OpenShift compatibility. Daniel Walsh (Red Hat container-tools lead) drove the daemonless and rootless design.
 
 **Lima.** OSS, macOS-specific. Maintained primarily by Akihiro Suda (NTT; also rootless-containers maintainer). Provides a generic Linux VM on macOS — uses QEMU or Apple Virtualization.framework. Doesn't ship a container engine itself; provides the substrate. Backs Colima and Rancher Desktop on Mac.
 
@@ -75,11 +75,11 @@ Crossing this boundary requires a hypervisor or virtualization-framework bug.
 
 These bugs are rare in absolute count but high-impact when they land. Hyper-V has a public CVE history (`[unverified specific advisory]` for each); Apple's Virtualization.framework has a smaller public CVE corpus, partly because it's newer and partly because Apple discloses vulnerabilities less systematically than Microsoft. HyperKit is BSD-derived and has its own CVE trail.
 
-Real-world precedent for hypervisor escape: VMware Workstation Pwn2Own chains (multiple years); Hyper-V vSwitch (CVE-2024-38080-class `[unverified specific year-CVE mapping]`); QEMU device-emulation escapes (CVE-2019-14378, CVE-2020-14364 — affects Linux-on-Mac via QEMU-backed Lima).
+Real-world precedent for hypervisor escape: VMware Workstation Pwn2Own chains (multiple years); QEMU device-emulation escapes (CVE-2019-14378, CVE-2020-14364 — affects Linux-on-Mac via QEMU-backed Lima).
 
 The Apple Virtualization.framework attack surface is less public but is structurally similar to other Type-1.5 hypervisors.
 
-Felix Wilhelm's Project Zero work on KVM and Hyper-V in 2018-2021 is a useful priors-anchor for the class. The boundary is not impervious; it is moderately well-defended and rarely studied at the depth a serious attacker would invest in.
+Felix Wilhelm's virtualization research (Hyper-V at ERNW in 2014; a KVM guest-to-host escape at Project Zero in 2021) is a useful priors-anchor for the class. The boundary is not impervious; it is moderately well-defended and rarely studied at the depth a serious attacker would invest in.
 
 ### Surface C: host-side daemon, UI, privileged helper
 
@@ -90,10 +90,6 @@ On Windows, equivalent privileged service runs under SYSTEM.
 The privileged helper exists to perform host operations the unprivileged UI cannot: install network filters, manipulate launchd / Windows services, write under `/Library/PrivilegedHelperTools` or `C:\Program Files`, etc.
 
 Any vulnerability in the privileged helper's IPC, command parsing, or authentication is a local privilege escalation to host root or SYSTEM.
-
-This class of bug has shown up repeatedly in Docker Desktop (CVE-2025-0750, CVE-2025-0751 — `[unverified specific advisory text]`; CVE-2023-0626 era), Rancher Desktop (CVE-2024-32484, CVE-2024-32485, CVE-2023-0625), and is the most-active CVE class for desktop container tools.
-
-Aqua Security's Daniel Sagi and Yossi Naar have published on container-escape and host-side-helper classes; cross-pollination between server-side container research and desktop-tool research has produced most of the Surface C disclosures of the last three years.
 
 Web-UI surface: Docker Desktop ships an Electron-based dashboard. XSS, CSRF, SSRF, or RCE in the dashboard means an attacker who lands a browser-side primitive (malicious image preview, malicious extension page, ingress page over a localhost socket) reaches container-management privileges and, via container-management, host access.
 
@@ -127,17 +123,13 @@ Defense is policy: enforce minimum-bind discipline.
 
 The Surface B and adjacent corpus. Stay current with the vendor advisories; the list below is point-in-time.
 
-**Docker Desktop CVE-2025-0750 and CVE-2025-0751** `[unverified specific advisory dates]`. Early 2025. Host-side escape via Docker Desktop's privileged helper / IPC path. The container or local attacker reaches host root via the privileged helper's request-handling. Disclosed by `[unverified specific researchers]`. Patched in Docker Desktop 4.x point release. The structural pattern: privileged helper accepts a request, parses it, executes a command without sufficient authentication or path validation, allowing the user-level attacker to escalate.
+The structural lesson: privileged helpers must do four things to be safe. Authenticate the calling client cryptographically (codesign-anchor on macOS, signature check on Windows). Validate every argument against an allow-list of paths / commands. Use safe syscalls (no `system()`, no shell-out) for the work. Log every request to a tamper-evident audit log. Few privileged helpers do all four; most do two.
 
-The structural lesson from the CVE-2025-0750 / -0751 cluster: privileged helpers must do four things to be safe. Authenticate the calling client cryptographically (codesign-anchor on macOS, signature check on Windows). Validate every argument against an allow-list of paths / commands. Use safe syscalls (no `system()`, no shell-out) for the work. Log every request to a tamper-evident audit log. Few privileged helpers do all four; most do two.
+**Docker Desktop CVE-2024-8695.** Remote code execution via a malicious extension's crafted description or changelog; fixed in Docker Desktop 4.34.2. Separately, the installer-as-attack-surface pattern is a recurring class: installers run as root or SYSTEM, write files into protected paths, and execute scripts as part of the install process. If a low-privileged user can influence what the installer reads or writes, the install path is the privilege-escalation primitive.
 
-**Docker Desktop CVE-2024-8695** `[unverified specifics]`. Local privilege escalation. Docker Desktop helper or installer flaw. Pattern: an unprivileged user could trigger the privileged installer / updater to execute attacker-controlled code. The installer-as-attack-surface pattern is a recurring class: installers run as root or SYSTEM, write files into protected paths, and execute scripts as part of the install process. If a low-privileged user can influence what the installer reads or writes, the install path is the privilege-escalation primitive.
+**Docker Desktop CVE-2023-0625.** RCE via a crafted extension description or changelog in Docker Desktop before 4.12.0.
 
-**Rancher Desktop CVE-2024-32484 and CVE-2024-32485.** UI helper / file-handling. The Rancher Desktop UI on host had a flaw that allowed access to host filesystem paths outside the intended scope. Mitigated in 1.13.x.
-
-**Rancher Desktop CVE-2023-0625.** Symlink-following bug in the UI / privileged-helper path on macOS. Allowed a low-privileged user to escalate to root by tricking the helper into following a symlink to a privileged target.
-
-**WSL2 / Hyper-V CVE history.** WSL2 runs in Hyper-V; Hyper-V vulnerabilities affect WSL2 as a structural consequence. Hyper-V CVE-2024-38080 (root-partition / VMBus surface, `[unverified exact severity]`). CVE-2023-36911, CVE-2023-36906 — root-partition-escape class `[unverified specific impact]`. The interesting subtlety: WSL2 distros are mounted with broad permission, and Windows credential storage interop (DPAPI proxy) means a WSL2-distro compromise can reach Windows credentials without breaching Hyper-V at all. The Surface D problem in WSL2 form.
+**WSL2 / Hyper-V CVE history.** WSL2 runs in Hyper-V; Hyper-V vulnerabilities affect WSL2 as a structural consequence. Hyper-V CVE-2024-38080 (elevation of privilege, CVSS 7.8, exploited in the wild per CISA KEV, July 2024). The interesting subtlety: WSL2 distros are mounted with broad permission, which means a WSL2-distro compromise can reach Windows credentials without breaching Hyper-V at all. The Surface D problem in WSL2 form.
 
 Microsoft's Hyper-V security team has been one of the more transparent hypervisor groups about its CVE pipeline. Patch Tuesday cycles frequently include Hyper-V advisories that map onto VMBus, VID.sys, vmswitch.sys, and the WinHvr.sys layers. Track these advisories specifically for the words "guest-to-host" or "root partition." See cross-link `[[reference-windows-kernel-exploitation]]` for the broader Hyper-V exploitation context.
 
@@ -145,15 +137,15 @@ Microsoft's Hyper-V security team has been one of the more transparent hyperviso
 
 **Apple Virtualization.framework.** Used by Docker Desktop (Apple Silicon), Lima, Colima, Rancher Desktop, OrbStack. Newer code; smaller public CVE corpus. Treat as a single shared dependency: a Virtualization.framework bug affects every macOS desktop container tool simultaneously. `[unverified specific CVE references]`.
 
-**QEMU device-emulation escapes.** Lima and Podman Desktop have used QEMU as an alternative backend. QEMU device-emulation CVEs (CVE-2019-14378 SLiRP, CVE-2020-14364 USB emulation, CVE-2024-7409 NBD — `[unverified specific year-impact]`) are real escapes from the Linux guest to the QEMU process on the host. If QEMU runs as the user (not root), the escape gains user-level host privileges; combined with a Surface D primitive, this is full host compromise.
+**QEMU device-emulation escapes.** Lima and Podman Desktop have used QEMU as an alternative backend. QEMU device-emulation CVEs (CVE-2019-14378 SLiRP, CVE-2020-14364 USB emulation) are real escapes from the Linux guest to the QEMU process on the host. If QEMU runs as the user (not root), the escape gains user-level host privileges; combined with a Surface D primitive, this is full host compromise.
 
 ## 5. CVE corpus — host-side daemon and UI
 
 The Surface C corpus. Tracking this is harder because some vendors disclose under generic LPE language without naming the IPC or daemon directly.
 
-**Docker Desktop privileged helper (`com.docker.vmnetd` historically, now consolidated into the broader privileged-service path on macOS).** Runs as root. Communication with the unprivileged UI is over a Unix domain socket. The historic attack pattern: unauthenticated or weakly-authenticated requests over the socket allow command injection or arbitrary file writes as root. CVE-2023-0626 era; the 2025-0750/0751 cluster is the same structural class. Mitigation: privileged helper authenticates the calling client (e.g., XPC peer validation, codesign-anchor checks) and validates every argument before invoking shell or kernel paths.
+**Docker Desktop privileged helper (`com.docker.vmnetd` historically, now consolidated into the broader privileged-service path on macOS).** Runs as root. Communication with the unprivileged UI is over a Unix domain socket. The historic attack pattern: unauthenticated or weakly-authenticated requests over the socket allow command injection or arbitrary file writes as root. Mitigation: privileged helper authenticates the calling client (e.g., XPC peer validation, codesign-anchor checks) and validates every argument before invoking shell or kernel paths.
 
-**Docker Desktop Electron dashboard.** Electron apps have a long history of XSS-to-RCE via nodeIntegration misconfiguration, contextIsolation oversights, and Webview2 surface on Windows. The dashboard handles image-detail pages, extension-marketplace listings, log-viewer panes, container-build outputs — any of which can include attacker-controlled strings (image names, container logs containing ANSI / HTML, extension descriptions). Treat the dashboard as a browser-class target. `[unverified specific advisory]` cluster has emerged in the 2023-2025 window.
+**Docker Desktop Electron dashboard.** Electron apps have a long history of XSS-to-RCE via nodeIntegration misconfiguration, contextIsolation oversights, and Webview2 surface on Windows. The dashboard handles image-detail pages, extension-marketplace listings, log-viewer panes, container-build outputs — any of which can include attacker-controlled strings (image names, container logs containing ANSI / HTML, extension descriptions). Treat the dashboard as a browser-class target. Docker Desktop UI advisories include CVE-2023-0626 (RCE via query parameters in the message-box route, fixed in 4.12.0) and CVE-2024-8695 (RCE via a crafted extension description or changelog, fixed in 4.34.2).
 
 **Update mechanism.** Docker Desktop, Rancher Desktop, Podman Desktop, OrbStack each implement auto-update. The update channel is over HTTPS to a vendor-controlled endpoint, with code signing verification on the downloaded artifact. The trust anchor is the vendor's signing key and (on macOS) the Apple Developer ID code signature. Compromise of the vendor's signing infrastructure is a one-shot fleet compromise. SolarWinds 2020 demonstrated the upstream variant; CodeCov 2021 demonstrated the lower-friction variant.
 
@@ -171,13 +163,13 @@ Surface D in detail. The list of sensitive material on a typical developer works
 
 **Kubeconfig.** `~/.kube/config` contains cluster credentials (client certificates or tokens) for every cluster the developer has accessed. A container with the kubeconfig mounted reaches every cluster. The aggregation problem is severe: developers commonly hold credentials for 5-50 clusters simultaneously.
 
-**Cloud SDK caches.** `~/.config/gcloud`, `~/.azure`, `~/.oci`, `~/.config/kanto`. Each holds refresh tokens, application default credentials, or service-account keys. Same exfil pattern.
+**Cloud SDK caches.** `~/.config/gcloud`, `~/.azure`, `~/.oci`. Each holds refresh tokens, application default credentials, or service-account keys. Same exfil pattern.
 
 **SSH keys.** `~/.ssh/id_*`, `~/.ssh/authorized_keys`, `~/.ssh/known_hosts`. SSH private keys often unencrypted in practice (passphrase-less, or unlocked into ssh-agent). Reaching `id_rsa` is the most common credential-exfil event in this list because SSH keys are routinely passphrase-less.
 
 **Git credentials.** `~/.git-credentials`, `~/.gitconfig`, `~/.config/gh/hosts.yml`. GitHub CLI stores OAuth tokens that can be used for `gh api`-equivalent access to every repo the developer has access to.
 
-**Browser session cookies.** Chrome on macOS: `~/Library/Application Support/Google/Chrome/Default/Cookies`. SQLite database; values are encrypted but the encryption key is in Keychain accessible to the user. Firefox `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`. On Linux, the equivalent paths under `~/.config`. Chrome's macOS encryption uses Keychain-stored key derived from the user account; an unprivileged process under the developer's UID can decrypt with `security find-generic-password -wa "Chrome"`. A container with bind-mount of `~/Library/Application Support` reads the cookies file; pairing with the Keychain access is harder, but the running Chrome's process memory contains the decrypted cookies (and many SaaS sessions use long-lived tokens that survive past cookie encryption). Cross-link `[[reference-session-management]]` for the session-takeover blast-radius downstream.
+**Browser session cookies.** Chrome on macOS: `~/Library/Application Support/Google/Chrome/Default/Cookies`. SQLite database; values are encrypted but the encryption key is in Keychain accessible to the user. Firefox `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`. On Linux, the equivalent paths under `~/.config`. Chrome's macOS encryption uses Keychain-stored key derived from the user account; an unprivileged process under the developer's UID can request the key with `security find-generic-password -wa "Chrome"` (newer macOS versions prompt for the user's password first). A container with bind-mount of `~/Library/Application Support` reads the cookies file; pairing with the Keychain access is harder, but the running Chrome's process memory contains the decrypted cookies (and many SaaS sessions use long-lived tokens that survive past cookie encryption). Cross-link `[[reference-session-management]]` for the session-takeover blast-radius downstream.
 
 The browser-cookie exfil is the highest-leverage Surface D primitive. A typical developer is signed into AWS Console, Google Workspace, GitHub, GitLab, Snowflake, Datadog, PagerDuty, Slack, Notion, Linear, Salesforce, internal SSO portals, and a long tail of vendor-specific dashboards. Each session cookie is a credential. SaaS session cookies frequently bypass MFA prompts on subsequent re-auth (sliding session windows). A single exfil event is a multi-SaaS lateral chain.
 
@@ -193,13 +185,9 @@ The browser-cookie exfil is the highest-leverage Surface D primitive. A typical 
 
 WSL2 is Hyper-V-managed Linux VMs hosting user Linux distributions. Microsoft markets it as a development environment, not a container tool, but in practice it is the substrate for Docker Desktop and Rancher Desktop on Windows, and developers use it directly.
 
-**WSL2 distro → Windows host crossing.** The Hyper-V boundary is the only structural defense. Hyper-V CVEs that break the root-partition / guest-partition isolation affect WSL2 as a side effect. CVE history is non-trivial (CVE-2024-30086-class). Treat WSL2 distro compromise as roughly equivalent to "untrusted Linux VM with broad host filesystem access via the `/mnt/c/`-style automount."
+**WSL2 distro → Windows host crossing.** The Hyper-V boundary is the only structural defense. Hyper-V CVEs that break the root-partition / guest-partition isolation affect WSL2 as a side effect. CVE history is non-trivial (e.g., CVE-2024-38080, a Hyper-V elevation of privilege). Treat WSL2 distro compromise as roughly equivalent to "untrusted Linux VM with broad host filesystem access via the `/mnt/c/`-style automount."
 
-**Automount of Windows drives.** WSL2 by default mounts the Windows C: drive at `/mnt/c`. A compromised WSL2 distro reads the entire Windows filesystem under the user's privileges — including browser profiles, SSH keys, git credentials, Windows Credential Manager via DPAPI proxying.
-
-**WSL2 + Windows Credential Manager / DPAPI.** WSL2 has interop paths to Windows DPAPI. A compromised WSL2 process can in some configurations request DPAPI decryption of Windows-stored secrets. Cross-link `[[reference-active-directory-windows-security]]` for the AD-domain implications: a WSL2 distro on an AD-joined Windows host with cached credentials has near-equivalent reach to a Windows process under the same user.
-
-**WSL2 + Active Directory cached creds.** AD-joined Windows hosts cache Kerberos tickets; WSL2 has access patterns to extract those in some configurations. The boundary between Linux-in-VM and Windows-AD-credential-cache is thinner than developers usually assume.
+**Automount of Windows drives.** WSL2 by default mounts the Windows C: drive at `/mnt/c`. A compromised WSL2 distro reads the entire Windows filesystem under the user's privileges — including browser profiles, SSH keys, git credentials.
 
 **Enterprise visibility gap.** Many enterprise EDR products instrument the Windows kernel and user-mode but have weaker telemetry inside WSL2 distros. A WSL2 distro can therefore run reconnaissance, lateral movement, and exfiltration with substantially less endpoint visibility than equivalent Windows-native activity. IT-security policies frequently underweight this gap.
 
@@ -218,8 +206,6 @@ Apple's host platform has its own constraints that interact with container tooli
 **Code signing and notarization.** Docker Desktop, Rancher Desktop, OrbStack ship as notarized macOS apps. The privileged helper is signed and installed via SMJobBless / SMAppService. The integrity of the install rests on Apple Developer ID notarization plus the vendor's private signing key. A compromise of either chain is fleet-wide.
 
 **Universal-binary architecture.** Docker Desktop ships separate code paths for Intel Macs (HyperKit-backed historically) and Apple Silicon (Virtualization.framework-backed). The Intel path is being deprecated; security maintenance is uneven across the two. Treat older Intel-Mac installations as higher-risk.
-
-**System Extensions and Network Extensions.** Docker Desktop installs a Network Extension (NEFilterProvider-style) to manage container networking on the host. Network Extensions run in the kernel and have broad reach; a bug in the extension is a kernel-level compromise vector. Apple has tightened the requirements for Network Extensions over recent macOS versions but the surface remains.
 
 **Endpoint Security framework (ES).** Apple's EDR API. Provides telemetry on process spawn, file open, network connection, code-signing events. EDR products built on ES can detect anomalous Docker Desktop child processes but have limited visibility inside the Linux VM. The blind spot below the hypervisor boundary is a structural EDR limitation, not a product gap.
 
@@ -317,8 +303,6 @@ A container-tool compromise is not a contained event. Cross-link `[[reference-se
 
 **Host-side daemon is the highest-trust component.** Docker Desktop's privileged helper has more attack surface than the VM itself.
 
-The Surface C CVE rate exceeds the Surface B CVE rate by an order of magnitude (CVE-2025-0750 / -0751 / -2024-8695 cluster vs the much rarer hypervisor-escape class).
-
 Audit the privileged helper like a kernel module.
 
 Track Docker / Rancher / Podman release notes for helper-related advisories specifically.
@@ -352,8 +336,6 @@ Trade-off: short window of exposure to the most recent CVEs. Pick a side deliber
 **WSL2 boundary on Windows is structurally similar to other VM boundaries** — but enterprise visibility inside the WSL2 distro is much lower than on the Windows host side.
 
 Admins frequently underweight WSL2 in policy.
-
-The WSL2-distro-to-Windows-credential pipeline via DPAPI proxy / automount is the most-active real-world attack vector on Windows developer workstations.
 
 **macOS Virtualization.framework adoption hides per-vendor implementation issues behind a shared dependency.** A Virtualization.framework bug affects every Mac desktop container tool simultaneously.
 

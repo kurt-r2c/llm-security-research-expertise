@@ -12,8 +12,8 @@
 > - **Vitalik Buterin** (Ethereum Foundation co-founder) — canonical posts on
 >   weak subjectivity, nothing-at-stake, economic-finality. Source:
 >   blog.ethereum.org; vitalik.eth.limo.
-> - **Andrew Miller** (UIUC, Decentralized Systems Lab director; former IC3
->   co-director) — "Honey Badger of BFT," "Stubborn Mining," provable security
+> - **Andrew Miller** (UIUC, Decentralized Systems Lab director; IC3
+>   associate director) — "Honey Badger of BFT," "Stubborn Mining," provable security
 >   for cryptocurrencies. Source: soc1024.ece.illinois.edu.
 > - **Emin Gün Sirer** (Cornell, Ava Labs CEO; former IC3 co-director) — with
 >   Ittay Eyal, "Majority is Not Enough" selfish-mining paper. Source:
@@ -24,39 +24,38 @@
 >   2.0" naming MEV. Source: arxiv.org/abs/1904.05234; pdaian.com.
 > - **Ari Juels** (Cornell Tech IC3 director) — senior author Flash Boys 2.0.
 >   Source: tech.cornell.edu.
-> - **Ethan Heilman** (Boston University, now Cybernetica AS) — first author
+> - **Ethan Heilman** (Boston University; co-founder/CTO Arwen / BastionZero) — first author
 >   Bitcoin eclipse-attack paper (USENIX 2015). Source: ethanheilman.com;
 >   eprint.iacr.org/2015/263.
 > - **Sharon Goldberg** (Boston University; co-founder Arwen / Commonwealth
 >   Crypto) — eclipse co-author; BGP-meets-Bitcoin research. Source:
 >   cs.bu.edu/~goldbe.
 > - **Yehuda Lindell** (Bar-Ilan; co-founder Unbound Security → Coinbase 2022;
->   Coinbase Chief Scientist) — Lindell17/18 threshold ECDSA underpins
+>   Coinbase Head of Cryptography) — Lindell17/18 threshold ECDSA underpins
 >   commercial MPC custody. Source: yehudalindell.com; eprint.iacr.org/2018/987.
 > - **Tim Ruffing / Jonas Nick** (Blockstream) — MuSig2 + Schnorr-threshold
 >   line shipped in libsecp256k1 / Bitcoin Core. Source:
 >   blog.blockstream.com; eprint.iacr.org/2020/1261.
 > - **Chelsea Komlo** (Waterloo / Zcash) and **Ian Goldberg** (Waterloo) —
->   FROST authors; IETF FROST draft. Source: eprint.iacr.org/2020/852.
+>   FROST authors; FROST published as RFC 9591 (2024). Source: eprint.iacr.org/2020/852.
 > - **Trail of Bits Blockchain Cryptography team** — Dan Guido, Stefan
 >   Edwards, Josselin Feist plus reviewers; audits of Binance tss-lib, ZenGo
 >   X curv, Keep Network keep-ecdsa, THORchain tss-lib, DFINITY threshold-
 >   ECDSA. Source: blog.trailofbits.com; github.com/trailofbits/publications.
 > - **Verichains** (Vietnam applied-crypto audit) — disclosed TSSHOCK key-
 >   extraction on GG18 / GG20 / CGGMP21 (2023). Source: verichains.io/tsshock.
-> - **samczsun / Sam Sun** (Paradigm, SEAL 911) — "Escaping the Dark Forest"
+> - **samczsun / Sam Sun** (formerly Paradigm; SEAL 911) — "Escaping the Dark Forest"
 >   canonical whitehat-recovery essay; SEAL 911 is the ecosystem IR
 >   coordination layer. Source: samczsun.com; securityalliance.org.
-> - **Mudit Gupta** (Polygon Labs CISO; formerly Coinbase Security Lead) —
+> - **Mudit Gupta** (Polygon Labs CISO) —
 >   DeFi-exploit and exchange-opsec blogger. Source: mudit.blog.
 > - **ZachXBT** (pseudonymous) — most prolific community on-chain
->   investigator; transaction-graph + OSINT. Source: zachxbt.live.
+>   investigator; transaction-graph + OSINT.
 > - **Chainalysis**, **Elliptic**, **TRM Labs**, **Mandiant**, **Crystal
 >   Blockchain** — commercial forensics / threat-intel firms whose incident
 >   reports define industry working knowledge of DPRK and other crypto-
 >   adversary activity.
-> - **bunnie Huang** (HKEX research; Precursor / Betrusted) — hardware-wallet
->   teardown work informing cold-wallet design. Source: bunniestudios.com.
+> - **bunnie Huang** (Precursor / Betrusted) — auditable secure-hardware work. Source: bunniestudios.com.
 >
 > **Audit firms cited beyond Trail of Bits:** OpenZeppelin, Halborn, Kudelski
 > Security, NCC Group, SlowMist, CertiK, Quantstamp, Spearbit / Cantina.
@@ -87,8 +86,7 @@
 
 The maximalist framing — *what executes on-chain is the truth* — holds at
 the EVM execution layer and breaks at the social layer. The DAO fork
-(June 2016), Steem / Hive split (March 2020), the Solana validator-
-restart after Wormhole (Feb 2022), and small-chain rollbacks demonstrate
+(July 2016), Steem / Hive split (March 2020), and small-chain rollbacks demonstrate
 "code is law" yields to "consensus is people" once asset value is high
 enough. Working model: **every cryptocurrency system has a layer where
 the social cost of not intervening exceeds the cost of intervening; that
@@ -163,7 +161,7 @@ trust-the-third-party-author pattern one level lower.
 
 Cold wallets move signing to a dedicated device with its own MCU, screen,
 buttons, storage. Canonical: Ledger (Nano S Plus, Nano X, Stax, Flex —
-STM32 / ST33), Trezor (Model One/T, Safe 3/5 — ATECC608 on newer),
+STM32 / ST33), Trezor (Model One/T, Safe 3/5 — OPTIGA Trust M secure element),
 Keystone (air-gapped QR), BitBox (ATECC608B + Cortex-M4), Coldcard (Mk4).
 
 Threat surface:
@@ -180,8 +178,8 @@ Threat surface:
    suspect.
 3. **Seed-phrase extraction at the human layer** — paper backups
    photographed, mnemonics typed into phishing sites impersonating
-   manufacturer support. The 2020 Ledger customer-data breach (270k
-   emails, ~9k physical addresses) seeded years of targeted physical-mail
+   manufacturer support. The 2020 Ledger customer-data breach (~1M
+   emails, ~272k physical addresses) seeded years of targeted physical-mail
    and "send-the-victim-a-fake-Ledger" mailings.
 4. **Blind-signing on a small screen** — a 1.5-inch OLED cannot render a
    meaningful complex-DeFi summary; user sees "Sign message" and clicks
@@ -255,7 +253,7 @@ knowledge no device can ship universally.
 
 ### EIP-712 typed structured data
 
-EIP-712 (Buterin, Bloemen et al., 2017) standardizes structured-data
+EIP-712 (Bloemen, Logvinov, Evans, 2017) standardizes structured-data
 hashing. User signs a typed structure whose schema is part of the
 payload. Wallets recognizing domain + types render ("Permit: USDC ->
 0xRouter, amount=100") human-readably; opaque otherwise.
@@ -286,7 +284,7 @@ Etherscan approval viewer, periodic audits.
 Attack tooling commoditized: **Inferno**, **Pink**, **Monkey**, **Angel**,
 **MS Drainer** multi-tenant kits. Affiliate gets phishing-site templates
 + hosted drain-logic backend with profit-share (20-30% operator, 70-80%
-affiliate). ZachXBT's corpus: Inferno Drainer alone drained $80M+ across
+affiliate). Per Group-IB (citing Scam Sniffer), Inferno Drainer alone drained $80M+ across
 2022-2023. Kits provide address-mining, multi-chain support, permit
 harvesting, mixer/bridge laundering, affiliate dashboards. Individual
 phishing operators need traffic sources (X impersonation, Discord
@@ -315,7 +313,7 @@ attacker willing to phish session cookies.
 
 ### Pre-sign simulation as structural defense
 
-Blockaid, Pocket Universe, Stelo Labs (acquired by Phantom 2024), Wallet
+Blockaid, Pocket Universe, Stelo Labs, Wallet
 Guard each implement a pre-sign simulator: fork chain state at the latest
 block, execute the transaction in a sandbox, report resulting state
 changes. User sees "this transaction will move 10 ETH from you to
@@ -323,7 +321,7 @@ changes. User sees "this transaction will move 10 ETH from you to
 
 Defense limits: (a) **Simulation bypasses** — attacker contracts branch on
 `block.number`, `block.timestamp`, sender, oracle state; simulator's fork
-won't match deployment-time mempool state. Blockaid's December 2024
+won't match deployment-time mempool state. Blockaid's June 2024
 writeup catalogs bypass techniques. (b) **Coverage gaps** — simulators
 only see state changes within the transaction; off-chain permit signatures
 don't move state at signing time, future-execution authorization is missed
@@ -395,8 +393,7 @@ device cryptographically attests to manufacturer-signed firmware; host
 verifies. Ledger's "genuine check" via Ledger Live and Trezor's
 bootloader signature verification are production implementations. Bypass:
 counterfeit attestation keys trusted by compromised host software, or
-bootloader-bypass exploits (Kraken Security Labs found one on Trezor
-bootloader 2017).
+bootloader-bypass exploits.
 
 ### Recovery service controversy: Ledger Recover (2023)
 
@@ -448,11 +445,11 @@ preprocessable. libsecp256k1's MuSig2 is canonical. Production: Bitcoin
 Taproot multi-sig, Lightning channel funding.
 
 **FROST** (Komlo, Goldberg, 2020 — eprint.iacr.org/2020/852): M-of-N
-Schnorr threshold. IETF FROST draft (draft-irtf-cfrg-frost) is the
-standardization track. **ROAST** (Ruffing et al., 2022 —
+Schnorr threshold. FROST was published as RFC 9591 (June
+2024, IRTF CFRG). **ROAST** (Ruffing et al., 2022 —
 eprint.iacr.org/2022/550) adds robust asynchronous signing: even when up
 to M-t of M signers are malicious or offline, the protocol terminates
-with a valid signature after at most t+1 retries.
+with a valid signature after at most M-t+1 signing sessions.
 
 For Ed25519 / EdDSA, **threshold EdDSA** via FROST adapts cleanly with
 domain-separation. ChainSafe, Coinbase, others ship Ed25519-FROST in
@@ -484,8 +481,8 @@ conversions + zero-knowledge range proofs.
 
 March 2023, Verichains disclosed **TSSHOCK** — novel key-extraction
 attacks against threshold-ECDSA GG18, GG20, CGGMP21. Research began
-October 2022; first disclosures December 2022; public announcement March
-29, 2023.
+October 2022; first disclosures December 2022; press announcement March
+27, 2023; full details at Black Hat USA, August 10, 2023.
 
 Technical core: zero-knowledge range proofs used in the MtA conversion
 step of GG18 / GG20 had implementation-specific weaknesses allowing a
@@ -493,8 +490,8 @@ malicious signer to learn a victim signer's secret share over a sequence
 of signing sessions. *Not* a break of underlying primitives — specific
 implementation choices and proof omissions in popular open-source
 libraries. Verichains estimated $8B+ of crypto assets at risk. Affected:
-Binance tss-lib (most-forked GG20), ZenGo X curv-rs, multiple in-house
-variants. Fixes shipped Q2-Q3 2023.
+Binance tss-lib (most-forked GG20), ZenGo X multi-party-ecdsa (won't fix; unmaintained), multiple in-house
+variants. Some affected libraries were still unfixed at public release.
 
 Lessons: (a) **MPC bugs are extremely hard to find** — multiple audits
 missed TSSHOCK; ZKP structure is among the most cryptographically
@@ -551,10 +548,10 @@ consistent deep reorgs.
 Production 51% attacks have happened, primarily on smaller-cap PoW chains:
 
 - **Ethereum Classic (ETC)**: January 2019 (~$1.1M, $200k double-spent on
-  Gate.io). July-August 2020 three incidents; August attack orphaned
-  3,692 blocks and added 3,287 over ~14 hours, double-spending ~800k ETC
-  ($5.8M); attacker spent <$200k on rented hash power.
-- **Bitcoin SV** (May 2021): three attacks in two months, ~14h reorgs.
+  Gate.io). July-August 2020 three incidents; the July 31-August 1 attack
+  reorged 3,693 blocks, double-spending ~807k ETC
+  (~$5.6M); attacker spent <$200k on rented hash power.
+- **Bitcoin SV** (June-August 2021): three attacks in three months; August reorg up to 14 blocks deep.
 - **Bitcoin Gold** (May 2018, January 2020): $18M and $70k via Equihash
   mining-rental.
 - **Verge** (April 2018): consensus-bug-enabled.
@@ -622,7 +619,7 @@ Defense: **slashing**. Cryptographic detection of double-signing triggers
 automatic stake confiscation. Ethereum slashing conditions: (a) two
 different beacon-chain blocks at the same slot (proposer slashing); (b)
 two attestations satisfying the "surround" relation (attester slashing).
-Slashed validator loses 1+ ETH minimum plus correlation penalty scaling
+Slashed validator loses an initial penalty (~1 ETH pre-Pectra; ~0.0078 ETH for 32 ETH post-Pectra) plus correlation penalty scaling
 with mass-collusion. Detection is itself in-protocol incentive — anyone
 can submit a proof and earn a portion of slashed stake, creating a
 permissionless monitor network.
@@ -646,7 +643,7 @@ mempool). Chain runs; liveness for censored transactions is compromised.
 Post-August 2022 Tornado Cash sanctions, ~70% of Ethereum blocks were
 "OFAC-compliant" (Flashbots relay operated under US jurisdiction).
 Mitigation: non-censoring relays (Agnostic, BloxRoute Max-Profit) and
-self-built blocks. Composite rate declined to ~30% by 2024. Cross-link
+self-built blocks. Cross-link
 [[distributed_authz_expertise.md]].
 
 ### Routing-level (BGP) attacks
@@ -669,14 +666,14 @@ BGP exposure with availability cost. Institutional defense: multi-region
 Validator: 32 ETH deposited to beacon-chain deposit contract (cap
 balances decentralization against block-validation overhead). Validators
 sign attestations every slot (~12s) and occasionally propose. Honest
-~3-5% annual; misbehavior triggers slashing.
+~2.8-3.3% annual (2026); misbehavior triggers slashing.
 
 Key points: (a) **Withdrawal credentials** distinguish BLS-key-controlled
 and ETH-address-controlled (0x01 prefix); most institutional validators
 use 0x01 so withdrawal goes to a separately-keyed hot wallet. (b)
 **Validator key vs withdrawal key** are distinct — signing-key compromise
 alone lets an attacker slash the validator but NOT steal staked ETH. (c)
-**Slashing** (duplicate blocks or "surround" attestations) costs 1-32 ETH
+**Slashing** (duplicate blocks or "surround" attestations) costs ~0.0078-32 ETH (post-Pectra)
 based on correlated-slashing population. (d) **Exit queue**: hours-to-
 weeks for full validator exit; security feature (reduces long-range-attack
 risk), operational drag (slow compromised-key rotation).
@@ -696,11 +693,12 @@ below.
 
 ### Lido + EigenLayer centralization
 
-**Lido Finance** controls 25-33% of staked ETH. If Lido's operator set
+**Lido Finance** controls ~21% of staked ETH (mid-2026). If Lido's operator set
 were compelled, the chain would be materially affected. Defense
-evolution: initial ~30 KYC'd professional operators → 2024 Community
-Staking Module (CSM) admitting permissionless solo stakers with 1.3 ETH
-per slot → DVT pilot with Obol eliminating single-operator-controls-key
+evolution: initial curated set of professional operators → 2024 Community
+Staking Module (CSM) admitting solo stakers (Early Adoption first, later
+fully permissionless) with a 2.4 ETH bond (1.5 ETH for early adopters,
+1.3 ETH per additional validator) → DVT pilot with Obol eliminating single-operator-controls-key
 risk. Community pressure against exceeding 33% (one-third gives
 attack-disruption power short of 51%) has held.
 
@@ -769,7 +767,7 @@ builders produce ~95%+. Decentralization argument: any validator could
 self-build; in practice MEV-capture rents are concentrated in the builder
 oligopoly. Future: **enshrined PBS** (ePBS) moves PBS into the protocol.
 2025 SoK papers (arxiv.org/abs/2506.18189) catalog design space;
-Pectra / Fusaka upgrades include ePBS-relevant primitives.
+ePBS itself (EIP-7732) is a headliner of the Glamsterdam upgrade.
 
 ---
 
@@ -799,9 +797,9 @@ event happened?** Four models:
    Succinct generalize across heterogeneous chains.
 
 Implicit fifth: **trusted-validator-set + economic slashing** —
-validators have staked tokens slashable on misbehavior. LayerZero DVN,
-Wormhole guardian network with bonds, Axelar restaked validator set blend
-committee + economic incentive. Committee size + slashing rigor determine
+validators have staked tokens slashable on misbehavior. LayerZero DVN and
+Axelar's delegated proof-of-stake validator set blend committee +
+economic incentive; Wormhole's guardian network is proof-of-authority. Committee size + slashing rigor determine
 security.
 
 ### Ronin Bridge ($625M, March 2022)
@@ -827,7 +825,8 @@ Wormhole bridge between Solana and Ethereum used a guardian-set model
 (19 guardians, 13-of-19). The exploit was *not* guardian compromise —
 signature-verification bypass on the Solana side. A deprecated Solana
 function (`load_instruction_at`) verified guardian signatures without
-checking the verification program account was the correct system program.
+checking that the passed-in instructions sysvar account was the real
+sysvar account (`load_instruction_at_checked` validates this).
 Attacker passed a fake "verification program" account containing
 pre-baked "verified" attestations; Wormhole accepted them and minted
 120,000 wETH on Solana. Jump Crypto injected $325M to refill collateral;
@@ -841,11 +840,10 @@ program ID — Solana equivalent of forgetting an EVM authz check.
 Nomad used optimistic verification: a Replica contract on destination
 accepted attestations with a 30-minute fraud-proof window. A routine
 upgrade initialized the trusted-root storage slot to `bytes32(0)`.
-Merkle-proof verification checked the proof's leaf was in
-`acceptedRoots`; the mapping returned `false` (default) for unknown
-roots — EXCEPT that the default of an uninitialized mapping entry IS
-`bytes32(0)`, matching the initialized trusted-root, so every unproven
-message verified as accepted.
+Message processing looked up each message's proven root in a mapping;
+for a never-proven message that lookup returns the default `bytes32(0)`,
+which matched the initialized trusted root (pre-confirmed in
+`confirmAt`), so every unproven message verified as accepted.
 
 Exploit was so simple that within hours hundreds of independent
 addresses copied the original transaction (substituting their own
@@ -871,7 +869,7 @@ Post-2022 consolidation:
   additional DVNs.
 - **Wormhole**: 19-guardian, 13-of-19; post-2022 emergency-response
   primitives + monitoring.
-- **Axelar**: ~75-validator restaking-style economic bonds; slashable.
+- **Axelar**: ~75-validator delegated proof-of-stake set; slashable.
 - **Hyperlane**: modular interchain security — each application picks
   multi-sig / optimistic / ZK.
 
@@ -882,8 +880,9 @@ trust with bridge infrastructure providing primitives but not opinions."
 
 - **THORChain**: cross-chain swaps via MPC-controlled liquidity pools;
   TSS validators collectively hold native-asset wallets.
-- **ChainPort**, **Multichain** (defunct after 2023 $1.5B+ loss
-  attributed to operator MPC-share compromise).
+- **ChainPort**, **Multichain** (defunct after July 2023 ~$126M
+  unauthorized withdrawals; its MPC node servers ran under the arrested
+  CEO's sole control).
 
 Inherits both MPC implementation-bug risk (TSSHOCK class) and
 operator-trust risk.
@@ -941,8 +940,8 @@ mandated multi-sig and cold-wallet thresholds.
 
 ### Bithumb (2017-2019)
 
-Repeated hot-wallet compromises: 2017 ($31M+), 2018 ($31M EOS/Ripple),
-2019 (~$13M). Some attributed to insider collusion. Repeated breaches
+Repeated hot-wallet compromises: 2017, 2018 (~$31M),
+2019 (~$19M in EOS/XRP). Some attributed to insider collusion. Repeated breaches
 demonstrate operational-security gaps aren't always closed after a single
 incident.
 
@@ -986,11 +985,12 @@ Technical chain (per NCC Group, Mandiant, Elliptic, TRM Labs analyses):
    remainder dispersed across hundreds of wallets and chain-hopped
    through bridges over days.
 
-Attribution: FBI, Mandiant, TRM Labs each independently attributed to
-Lazarus / DPRK within 48h via wallet-clustering, mixing preferences,
-timing patterns. Bybit CEO Ben Zhou announced a $140M bounty; Bybit
-covered customer balances from insurance + own funds; ~10% stolen funds
-recovered or frozen as of late 2025.
+Attribution: blockchain-analytics firms (Elliptic, TRM Labs) and
+ZachXBT tied it to Lazarus / DPRK via wallet-clustering, mixing
+preferences, timing patterns; the FBI confirmed on February 26, 2025
+("TraderTraitor"). Bybit CEO Ben Zhou announced a $140M bounty; Bybit
+covered customer balances from insurance + own funds; ~5% of stolen funds
+recovered or frozen per Bybit's 2026 figures.
 
 Structural lessons: (a) **The UI is part of the trust boundary.** No
 matter how good the underlying multi-sig cryptography, if signers don't
@@ -1023,8 +1023,8 @@ sig, the *signing-UX layer* is an unprotected surface.
 
 ### DPRK Lazarus as the dominant adversary
 
-Chainalysis / Mandiant attribute $3.4B+ in crypto theft to North Korean
-state-sponsored actors (Lazarus, APT38, TraderTraitor, BlueNoroff,
+Chainalysis attributes $2.02B of 2025's $3.4B in crypto theft to North
+Korean state-sponsored actors (Lazarus, APT38, TraderTraitor, BlueNoroff,
 Andariel — "Lazarus" is a loose umbrella per Mandiant). Operational
 characteristics: (a) **Reconnaissance** — months of social engineering
 targeting operator accounts; job-offer phishing via LinkedIn / Telegram
@@ -1104,8 +1104,8 @@ laundering (ETH → BTC → Monero → USDT) multiplies analytical work.
   compromise, smaller liquidity pool.
 - **Samourai Wallet** (Bitcoin Whirlpool): operators arrested April
   2024 for unlicensed money-transmission.
-- **eXch** (cross-chain mixer): widely used by Bybit attackers; shut
-  down 2025 under DPRK pressure.
+- **eXch** (cross-chain mixer): widely used by Bybit attackers; seized
+  by German authorities (BKA) April 30, 2025.
 - **Monero**: not a mixer per se but a chain with confidential default
   transactions. DPRK funds frequently exit ETH chains into XMR. Some
   timing/amount-correlation analysis still possible but substantially
@@ -1203,7 +1203,8 @@ protocol or coordinate counter-attack.
 
 ### OpenZeppelin Defender Sentinel
 
-Defender Sentinel (commercial) provides contract-monitoring with
+Defender Sentinel (commercial; hosted Defender was retired July 1,
+2026 in favor of open-source Monitor) provided contract-monitoring with
 custom-rule scripting and alerting integrations (PagerDuty, Slack,
 email). Overlap with Forta exists; Defender is centralized and
 customer-pays.
@@ -1218,8 +1219,8 @@ runtime monitoring.
 ### MetaMask Snaps for transaction safety
 
 MetaMask Snaps (late 2023) allow security vendors to integrate analysis
-into the wallet. Blockaid's Snap is canonical: every transaction sent to
-Blockaid's API for risk scoring before signing. Cross-link
+into the wallet. Blockaid's alerts ship natively in MetaMask (not as a
+Snap), simulating transactions locally via its PPOM module before signing. Cross-link
 [[browser_js_engine_exploitation_expertise.md]] §6 on Snap sandbox.
 
 ### Vendor onchain monitoring
@@ -1289,20 +1290,21 @@ custody** uses TEEs to compute iris-hash without exposing biometric.
 (cross-link [[confidential_computing_expertise.md]] §8).
 
 TEE-specific attacks (SGAxe, ÆPIC Leak, MMIO Stale Data, SGX-Step,
-timing) all apply. SGX deprecation in Intel's consumer CPU line (12th
+timing) all apply. SGX deprecation in Intel's consumer CPU line (11th
 gen+) is shifting institutional custody toward Nitro Enclaves and AMD
 SEV-SNP.
 
 ### Quantum threat to crypto signatures
 
 Shor's algorithm breaks ECDSA, EdDSA, Schnorr on sufficiently large
-quantum computers. NIST working assumption: 2030-2040 for
-"cryptographically relevant quantum computer." Implications: (a)
+quantum computers. NIST IR 8547 (draft) deprecates quantum-vulnerable
+algorithms after 2030 and disallows them after 2035. Implications: (a)
 **Address reuse risk** — Bitcoin P2PKH addresses derived from
 hash(public_key) only expose the public key after first spend;
 never-spent addresses are quantum-safe; spent addresses expose the
 public key for future quantum derivation. (b) **Pre-quantum migration**
-— ML-DSA / Dilithium, SLH-DSA / SPHINCS+, FALCON are NIST-standardized;
+— ML-DSA / Dilithium, SLH-DSA / SPHINCS+ are NIST-standardized (FALCON / FN-DSA
+still draft FIPS 206);
 cross-link [[post_quantum_cryptography_expertise.md]]. Chain-level
 migration is a consensus-fork event. (c) **Hash function security
 against Grover's** — SHA-256 preimage / collision degraded but not
@@ -1433,7 +1435,7 @@ operational security practices still maturing.
 - Fireblocks — fireblocks.com/what-is-mpc
 - Coinbase `cb-mpc` — github.com/coinbase/cb-mpc
 - Safe — safe.global; Argent — argent.xyz; Coinbase Smart Wallet — wallet.coinbase.com/smart-wallet; Squads — squads.so
-- Blockaid — blockaid.io; Pocket Universe — pocketuniverse.app; Stelo (acquired by Phantom 2024); Wallet Guard — walletguard.app
+- Blockaid — blockaid.io; Pocket Universe — pocketuniverse.app; Stelo; Wallet Guard — walletguard.app
 - Forta — forta.org; OpenZeppelin Defender — defender.openzeppelin.com; Tenderly — tenderly.co; Hypernative — hypernative.io; Cyfrin — cyfrin.io; BlockSec — blocksec.com; GoPlus — gopluslabs.io
 - SEAL — securityalliance.org
 

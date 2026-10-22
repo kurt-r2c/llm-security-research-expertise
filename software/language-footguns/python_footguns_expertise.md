@@ -8,8 +8,8 @@
 > path traversal) that cover attack surface by class rather than by language.
 > The 2024-2026 load-bearing updates: PEP 703 free-threaded Python (3.13t and
 > 3.14+) collapses GIL-based atomicity assumptions in third-party C extensions;
-> the `tarfile.extractall(filter='data')` default in Python 3.12 closes the
-> 17-year-old CVE-2007-4559 Tar Slip class; PyTorch 2.6 flipped `torch.load`
+> the `tarfile.extractall(filter='data')` default in Python 3.14 closes the
+> long-standing CVE-2007-4559 Tar Slip class; PyTorch 2.6 flipped `torch.load`
 > default to `weights_only=True`; PyYAML 6.0 made `Loader=` a required argument;
 > the 2025 ReversingLabs **nullifAI** disclosure (broken-pickle deserialization
 > bypassing `picklescan`) and HiddenLayer **Silent Sabotage** (Hugging Face
@@ -30,15 +30,14 @@
 >   Residence," release manager for Python 3.8 and 3.9, creator of the Black
 >   formatter; co-author or author of multiple PEPs covering type-hint and
 >   modernization mechanics
-> - **Brett Cannon** — CPython core developer since 2003 (12th most prolific
->   contributor), Principal Software Developer at Microsoft on the Python
+> - **Brett Cannon** — CPython core developer since 2003,
+>   Principal Software Developer at Microsoft on the Python
 >   tooling team; led the CPython GitHub migration, authored `importlib`, and
 >   served on the inaugural CPython Steering Council
 > - **Steve Dower** — CPython core contributor and the Windows build manager;
 >   Microsoft Python engineer; CVE coordination for Windows-specific
 >   bugs.python.org issues (CVE-2022-26488 escalation-of-privilege via the
->   Windows installer); the canonical "Run Python in production without
->   compromising your security" talk track
+>   Windows installer)
 > - **Pradyun Gedam** — pip maintainer, PyPA member, PSF Fellow, CPython core
 >   developer; co-author of multiple packaging PEPs including the PyPA
 >   governance model; Python Infrastructure team at Bloomberg
@@ -59,7 +58,7 @@
 >   pickle decompiler / static analyzer / bytecode rewriter referenced by
 >   nearly every modern Python deserialization writeup); `abi3audit` for
 >   Python C-extension ABI auditing; `modern-python` Claude Skill plugin
->   that codifies their internal Python-audit doctrine
+>   for modern Python tooling (uv, ruff)
 > - **ReversingLabs / JFrog / HiddenLayer / Snyk** (institutional) — the
 >   2024-2025 ML-supply-chain CVE corpus (`nullifAI` Hugging Face
 >   pickle-bypass, three zero-day `picklescan` CVEs, Silent Sabotage
@@ -182,10 +181,10 @@ access:
 eval(user_input)  # user_input = "__import__('os').system('id')"
 ```
 
-The Python documentation warns explicitly: "the default value
-[`globals=None`] gives access to all of builtins" and "the
-arguments are a code object, a global dictionary, and a local
-dictionary." Restricting `eval` via `eval(s, {'__builtins__': {}})`
+The Python documentation warns explicitly: "Overriding
+`__builtins__` can be used to restrict or change the available
+names, but this is **not** a security mechanism: the executed code
+can still access all builtins." Restricting `eval` via `eval(s, {'__builtins__': {}})`
 is **not safe** — the AST escape via `().__class__.__bases__[0].__subclasses__()`
 reaches arbitrary classes in the running process without touching
 `__builtins__`. Every published "safe eval" sandbox in Python has
@@ -203,8 +202,8 @@ syntactic reach. Same "you cannot restrict it" reality.
 exec(user_input)  # user_input = "import os; os.system('id')"
 ```
 
-The documentation note: "be aware that the `return` and `yield`
-statements may not be used outside of function definitions even
+The documentation note: "be aware that the `nonlocal`, `yield`, and
+`return` statements may not be used outside of function definitions even
 within the context of code passed to the `exec()` function" is the
 *only* restriction — and it is irrelevant to security.
 
@@ -260,8 +259,7 @@ result = eval(expr, {'__builtins__': {}}, {'sqrt': math.sqrt})
 
 is **not safe**. Escape chains: `().__class__.__bases__[0].__subclasses__()`
 reaches every loaded class; any callable in the namespace whose
-`__globals__` includes dangerous builtins is a pivot (and
-`math.sqrt`'s does). This is the Python instance of the universal
+`__globals__` includes dangerous builtins is a pivot. This is the Python instance of the universal
 axiom **you cannot sandbox a fast reflective language at the
 language level** (cross-link `js_sandbox_escape_expertise.md`).
 Defenses: (a) don't evaluate untrusted strings at all; (b) use
@@ -275,7 +273,7 @@ not in a strict allowlist (typically `Expression`, `BinOp`,
 `UnaryOp`, `Constant`, `Compare`, `BoolOp`, allowlisted `Name`).
 Interpret the AST directly or `compile` the validated AST in an
 empty namespace. `simpleeval` (PyPI) implements this and has
-shipped multiple CVEs over the years for allowlist gaps. If the
+shipped a sandbox-escape CVE (CVE-2026-32640) for allowlist gaps. If the
 alternative is "build a real DSL with a real parser," that is
 almost always the right answer.
 
@@ -388,7 +386,7 @@ surface is *larger* than vanilla pickle — every additional
 type `dill` knows how to pickle is an additional gadget surface
 under unpickle.
 
-`cloudpickle` (from the Apache Beam / Joblib ecosystem) is
+`cloudpickle` (originally from PiCloud, later PySpark) is
 similar — extends pickle to handle distributed-computing payloads
 including dynamic functions. Same warning.
 
@@ -420,17 +418,16 @@ load time.
 PyTorch 2.6 flipped the default to `weights_only=True`, using a
 restricted unpickler that allows only tensors and a small type
 whitelist. This closes the basic RCE primitive but does not
-eliminate gadget surface — JFrog's three-zero-day disclosure and
-the ArXiv 2025 paper "The Art of Hide and Seek" show gadget chains
-under `weights_only=True` abusing allowlisted types' state
-restoration. **Treat any `torch.load` on untrusted bytes as
+eliminate RCE — CVE-2025-32434 was RCE through
+`weights_only=True` via the legacy `.tar` load path (PyTorch
+≤ 2.5.1, fixed in 2.6.0). **Treat any `torch.load` on untrusted bytes as
 RCE-adjacent** even with `weights_only=True`; the long-run correct
 primitive is `safetensors`. Cross-link: `deserialization_expertise.md`
 § ML serialization; `adversarial_ml_model_security_expertise.md`.
 
 ### 3.10 The `safetensors` defensive alternative
 
-`safetensors` (Hugging Face, 2023+) stores raw tensor data plus a
+`safetensors` (Hugging Face, 2022+) stores raw tensor data plus a
 JSON header — no pickle, no callables, no `__reduce__`. The format
 is deserialization-safe by design. Trade-off: it stores only
 tensors and metadata; non-tensor model state serializes separately.
@@ -452,7 +449,7 @@ the supply chain" reminder.
   techniques exploiting scanner-vs-runtime opcode-dispatch
   differential.
 - **Silent Sabotage** (HiddenLayer 2024): see § 3.10.
-- **Fake Alibaba SDK models** (CSOonline 2024): typosquatted
+- **Fake Alibaba SDK models** (CSOonline 2025): typosquatted
   ML-package distribution shipping pickle payloads.
 
 Collective message: pickle is the dominant Python ML serialization
@@ -564,7 +561,7 @@ def append_item(item, target=None):
 
 `None` is immutable; the `is None` check creates a new list per
 call. This is idiomatic Python; `ruff` rule B006 / `pylint`
-W0102 / `bandit`-via-`flake8-bugbear` all flag the mutable-
+W0102 / `flake8-bugbear` B006 all flag the mutable-
 default pattern.
 
 ### 5.4 The `frozenset` / `()` / `MappingProxyType` exception
@@ -593,8 +590,7 @@ final loop value).
 
 This is documented in the Python FAQ ("Why do lambdas defined
 in a loop with different values all return the same result?")
-and is the subject of many writeups (Justin Ellis, Hywel Carver,
-the CodeQL `py-loop-variable-capture` query). The CodeQL rule
+and is the subject of many writeups (e.g. the CodeQL `py/loop-variable-capture` query). The CodeQL rule
 detects the pattern automatically.
 
 ### 6.2 The `lambda i=i: ...` default-arg trick
@@ -661,8 +657,8 @@ comprehension and does not leak. Code ported from Python 2 to
 Python 3 can break if it relied on the leak.
 
 Generator expressions `(x for x in range(5))` have always had
-their own scope. List, dict, and set comprehensions joined this
-behavior in Python 3.
+their own scope, as did dict and set comprehensions (added in
+Python 2.7). List comprehensions joined this behavior in Python 3.
 
 ---
 
@@ -684,7 +680,8 @@ behavior in Python 3.
 - **Argv injection — even with `shell=False`.** User-controlled
   arguments to commands with dangerous flags pivot to RCE:
   - `subprocess.run(['git', 'log', user_branch])` — if
-    `user_branch` is `--exec=cmd`, git executes `cmd`.
+    `user_branch` is `--output=/path/file`, git overwrites an
+    arbitrary file.
   - `subprocess.run(['find', '.', user_pattern])` — `-exec sh
     -c 'id' \;` executes inside find.
   - `subprocess.run(['curl', user_url])` — `-K/--config @file`
@@ -763,11 +760,11 @@ ancient or deliberately race-vulnerable.
 `tarfile.extractall(path)` historically honored `..` components
 in archive member names — write-anywhere primitive. CVE-2007-4559
 was open from 2007 until Python 3.12 (2023) introduced
-extraction filters (PEP 706) with default `filter='data'`
-that rejects symlinks outside destination, absolute paths, and
+extraction filters (PEP 706); Python 3.14 made `filter='data'`
+the default, which rejects symlinks outside destination, absolute paths, and
 `..` traversal.
 
-For Python ≤ 3.11 (and any backporting code), the safe pattern
+For Python ≤ 3.13 without an explicit `filter=` (and any backporting code), the safe pattern
 canonicalizes per-member and prefix-checks:
 
 ```python
@@ -780,8 +777,10 @@ tar.extractall(path)
 
 ### 8.7 `zipfile.extractall()` — same Zip Slip class
 
-Same vulnerability history, similar fix path. Python 3.12+ does
-some validation; pre-3.12 needs the canonical-prefix check.
+Same vulnerability history, similar fix path. `ZipFile.extract()` /
+`extractall()` strip absolute-path prefixes and remove `..`
+components from member names; `extractall()` has no `filter=`
+parameter.
 
 ### 8.8 `os.path.realpath` + canonical-prefix-check discipline
 
@@ -811,10 +810,11 @@ Cross-link `code_review_expertise.md` § path-handling.
   flag universally.
 - **`ssl.create_default_context()` vs `ssl.SSLContext()`.**
   `create_default_context()` is default-secure: TLS 1.2+ minimum
-  (1.3 since Python 3.10), strong ciphers, hostname verification
+  (since Python 3.10), strong ciphers, hostname verification
   ON, certificate validation ON. `ssl.SSLContext(protocol=...)`
-  constructed directly is default-INSECURE: hostname verification
-  OFF, certificate validation OFF. Docs explicitly recommend
+  constructed directly with `PROTOCOL_TLS` / `PROTOCOL_TLS_SERVER`
+  is default-INSECURE: hostname verification OFF, `CERT_NONE`;
+  `PROTOCOL_TLS_CLIENT` enables both by default. Docs explicitly recommend
   `create_default_context()`.
 - **`httpx` defaults to `verify=True`.** Same `verify=False`
   footgun pattern as `requests`.
@@ -839,8 +839,9 @@ Cross-link `code_review_expertise.md` § path-handling.
   bypasses driver parameter binding. The `%s` here is the
   Python format placeholder, not the DB-API one.
 - **`cursor.execute("SELECT ... WHERE id = %s", (user_input,))` —
-  safe.** PEP 249 specifies `execute(query, params)` sends query
-  and params separately; driver binds via prepared statement.
+  safe.** PEP 249 specifies `execute(query, params)`; the driver
+  handles binding (psycopg2 converts each value to a quoted SQL
+  literal client-side).
   Placeholder styles per `paramstyle`: `qmark` (`?` — sqlite3),
   `numeric` (`:1`), `named` (`:name`), `format` (`%s` —
   mysqlclient/psycopg2), `pyformat` (`%(name)s` — psycopg2).
@@ -859,7 +860,8 @@ Cross-link `code_review_expertise.md` § path-handling.
 - **Django ORM raw escape hatches.** `Model.objects.filter(id=x)`
   is parameterized. `Model.objects.raw(query, params)` is safe
   with the params tuple, SQLi without. `Model.objects.extra(
-  where=[USER_INPUT])` is documented-deprecated and SQLi when
+  where=[USER_INPUT])` is a documented last-resort API Django aims to
+  deprecate, and SQLi when
   user input flows in. `Model.objects.raw(f"... {user}")` is
   SQLi. Cross-link `code_review_expertise.md`: any Django ORM
   call with `raw`, `extra`, or `RawSQL` deserves a long look.
@@ -888,15 +890,16 @@ Cross-link `code_review_expertise.md` § path-handling.
   auto-escapes by default; `mark_safe(user_html)` opts out. Bandit
   B703 / Ruff S308 flag the pattern.
 - **CSRF discipline.** `CsrfViewMiddleware` must come after
-  `SessionMiddleware`. `@csrf_exempt` is often abused on webhook
-  receivers. `CSRF_TRUSTED_ORIGINS` (Django 4.0+) needs explicit
+  `SessionMiddleware` if you're using `CSRF_USE_SESSIONS`. `@csrf_exempt` is often abused on webhook
+  receivers. `CSRF_TRUSTED_ORIGINS` (entries need a scheme since Django 4.0) needs explicit
   config for legitimate cross-origin POSTs.
 - **`SECRET_KEY` exposure.** Signs sessions, password reset tokens,
-  CSRF tokens, all `signing.dumps`/`loads`. Leaked SECRET_KEY =
+  all `signing.dumps`/`loads`. Leaked SECRET_KEY =
   forgeable everything. Common leak channels: git commits, logs,
   `DEBUG=True` error pages.
 - **`DEBUG=True` in production** exposes stack traces with locals,
-  settings module contents (including SECRET_KEY and DB creds),
+  settings module contents (settings named with API, KEY, PASS, SECRET, SIGNATURE or
+  TOKEN are hidden),
   installed apps, request headers / cookies. `ALLOWED_HOSTS` is
   one of the few protections still effective; otherwise total
   information disclosure. `python manage.py check --deploy` flags.
@@ -936,8 +939,8 @@ Cross-link `code_review_expertise.md` § path-handling.
   auto-validated; `user_id: str` permits `..` traversal. Fix
   with strict typing (UUID, int) or explicit regex.
 - **Dependency-injection ordering for auth.** Routes that forget
-  to declare an auth `Depends` run with no auth. No application-
-  level default. Every route declares `Depends` or is
+  to declare an auth `Depends` run with no auth unless it is applied app-wide via
+  `FastAPI(dependencies=[...])`. Every route declares `Depends` or is
   explicitly public.
 
 ---
@@ -946,7 +949,7 @@ Cross-link `code_review_expertise.md` § path-handling.
 
 ### 12.1 `json.loads` is safe by default
 
-`json.loads(s)` parses JSON per RFC 8259 with no `eval`, no
+`json.loads(s)` parses JSON per RFC 7159 with no `eval`, no
 `__reduce__`, no callable invocation. One of the few
 "deserialize untrusted bytes" APIs in Python that is safe by
 default. The footgun is the layer *above*:
@@ -967,8 +970,8 @@ Safe: `yaml.safe_load(s)`, `yaml.load(s, Loader=yaml.SafeLoader)`,
 `yaml.load(s, Loader=yaml.BaseLoader)` (everything-as-string).
 Avoid: `yaml.unsafe_load(s)`, `yaml.load(s, Loader=yaml.Loader)`,
 `Loader=yaml.UnsafeLoader`, `Loader=yaml.FullLoader` (FullLoader
-blocks the most-direct primitives but still constructs arbitrary
-Python classes).
+was exploitable before PyYAML 5.4 via CVE-2020-14343; 5.4 moved
+arbitrary python tags to UnsafeLoader).
 
 ### 12.3 `yaml.unsafe_load` canonical RCE payload
 
@@ -976,30 +979,30 @@ Python classes).
 !!python/object/apply:os.system ["id"]
 ```
 
-Single-line RCE under pre-6.0 `yaml.load` or any unsafe loader.
+Single-line RCE under pre-5.1 `yaml.load` or any unsafe loader.
 
 ### 12.4 `xml.etree.ElementTree` — XXE not fully closed
 
 Python 3's `xml.etree` mitigated some XML attacks (entity-expansion
 limits, no external DTD in recent versions) but the full XXE /
 Billion Laughs surface is not closed at the parser level. Python
-docs include a warning recommending `defusedxml` for untrusted
-input. Cross-link `xml_parser_differential_expertise.md`.
+docs point to their XML security section for untrusted input. Cross-link `xml_parser_differential_expertise.md`.
 
 ### 12.5 `lxml.etree` — defaults unsafe
 
-`lxml.etree` wraps `libxml2`. Defaults allow external entity
-expansion, DTD loading, network access for entity resolution. lxml
+`lxml.etree` wraps `libxml2`. Before lxml 5.0 the default
+`resolve_entities=True` expanded external entities; 5.0 changed
+it to `resolve_entities='internal'`. `no_network` defaults to True. lxml
 maintainers recommend `resolve_entities=False, no_network=True,
 load_dtd=False` for untrusted input, or `defusedxml`'s lxml wrapper.
 
 ### 12.6 `defusedxml` as defensive XML parser
 
 `defusedxml` (tiran/defusedxml) wraps stdlib parsers with safe
-defaults: DTD disabled (`DTDForbidden`), entity declarations
+defaults: DTDs allowed unless `forbid_dtd=True` (`DTDForbidden`), entity declarations
 disabled (`EntitiesForbidden`), external references disabled
 (`ExternalReferenceForbidden`), network disabled, Billion-Laughs
-limits enforced. Python docs explicitly recommend it. Any
+limits enforced. Any
 production code parsing external XML without `defusedxml` (or
 equivalent hardening) deserves review. Cross-link
 `xml_parser_differential_expertise.md`.
@@ -1010,7 +1013,7 @@ equivalent hardening) deserves review. Cross-link
 
 - **GIL serializes bytecode, not statements.** CPython's GIL
   serializes bytecode-instruction execution; `counter += 1` is
-  three bytecode instructions (LOAD, ADD, STORE), interleavable
+  four bytecode instructions (LOAD, LOAD, ADD, STORE), interleavable
   across threads — classic lost-update race. Code that assumes
   "the GIL makes this atomic" is wrong about which operations
   are atomic. Cross-link `race_conditions_concurrency_expertise.md`
@@ -1043,7 +1046,7 @@ equivalent hardening) deserves review. Cross-link
   Invalidates atomicity assumptions in C extensions written
   pre-2024 (silent wrong answers, crashes, exploitable memory
   corruption) and pure-Python code that relied on incidental
-  GIL serialization. ~40% single-thread overhead per PEP 703
+  GIL serialization. ~5-6% single-thread overhead per PEP 703
   benchmarks. Treat as new concurrency surface needing full
   audit even if "thread-safe under the GIL" before.
 
@@ -1055,7 +1058,7 @@ equivalent hardening) deserves review. Cross-link
   systems). Package-controlled arbitrary Python code runs at
   install time with the installer's privileges. Dominant primitive
   in PyPI supply-chain attacks: typosquatting, dependency
-  confusion, maintainer-account hijack. Trail of Bits `0wned`
+  confusion, maintainer-account hijack. `0wned`
   (github.com/mschwager/0wned) demonstrates explicitly.
 - **PEP 517 + wheels are safer.** `pip install --only-binary=:all:`
   installs from pre-built wheels with no package-controlled
@@ -1086,8 +1089,7 @@ equivalent hardening) deserves review. Cross-link
   cooldown — the org-wide 7-day-minimum policy in
   `~/.claude/CLAUDE.md` guards against typosquats the registry
   has not yet caught.
-- **PEP 458 — TUF-signed PyPI metadata.** Implemented for PyPI
-  as of 2025; client support in `pip` is partial. Cross-link
+- **PEP 458 — TUF-signed PyPI metadata.** Cross-link
   `cicd_supply_chain_expertise.md` § signing.
 
 ---
@@ -1208,17 +1210,18 @@ used in subsequent `open` / `os.stat` / `shutil.copy`.
 - pattern-not: $T.extractall(..., filter=...)
 ```
 
-Pre-3.12; in 3.12+ the default is safe but explicit `filter=`
-makes the intent legible.
+Pre-3.14 the tarfile default is equivalent to `fully_trusted`;
+3.14+ defaults to `data`. Explicit `filter=` makes the intent
+legible.
 
 ### 15.12 Bandit (Python security linter) coverage
 
-Bandit ships 47+ built-in checks covering most of the above:
+Bandit ships built-in checks covering most of the above:
 B301 (pickle), B102 (exec_used), B307 (eval), B602
 (subprocess_popen_with_shell_equals_true), B608 (hardcoded SQL
 in string format), B501 (request_with_no_cert_validation), B506
 (yaml_load), B703 (django_mark_safe), B701
-(jinja2_autoescape_false), B614 (torch_load). Configure via
+(jinja2_autoescape_false), B614 (pytorch_load). Configure via
 `.bandit` / `pyproject.toml`.
 
 ### 15.13 Ruff / pylint security rules
@@ -1384,7 +1387,7 @@ for security-specific patterns but useful in combination.
   https://docs.python.org/3/library/subprocess.html#security-considerations
 - `tarfile` extraction filters (PEP 706):
   https://docs.python.org/3/library/tarfile.html#extraction-filters
-- `xml` (defusedxml recommendation):
+- `xml` (XML security):
   https://docs.python.org/3/library/xml.html
 - `tempfile` (mktemp deprecation):
   https://docs.python.org/3/library/tempfile.html
@@ -1420,9 +1423,9 @@ for security-specific patterns but useful in combination.
   https://discuss.python.org/t/policies-for-tarfile-extractall-a-k-a-fixing-cve-2007-4559/23149
 - CVE-2022-26488 (Python Windows installer EoP, Steve Dower
   coordination): https://bugs.python.org/issue46948
-- ReversingLabs, "nullifAI: Malicious ML Models on Hugging
-  Face": https://www.reversinglabs.com/blog/rl-identifies-malware-ml-model-hosted-on-hugging-face
-- JFrog, "PyTorch Users at Risk: Three Zero-Day PickleScan
+- ReversingLabs, "Malicious ML models discovered on Hugging
+  Face platform" (nullifAI): https://www.reversinglabs.com/blog/rl-identifies-malware-ml-model-hosted-on-hugging-face
+- JFrog, "PyTorch Users at Risk: Unveiling 3 Zero-Day PickleScan
   Vulnerabilities":
   https://jfrog.com/blog/unveiling-3-zero-day-vulnerabilities-in-picklescan/
 - HiddenLayer, "Silent Sabotage: Hijacking Safetensors
@@ -1517,7 +1520,7 @@ for security-specific patterns but useful in combination.
   https://codeql.github.com/codeql-query-help/python/py-loop-variable-capture/
 - Insecure deserialization:
   https://codeql.github.com/codeql-query-help/python/py-unsafe-deserialization/
-- Server-side template injection:
+- Jinja2 templating with autoescape=False:
   https://codeql.github.com/codeql-query-help/python/py-jinja2-autoescape-false/
 
 ---

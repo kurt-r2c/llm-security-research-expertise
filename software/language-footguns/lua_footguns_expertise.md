@@ -37,7 +37,7 @@
 >   with Ierusalimschy and de Figueiredo of the Pedro Ernesto medal
 >   for the creation of Lua.
 > - **Mike Pall** — Original author of LuaJIT (luajit.org). Canonical
->   primary source for "you cannot sandbox a fast language" — the
+>   primary source for the position that the
 >   only viable sandbox for Lua is a process-level boundary, not
 >   in-VM scoping tricks. The same argument is the foundation of the
 >   JS-sandbox corpus; cross-cited in `js_sandbox_escape_expertise.md`.
@@ -49,8 +49,8 @@
 >   indirectly with the sandbox question.
 > - **Samuel Groß (saelo)** — Author of "Pwning Lua through 'load'"
 >   (saelo.github.io). Canonical writeup on Lua bytecode
->   exploitation: out-of-bounds LOADK to forge TValues, type
->   confusion in FORLOOP/SETLIST, setjmp-via-coroutine to arbitrary
+>   exploitation: out-of-bounds LOADK to forge TValues, fake
+>   string/table objects for read/write, setjmp-via-coroutine to arbitrary
 >   native code. Original 33C3 CTF "read-eval-pwn loop" author.
 > - **Peter Cawley (corsix)** — LuaJIT internals researcher; "Malicious
 >   LuaJIT bytecode" (corsix.org) and "Exploiting Lua 5.1 on 32-bit
@@ -123,8 +123,8 @@ Almost every Lua-related CVE in the public record traces to this
 contract violation. The host wanted "user-supplied configuration"
 or "user-supplied plugin"; the host got "user-supplied RCE" because
 the default Lua surface is not a sandbox. Wireshark, Redis,
-OpenResty, Roblox (pre-Luau), Factorio, Garry's Mod, and Adobe
-Lightroom have each shipped at least one disclosure here.
+OpenResty, Roblox (pre-Luau), Factorio, and Garry's Mod have each
+shipped at least one disclosure here.
 
 ### 1.2 "Lua is small and simple" collides with "sandbox escape is well-documented"
 
@@ -151,7 +151,7 @@ Lua-specific consequences:
 
 - **Bytecode loading is a category-of-attack primitive.** Via
   `loadstring(string.dump(f))` in Lua 5.1, `load(bytecode)` in 5.2+,
-  or LuaJIT's `-b`/`-m` modes, accepting untrusted bytecode
+  or LuaJIT's `-b` mode, accepting untrusted bytecode
   collapses the sandbox boundary.
 - **The debug library is escape-as-a-feature.** `debug.getupvalue`
   /`debug.setupvalue` walk closure captures; `debug.sethook`
@@ -170,9 +170,6 @@ The lua-users SandBoxes position:
 
 - The default Lua runtime is not a sandbox. Exposing
   `load`/`loadstring` to user input ships RCE.
-- A sandbox built by restricting the global table to an allowlist
-  is provably escapable for every published PUC-Rio Lua (5.1–5.4)
-  and for LuaJIT.
 - The only known-good approaches are (a) bytecode validation +
   strict allowlist of language features (Roblox Luau, requires a
   fork), or (b) process-level isolation. Anything in between is a
@@ -322,7 +319,8 @@ Mitigation: remove or wrap every intrinsic metatable accessor —
 `rawlen`, plus the entire `debug` table (`getmetatable`,
 `setmetatable`, `getupvalue`, `setupvalue`, `getlocal`, `setlocal`,
 `sethook`, `getinfo`, `getregistry`, `upvaluejoin`). Luau's
-`SECURITY.md` documents the analogous restrictions.
+sandbox documentation (`luau.org/sandbox`) documents the analogous
+restrictions.
 
 ---
 
@@ -368,10 +366,10 @@ Overflow. Not a sandbox:
 - Metatables of values inside the env are walkable.
 
 Mozilla `lua_sandbox` and `kikito/lua-sandbox` are the more
-defensible versions: explicit allowlist construction + metatable
-stripping on every allowlisted value + instruction-count debug
-hook + a README warning that "still not suitable for truly
-adversarial input." The README warning is load-bearing.
+defensible versions: explicit allowlist construction +
+instruction-count debug hook + (kikito) a README warning that it
+"does not provide protection against malicious users." The README
+warning is load-bearing.
 
 ### 4.3 `loadfile` and `dofile` against guest-controlled paths
 
@@ -400,9 +398,10 @@ bytecode-attack class.
 
 The PUC-Rio Lua VM does not validate the integrity of binary
 chunks loaded via `load`. The reference manual (Lua 5.4
-manual §6.3) explicitly documents this:
-> "Lua does not check the consistency of binary chunks.
-> Maliciously crafted binary chunks can crash the interpreter."
+manual §6.1) explicitly documents this:
+> "Lua does not check the consistency of the code inside binary
+> chunks; running maliciously crafted bytecode can crash the
+> interpreter."
 
 The maximalist reading: crafted bytecode produces type
 confusions in the VM's opcode handlers and reaches arbitrary
@@ -421,8 +420,9 @@ Samuel Groß's canonical writeup at
 2. **Constant-table spray.** Allocate strings shaped like valid
    TValues; allocator placement makes the OOB load return a
    forged TValue.
-3. **Type confusion in FORLOOP / SETLIST.** Forged TValue in a
-   register yields primitive read/write.
+3. **Fake string and table objects.** A forged string with a huge
+   length yields memory read; a forged table whose array pointer is
+   attacker-chosen yields memory write.
 4. **setjmp-via-coroutine arbitrary call.** Fake jmpbuf reached
    through a coroutine that yields after writing it; controlled
    `longjmp` lands attacker-chosen rip/rsp.
@@ -438,34 +438,34 @@ absence).
 **CVE-2022-0543** (Redis Lua sandbox escape, Debian/Ubuntu).
 Upstream Redis statically links a stripped Lua without
 `luaopen_package`/`luaopen_os`. Debian/Ubuntu dynamically link a
-system Lua that retains them. Attacker reaches `package.loadlib`,
-loads `liblua5.1.so.0`, calls `luaopen_os`, gains `os.execute`.
+system Lua that retains them. Attacker reaches `package.loadlib`
+and can load arbitrary libraries.
 KEV catalog (CISA), Metasploit
 `redis_debian_sandbox_escape`. DSA-5081, USN-5316-1.
 
 **benmmurphy 2015 Redis EVAL escape.** Original disclosure
 establishing the surface CVE-2022-0543 replays.
 
-**CVE-2018-1999023 (Wesnoth).** Scenario-supplied Lua loaded via
-`dofile` in bytecode-permissive mode → native code. Resolved by
-restricting `mode` to `"t"`.
+**CVE-2018-1999023 (Wesnoth).** Lua engine sandbox escape via
+untrusted bytecode, reachable through saved games, network games,
+replays and player content; fixed in Wesnoth 1.14.4.
 
-**Factorio (memorycorruption.net, 2024).** Multiple bytecode-
-loading escapes against the mod loader; the mod-content-server
-distribution made the surface internet-exposed.
+**Factorio (memorycorruption.net, 2024).** CVE-2024-39840: a
+malicious server could run code on clients via a custom map by
+abusing Lua base functions that run bytecode; fixed in 1.1.101.
 
-**Wireshark Lua-disabled-as-root.** Wireshark running as root
-disables Lua regardless of `init.lua`. Institutional
-acknowledgment that "we know our sandbox is escapable, so we
-won't run it privileged."
+**Wireshark user-Lua-blocked-as-root.** With
+`run_user_scripts_when_superuser` set to false in `init.lua`,
+Wireshark running as (setuid) root does not load user Lua scripts.
 
 ### 5.4 The `setfenv(0, ...)` cross-thread escape (Lua 5.1)
 
 `setfenv(0, t)` sets the current thread's global environment.
 `setfenv(2, ...)` walks up the stack to the caller. A sandboxed
 5.1 coroutine with `setfenv` reachable can rewrite `_G` for the
-rest of the host's execution. The 5.2 redesign removed this
-because the cross-thread reach was unrescuable.
+rest of the host's execution. The 5.2 redesign removed
+`setfenv` because the Lua team found it too dynamic: any function
+that can call another can change its environment.
 
 ---
 
@@ -497,10 +497,8 @@ through `tonumber` should whitelist accepted formats explicitly.
 
 ### 6.4 Float-as-array-key
 
-`a[1/0]` (positive infinity) and `a[0/0]` (NaN) are valid table
-keys in older Lua versions; NaN compares unequal to itself, so a
-guest that constructs NaN-keyed entries can produce table state
-the host cannot enumerate or remove.
+`a[1/0]` (positive infinity) is a valid table key; `a[0/0]` (NaN)
+is not — the manual allows any value as a key except nil and NaN.
 
 ---
 
@@ -537,10 +535,9 @@ exponential capture-list on pathological patterns.
 
 Lua's `string.format` is a restricted `printf` subset: no `%n`
 (write-to-pointer), no width-specifier-pointer ambiguity.
-Guest-controlled formats can still crash on type mismatch,
-produce DoS-sized output via huge width specifiers
-(`%999999999s`), or leak numeric representations through `%g`
-/`%a`.
+Guest-controlled formats can still crash on type mismatch or
+leak numeric representations through `%g`/`%a`; width and
+precision are limited to two digits.
 
 ### 7.4 `string.rep(s, n)` DoS
 
@@ -616,8 +613,9 @@ every created coroutine on host-side cancellation.
 
 ### 9.3 LuaJIT FFI + coroutines + threading
 
-LuaJIT issue #186 documents that FFI behavior across `lua_State`
-on different OS threads is implementation-defined and racy.
+LuaJIT issue #186 asked how the FFI behaves when calling the Lua/C
+API on other `lua_State`s; it was closed as invalid — the FFI
+treats those as ordinary C functions.
 Recurring failure mode: FFI registered into guest scope from a
 host callback produces a cross-thread arbitrary-code primitive.
 
@@ -647,11 +645,10 @@ direct access to libc, to every dynamically-loaded library, to
 the Windows API on Windows hosts. **FFI is full sandbox escape
 by design.** This is not a CVE; this is the documented contract.
 
-LuaJIT does not ship a "sandboxed FFI mode" and Mike Pall has
-explicitly declined to add one on the grounds that the work to
-make FFI safe would replicate the entire OS process-isolation
-mechanism — which is what the host already has access to and
-should be using.
+LuaJIT does not ship a "sandboxed FFI mode"; the LuaJIT FAQ calls
+the FFI library inherently unsafe and says the only promising
+approach is to sandbox Lua code at the process level, not the VM
+level.
 
 ### 10.2 The escape-by-design lineage
 
@@ -692,12 +689,13 @@ the `init.lua` configuration file and the `enable_lua` /
 
 Security-relevant behavior:
 
-- **Root-detection-disables-Lua.** Wireshark run as root
-  automatically disables Lua, regardless of `init.lua`. This
-  is institutional acknowledgement that Lua-running-as-root is
-  a local privilege escalation primitive.
-- **`disable_lua` deprecation.** Wireshark 2.6+ deprecated
-  `disable_lua` in favor of `enable_lua`; if both are present,
+- **Root-detection-blocks-user-Lua.** When
+  `run_user_scripts_when_superuser` is false, Wireshark run as
+  (setuid) root does not load user Lua scripts (personal plugin
+  directory, `-Xlua_script`, the Lua Evaluate menu); this is not
+  checked on Windows.
+- **`disable_lua` deprecation.** `disable_lua` (used by
+  Wireshark 2.6 and earlier) is deprecated in favor of `enable_lua`; if both are present,
   `disable_lua` is ignored. Configuration that relies on the
   deprecated variable silently has no effect.
 - **Dissector chaining.** Lua dissectors register against
@@ -712,11 +710,11 @@ Redis exposes Lua scripting via `EVAL`, `EVALSHA`, and
 (`redis.io/docs/latest/develop/programmability/lua-api/`)
 documents the available libraries.
 
-Upstream Redis statically links a *stripped* Lua: `os` and
-`package` libraries are absent from the binary. EVAL scripts
-see only `string`, `math`, `table`, `cjson`, `cmsgpack`,
-`bit`, and the Redis-specific `redis.call`/`redis.pcall`
-functions.
+Upstream Redis statically links a *stripped* Lua: `package` is
+not exposed and `os` is limited to `os.clock()` (since 7.4). EVAL
+scripts see only `string`, `math`, `table`, `os.clock`, `struct`,
+`cjson`, `cmsgpack`, `bit`, and the Redis-specific
+`redis.call`/`redis.pcall` functions.
 
 The CVE-2022-0543 vulnerability is the canonical example of
 what happens when downstream packaging breaks this contract:
@@ -731,17 +729,15 @@ not your code" lesson.
 
 Roblox's Luau (`luau.org`, `github.com/Roblox/luau`) is the
 typed Lua dialect Roblox uses for gameplay scripting. Luau's
-`SECURITY.md` documents the sandbox design:
+sandbox documentation (`luau.org/sandbox`) describes the design:
 
 - **Bytecode loading removed.** No `string.dump`, no `load` on
   bytecode. Source-level loading only.
 - **Per-script global table.** Each script gets a fresh global
   table whose `__index` points to the shared base globals.
   Writes to globals are per-script and do not leak to peers.
-- **Debug library restricted.** `debug.setupvalue`,
-  `debug.setlocal`, `debug.sethook`, and other write-side
-  debug primitives are not exposed; the surviving read-side
-  primitives are gated.
+- **Debug library restricted.** Most of `debug` is removed; only
+  `debug.traceback` and `debug.info` remain.
 - **FFI not exposed.** Luau does not include LuaJIT's FFI; the
   guest cannot reach C code outside the host's exposed
   surface.
@@ -763,11 +759,10 @@ Security-relevant primitives:
 
 - **`ngx.location.capture`** — Subrequest to another location.
   User-controlled target = SSRF. CVE-2020-11724 documents the
-  HTTP-request-smuggling angle (Content-Length rewriting bug
-  before OpenResty 1.15.8.4). See `http_web_security.md`.
+  HTTP-request-smuggling angle (OpenResty before 1.15.8.4). See `http_web_security.md`.
 - **`ngx.exec`** — Internal redirect; user-controllable target
   is an authorization-bypass primitive.
-- **`share_all_vars`** — Documented "considered bad and
+- **`share_all_vars`** — Documented "considered
   harmful"; shares parent-request variables with subrequest,
   leaking attacker-controlled variables into authorization
   context.
@@ -944,8 +939,8 @@ linter. The default ruleset reports:
 - `setting non-standard global variable` (forgotten-`local`
   global writes)
 - `accessing undefined variable` (typo'd global reads)
-- `unused local variable`
-- `unused value`
+- `unused variable`
+- `value assigned to a local variable is unused`
 - `unreachable code`
 
 For sandboxing-sensitive code, configure with:
@@ -958,8 +953,8 @@ ignore = {}          -- explicitly do NOT silence sandbox-relevant warnings
 ```
 
 Lua Language Server (`LuaLS/lua-language-server`) provides
-LSP-level diagnostics including type inference (with EmmyLua
-annotations) and is the primary editor-integration option for
+LSP-level diagnostics including type inference (with LuaCATS
+annotations, originally based on EmmyLua) and is the primary editor-integration option for
 2024-2026 Lua development.
 
 Cross-link: the [Semgrep rule-writing docs](https://semgrep.dev/docs/writing-rules/overview) for the
@@ -974,7 +969,7 @@ measurement.
 
 1. **Pick the right Lua dialect.** If untrusted Lua is in scope,
    use Luau or process-isolation. If only trusted Lua, PUC-Rio
-   Lua 5.4 is the current stable reference.
+   Lua 5.5 is the current stable release.
 2. **Pass `mode = "t"` to `load`.** Reject bytecode at the parse
    step. Bytecode loading is documented-not-validated and the
    exploitation lineage is mature.
@@ -998,11 +993,11 @@ measurement.
    primitives.** Prevent allocation DoS.
 9. **Run the sandbox in a separate OS process or container.**
    Process-level isolation is the only sandbox primitive that
-   has held under sustained adversarial pressure. Mike Pall's
-   "you cannot sandbox a fast language" applies in full.
+   has held under sustained adversarial pressure. The LuaJIT FAQ's
+   position (sandbox at the process level, not the VM level) applies in full.
 10. **Pin Lua version and ship a maintained one.** Lua 5.1 is
     end-of-life from a security perspective; LuaJIT's mainline
-    is on a 2.1.0-beta tag with downstream forks
+    is a rolling release on the v2.1 branch with downstream forks
     (`openresty/luajit2`, `Tarantool/luajit`) carrying patches.
     Track upstream and apply patches.
 
@@ -1012,8 +1007,8 @@ measurement.
   with sandbox-as-first-class-concern. Bytecode loading removed,
   per-script global tables, debug-library scoped down, FFI
   absent. The only mainstream Lua dialect that has held up
-  under sustained adversarial pressure (Roblox's threat model
-  is "millions of players, many actively adversarial").
+  under sustained adversarial pressure (luau.org: built to
+  withstand the actively malicious code Roblox runs).
 - **Pallene** (PUC-Rio LabLua,
   `https://github.com/pallene-lang/pallene`). Maidl /
   Gualandi / Mascarenhas / Ierusalimschy. Typed Lua companion
@@ -1106,7 +1101,7 @@ not on the Lua code itself.)
 - Bytecode Corruption Attacks Are Real (DIMVA 2018) — `https://people.cs.kuleuven.be/~stijn.volckaert/papers/2018_DIMVA_Interpreters.pdf`
 - Mitigating the Danger of Malicious Bytecode (Cawley, Lua Workshop 2011) — `https://www.lua.org/wshop11/Cawley.pdf`
 - Redis EVAL Lua sandbox escape (benmmurphy, 2015) — `https://benmmurphy.github.io/blog/2015/06/04/redis-eval-lua-sandbox-escape/`
-- Bytecode Breakdown: Factorio's Lua Security Flaws — `https://memorycorruption.net/posts/rce-lua-factorio/`
+- Bytecode Breakdown: Unraveling Factorio's Lua Security Flaws — `https://memorycorruption.net/posts/rce-lua-factorio/`
 
 ### 14.4 Embedding-specific
 

@@ -13,7 +13,7 @@
 > - **Stian Thorgersen** + **Bill Burke** (Keycloak, Red Hat). Keycloak project leads.
 >   Thorgersen's blog and Burke's RESTful-Java work anchor the OSS CIAM realism around
 >   running an IdP yourself. https://www.keycloak.org/
-> - **Aeneas Rekkas** + **Hadrien Demange** (Ory). Authors of Ory Kratos (identity),
+> - **Aeneas Rekkas** (Ory). Author of Ory Kratos (identity),
 >   Hydra (OAuth2 server), and Keto (Zanzibar-style permissions). The OSS CIAM stack
 >   that splits identity / OAuth / authorization into composable services.
 >   https://www.ory.sh/
@@ -21,20 +21,16 @@
 >   product corpus, with public writing on liveness detection, deepfake-resistance, and
 >   the trade-offs in regulated-CIAM onboarding. https://withpersona.com/blog
 > - **Frans Rosén** (Detectify Labs). Long-running OAuth/SSO bug-bounty corpus including
->   the 2016 Slack OAuth account-takeover and "One Token to rule them all." The
+>   the 2017 Slack token-theft bug (missing postMessage origin check). The
 >   account-linking and redirect-uri validation taxonomy in §5 and §13 is downstream of
 >   Rosén's research. https://labs.detectify.com/
-> - **Sam Curry** (independent). 2022-2023 OAuth bug-bounty corpus — Apple, the
->   Web-Hackers-vs-Auto-Industry program, and the "linked email" attack-class. CIAM
->   account-linking bugs across major B2C identity stacks. https://samcurry.net/
+> - **Sam Curry** (independent). Bug-bounty corpus — Apple (2020) and the
+>   Web-Hackers-vs-Auto-Industry research (2023). https://samcurry.net/
 > - **Bhavuk Jain** (independent researcher, India). May 2020 disclosure of the Sign In
 >   with Apple zero-day — JWT token mint as arbitrary user via the email-as-subject
 >   confusion. Anchor for the "social IdP as keys-to-kingdom" pattern.
 >   https://bhavukjain.com/blog/2020/05/30/zeroday-signin-with-apple/
-> - **Tom Anthony** (independent; previously SearchPilot). reCAPTCHA-v2-bypass, CAPTCHA
->   accessibility-bypass, and various consumer-bot-defense research that anchors the
->   §8 bot-defense realism. https://www.tomanthony.co.uk/
-> - **Mike Jones** (independent; previously Microsoft Identity). Co-editor of OIDC Core,
+> - **Mike Jones**. Co-editor of OIDC Core,
 >   JWT (RFC 7519), JWS (RFC 7515), JWE (RFC 7516), JWK (RFC 7517). The token formats
 >   that CIAM IdPs mint sit on Jones's specs. https://self-issued.info/
 > - **Aaron Parecki** (Okta). Co-author OAuth 2.1 draft; maintainer of oauth.net; author
@@ -72,7 +68,7 @@ $50M/year in support cost. CIAM must self-service or it does not survive.
 (Jamf, Intune, Workspace ONE), require device attestation, and refuse logins from
 unenrolled hardware. CIAM has no such lever. Consumer devices are unmanaged. There is
 no corporate-issued baseline. Device-binding in CIAM means platform attestation (Apple
-Managed Device Attestation, Android Play Integrity, Pixel StrongBox) and is opt-in at
+App Attest, Android Play Integrity, Pixel StrongBox) and is opt-in at
 best.
 
 **Onboarding.** Workforce IAM has an HR ground truth: someone got hired, their identity
@@ -126,17 +122,16 @@ to the right tier before evaluating vendors.
 
 ### Enterprise tier (high-touch sales, multi-year contracts)
 
-- **Okta CIAM** (Auth0 acquisition completed 2021 `[unverified specific quarter]`).
+- **Okta CIAM** (Auth0 acquisition completed May 2021).
   Auth0 remains the developer-facing surface; Okta CIC (Customer Identity Cloud) is
   the enterprise SKU. Strongest at large-B2B-with-end-consumers shape (e.g., a SaaS
   company offering both workforce SSO and end-user accounts).
-- **ForgeRock** (acquired by Thoma Bravo, merged into Ping Identity 2023 `[unverified
-  specific date]`). Heritage in telco + government + financial-services CIAM. On-prem
+- **ForgeRock** (acquired by Thoma Bravo, merged into Ping Identity August 2023). Heritage in telco + government + financial-services CIAM. On-prem
   + hosted; not developer-friendly out of the box.
 - **Ping Identity** (Thoma Bravo, merged with ForgeRock). PingOne for Customers is the
   CIAM SKU. Enterprise federation strength.
-- **Microsoft Entra External ID** (formerly Azure AD B2C). Microsoft's CIAM
-  re-branding 2023-2024 collapsing B2C into the Entra umbrella. Strongest where the
+- **Microsoft Entra External ID** (Microsoft's next-generation successor to Azure AD
+  B2C; B2C itself was not renamed). Strongest where the
   org is already Azure-native.
 - **IBM Verify CIAM** (formerly IBM Security Verify, formerly Cloud Identity).
   Enterprise + regulated industries.
@@ -171,11 +166,10 @@ to the right tier before evaluating vendors.
 
 ### OSS
 
-- **Keycloak** (Stian Thorgersen, Bill Burke, Red Hat; CNCF Incubating
-  `[unverified CNCF status detail]`). The dominant OSS IdP. OIDC + OAuth + SAML; SPI
+- **Keycloak** (Stian Thorgersen, Bill Burke, Red Hat; CNCF Incubating). The dominant OSS IdP. OIDC + OAuth + SAML; SPI
   extension model for custom logic; federation; brokering. Operational cost is real —
   Keycloak benefits from in-house identity-engineering knowledge.
-- **Ory** (Aeneas Rekkas, Hadrien Demange). Composable stack: Kratos (identity +
+- **Ory** (Aeneas Rekkas). Composable stack: Kratos (identity +
   user-management), Hydra (OAuth2 + OIDC server), Keto (Zanzibar-style permissions),
   Oathkeeper (zero-trust proxy). The "build your own CIAM out of focused services"
   approach.
@@ -196,11 +190,11 @@ identity-proofing during onboarding for regulated workloads:
   experience; growing share against legacy KYC vendors.
 - **Plaid**. Financial-account-linking-as-identity for fintech. Account ownership
   verification, Income, Identity (consumer-permissioned data).
-- **Onfido** (acquired by Entrust 2024 `[unverified specific deal date]`). Long-time
+- **Onfido** (acquired by Entrust 2024). Long-time
   KYC vendor; AI-driven document verification + liveness.
 - **Veriff**. Estonian-origin KYC; strong document-coverage matrix.
 - **Jumio**. Enterprise KYC; broad regulatory-compliance coverage.
-- **Berbix** (acquired by Socure `[unverified]`), **iDenfy**, **Sumsub**, **Trulioo**,
+- **Berbix** (acquired by Socure 2023), **iDenfy**, **Sumsub**, **Trulioo**,
   **Socure**. Mid-market and enterprise KYC players with overlapping feature sets.
 
 Evaluate vendors against your scale, integration-depth requirements, and the
@@ -216,7 +210,7 @@ The CIAM primary-authentication menu in 2026:
 **Password + MFA.** Still the dominant primary auth despite a decade of "the password
 is dead" decks. Passwords persist because they are universal, no-device-dependency,
 and have well-understood UX. The 2026 baseline: bcrypt or argon2id at the storage
-layer, length minimum 8 (NIST 800-63B AAL1) or 12+ for higher-assurance workloads,
+layer, length minimum 15 for single-factor passwords or 8 within MFA (NIST SP 800-63B-4),
 breach-corpus check against Have I Been Pwned k-anonymity API at signup and reset,
 optional MFA layered on top. Treat password-only authentication as table stakes that
 ships with a planned deprecation trajectory, not as your end state.
@@ -225,8 +219,10 @@ ships with a planned deprecation trajectory, not as your end state.
 LinkedIn / Discord. The pattern: user clicks "Sign in with Google" → OIDC dance →
 ID-token returned with `email` claim → RP creates/links account. The compromise
 surface: a breached IdP account compromises every RP that federates to it. Apple App
-Store guideline 4.8 requires offering Sign In with Apple when offering Google or
-Facebook social-login in iOS apps. The "linked email" attack class (§5) is endemic
+Store guideline 4.8 requires apps that use a third-party social login for the primary
+account to also offer an equivalent login that limits data collection to name and
+email, lets users keep their email private, and does not collect app interactions for
+advertising without consent (Sign In with Apple qualifies). The "linked email" attack class (§5) is endemic
 to this pattern.
 
 **Magic links and email OTP.** UX-friendly, passwordless, phishable. The replay window
@@ -236,8 +232,8 @@ Notion, Slack, Substack, Vercel all ship variants. §4 covers the threat model.
 
 **SMS OTP.** Six-digit code to the user's phone. Convenient, universal, structurally
 broken. Sim-swap rings (§7) port the phone number to attacker-controlled SIMs. NIST SP
-800-63B Rev. 3 (and the upcoming Rev. 4) deprecates SMS as an AAL2 factor; it is still
-permitted but classified as "restricted." Treat SMS-as-2FA as a soft factor — useful
+800-63B Rev. 3 and Rev. 4 (final July 2025) classify PSTN/SMS out-of-band
+authentication as "restricted"; it is still permitted. Treat SMS-as-2FA as a soft factor — useful
 for friction reduction, not for high-assurance authentication.
 
 **TOTP.** RFC 6238. Google Authenticator, Authy, 1Password, Bitwarden, Microsoft
@@ -296,9 +292,7 @@ clicks → RP creates session.
 Device-bound or any-device-clickable? Each of these is a knob, and the defaults across
 vendors differ:
 
-- Stytch: configurable, defaults to 10-60 minute single-use.
-- Clerk: configurable, defaults to single-use within a session-bound window.
-- Auth0 passwordless: configurable, has historically permitted multi-use until expiry.
+- Stytch: configurable (5 minutes to 7 days), defaults to 60 minutes.
 - Hand-rolled implementations: often 24 hours, multi-use, no device-binding — the
   worst end of the configuration space.
 
@@ -361,11 +355,11 @@ VK (Russia); LINE (Japan, SEA).
 Per IdP, decide:
 
 - Which IdPs do you offer?
-- Does Apple App Store guideline 4.8 force you to offer Sign In with Apple? (Yes, if
-  you offer Google or Facebook on iOS.)
+- Does Apple App Store guideline 4.8 force you to offer a privacy-preserving login
+  such as Sign In with Apple? (Yes, if you offer a third-party social login for the
+  primary account on iOS, unless an exception applies.)
 - What claims do you trust from each IdP? Email-verified? Domain?
-- What happens when the OAuth flow fails midway? (See "missing-state CSRF" — a
-  Curry/Rosén canonical bug class.)
+- What happens when the OAuth flow fails midway? (See "missing-state CSRF.")
 
 ### The "linked email" attack class
 
@@ -380,10 +374,6 @@ and Apple would mint it because the email-as-`sub` confusion in the token issuan
 path did not verify that the requester controlled the email. The RP would receive an
 ID token signed by Apple, with the victim's email, and would create or link an account
 accordingly.
-
-Frans Rosén's "One Token to rule them all" and the broader Detectify OAuth corpus
-document recurring shapes of this bug class. Sam Curry's bug-bounty corpus has
-multiple instances across consumer products.
 
 ### Account uniqueness modeling
 
@@ -417,13 +407,13 @@ account's primary email, require entering it) before linking.
 
 The OAuth integrity issues that affect CIAM specifically:
 
-- **`state` parameter.** RFC 6749 §10.12 mandates `state` for CSRF protection. Missing
+- **`state` parameter.** RFC 6749 §10.12 requires CSRF protection, for which `state` is RECOMMENDED. Missing
   or unvalidated `state` permits a logged-in-attacker → logged-in-as-attacker
   account-linking CSRF.
 - **PKCE.** RFC 7636. For public OAuth clients (mobile + SPAs), PKCE prevents
   code-interception. Modern OAuth 2.1 makes PKCE mandatory.
 - **`redirect_uri` validation.** Exact-match, not prefix-match, not wildcard-match.
-  Curry's corpus and the broader OAuth bug-bounty literature documents `redirect_uri`
+  The OAuth bug-bounty literature documents `redirect_uri`
   validation bypass as one of the highest-impact recurring CIAM bugs.
 - **Implicit flow deprecation.** OAuth 2.1 deprecates the implicit flow. SPAs should
   use authorization code with PKCE, not implicit. Many older CIAM integrations still
@@ -526,12 +516,12 @@ password)` pairs from prior breaches (Collection-#1, RockYou2021, recurring leak
 Automation tries each pair against the target login endpoint. Hits at 0.1-2% rate
 typically `[unverified specific rate]`.
 
-**Snowflake credential stuffing 2024.** ~165 Snowflake customer accounts compromised
-via credentials harvested from infostealer malware (Lumma Stealer, RedLine), used to
+**Snowflake credential stuffing 2024.** ~165 Snowflake customer organizations
+potentially exposed via credentials harvested from infostealer malware (Lumma Stealer, RedLine), used to
 log into customer Snowflake instances that had not enforced MFA. The Snowflake
 platform itself was not breached; the customer accounts were. Anchor incident for the
 "MFA must be enforced, not just available" lesson. Mandiant tracks the actor as
-UNC5537 `[unverified specific designation]`.
+UNC5537.
 
 **23andMe credential stuffing late 2023.** ~6.9M customers' data exposed via
 credential-stuffed accounts that then exposed connected-relatives' profile data
@@ -541,7 +531,7 @@ load-bearing detail: 23andMe's product design meant a single stuffed account exp
 hundreds of relatives' data. Cross-link to `[[reference-privacy-engineering]]` for the
 consumer-genetics-data sensitivity question.
 
-**DraftKings 2022.** ~67,000 user accounts compromised via credential stuffing; some
+**DraftKings 2022.** ~68,000 user accounts compromised via credential stuffing; some
 funds withdrawn before detection. Anchor for consumer-fintech-as-CIAM-failure shape.
 
 Defense:
@@ -582,9 +572,8 @@ The Lapsus$ Sim-Swappers cluster (UK + Brazil, 2022) is the prominent anchor inc
 publicly tracked the ecosystem. The criminal market for sim-swaps is industrial:
 insiders at mobile carriers are paid for SIM-port-out actions.
 
-Defense: do not use SMS as a high-assurance factor. NIST 800-63B Rev. 3 deprecates
-SMS at AAL2; Rev. 4 (publishing 2024-2025) reportedly tightens further
-`[unverified specific Rev. 4 language]`. Use passkeys / TOTP / authenticator-push as
+Defense: do not use SMS as a high-assurance factor. NIST 800-63B Rev. 3 and
+Rev. 4 (final July 2025) classify SMS as a "restricted" authenticator. Use passkeys / TOTP / authenticator-push as
 primary MFA; offer SMS only as a low-assurance fallback with explicit
 sensitivity-tiered access controls (i.e., SMS-only consumers cannot perform sensitive
 actions without step-up).
@@ -632,12 +621,11 @@ race.
 
 - **CAPTCHA.** reCAPTCHA v2 (image challenges), reCAPTCHA v3 (invisible behavioral
   scoring), hCaptcha (privacy-positioned alternative), Cloudflare Turnstile
-  (CAPTCHA-less challenge using TLS + browser fingerprinting). Tom Anthony's research
-  documents recurring bypasses (reCAPTCHA accessibility-flow bypass, audio-CAPTCHA
-  bypass via speech-recognition APIs). CAPTCHA is partial defense, not solution.
+  (CAPTCHA-less challenge using TLS + browser fingerprinting). University of Maryland's
+  unCaptcha research documented an audio-CAPTCHA bypass via speech-recognition APIs. CAPTCHA is partial defense, not solution.
 - **Privacy Pass (RFC 9576).** Token-based attestation that the user is human, issued
   after one challenge, redeemable elsewhere. Adopted in limited deployments
-  (Cloudflare, Apple iCloud Private Relay) `[unverified specific deployment scope]`.
+  (Cloudflare, Apple Private Access Tokens) `[unverified specific deployment scope]`.
 - **Phone verification at signup.** Raises the cost: attacker must rent burner SIMs
   or VoIP numbers. Effective against low-tier abuse, defeated by industrial-scale
   SIM-farms (the Eastern European and Southeast Asian SIM-farm ecosystem).
@@ -654,7 +642,7 @@ race.
 - **Rate limiting.** Per-IP, per-account, per-IP-cluster, global-velocity. Adaptive
   thresholds. Do not key only on IP — credential-stuffing botnets rotate IPs through
   residential proxy services (Bright Data, Smartproxy, IPRoyal).
-- **IP reputation.** Spamhaus DROP/EDROP, MaxMind GeoIP, Cloudflare bot management.
+- **IP reputation.** Spamhaus DROP, MaxMind GeoIP, Cloudflare bot management.
   Residential-proxy IPs have measurably different reputation distributions than
   datacenter IPs.
 - **JA3/JA4 TLS fingerprinting.** Salesforce's JA3 and FoxIO's JA4 fingerprint the
@@ -832,8 +820,8 @@ privacy substrate matters.
 
 - Verifiable parental consent before collecting personal information from children
   under 13.
-- FTC enforcement: $20M Epic Games settlement 2022 (Fortnite COPPA + dark-patterns);
-  $275M TikTok / Bytedance order 2019; renewed enforcement focus 2023-2026 against
+- FTC enforcement: $275M Epic Games COPPA penalty 2022 (Fortnite; separate $245M dark-patterns order);
+  $5.7M Musical.ly (now TikTok) settlement 2019; renewed enforcement focus 2023-2026 against
   social-media and EdTech products `[unverified specific recent action list]`.
 - Age-gating mechanisms: parental email verification, payment-card verification (used
   as a proxy for adulthood), photo-ID verification for higher confidence.
@@ -895,7 +883,8 @@ consumer-account signing key and used it to forge access tokens for Exchange Onl
 mail. ~25 organizations compromised including US State Department and Commerce
 Department mailboxes.
 
-Root cause per Microsoft's post-incident analysis: a crash dump containing the
+Root cause per Microsoft's September 2023 analysis (walked back in a March 2024
+addendum: no crash dump containing the key was found): a crash dump containing the
 signing key was migrated from an isolated production environment to an internet-
 connected debugging environment, where it was later accessed by the actor. A
 separate validation bug allowed the consumer-account key to mint tokens accepted by
@@ -908,10 +897,11 @@ unusual token-issuance patterns are the mitigations.
 
 ### Okta sub-processor / support-system breaches, 2022-2023
 
-- **March 2022:** Lapsus$ obtained access to a Sitel customer-support engineer's
+- **January 2022 (disclosed March 2022):** Lapsus$ obtained access to a Sitel customer-support engineer's
   workstation. Lapsus$ posted screenshots claiming access to Okta's internal
-  Superuser tooling. Okta initially downplayed; later disclosed that ~366 customers
-  had been affected.
+  Superuser tooling. Okta initially downplayed; later put the maximum potential
+  impact at 366 customers; its concluded investigation found two customer tenants
+  accessed.
 - **October 2023:** Okta disclosed that customer-support-system files containing
   HAR-file uploads (which had captured customer session tokens) had been exfiltrated.
   Affected customers included BeyondTrust, 1Password, Cloudflare. The HAR-files-with-
@@ -945,7 +935,7 @@ exposed. The amplification factor (1:500) is the load-bearing characteristic.
 
 23andMe initially blamed users for password reuse, which was technically accurate but
 PR-poor. Class-action litigation followed; settlement $30M announced 2024
-`[unverified specific amount]`. UK ICO and FTC investigations followed.
+`[unverified specific amount]`. A UK ICO investigation followed.
 
 CIAM lesson: **think about social-graph amplification.** A single ATO'd account in
 your product may expose data of many other users through product features. Audit
@@ -987,12 +977,12 @@ principles to internal-support tooling.
 
 - Apple iOS 16 / macOS Ventura (2022) introduced platform-passkey support with
   iCloud Keychain sync.
-- Google Password Manager added cross-device passkey sync 2023.
+- Google Password Manager added cross-device passkey sync 2022.
 - Microsoft personal account + Entra began rolling passkey support 2023-2024.
-- 1Password, Dashlane, Bitwarden added third-party passkey vault storage 2023.
-- WhatsApp, X, GitHub, Best Buy, Kayak, eBay, Cloudflare, Adobe, Amazon, Shopify,
-  TikTok, Microsoft, Google, Apple, Yahoo, Robinhood, PayPal, Coinbase shipped
-  consumer-facing passkey support in 2023-2024.
+- 1Password and Bitwarden added third-party passkey vault storage 2023; Dashlane
+  added it to its browser extension in 2022.
+- WhatsApp, X, GitHub, Adobe, Amazon, Shopify, TikTok shipped consumer-facing
+  passkey support in 2023-2024; Best Buy, Kayak, eBay, PayPal shipped in 2022.
 
 Adoption rates `[unverified specific percentages]` vary: developer-savvy products
 report 10-40% of active users on passkeys; long-tail consumer products well under
@@ -1000,8 +990,8 @@ report 10-40% of active users on passkeys; long-tail consumer products well unde
 
 ### NIST SP 800-63 Rev. 4
 
-The fourth revision of NIST's Digital Identity Guidelines is publishing in stages
-2024-2025. Notable changes:
+The fourth revision of NIST's Digital Identity Guidelines was published as final
+in July 2025. Notable changes:
 
 - Reduced AAL2-acceptable factors with SMS further restricted.
 - Phishing-resistance requirements for AAL3.
@@ -1071,7 +1061,7 @@ Refuse to ship:
 the actual auth strength is the email provider's security posture. Layer additional
 factors at sensitive actions.
 
-**SMS-only MFA on regulated workloads.** NIST has deprecated it. Sim-swap rings are
+**SMS-only MFA on regulated workloads.** NIST classifies it as a restricted authenticator. Sim-swap rings are
 industrial. SMS is fine as a low-assurance fallback; not as the sole MFA on a fintech
 or healthcare workload.
 
@@ -1262,7 +1252,7 @@ abuse, and incident response. The relevant sibling docs:
 5. **Move sensitive actions behind step-up authentication.** Risk-based at minimum;
    passkey or TOTP for highest-value actions.
 6. **Audit OAuth integration for `state`, PKCE, exact-match `redirect_uri`, and
-   account-linking verification.** Curry / Rosén bug shapes recur.
+   account-linking verification.** Rosén bug shapes recur.
 7. **Verify-but-don't-leak on enumeration endpoints.** Identical response timing for
    exists/doesn't-exist.
 8. **Score every login.** Risk-based authentication with device, IP, geo, behavioral

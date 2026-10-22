@@ -1,5 +1,5 @@
 # Elixir and Erlang/OTP Behavioral Footguns — BEAM Primitives That Are Unsafe by Default
-## Synthesized from Joe Armstrong, Robert Virding, José Valim, Saša Jurić, Fred Hebert, Bryan Hunt, Stas Versilov, and the institutional EEF Security WG / Trail of Bits / NCC Group / Snyk Erlang-Elixir advisory corpus
+## Synthesized from Joe Armstrong, Robert Virding, José Valim, Saša Jurić, Fred Hebert, Bryan Hunt, Michael Lubas, and the institutional EEF Security WG / Trail of Bits / NCC Group / Snyk Erlang-Elixir advisory corpus
 
 > **Currency marker:** Last refreshed 2026-05-14. Closes out the
 > language-specific behavioral-footgun catalog Class 1 P3 slot
@@ -17,7 +17,7 @@
 > HTTP/2 `:scheme` pseudo-header), CVE-2026-42793 (absinthe atom-
 > exhaustion via attacker-controlled GraphQL SDL names), the
 > ongoing Erlang distribution-cookie RCE surface (Insinuator
-> writeups 2017-2024), the 2024 Paginator RCE pattern (Stöckli,
+> 2017 writeup), the 2020 Paginator RCE pattern (Stöckli,
 > Enumerable-protocol abuse), OTP 27 + Elixir 1.18 baseline.
 >
 > **Researchers:**
@@ -32,8 +32,7 @@
 >   `erlang.org/download/armstrong_thesis_2003.pdf`.
 > - **Robert Virding** — Erlang co-creator alongside Armstrong at
 >   Ericsson. Co-author *Concurrent Programming in Erlang* (1996).
->   Designed substantial portions of OTP's process model and the
->   pattern-matching compiler. Today active in BEAM-language design
+>   Wrote Erlang's original support libraries. Today active in BEAM-language design
 >   via LFE (Lisp-Flavoured Erlang). `github.com/rvirding`.
 > - **José Valim** — Elixir creator, 2011-present. Former Rails Core
 >   Team (2010-2014; Ruby Hero 2010); Erlang User of the Year 2015.
@@ -54,12 +53,11 @@
 >   overflow, memory leak triage, `recon`, `pobox`. Also
 >   *Property-Based Testing with PropEr, Erlang, and Elixir*
 >   (Pragmatic, 2019). `ferd.ca`, `learnyousomeerlang.com`.
-> - **Bryan Hunt** — Long-running Erlang/Elixir practitioner; former
->   Heroku, Riak Core / Basho. EEF Security Working Group
->   contributor. Voice on distribution-cookie hygiene, epmd
+> - **Bryan Hunt** — Long-running Erlang/Elixir practitioner.
+>   Voice on distribution-cookie hygiene, epmd
 >   hardening, `relx`/`mix release` engineering, the "cluster trust
 >   boundary" framing. `github.com/binarytemple`.
-> - **Stas Versilov** — Founder of Paraxial.io (Elixir security
+> - **Michael Lubas** — Founder of Paraxial.io (Elixir security
 >   vendor; honeypot + vulnerability scanning + runtime protection).
 >   Operates `paraxial.io/blog`, the post-2021 canonical single-
 >   vendor source for Elixir security writeups: atom exhaustion,
@@ -69,10 +67,7 @@
 >   institutional. NCC Group authored Sobelow (now community-
 >   maintained at `github.com/sobelow/sobelow`), the Phoenix-focused
 >   static analyzer encoding most of this doc's audit heuristics as
->   warnings. Trail of Bits runs Erlang/Elixir audits via the
->   `appsec.guide` Testing Handbook (BEAM section); audit reports on
->   RabbitMQ / CouchDB / Telegraf cover BEAM-side operational
->   hardening.
+>   warnings.
 > - **Snyk Elixir CVE corpus + EEF CNA** — institutional. The Snyk
 >   advisory database (`security.snyk.io`) catalogues per-package
 >   Elixir/Erlang CVEs; the EEF CNA (`cna.erlef.org/cves`) is the
@@ -89,7 +84,7 @@
 > `cicd_supply_chain_expertise.md` (Hex.pm + rebar3 + mix trust).
 >
 > **Currency caveat:** OTP 27 + Elixir 1.18 is the 2026 baseline.
-> Elixir 1.18 introduced gradual set-theoretic types (Valim's
+> Elixir 1.17 introduced gradual set-theoretic types (Valim's
 > research thread). Active-support window at `erlef.org/`.
 
 ---
@@ -160,7 +155,7 @@ The supervision tree is the cleanup mechanism. Discipline:
    process, restarts re-init clean.
 3. Wrap each process in a supervisor with a restart strategy:
    `:one_for_one`, `:one_for_all`, `:rest_for_one`, `DynamicSupervisor`.
-4. `max_restarts` / `max_seconds` form an exponential-backoff guard;
+4. `max_restarts` / `max_seconds` form a restart-intensity limit;
    exceeding the budget bubbles up.
 
 The operational reality is that **"let it crash" works for contained
@@ -266,8 +261,7 @@ Default to `String.to_existing_atom/1` at every call site taking
 user input. `Jason.decode/2` uses `keys: :strings` (safe) or
 `keys: :atoms!` (existing-atoms-only); never `keys: :atoms`. Raise
 the `+t` flag (production: `+t 5000000` or higher). Monitor
-`:erlang.system_info(:atom_count)` in production; alert at 80% of
-`:atom_limit` (EEF Security WG canonical signal). Coerce strings
+`:erlang.system_info(:atom_count)` in production against `:atom_limit`. Coerce strings
 via a hand-rolled `Map` allowlist whose atoms pre-exist at module-
 load time.
 
@@ -407,8 +401,7 @@ Compiles. Dialyzer often does not catch it (state type unchanged
 from one callback to the next). ExUnit catches it only if a test
 specifically checks the post-mutation state. **Any "build a new
 value then discard it" pattern in functional code is silently
-broken.** Credo's `Credo.Check.Warning.UnusedVariable*` family is
-the first line of defense.
+broken.**
 
 ### `Task.start` vs `Task.async` vs `Task.async_stream`
 
@@ -416,9 +409,9 @@ the first line of defense.
 |---|---|---|---|---|
 | `Task.start/1` | No | No | No | Silent crash; caller never notified |
 | `Task.start_link/1` | Yes | No | No | Crash propagates; caller dies |
-| `Task.async/1` | Yes | Yes | No | Propagates + `Task.await` returns error |
+| `Task.async/1` | Yes | Yes | No | Propagates; `Task.await` exits the caller on crash or timeout |
 | `Task.Supervisor.start_child/2` | Opt | Opt | YES | Supervisor restart policy applies |
-| `Task.async_stream/3` | Yes | Yes | YES | Bounded concurrency + restart |
+| `Task.async_stream/3` | Yes | Yes | No | Bounded concurrency; linked to caller |
 
 `Task.start/1` is the "fire and forget" footgun: crashes vanish
 silently. `Task.async/1` requires a matching `Task.await/2`; failing
@@ -652,17 +645,17 @@ it can call any function in any loaded module, spawn processes,
 open ports, read files, exec subprocesses. **Any path from
 untrusted input to `Code.eval_string/3` is a direct RCE.**
 
-The Elixir module documentation explicitly says: "Code.eval_string
-can execute any Elixir code with the same privileges as the Erlang
-VM, which means such code could compromise the machine (for
-example by executing system commands), so it should never be used
-with untrusted input such as strings coming from the network."
+The Elixir module documentation explicitly says the string "will
+be executed with the same privileges as the Erlang VM" and: "Don't
+use eval_string/3 with untrusted input (such as strings coming from
+the network)."
 
 ### Real-world incidents
 
 **Alchemist-Server (2017).** `alchemist-server` Elixir tooling
-exposed `Code.eval_string/1` over a local TCP socket; any process
-on the developer's machine could exec arbitrary Elixir (Appcanary
+exposed an unauthenticated `EVAL` command over a TCP socket
+listening on all interfaces; a malicious website could reach it and
+exec arbitrary Elixir (Appcanary
 writeup).
 
 **Paginator library RCE (Stöckli, 2020).** Elixir's `Enumerable`
@@ -720,12 +713,12 @@ is the feature. Outside one, it is a critical vulnerability.
 ### Cookie-based authentication is symmetric, shared, easily-discovered
 
 The cookie is a symmetric secret. `~/.erlang.cookie` is auto-
-generated on first BEAM boot as a 20-character alphanumeric string
+generated on first BEAM boot as a 20-character uppercase-letter string
 (`[A-Z]+`), file mode 0400 on Unix. Failure modes: any process
 running as the same user can read it; it can be logged via
 `-setcookie` command-line args visible to `ps aux`; auto-generation
-entropy is the BEAM's default RNG (NOT cryptographically secure);
-Windows installs often have weaker permissions. Insinuator 2017
+entropy is the BEAM's default RNG (NOT cryptographically secure).
+Insinuator 2017
 documents crackable cookies in production.
 
 ### Cluster trust model
@@ -770,8 +763,8 @@ bruteforcer" (`insinuator.net/2017/10/erlang-distribution-rce-and-a-cookie-brute
 exploit-db.com/exploits/49418 ("Erlang Cookie - Remote Code
 Execution"), Rapid7 module
 `exploit/multi/misc/erlang_cookie_rce`, gteissier/erl-matter
-(`github.com/gteissier/erl-matter`), Security Boulevard "Erlang
-Authenticated Remote Code Execution" (2018-09).
+(`github.com/gteissier/erl-matter`), malicious.link "Erlang
+Authenticated Remote Code Execution" (Rob Fuller, 2018-09).
 
 ---
 
@@ -787,8 +780,8 @@ Port.open({:spawn, "ls #{user_input}"}, [])
 Port.open({:spawn_executable, "/bin/ls"}, [args: [user_input]])
 ```
 
-The `:spawn` form invokes a shell (`sh -c CMD` on Unix, `cmd.exe
-/c` on Windows). Shell metacharacters in `user_input` —
+The `:spawn` form is run by invoking the shell on certain platforms
+(OTP `open_port/2` docs). Shell metacharacters in `user_input` —
 `;`, `|`, `` ` ``, `$()`, `&`, `>`, `<`, `\n` — are interpreted
 by the shell. This is direct command injection.
 
@@ -796,14 +789,13 @@ The `:spawn_executable` form takes an explicit executable path and
 an argument list. Arguments are passed via `execve(2)` directly;
 no shell, no metacharacter interpretation. This is the safe form.
 
-Even `:spawn_executable` has a subtlety: on Windows, batch files
-(`.bat`, `.cmd`) and certain `.exe` files implicitly invoke
-`cmd.exe`'s parser. Arguments that contain quotes, ampersands, or
-caret characters can still escape into command-injection territory.
-The EEF Security WG documentation on `external_executables` is
-the canonical reference; key recommendation: "if running on
-Windows and executing batch files or .com applications, you must
-not pass untrusted input as arguments."
+Even `:spawn_executable` has a subtlety: on Windows, `.bat` and
+`.com` files run implicitly through `cmd.exe`, whose argument
+parsing is vulnerable to malicious input and can be used to run
+arbitrary shell commands. The Elixir `Port` documentation is the
+canonical reference; key recommendation: "if you are running on
+Windows and you execute batch files or `.com` applications, you must
+not pass untrusted input as arguments to the program."
 
 Cross-link [[reference-shell-injection]] §"argv vs string-shell"
 for the cross-language taxonomy.
@@ -840,7 +832,7 @@ the BEAM's N schedulers.
 
 ### Dirty NIFs vs regular NIFs
 
-Erlang 17.3+ introduced dirty schedulers: `ERL_NIF_DIRTY_JOB_CPU_BOUND`
+Erlang/OTP 17.0 introduced dirty schedulers experimentally: `ERL_NIF_DIRTY_JOB_CPU_BOUND`
 (`+SDcpu` pool) for CPU-bound work, `ERL_NIF_DIRTY_JOB_IO_BOUND`
 (`+SDio` pool) for I/O. **Rule: always use dirty schedulers for
 NIFs that take >1ms.** Audit pattern: every NIF should declare its
@@ -850,11 +842,10 @@ scheduling expectations or document why it doesn't.
 
 `rustler` is the Rust-NIF binding crate. Rust's borrow checker
 catches C-style memory-safety hazards at compile time; modern
-Elixir NIFs are typically Rust + Rustler, not C. Remaining hazard:
-Rust panics in a NIF call `std::process::abort` on the BEAM
-emulator. Rustler 0.30+ supports panic-catching via
-`#[rustler::nif(panic = "catch")]`; without opt-in, a panic still
-aborts the BEAM.
+Elixir NIFs are typically Rust + Rustler, not C. Rustler catches
+Rust panics before they unwind into C, so a panic does not abort
+the BEAM by default. Remaining hazard: `catch_unwind` only catches
+unwinding panics, not panics that abort the process.
 
 Sources: Erlang "NIFs" (`erlang.org/doc/system/nif.html`),
 Erlang "Debugging NIFs and Port Drivers"
@@ -871,12 +862,12 @@ EEF Security WG "Spawning external executables"
 ### Phoenix.LiveView server-side state
 
 LiveView holds connection state on the server: the LV process
-state, the assigns map, the rendered DOM diff base. State persists
-across reconnects via a session token. Hazards: state carries
+state, the assigns map, the rendered DOM diff base. On reconnect the
+client re-executes `mount/3`. Hazards: state carries
 authorization context (if `mount/3` stored `current_user`, every
 subsequent `handle_event/3` runs as that user); `live_session`
-boundary IS the authorization boundary (in-session navigations do
-NOT remount); `handle_params/3` must re-authorize when URL
+boundary is the authentication boundary (in-session navigations
+skip the plug pipeline); `handle_params/3` must re-authorize when URL
 parameters change (`live_patch` rewrites them); LV processes are
 long-lived so per-event state accumulation is DoS-able.
 
@@ -887,8 +878,9 @@ into a ~4KB cookie via `:secret_key_base`. Hazards:
 `:secret_key_base` leakage forges every cookie; load from
 `config/runtime.exs` (env var or secrets manager) NOT
 `config/prod.exs` (compiled into release artifact). Cookie size
-limit means session truncation. `Plug.Session.ETS`/`MNESIA` are
-server-side alternatives; both grow monotonically without explicit
+limit: a session cookie over 4096 bytes raises
+`Plug.Conn.CookieOverflowError`. `Plug.Session.ETS` is a
+server-side alternative; it grows monotonically without explicit
 expired-session purge.
 
 ### `Plug.CSRFProtection` defaults
@@ -896,9 +888,9 @@ expired-session purge.
 Phoenix's `:browser` pipeline includes CSRF protection by default;
 `:api` pipelines bypass it (JSON APIs use Bearer tokens). Audit
 hazard: mixed-content endpoints that accept both JSON and form
-bodies — attacker submits a form with `Content-Type:
-application/json` to bypass browser same-origin protections; the
-server processes it as JSON without CSRF.
+bodies — HTML forms cannot send `Content-Type: application/json`,
+but an attacker can submit a `text/plain` form whose body looks
+like JSON; a server that parses it as JSON without CSRF accepts it.
 
 ### `Phoenix.Token` signing key shared across servers
 
@@ -917,9 +909,6 @@ lifetime independent of key rotation.
 # UNSAFE — direct SQL injection via Repo.query!
 Ecto.Adapters.SQL.query!(MyRepo, "SELECT * FROM users WHERE id = #{user_id}")
 
-# UNSAFE — unsafe_fragment with user input
-from u in User, where: unsafe_fragment("name = '#{user_name}'")
-
 # SAFE — fragment with parameters
 from u in User, where: fragment("name = ?", ^user_name)
 ```
@@ -927,20 +916,19 @@ from u in User, where: fragment("name = ?", ^user_name)
 Ecto's `fragment/1` macro accepts SQL with `?` placeholders that
 bind to following arguments via the `^` interpolation operator. By
 design, `^value` becomes a parameterized bind, not a string
-substitution. **The Elixir parser refuses to compile `^value` as
-the first argument to `fragment/1`** — this is a load-bearing
+substitution. **Ecto refuses to compile `^value` as the first
+argument to `fragment/1`** — this is a load-bearing
 compile-time guardrail.
 
 The bypasses:
 
-1. **`unsafe_fragment/1`** — explicit opt-out. Allows interpolated
-   binaries. The name is intentional warning. Any
-   `unsafe_fragment` in a codebase is an audit finding requiring
-   justification.
+1. **`constant/1`** — injects a dynamic string or number directly
+   into the query instead of as a parameter. Any `constant/1` on
+   user input is an audit finding requiring justification.
 2. **`Ecto.Adapters.SQL.query!/3`** — direct SQL execution; takes
    a raw SQL string and a parameter list. Interpolating a user
    value into the SQL string is direct SQLi. Use the parameter
-   list (second argument), never string interpolation.
+   list (third argument), never string interpolation.
 3. **`Ecto.Query.from` with `where: ^"..."`** — dynamic where
    clauses can be assembled with `Ecto.Query.dynamic/2`, which
    has its own injection-safe interpolation. Hand-rolled string
@@ -1004,8 +992,8 @@ weak_token = :rand.uniform(2**128) |> Integer.to_string()
 
 `:rand.uniform/1` (and the older `random:uniform/1`) is a fast PRNG
 for simulation use. The state is per-process and accessible via
-`:rand.export_seed/0`; an attacker who observes a few outputs can
-reconstruct the seed and predict future outputs. Using
+`:rand.export_seed/0`; the Erlang docs state the builtin algorithms
+are not cryptographically strong. Using
 `:rand.uniform/1` for session tokens, password-reset codes, CSRF
 tokens, or any security-relevant random value is a critical bug.
 
@@ -1024,17 +1012,19 @@ MD5 and SHA-1 still compile cleanly via `:crypto.hash(:md5, ...)`;
 use only for non-cryptographic checksums. **Password hashing via
 `:crypto.hash` is wrong** — use Argon2/Bcrypt/Pbkdf2 Elixir
 libraries; `:crypto.hash` is not a KDF (no iteration, no salt,
-GPU-trivial). HMAC requires keys at the hash's block size; HMAC-
-SHA-256 with a 16-byte key is reduced-security.
+GPU-trivial). RFC 2104 strongly discourages HMAC keys shorter than the hash
+output length; HMAC-SHA-256 with a 16-byte key is reduced-security.
 
 ### `:public_key` and `:ssl` cert validation
 
-BEAM-specific hazard: `:ssl.connect/3` WITHOUT
-`verify: :verify_peer` does NOT validate the server certificate
-(default `:verify_none` accepts any cert from any hostname).
+BEAM-specific hazard: before Erlang/OTP 26.0, `:ssl.connect/3`
+WITHOUT `verify: :verify_peer` did NOT validate the server
+certificate (default `:verify_none` accepted any cert from any
+hostname); OTP 26.0 changed the default to `verify_peer`.
 Recurring audit finding in custom HTTPS clients on top of `:ssl`.
-Use `:hackney`, `:mint`, `:finch`, or `:tesla` — all default to
-`:verify_peer` with proper CA bundles. Cross-link §8 for TLS
+Use `:hackney`, `:mint`, or `:finch` — all default to
+`:verify_peer` with proper CA bundles (Tesla's default `:httpc`
+adapter does not check certificates). Cross-link §8 for TLS
 distribution and [[reference-cryptography-expertise]] for
 cert-pinning doctrine.
 
@@ -1050,7 +1040,7 @@ hashing," §"Certificate validation."
 
 ### Semgrep patterns
 
-Elixir-specific Semgrep grammar coverage is partial as of 2026;
+Semgrep Code lists Elixir as generally available as of 2026, but
 many Elixir audits use generic mode with regex anchoring. Sink
 patterns to encode: `String.to_atom($USER)` (atom exhaustion),
 `Code.eval_string($X)` (RCE), `Port.open({:spawn, $CMD}, $OPTS)`
@@ -1066,7 +1056,7 @@ untrusted bytes (term-constructor RCE), `Jason.decode!($X, keys:
 Sobelow is the Phoenix ecosystem's de facto security scanner.
 Originally NCC Group; now community-maintained. Run as `mix
 sobelow`. Key modules: `Config.CSRF`, `Config.Headers`,
-`Config.Secrets`, `Config.HTTPS`, `XSS.Raw`/`XSS.HTML`/`XSS.SendFile`,
+`Config.Secrets`, `Config.HTTPS`, `XSS.Raw`/`XSS.HTML`/`XSS.SendResp`,
 `SQL.Query`/`SQL.Stream`, `Traversal.FileModule`/`Traversal.SendFile`,
 `Misc.BinToTerm` (the `:erlang.binary_to_term/1` on untrusted bytes
 sink — direct RCE), `Misc.FilePath`, `Vuln.HeaderInject`.
@@ -1077,7 +1067,8 @@ before the function.
 ### Credo — code quality and idiom
 
 General-purpose Elixir style checker. Footgun-adjacent checks:
-`Credo.Check.Warning.UnusedVariable*` (catches the GenServer
+`Credo.Check.Warning.Unused*Operation` (e.g. `UnusedMapOperation`
+flags `Map` calls whose return value is unused; catches the GenServer
 state-not-threaded bug from §4), `Credo.Check.Warning.IoInspect`
 (`IO.inspect` left in production leaks data to logs).
 
@@ -1127,11 +1118,11 @@ documentation (`erlang.org/doc/apps/dialyzer/dialyzer.html`).
 8. **Port.open form.** Always `:spawn_executable` with `args:`.
    `System.cmd/3` preferred.
 9. **NIF safety.** Dirty schedulers for >1ms work. Rust + Rustler
-   with `panic = "catch"`.
+   (panics caught at the NIF boundary).
 10. **Phoenix CSRF + session.** `:browser` pipeline includes CSRF.
     `:secret_key_base` from runtime env. Channel `handle_in/3`
     re-authorizes.
-11. **Ecto fragment discipline.** No `unsafe_fragment/1` without
+11. **Ecto fragment discipline.** No `constant/1` on user input without
     justification. `Repo.query!/3` uses parameter list.
 12. **Crypto.** `:crypto.strong_rand_bytes/1` for tokens; `:rand`
     only for simulation. Argon2/Bcrypt/Pbkdf2 for passwords. SSL
@@ -1141,11 +1132,8 @@ documentation (`erlang.org/doc/apps/dialyzer/dialyzer.html`).
 
 Statically-typed ML-family BEAM language compiling to BEAM
 bytecode (or JS). The type system catches the GenServer state-
-not-threaded bug (callback return forces new state), most
-pattern-match-on-untrusted-binary bugs (sized integer types force
-explicit bounds), and the selective-receive-never-matches pattern
-(`process.receive` takes a `Selector(a)` whose type guards
-exhaustiveness). Gleam does NOT solve atom-table exhaustion
+not-threaded bug (callback return forces new state), and the selective-receive-never-matches pattern
+(`process.selector_receive` takes a typed `Selector(payload)`). Gleam does NOT solve atom-table exhaustion
 (Gleam atoms hit the BEAM atom table), distribution-cookie
 footgun (same wire protocol), NIF crash, or ETS hazards. Partial
 mitigation — raises the language discipline floor but doesn't
@@ -1160,9 +1148,10 @@ particular scrutiny around macro-expansion-to-eval primitives.
 
 ### Variant analysis: AtomVM (BEAM for microcontrollers)
 
-Reduced-footprint BEAM for ESP32, RP2, MCU targets. Atom table is
-smaller (exhaustion trivially fast). No distribution protocol
-(cookie footgun doesn't apply). NIFs are more dangerous (no MMU
+Reduced-footprint BEAM for ESP32, RP2, MCU targets.
+Distribution is supported
+(cookie auth, no TLS distribution yet), so the cookie footgun
+applies. NIFs are more dangerous (no MMU
 on most targets — a NIF crash takes down the device). ETS may not
 be available; Mnesia definitely not. Treat AtomVM audits as
 embedded-systems audits with BEAM flavors; lean on
@@ -1248,8 +1237,8 @@ documentation, EEF Security WG
 - exploit-db 49418, 46024
 - Rapid7 module `exploit/multi/misc/erlang_cookie_rce`
 - gteissier/erl-matter — `github.com/gteissier/erl-matter`
-- Security Boulevard "Erlang Authenticated Remote Code Execution"
-  (2018-09)
+- Rob Fuller "Erlang Authenticated Remote Code Execution"
+  (2018-09) — `malicious.link/post/2018/erlang-arce/`
 
 ### NIF / FFI and mailbox diagnostics
 

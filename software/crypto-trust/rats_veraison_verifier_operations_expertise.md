@@ -8,7 +8,7 @@ Operations-side complement to `hardware_attestation_chains_expertise.md` (eviden
 
 Attestation has three load-bearing roles in the IETF RATS model: an **Attester** produces evidence about itself; a **Verifier** consumes evidence + reference values + endorsements and produces an attestation result; a **Relying Party** consumes the attestation result and makes a trust decision. The Verifier is the keystone — without it, evidence is uninterpretable and reference values are unused. Get the verifier wrong and every downstream trust decision is wrong.
 
-Most attestation deployments in production today outsource the verifier to the cloud provider: AWS Nitro Enclaves attestation through KMS condition keys; Azure Microsoft Azure Attestation (MAA); GCP Confidential Space attestation verifier. These are convenient and closed-loop — and they are vendor-locked, opaque, and cross-cloud unfederated. Running your own verifier is the alternative. The canonical OSS implementation is **Veraison**, Linaro-led, CCC-adjacent, multi-substrate. Veraison is moving from research to early-production deployments as of 2026 `[unverified specific production-readiness status]`; this doc covers the operational shape of that path.
+Most attestation deployments in production today outsource the verifier to the cloud provider: AWS Nitro Enclaves attestation through KMS condition keys; Azure Microsoft Azure Attestation (MAA); GCP Confidential Space attestation verifier. These are convenient and closed-loop — and they are vendor-locked, opaque, and cross-cloud unfederated. Running your own verifier is the alternative. The canonical OSS implementation is **Veraison**, Arm-founded, now a Confidential Computing Consortium project, multi-substrate. Veraison is moving from research to early-production deployments as of 2026 `[unverified specific production-readiness status]`; this doc covers the operational shape of that path.
 
 Audience: AI agents plus AppSec / platform-engineering / SRE running attestation-verifier infrastructure that composes TPM + TEE + SLSA + GPU + DICE substrates through one verifier API.
 
@@ -33,21 +33,21 @@ Two information flows:
 
 A third hybrid: RP caches attestation results from a verifier with short TTLs, refreshing on miss. Practically common; not formally one of RFC 9334's named flows.
 
-The token format is **EAT (Entity Attestation Token)**, published as **RFC 9711** `[unverified specific publication date — was in late-stage IESG review through 2024-2025; finalized as RFC 9711 some time in 2024-2026]`. EAT is CBOR-encoded by default with a JWT-compatible JSON serialization; defines standard claims (`nonce`, `ueid`, `oemid`, `swname`, `swversion`, `dbgstat`, `location`, `secboot`, etc.) plus profile-specific extension claims.
+The token format is **EAT (Entity Attestation Token)**, published as **RFC 9711** (April 2025). EAT is CBOR-encoded by default with a JWT-compatible JSON serialization; defines standard claims (`nonce`, `ueid`, `oemid`, `swname`, `swversion`, `dbgstat`, `location`, `oemboot`, etc.) plus profile-specific extension claims.
 
-Reference values are carried in **CoRIM (Concise Reference Integrity Manifest)**, a CBOR-encoded format still in draft `[unverified specific draft revision and IETF adoption status as of 2026]`. CoRIM composes Reference Integrity Manifests (RIMs) for individual components; a CoSWID identifies the software component being measured. See `[[reference-reference-value-management]]` §3.
+Reference values are carried in **CoRIM (Concise Reference Integrity Manifest)**, a CBOR-encoded format still in draft (draft-ietf-rats-corim-11, July 2026; -10 was in WG Last Call). CoRIM composes Reference Integrity Manifests (RIMs) for individual components; a CoSWID identifies the software component being measured. See `[[reference-reference-value-management]]` §3.
 
 ---
 
 ## 3. Veraison — the OSS verifier
 
-**Veraison** is the Linaro-led, multi-substrate, modular attestation verifier. Project home: `github.com/veraison`. Maintainership and contribution: **Thomas Fossati** (Linaro, project lead), **Yogesh Deshpande** (long-time Veraison contributor), **Mike Bursell** (Confidential Computing Consortium co-founder, Profian, Veraison contributor), **Sergio Lopez** (Red Hat, CoCo + Veraison). Contributing orgs: Linaro, Confidential Computing Consortium, IBM, Microsoft, Arm, Red Hat, Intel `[unverified specific contributor list as of 2026]`.
+**Veraison** is the Arm-founded, Confidential Computing Consortium-hosted, multi-substrate, modular attestation verifier. Project home: `github.com/veraison`. Maintainership and contribution: **Thomas Fossati** (Linaro), **Yogesh Deshpande** (Arm).
 
 Architectural shape:
 
-- **Services CLI** (`services-cli`) — the runtime verifier; exposes a REST API for evidence appraisal.
-- **Provisioning CLI** (`provisioning-cli`) — loads CoRIM-formatted reference values, endorsement certificates, and trust anchors into the verifier's stores.
-- **Scheme handlers** — per-substrate plugins (PSA, SGX, TDX, SEV-SNP, CCA, TPM 2.0, DICE, CoCo). Each handler knows how to parse one evidence format, validate its signature chain, and extract the measurements that policy will appraise.
+- **Verification service** — REST API through which attesters or relying parties submit evidence for appraisal.
+- **Provisioning service** — REST API that accepts CoRIM payloads to load reference values, endorsements, and trust anchors.
+- **Scheme handlers** — per-substrate plugins (`arm-cca`, `psa-iot`, `sevsnp`, `tpm-enacttrust`, `nvidia`, `da-spdm`). Each handler knows how to parse one evidence format, validate its signature chain, and extract the measurements that policy will appraise.
 - **Policy engine** — declarative appraisal policy; OPA-style. Takes parsed evidence + matched reference values; emits attestation result with per-claim trust verdict.
 - **Verifier API** — issues nonces, receives evidence, returns attestation results signed by the verifier's own key.
 
@@ -63,7 +63,7 @@ Internal pipeline (per request):
 6. Verifier signs the result with its own key; returns to the RP.
 7. Audit log entry captures `(RP identity, evidence hash, nonce, policy version, RV-set version, result, timestamp)`.
 
-Production maturity as of 2026 `[unverified specific status]`: Veraison is moving from research-grade to early-production. Linaro and CCC are driving adoption. CNCF Sandbox or Incubation status `[unverified specific governance state]`. Most attestation deployments still use the cloud-provider closed-loop verifier; Veraison adoption is concentrated in confidential-computing, edge-IoT, and embedded-device deployments where vendor neutrality matters.
+Production maturity as of 2026 `[unverified specific status]`: Veraison is moving from research-grade to early-production. Veraison is a Confidential Computing Consortium project. Most attestation deployments still use the cloud-provider closed-loop verifier; Veraison adoption is concentrated in confidential-computing, edge-IoT, and embedded-device deployments where vendor neutrality matters.
 
 **Verifier API surface (high-level).** Veraison's REST API exposes:
 
@@ -80,7 +80,7 @@ Production maturity as of 2026 `[unverified specific status]`: Veraison is movin
 
 ## 4. Per-substrate scheme handlers
 
-Veraison's modular design means each substrate gets its own appraisal logic. The substrate set as of 2026 covers the practical TEE + TPM + DICE landscape:
+Veraison's modular design means each substrate gets its own appraisal logic. Veraison's scheme set (`veraison/services`) covers Arm CCA, PSA, AMD SEV-SNP, TPM (EnactTrust), NVIDIA, and DA/SPDM; SGX, TDX, DICE, and CoCo below have no Veraison scheme:
 
 **PSA scheme.** Arm Platform Security Architecture; Cortex-M devices using TrustZone-M and TF-M. Evidence format is the PSA Initial Attestation Token (IAT), an EAT profile. Reference values include:
 
@@ -92,7 +92,7 @@ Veraison's modular design means each substrate gets its own appraisal logic. The
 
 Production-mature for IoT/embedded.
 
-**SGX scheme.** Intel SGX evidence flow: the enclave's `EREPORT` (locally signed by the platform's CPU using an enclave's `REPORTKEY`) is consumed by the Quoting Enclave, which re-signs the contents as an ECDSA-signed quote (DCAP attestation; the legacy EPID flow is deprecated). Veraison's SGX scheme handler:
+**SGX scheme.** Intel SGX evidence flow: the enclave's `EREPORT` (locally signed by the platform's CPU using an enclave's `REPORTKEY`) is consumed by the Quoting Enclave, which re-signs the contents as an ECDSA-signed quote (DCAP attestation; the legacy EPID flow is deprecated). An SGX verifier:
 
 - Validates the quote's ECDSA signature against the platform's PCK (Provisioning Certification Key) certificate, which chains up through Intel's PCK Processor CA and ultimately the Intel SGX Root CA.
 - Fetches the corresponding TCB Info and QE Identity structures from Intel's PCCS (Provisioning Certificate Caching Service) or a locally mirrored copy.
@@ -106,7 +106,7 @@ Production-mature.
 
 **SEV-SNP scheme.** AMD SEV-SNP attestation report (ATTESTATION_REPORT structure) verified against AMD's Key Distribution Service (KDS) certificate chain, or against a VLEK (Versioned Loaded Endorsement Key) for the newer flow. Veraison validates the report signature, extracts the launch-measurement and TCB version, and appraises against reference values. Mature for AMD EPYC confidential VM deployments.
 
-**CCA scheme.** Arm Confidential Compute Architecture, the Realm-VM model on Armv9 with the Realm Management Monitor (RMM). Evidence is an RMM token plus a platform token. The combined chain attests both the Realm contents and the underlying platform's RMM and firmware. Maturity is early — CCA silicon is just beginning to ship at scale in 2025-2026 `[unverified specific deployment scale]`.
+**CCA scheme.** Arm Confidential Compute Architecture, the Realm-VM model on Armv9 with the Realm Management Monitor (RMM). Evidence is a Realm token plus a platform token. The combined chain attests both the Realm contents and the underlying platform's RMM and firmware. Maturity is early — CCA silicon is just beginning to ship at scale in 2025-2026 `[unverified specific deployment scale]`.
 
 **TPM 2.0 scheme.** Classic TPM-quoted PCR (Platform Configuration Register) values. The chain:
 
@@ -114,9 +114,9 @@ Production-mature.
 - The AK is certified by the Endorsement Key (EK) via TPM2_Certify or an equivalent AK-creation flow.
 - The EK is shipped with a manufacturer-issued EK certificate signed by the TPM manufacturer's root CA (Infineon, ST Microelectronics, Nuvoton, Intel PTT for firmware-TPM, AMD fTPM for AMD's firmware-TPM).
 
-Veraison validates the EK cert chain to a trusted manufacturer root, validates AK certification by the EK, validates the quote signature by the AK, parses the PCR digest list, and appraises against CoRIM-formatted golden values per PCR index. Common policy gates: PCRs 0–7 (firmware + boot loader + kernel measurements), PCR 14 (boot loader code identity if used by GRUB / shim), and event-log replay-and-match to catch silently-mismatched aggregate digests. Mature. Cross-link to `[[reference-hardware-attestation-chains]]` §5.
+A TPM verifier validates the EK cert chain to a trusted manufacturer root, validates AK certification by the EK, validates the quote signature by the AK, parses the PCR digest list, and appraises against CoRIM-formatted golden values per PCR index. Common policy gates: PCRs 0–7 (firmware + boot loader + kernel measurements), PCR 14 (boot loader code identity if used by GRUB / shim), and event-log replay-and-match to catch silently-mismatched aggregate digests. Mature. Cross-link to `[[reference-hardware-attestation-chains]]` §5.
 
-**DICE scheme.** PSA-DICE (Device Identifier Composition Engine) layered attestation. Evidence is a chain of certificates each signed by the layer above; alias key certificates carry per-layer measurements. Veraison validates the certificate chain back to a known UDS-derived root and appraises layer measurements against reference values. Early-stage. Cross-link to `[[reference-dice-embedded-device-identity]]` §5.
+**DICE scheme.** PSA-DICE (Device Identifier Composition Engine) layered attestation. Evidence is a chain of certificates each signed by the layer above; alias key certificates carry per-layer measurements. A verifier validates the certificate chain back to a known UDS-derived root and appraises layer measurements against reference values. Early-stage. Cross-link to `[[reference-dice-embedded-device-identity]]` §5.
 
 **CoCo scheme.** Confidential Containers (Kata + TEE backend); evidence is one of the above substrate types depending on backend (SGX, TDX, SEV-SNP, CCA), wrapped in a CoCo-specific envelope. Maturing.
 
@@ -126,7 +126,7 @@ Per-substrate honest framing: schemes mature at different paces. SGX, TDX, SEV-S
 
 ## 5. Policy engine architecture
 
-Veraison's policy engine takes the parsed-and-validated evidence from a scheme handler and produces an attestation result. The decision language is OPA-style declarative (Rego or a Veraison-specific dialect `[unverified specific current implementation]`).
+Veraison's policy engine takes the parsed-and-validated evidence from a scheme handler and produces an attestation result. The policy agent is Open Policy Agent (OPA); policies are written in Rego.
 
 **Per-RP policy.** Different relying parties have different acceptance criteria. A secret-management service might require TPM PCR 0-7 + SGX MRENCLAVE both pass. An admission controller might accept TPM PCR 0-7 only. Veraison provides the policy framework; per-RP policies are authored separately and bound to the RP's authentication context.
 
@@ -255,11 +255,11 @@ Production AI deployments increasingly span multiple attestation substrates simu
 
 **RFC 9334 finalized January 2023.** The architecture is stable; profile work (EAT profiles per substrate) continues.
 
-**RFC 9711 EAT.** Finalized as RFC 9711 some time in 2024-2026 `[unverified specific publication date — was through IESG review in late 2024]`. EAT profiles for PSA, SGX/TDX, SEV-SNP, TPM, CCA are at various draft maturity stages.
+**RFC 9711 EAT.** Published as RFC 9711 in April 2025. The PSA profile is published as RFC 9783; EAT profiles for SGX/TDX, SEV-SNP, TPM, CCA are at various draft maturity stages.
 
-**CoRIM draft progress.** Still in draft as of 2026 `[unverified specific draft revision and IETF adoption status]`. Vendor adoption growing for TPM and PSA; SGX/TDX/SEV-SNP CoRIM tooling maturing.
+**CoRIM draft progress.** Still in draft as of 2026 (draft-ietf-rats-corim-11, July 2026; -10 was in WG Last Call). Vendor adoption growing for TPM and PSA; SGX/TDX/SEV-SNP CoRIM tooling maturing.
 
-**Veraison status.** CCC project; Linaro-stewarded; CNCF Sandbox or similar `[unverified specific governance state]`. Production deployments growing in confidential-computing and edge-IoT.
+**Veraison status.** CCC project; founded within Arm and donated to the CCC. Production deployments growing in confidential-computing and edge-IoT.
 
 **CCA verifier scheme maturation 2024-2026.** Armv9 silicon shipping; Realm Management Monitor specifications stable; verifier-side support landing in Veraison. CCA's two-token shape (Realm token + platform token) is structurally novel — the Realm attests its own contents, but a separate platform attestation is required to trust the RMM that vouches for the Realm. Verifier scheme handlers must compose both before issuing an attestation result.
 
@@ -271,7 +271,7 @@ Production AI deployments increasingly span multiple attestation substrates simu
 
 **Confidential AI inference attestation primitives** `[unverified vendor-product specifics]`:
 
-- GPU firmware version + signed identity (NVIDIA H100, AMD MI300 confidential compute mode).
+- GPU firmware version + signed identity (NVIDIA H100).
 - Driver / runtime version (CUDA, ROCm) measurement.
 - Model weights digest matched against an SLSA-attested build of the model.
 - Inference framework integrity (vLLM, Triton, TensorRT-LLM).

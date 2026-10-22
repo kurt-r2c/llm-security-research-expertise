@@ -24,7 +24,7 @@
 >   infrastructure economics.
 > - **Damon McCoy** — Professor of CSE at NYU Tandon. Research focus: empirically
 >   measuring the security, privacy, and abuse properties of technology systems.
->   Doctoral pedigree from the UCSD lineage; author of the first quantitative doxing
+>   PhD from the University of Colorado Boulder; author of the first quantitative doxing
 >   measurement and a body of work on election-official online harassment,
 >   content-moderation metrics, and underground-market measurement. The
 >   measurement-first stance — count the abuse, then design the defense — is the
@@ -44,10 +44,9 @@
 > - **Marcus Hutchins** ("MalwareTech") — Independent malware and threat-intel
 >   researcher; registered the killswitch domain that halted WannaCry in May 2017.
 >   Operates the *MalwareTech* blog with deep reverse-engineering of contemporary
->   malware and the fraud-economy tooling stack (Kronos banking-trojan family,
->   loader ecosystems, info-stealer corpus).
-> - **Sam Curry** — Independent appsec researcher; founder of Palisade Security. Over
->   US$500,000 in cumulative bug-bounty rewards by 18. Lead author of *Web Hackers
+>   malware and the fraud-economy tooling stack (loader ecosystems,
+>   info-stealer corpus).
+> - **Sam Curry** — Independent appsec researcher; founder of Palisade Security. Lead author of *Web Hackers
 >   vs. The Auto Industry* (January 2023), disclosing critical account-takeover
 >   vulnerabilities affecting BMW, Rolls-Royce, Mercedes, Porsche, Ferrari, Honda,
 >   Hyundai, Kia, Toyota, Nissan. His disclosure corpus is the modern reference for
@@ -58,12 +57,12 @@
 >   ingesting an FBI / UK National Crime Agency feed. The k-anonymity range-query
 >   design is the canonical example of "let the world check credential exposure
 >   without ever telling you which credential they checked."
-> - **Sergi Isasi** — Former Director of Product (Bot Management) at Cloudflare and VP
->   of Product for Application Performance and Security; led Bot Management product
+> - **Sergi Isasi** — Former Director of Product (Bot Management) at Cloudflare; led Bot Management product
 >   development through the period in which Cloudflare's ML-driven bot-score model
 >   became the dominant public reference architecture for behavioral bot detection at
 >   internet scale.
-> - **Patrick Donahue** — VP of Product, Application Security at Cloudflare. Long-running
+> - **Patrick Donahue** — Nearly a decade building application and network security
+>   products at Cloudflare; now SVP of Product at Chainguard. Long-running
 >   public voice for the integrated WAF-plus-bot-management-plus-fraud-detection
 >   product family.
 > - **Lily Hay Newman** — Senior Writer at *WIRED* covering information security,
@@ -196,10 +195,9 @@ Cross-link to [[detection_engineering_expertise]] for the SOC-rule side and
 
 Bulk replay of leaked credentials against a target's login endpoint to find
 working accounts. The attacker does not need to break your authentication; the
-attacker only needs to find users reusing passwords. Reuse rates remain 60–70%
-across two-or-more services in 2026.
+attacker only needs to find users reusing passwords.
 
-Input cost for the attacker is effectively zero — HIBP alone contains ~14B
+Input cost for the attacker is effectively zero — HIBP alone contains ~17.8B
 compromised credentials. Specialized dumps on Telegram cost cents per thousand.
 Infrastructure (residential proxies, IP rotation, TLS fingerprint randomization)
 runs $1–$10 per million attempts. Per-success value is $1–$50 for consumer
@@ -213,9 +211,9 @@ k-anonymity range queries: client SHA-1 hashes the password, sends the first 5
 hex characters to the API, gets back all matching hashes plus seen-counts, checks
 locally. The API never learns the queried password. Use at signup (reject this),
 at password-change (reject this new one), opportunistically at login (warn).
-Free, sub-100ms, privacy-auditable. NIST SP 800-63B-4 (final July 2025) explicitly
-endorses the pattern at AAL2 and above ("comparison against a list of compromised
-values"). Any platform not blocking known-breached passwords in 2026 operates
+Free, sub-100ms, privacy-auditable. NIST SP 800-63B-4 (final July 2025) requires
+the pattern for all passwords (verifiers "SHALL compare the prospective secret
+against a blocklist"). Any platform not blocking known-breached passwords in 2026 operates
 below the industry baseline.
 
 ### Detection signal stack
@@ -367,12 +365,12 @@ only for high-risk traffic.
 
 reCAPTCHA v3 (2018) eliminated the visible challenge for most users and exposed
 a 0.0–1.0 risk score; the integrator decides allow/MFA/block thresholds.
-reCAPTCHA Enterprise (2020+) added ML-driven account-defender modules for
+reCAPTCHA Enterprise (2019) added ML-driven account-defender modules for
 credential-stuffing, fake-account, and SMS-pumping detection.
 
 hCAPTCHA (Intuition Machines, 2018) ships similar mechanics with explicit "we
-don't train Google's ML" positioning; Cloudflare Turnstile (2022) provides the
-zero-friction option for sites already behind Cloudflare. The three products are
+don't train Google's ML" positioning; Cloudflare Turnstile (2022) provides a
+zero-friction option usable whether or not a site is a Cloudflare customer. The three products are
 fungible on technical effectiveness; choice is governance and policy.
 
 ### Behavioral biometrics
@@ -395,7 +393,7 @@ extensions, curves, EC formats). Real Chrome has a known JA3; `requests` has a
 different one; curl another. UA-claims-Chrome + JA3-says-Python = liar.
 
 JA3's weakness is TLS extension permutation (Chrome since 110 shuffles extension
-order). **JA4** (FoxIO, John Althouse, 2024) normalizes cipher and extension
+order). **JA4** (FoxIO, John Althouse, 2023) normalizes cipher and extension
 orders into a stable form, adds TCP and HTTP/2 context, produces a 36-char
 fingerprint of structural support rather than advertised-order.
 
@@ -434,8 +432,7 @@ detection vendors are in a continuous arms race. The attacker's escalation past
 Stealth is real Chrome on real hardware plus residential proxies — the
 structural defender's-nightmare in 2026.
 
-By 2026, GPT-4o and Claude Sonnet 4 solve image CAPTCHAs at >95% accuracy for
-under $0.001 per challenge, cheaper than human solvers. Image-CAPTCHA is
+Image-CAPTCHA is
 structurally dead; vendors lean on behavioral and fingerprint signals with image
 or "press-and-hold" interactions as fallback gathering vehicles for continuous-
 time mouse-motion data.
@@ -447,7 +444,7 @@ time mouse-motion data.
 ### CNP fraud as the dominant vector
 
 Chip-and-PIN plus contactless NFC has nearly eliminated card-present fraud in
-most geographies; ~90% of US card-fraud losses in 2025 were card-not-present.
+most geographies; US card-fraud losses are mainly card-not-present.
 CNP ecosystem: cards sourced from breaches, info-stealer logs (which contain
 saved card data including CVV), Magecart-family checkout-skimmer malware, and
 physical skimmers. The attacker validates cards via **card-testing** — small
@@ -520,13 +517,12 @@ price-intelligence tool is a scraper. The defender decides which scraping is
 allowed and the line is rarely technical.
 
 The 2026 reality is dominated by **AI training-data collection**. OpenAI's
-GPTBot, Anthropic's ClaudeBot and CCBot, Google's Google-Extended, Meta's
+GPTBot, Anthropic's ClaudeBot, Common Crawl's CCBot, Google's Google-Extended, Meta's
 facebookexternalhit and meta-externalagent, and a long tail of unidentified or
-spoofed AI crawlers consume an estimated 30–50% of web traffic on content-heavy
-sites. The strategic options: allow it (and negotiate licensing — the
-2024–2026 wave produced multi-hundred-million-dollar deals with Reddit, NYT,
+spoofed AI crawlers harvest content-heavy sites. The strategic options: allow it (and negotiate licensing — the
+2024–2026 wave produced licensing deals with Reddit, NYT,
 AP, Axel Springer), block it (robots.txt + active bot-mgmt blocking;
-Cloudflare's "AI Crawler Block" toggle automates), or charge for it
+Cloudflare's "Block AI Bots" setting automates), or charge for it
 (paywall + API + rate-card).
 
 ### Scraping vs API abuse
@@ -547,8 +543,7 @@ cost); TLS / HTTP/2 fingerprint; header-order fingerprint.
 The SSR vs CSR design choice is a scraping lever: **CSR (client-side-rendered)
 content is harder to scrape than SSR**. Scrapers must execute JS or
 reverse-engineer the API. The compromise pattern is SSR for search engines and
-accessibility (UA-detection or selective prerender) + CSR for everyone else,
-which LinkedIn, Twitter / X, and Glassdoor converge on.
+accessibility (UA-detection or selective prerender) + CSR for everyone else.
 
 ### Rate limiting and WAF-layer mitigation
 
@@ -556,7 +551,7 @@ Per-IP rate limits are cheap and limited (residential proxies defeat them).
 The modern stack is per-user-or-API-key, per-account-or-session, **per-
 behavioral-cluster**. Most sites delegate the bot-management arms race to a
 WAF + bot-mgmt vendor (Cloudflare, Akamai, Fastly Signal Sciences, DataDome,
-F5/Distil, HUMAN) and amortize the cost across the vendor's customer base.
+F5/Shape, HUMAN) and amortize the cost across the vendor's customer base.
 
 ### Legal — hiQ Labs v. LinkedIn aftermath
 
@@ -602,8 +597,8 @@ SybilGuard (2006), SybilLimit (2008), and SybilRank (2012) lines of work moved
 the problem to **social-graph-based detection**: assume the honest portion of
 the network is fast-mixing and the sybil portion has a sparse cut with the
 honest set; trust-propagation rooted in known-honest nodes ranks accounts by
-sybil-probability. SybilRank has been deployed at production scale at Facebook
-and Tuenti. The 2026 limitation is real: modern sybil rings cultivate
+sybil-probability. SybilRank has been deployed at production scale at
+Tuenti. The 2026 limitation is real: modern sybil rings cultivate
 cross-following relationships before activating, producing dense cuts. Graph
 defenses are necessary but not sufficient.
 
@@ -629,18 +624,17 @@ SMS toll fraud emerged as a major abuse vector in 2022–2023. Mechanic:
 4. The victim's SMS provider (Twilio, MessageBird, Vonage, AWS SNS) pays the
    MNO; MNO kicks back to the fraudster.
 
-Musk's 2022 reveal that Twitter was losing $60M/year to SMS pumping put this
-on the industry radar; Stripe, Discord, Reddit reported similar losses through
-2023–2024.
+Musk's February 2023 claim that Twitter was losing $60M/year to SMS pumping put this
+on the industry radar.
 
 Defenses: aggressive rate limits (3–5 codes/hour/number, 2–3 attempts before
 MFA-fallback); country allow/blocklist; MNO-prefix rate limits (aggregate by
 first 6–8 digits); OTP-conversion-rate monitoring (real conversion is 80–95%,
 pumped is <5%); per-device-fingerprint OTP request limits; pivot to passkeys
 (eliminates SMS as second factor); pivot to email-OTP (cheaper, harder to
-pump); WhatsApp/Telegram OTP. Sardine "SMS pumping protection" and Twilio's
-"Verify Fraud Defense" are named products; reCAPTCHA Enterprise added
-SMS-pumping-specific protection in 2024.
+pump); WhatsApp/Telegram OTP. Twilio's
+"Verify Fraud Guard" is a named product; reCAPTCHA Enterprise added
+SMS-pumping-specific protection (SMS Defense).
 
 ### Network-graph fake-account detection
 
@@ -660,7 +654,7 @@ human review for high-confidence clusters.
 StyleGAN3, Stable Diffusion, Flux Pro produce plausible avatars that defeat
 "blank avatar" rules and reverse-image-search (because the photo doesn't exist
 elsewhere on the web). Defender countermeasures: AI-image classifiers (Hive,
-Optic ship 70–90% accuracy depending on source model); liveness check (defeats
+Optic); liveness check (defeats
 most AI-photo flows; deepfake-video bypass is an emerging concern); C2PA
 provenance (upgrade real-camera-captured photos; absence-of-manifest is too
 common to be a hard negative signal at 2026 adoption levels).
@@ -669,8 +663,8 @@ common to be a hard negative signal at 2026 adoption levels).
 
 Discord (server-boost-token farming), Reddit (karma-farming with $5–$50 aged
 accounts for vote manipulation and astroturfing), Twitter/X (the most-public
-pre- and post-Musk-transition environment; Botometer is the public benchmark
-dataset), LinkedIn (fake-recruiter accounts for social engineering, especially
+pre- and post-Musk-transition environment; Botometer is the public bot-detection
+tool), LinkedIn (fake-recruiter accounts for social engineering, especially
 North Korean state-aligned and commercial recruiter spam waves), Telegram and
 Discord as marketplace layers for *other* platforms' sybils.
 
@@ -688,15 +682,13 @@ content-abuse subdiscipline. Architecture:
    standard. Perceptual hashing with fuzzy-match catches re-encoded, cropped,
    watermarked variants. Used by Gmail, Twitter/X, Meta, Adobe, Reddit,
    Discord. Not facial-recognition; produces non-reversible image-identity
-   hash. **PDQ** (Meta 2019) is the open-source perceptual hash; MD5/SHA-1 are
+   hash. **PDQ** (Meta 2019) is the open-source perceptual hash; Google CSAI Match
+   hashes known video; MD5/SHA-1 are
    exact-match first-pass.
-2. **Classifier-based detection of novel CSAM** (Safer by Thorn; Google CSAI
-   Match for video; Microsoft's classifier) for material not yet hashed.
+2. **Classifier-based detection of novel CSAM** (Safer by Thorn; Microsoft's classifier) for material not yet hashed.
 3. **Human review** by trained moderators; verified CSAM reported to NCMEC.
 4. **Mandatory reporting**: 18 USC § 2258A requires US electronic-service-
-   providers to report detected CSAM. The Meta Transparency Report shows
-   30M+ Content Action units against CSAM per quarter; human-review staff for
-   those queues is well in the thousands.
+   providers to report detected CSAM.
 
 For platforms below the Meta scale, integrate with NCMEC via PhotoDNA Cloud
 Service (free for qualifying providers) + a classifier like Safer.
@@ -744,12 +736,12 @@ Adobe, Arm, BBC, Intel, Microsoft, Truepic) ships the open standard for
 cryptographically-signed media-content metadata. The C2PA Manifest (Content
 Credential) records creator identity, capture timestamp and location, tools
 used for editing, AI involvement, edit history. Each manifest is signed with a
-private key chained to an X.509-style CA. Spec v2.4 (May 2025) supports JPEG,
+private key chained to an X.509-style CA. Spec v2.2 (May 2025) supports JPEG,
 PNG, WebP, AVIF, HEIC, MP4, MOV, PDF, MP3, WAV.
 
 The Leica M11-P (Oct 2023) was the first consumer camera with C2PA in
 hardware; Sony Alpha 1/A9 III/A7S III/A7 IV followed; Nikon shipped firmware
-updates; DALL-E 3, Midjourney, Sora sign with "AI-generated" assertions. The
+updates; DALL-E 3, Sora sign with "AI-generated" assertions. The
 2026 strategic limitation is adoption: trust C2PA when present, do not require
 it. The EU AI Act (effective August 2026) requires AI-content transparency
 labeling in regulated contexts; C2PA's AI assertion type is the
@@ -772,10 +764,10 @@ mechanisms, illegal-content takedown timelines, VLOP audits, risk
 assessments (Art. 34), mitigation documentation (Art. 35), Out-of-court dispute
 settlement (Art. 21), researcher data access (Art. 40). **UK OSA** (Royal
 Assent Oct 2023, phased through 2024–2026; Ofcom enforces) mandates
-duty-of-care. **US KOSA** (passed Senate, House pending) mandates age-
-appropriate-design for under-17. **Australia eSafety Act 2021** mandates
-basic online-safety-expectations. T&S engineering headcount at major
-platforms doubled or tripled between 2020 and 2025 in part to absorb this.
+duty-of-care. **US KOSA** (passed Senate 2024, not enacted; the June 2026 House
+KIDS Act package dropped its duty of care) mandates age-
+appropriate-design for under-17. **Australia Online Safety Act 2021** mandates
+basic online-safety-expectations.
 
 ### T&S vs Security vs Privacy
 
@@ -789,7 +781,7 @@ with AppSec and Privacy. Cross-link to [[appsec_program_building_expertise]]
 §4 (stakeholder mapping).
 
 T&S incident response has **regulatory clocks** (NCMEC on detection, DSA
-significant-incident reporting within hours), **press exposure** (high-profile
+Art. 18 prompt notification of threats to life or safety), **press exposure** (high-profile
 incidents become news), **policy escalation** (borderline content is a Policy-
 team call, not engineering), and **external coordination** (NCMEC, ICE, FBI,
 foreign regulators, civil-society groups). The 2026 best-practice is integrated
@@ -805,9 +797,7 @@ LLMs remove the human-time-cost from abuse operations. Per-message content-
 generation cost has fallen from $0.01–$0.10 (human-labor) to $0.0001–$0.001
 (LLM-API). Linguistic quality is at native-speaker level across all major
 languages. Personalization is feasible at scale (ingest the target's public
-profile, generate custom spear-phish). A/B testing is automated. APWG quarterly
-reports through 2024–2026 show sustained YoY phishing growth with the
-fluency-axis being the 2024 inflection.
+profile, generate custom spear-phish). A/B testing is automated.
 
 Defender response: **shift emphasis from content to behavior**. Content-based
 filters (Bayesian-on-text, keyword, perplexity) work less well against LLM
@@ -831,19 +821,18 @@ Voice cloning with three seconds of source audio (ElevenLabs, Resemble,
 play.ht, Microsoft VALL-E, open-source XTTS) drove a wave of voice-phishing
 fraud 2024–2026: CEO/BEC fraud with the CEO's voice; family-emergency fraud
 with the voice of a son or daughter; customer-support impersonation against
-voice-biometric authn. The 2024 Hong Kong CFO who wired $25M after a deepfake
-video call is the canonical incident.
+voice-biometric authn. The 2024 Hong Kong finance worker who wired $25M after a
+deepfake video call impersonating the CFO is the canonical incident.
 
 Defenses: out-of-band confirmation for any unusual financial request;
-code-words for family-emergency scenarios; voice-biometric retirement (by
-2026, no major bank treats voice-print as sole factor); caller-ID-and-call-
+code-words for family-emergency scenarios; voice-biometric retirement; caller-ID-and-call-
 pattern analysis from cell-network signaling.
 
 ### Synthetic-identity fraud at scale
 
 AI-face + AI-voice + chatbot-conversation onboarded to financial services to
-pass KYC. Reference incidents: crypto-exchange KYC bypass (Reuters October
-2024, $50M+ across mid-tier exchanges); synthetic mortgage applications
+pass KYC. Reference incidents: crypto-exchange KYC bypass (ProKYC deepfake tool, Cato
+Networks October 2024); synthetic mortgage applications
 (real SSN + fake everything-else); B2B SaaS fake-company onboarding. Defenses
 (Persona, Plaid Identity, Onfido, Jumio, Trulioo, Sumsub): active liveness
 check (random head-movement / blink / smile on command, defeats simple
@@ -860,8 +849,7 @@ model is trained on your content, users may consult the AI instead of visiting
 you, collapsing your revenue model. Cloudflare's 2024 reporting framed this:
 marginal cost of training-scraping per crawl is low for the AI company,
 non-zero for the site, long-term substitution effect is high. The 2026 norm
-for high-quality content is paid licensing (Reddit-OpenAI, NYT-OpenAI
-eventually-settled, AP-OpenAI, Axel Springer-OpenAI) or hard block
+for high-quality content is paid licensing (Reddit-OpenAI, AP-OpenAI, Axel Springer-OpenAI) or hard block
 (Cloudflare AI Audit licensing platform; robots.txt + JA-fingerprint-block for
 smaller players).
 
@@ -885,7 +873,7 @@ against naive attackers, are bypassed by determined ones.
 Models*, ICML 2023): partition the model's vocabulary at each step into a
 pseudo-randomly-selected "green list" and "red list"; bias generation toward
 green-list tokens; a detector statistically checks green-list use rates over
-50–100 tokens. Invisible to readers, output quality approximately preserved.
+spans as short as 25 tokens. Invisible to readers, output quality approximately preserved.
 2024–2026 status: OpenAI prototyped text watermarking, did not deploy
 (adversarial-paraphrase defeat concerns); Google Gemini deployed SynthID for
 images and audio, then text; Anthropic has not publicly deployed text
@@ -971,8 +959,7 @@ Provider patterns: velocity-based key revocation; geographic-pin keys to
 source-IP range; required rotation; email-on-anomaly. Customer hygiene
 patterns: never commit keys to source (use secret-managers); scope-limit
 keys (per-feature, per-environment); monitor your bill (last-line defense;
-many customers discover compromise on the next invoice). Both OpenAI and
-Anthropic ship usage-anomaly detection in 2026, but customer-side hygiene
+many customers discover compromise on the next invoice). Customer-side hygiene
 remains primary. Cross-link to [[cryptography_expertise]] §key-management.
 
 ### Framing — business-logic flaw at the AI layer
@@ -1020,13 +1007,12 @@ DSA Articles 34/35/24/42/20/21/40 (risk assessments, mitigation documentation,
 transparency, appeals, dispute settlement, researcher data access); UK OSA
 duty-of-care; US KOSA age-appropriate-design (if enacted). Compliance is
 audit-grade documentation, end-to-end traceability from policy to enforcement
-to outcome. The 2026 staffing reality at major platforms: T&S engineering
-roughly matches AppSec headcount, with overlapping toolchains.
+to outcome.
 
 ### Incident response
 
-T&S IR has regulatory clocks (NCMEC on detection; DSA significant-incident
-within hours), press exposure, policy escalation (Policy team decides
+T&S IR has regulatory clocks (NCMEC on detection; DSA Art. 18 prompt
+notification of threats to life or safety), press exposure, policy escalation (Policy team decides
 borderline calls), and external coordination (NCMEC, ICE, FBI, foreign
 regulators, civil-society, victim-advocacy groups). The 2026 IR shape:
 
@@ -1253,9 +1239,6 @@ integration, or AI feature:
 14. **Regulatory** — in scope for DSA / OSA / KOSA / GDPR / sectoral?
 15. **IR runbook** — runbook for abuse-of-feature with owners and escalation?
 
-A senior anti-abuse engineer reviewing the checklist's output catches 70–80%
-of predictable abuse issues.
-
 ---
 
 ## 14. Variant Analysis — Under-Explored Frontiers
@@ -1321,8 +1304,8 @@ The crypto ecosystem produces fraud patterns overlapping with traditional
 payment fraud: pig-butchering scams (long-cycle romance / investment fraud
 ending in fake crypto-investment platforms, documented extensively by Krebs,
 Hutchins, Reuters / WSJ); DeFi rug pulls and exit scams; stolen-wallet-key
-drainers (Inferno Drainer, Angel Drainer, MS Drainer; 2024 takedowns plus
-successors); cross-chain laundering. Skill-set transfers (graph analysis,
+drainers (Inferno Drainer, Angel Drainer, MS Drainer; announced shutdowns
+followed by returns and successors); cross-chain laundering. Skill-set transfers (graph analysis,
 money-flow tracking) but substrate differs. Chainalysis, TRM Labs, Elliptic
 are the blockchain-forensics vendors; traditional fraud teams partner with one
 of these for crypto-overlap detection.
@@ -1348,7 +1331,7 @@ watermarking, training-data poisoning);
 - Damon McCoy, NYU Tandon publications: https://damonmccoy.com/pubs.html
 - Vern Paxson, ICIR papers: https://www.icir.org/vern/papers.html
 - Niels Provos, Google Scholar: https://scholar.google.com/citations?user=CoUBt08AAAAJ
-- Niels Provos et al., *A Virtual Honeypot Framework* (USENIX Security 2004): https://research.google/pubs/pub1/
+- Niels Provos, *A Virtual Honeypot Framework* (USENIX Security 2004): https://research.google/pubs/pub1/
 - Niels Provos, Friedl, Honeyman, *Preventing Privilege Escalation* (USENIX Security 2003): https://research.google/pubs/preventing-privilege-escalation/
 - Niels Provos, Mazières, *A Future-Adaptable Password Scheme* (bcrypt, USENIX 1999): https://research.google/pubs/pub24145/
 - Marcus Hutchins, *MalwareTech* blog: https://malwaretech.com/
@@ -1409,7 +1392,7 @@ watermarking, training-data poisoning);
 
 ### AI-content and provenance
 
-- C2PA spec v2.4 (May 2025): https://spec.c2pa.org/specifications/specifications/2.4/specs/C2PA_Specification.html
+- C2PA spec v2.4 (April 2026): https://spec.c2pa.org/specifications/specifications/2.4/specs/C2PA_Specification.html
 - C2PA: https://c2pa.org/
 - Content Authenticity Initiative: https://contentauthenticity.org/
 - Kirchenbauer et al., *A Watermark for Large Language Models* (ICML 2023): https://arxiv.org/abs/2301.10226

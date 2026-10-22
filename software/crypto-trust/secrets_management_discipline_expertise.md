@@ -8,7 +8,7 @@
 
 ## 1. Why this doc exists
 
-Secrets are the failure mode of the perimeter. The 2020-2026 incident corpus — SolarWinds, Codecov, CircleCI, LastPass-via-DevOps-Engineer, Okta-via-Bcrypt-vault-on-laptop, Shai-Hulud npm worm, Clinejection 6-week Cline window, MOVEit, Snowflake credential-stuffing — keeps surfacing the same shape. The defenders had a perimeter. They had identity providers. They had EDR. The breach pivot was a credential that was supposed to be rotated, supposed to be short-lived, supposed to be revoked. It wasn't.
+Secrets are the failure mode of the perimeter. The 2020-2026 incident corpus — SolarWinds, Codecov, CircleCI, LastPass-via-DevOps-Engineer, Okta-via-service-account-credential-in-personal-Google-account, Shai-Hulud npm worm, Clinejection 8-day Cline window, MOVEit, Snowflake credential-stuffing — keeps surfacing the same shape. The defenders had a perimeter. They had identity providers. They had EDR. The breach pivot was a credential that was supposed to be rotated, supposed to be short-lived, supposed to be revoked. It wasn't.
 
 This is the cross-cutting discipline that connects three other domains in this corpus:
 
@@ -49,14 +49,14 @@ HashiCorp Vault (Mitchell Hashimoto + Armon Dadgar, 2015) is the reference imple
 
 - **KV v2 secrets engine** — static key-value storage with versioning. Soft-delete via version-pin metadata. Use sparingly; static secrets are the failure surface this whole discipline tries to reduce.
 - **Transit secrets engine** — encryption-as-a-service. The application sends plaintext, gets ciphertext; Vault holds the key. Closest Vault primitive to a managed KMS; the keystore-as-API pattern.
-- **Database secrets engine** — dynamic credentials for PostgreSQL, MySQL, MSSQL, MongoDB, Cassandra, Oracle, Redis. Workload requests credential, Vault issues a *new* per-session DB user with a TTL (default 1 hour). When the lease expires, Vault drops the DB user. This is the canonical short-lived-credential pattern; deploy it and you eliminate the "shared DB password across 12 microservices" anti-pattern in §12.
-- **PKI secrets engine** — dynamic X.509 certificate issuance for service-mesh integration (Consul Connect, Istio with Vault as upstream CA). Short-TTL certs (default 1 hour to 72 hours) eliminate the cert-rotation distributed-coordination problem.
+- **Database secrets engine** — dynamic credentials for PostgreSQL, MySQL, MSSQL, MongoDB, Cassandra, Oracle, Redis. Workload requests credential, Vault issues a *new* per-session DB user with a TTL (inherited from the mount's default lease TTL, 768h unless tuned). When the lease expires, Vault drops the DB user. This is the canonical short-lived-credential pattern; deploy it and you eliminate the "shared DB password across 12 microservices" anti-pattern in §12.
+- **PKI secrets engine** — dynamic X.509 certificate issuance for service-mesh integration (Consul Connect, Istio with Vault as upstream CA). Short-TTL certs eliminate the cert-rotation distributed-coordination problem.
 - **AWS / Azure / GCP secrets engines** — dynamic cloud-IAM credentials. Workload requests AWS access keys, Vault assumes an IAM role and returns scoped STS credentials. Eliminates IAM-user-with-static-credentials at the cloud-platform boundary.
 - **Kubernetes auth method** — workload presents its ServiceAccount JWT, Vault validates with the cluster's TokenReviewer API, returns a Vault token bound to a Vault policy.
 - **AppRole auth method** — role-id + secret-id pair, intended for non-Kubernetes workloads. The bootstrapping problem in concentrated form: how does the workload obtain the secret-id? Standard answer: secret-id is wrapped (one-time-use token) and delivered out-of-band by an orchestrator. Still has a root-of-trust problem; see §12.
 - **Vault Agent** — sidecar that handles auth + token renewal + template-rendering of secrets into files for the application. Production-grade pattern for k8s workloads is Vault Agent Injector (Kubernetes mutating webhook).
 
-**Vault Enterprise vs OSS / OpenBao fork.** HashiCorp moved Vault from MPL 2.0 to Business Source License (BSL) in August 2023 `[unverified specific clause]`. IBM acquired HashiCorp in 2024 `[unverified close date]`. The OSS community responded with the **OpenBao** fork under the LF banner. For new deployments, evaluate OpenBao if license restrictions are material. Most patterns in this doc apply identically to both; the divergence is in enterprise-only features (HSM auto-unseal, namespaces, replication tiers, Sentinel policies).
+**Vault Enterprise vs OSS / OpenBao fork.** HashiCorp moved Vault from MPL 2.0 to Business Source License (BSL) in August 2023 `[unverified specific clause]`. IBM completed its acquisition of HashiCorp in February 2025. The OSS community responded with the **OpenBao** fork under the LF banner. For new deployments, evaluate OpenBao if license restrictions are material. Most patterns in this doc apply identically to both; the divergence is in enterprise-only features (HSM auto-unseal, namespaces, replication tiers, Sentinel policies).
 
 **Concrete production patterns.**
 
@@ -106,11 +106,11 @@ Every major cloud has a managed secrets service, a managed KMS, and a managed HS
 
 Beyond Vault, the OSS ecosystem clusters around a few patterns:
 
-**Sealed Secrets (Bitnami)** — Sebastian Bertotti + Jacob LeGrone. Controller runs in cluster with a long-lived asymmetric keypair. Operators encrypt Kubernetes Secret manifests with the controller's public key using the `kubeseal` CLI; the ciphertext is committed to git. At reconciliation, the controller decrypts and creates a native Secret. Limitation: the encryption is bound to the cluster's controller key; you cannot move a SealedSecret to a different cluster without re-encrypting. Strength: zero external dependency, simple operational model.
+**Sealed Secrets (Bitnami)** — Controller runs in cluster with a long-lived asymmetric keypair. Operators encrypt Kubernetes Secret manifests with the controller's public key using the `kubeseal` CLI; the ciphertext is committed to git. At reconciliation, the controller decrypts and creates a native Secret. Limitation: the encryption is bound to the cluster's controller key; you cannot move a SealedSecret to a different cluster without re-encrypting. Strength: zero external dependency, simple operational model.
 
-**SOPS (Secrets OPerationS, originally Mozilla; CNCF Sandbox since 2024 `[unverified date]`)** — Julien Vehent + Adrian Utrilla. File-level encryption with multiple backend support: AWS KMS, GCP KMS, Azure Key Vault, age, PGP. The git-friendly choice: encrypt the *values* in a YAML/JSON/ENV/INI file while keeping the *keys* in plaintext, so diffs are reviewable. Per-key encryption with `creation_rules` regex. The standard GitOps idiom is SOPS-encrypted secrets in git + Helmfile or Kustomize SOPS plugin + ArgoCD with the helm-secrets plugin.
+**SOPS (Secrets OPerationS, originally Mozilla; CNCF Sandbox since 2023)** — Julien Vehent + Adrian Utrilla. File-level encryption with multiple backend support: AWS KMS, GCP KMS, Azure Key Vault, age, PGP. The git-friendly choice: encrypt the *values* in a YAML/JSON/ENV/INI file while keeping the *keys* in plaintext, so diffs are reviewable. Per-key encryption with `creation_rules` regex. The standard GitOps idiom is SOPS-encrypted secrets in git + Helmfile or Kustomize SOPS plugin + ArgoCD with the helm-secrets plugin.
 
-**External Secrets Operator (ESO)** — Container Solutions; CNCF graduated `[unverified graduation date]`. Pulls secrets from upstream stores (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, HashiCorp Vault, IBM Cloud Secrets Manager, Akeyless, Doppler, 1Password Connect, Bitwarden) into Kubernetes Secret objects. Most-deployed pattern in Kubernetes practice as of 2026 — it lets you keep the cloud-native store as source of truth while consuming workloads see standard Kubernetes Secrets. Refresh interval controls how often ESO re-pulls; set it short enough that rotated upstream secrets propagate before old ones are cached.
+**External Secrets Operator (ESO)** — Container Solutions; CNCF Sandbox (accepted July 2022). Pulls secrets from upstream stores (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, HashiCorp Vault, IBM Cloud Secrets Manager, Akeyless, Doppler, 1Password Connect, Bitwarden) into Kubernetes Secret objects. Most-deployed pattern in Kubernetes practice as of 2026 — it lets you keep the cloud-native store as source of truth while consuming workloads see standard Kubernetes Secrets. Refresh interval controls how often ESO re-pulls; set it short enough that rotated upstream secrets propagate before old ones are cached.
 
 **age (Filippo Valsorda)** — modern crypto for file encryption. X25519 + ChaCha20-Poly1305. Small attack surface (no version negotiation, no parameter flexibility), the inverse of PGP's design. Used as a SOPS backend; also standalone for the "encrypt this file with my SSH key" idiom. Valsorda's `age` is what `gpg` should have been.
 
@@ -122,7 +122,7 @@ Beyond Vault, the OSS ecosystem clusters around a few patterns:
 
 Discuss WHEN each is the right choice, not the feature matrix.
 
-**Akeyless** — vaultless distributed-fragments approach. The KEK is split via Shamir's Secret Sharing across multiple cloud regions; no single region holds the full key. Marketed as the "DFC" (Distributed Fragments Cryptography) pattern. The right choice when regulatory constraints prohibit any single jurisdiction from holding the master key.
+**Akeyless** — vaultless distributed-fragments approach. Key fragments are spread across regions and independent cloud providers, optionally with one held by the customer, and operations run without recombining them; no single region holds the full key. Marketed as the "DFC" (Distributed Fragments Cryptography) pattern. The right choice when regulatory constraints prohibit any single jurisdiction from holding the master key.
 
 **CyberArk Conjur** — legacy enterprise; CyberArk's broader Privileged Access Management (PAM) suite. The right choice when you're already a CyberArk shop and need integration with PAS session-recording.
 
@@ -144,11 +144,11 @@ Do not pick based on Gartner Magic Quadrant placement. Pick based on (a) the wor
 
 The KMS sits underneath the secrets service. Understand the architecture or you will design a system whose security claims do not hold.
 
-**Envelope encryption.** The canonical pattern: data is encrypted with a Data Encryption Key (DEK). The DEK is encrypted with a Key Encryption Key (KEK) that lives in the KMS. The wrapped DEK travels with the ciphertext; the KEK never leaves the KMS boundary. Werner Vogels (AWS CTO) has anchored AWS's KMS philosophy publicly: KMS exists because customers should not be in the business of operating cryptographic key infrastructure, and the cloud provider absorbs that operational burden under a HSM-backed trust model. The architectural counterpart is that KMS is not free — every Decrypt operation is audit-logged, rate-limited, and billed. Anomaly detection on KMS-call patterns becomes a primary defensive signal (§12).
+**Envelope encryption.** The canonical pattern: data is encrypted with a Data Encryption Key (DEK). The DEK is encrypted with a Key Encryption Key (KEK) that lives in the KMS. The wrapped DEK travels with the ciphertext; the KEK never leaves the KMS boundary. KMS is not free — every Decrypt operation is audit-logged, rate-limited, and billed. Anomaly detection on KMS-call patterns becomes a primary defensive signal (§12).
 
 Operational consequence: a compromised application cannot exfiltrate the KEK. The blast radius is bounded by what was wrapped under DEKs that were in memory at compromise time, plus what an attacker can subsequently coerce the KMS to unwrap via the compromised application's identity. This is *not* zero — see "KMS-as-keystroke-logger" in §12 — but it is meaningfully better than "the master key was a `.pem` file on the application server."
 
-**HSM tier.** Hardware Security Modules. FIPS 140-2 Level 2 (tamper-evident) and Level 3 (tamper-responsive, identity-based authentication, separation of roles). FIPS 140-3 supersedes 140-2; the transition is phased through 2026 `[unverified exact dates]`. The compliance gradient:
+**HSM tier.** Hardware Security Modules. FIPS 140-2 Level 2 (tamper-evident) and Level 3 (tamper-responsive, identity-based authentication, separation of roles). FIPS 140-3 supersedes 140-2; FIPS 140-2 certificates moved to the CMVP Historical list on September 21, 2026. The compliance gradient:
 
 - Software-backed KMS (AWS KMS default keys, Azure Key Vault Standard, GCP Cloud KMS software): adequate for most workloads.
 - Cloud-managed HSM (CloudHSM, Managed HSM, Cloud HSM): FIPS 140-2 Level 3 with vendor operating the device. Use when audit or regulatory regime requires hardware key custody but you cannot operate an HSM yourself.
@@ -156,7 +156,7 @@ Operational consequence: a compromised application cannot exfiltrate the KEK. Th
 
 **BYOK (Bring Your Own Key).** Customer generates the KEK off-cloud, imports it into the cloud KMS. The KEK is now in the cloud HSM but the customer controls the lifecycle (can re-import, can delete). Operational reality: most BYOK deployments are *compliance theater*. The KEK is in the cloud-provider's HSM the moment after import; the cloud provider has the same access they would have to a vendor-generated KEK. BYOK is meaningful when you have a robust import-deletion-cycle process that proves the cloud provider cannot persist the KEK; in practice few customers operate it that way.
 
-**HYOK (Hold Your Own Key).** Customer holds the KEK entirely outside the cloud. The cloud service makes a call out to a customer-operated keystore (HSM, external KMS) for every wrap/unwrap. Operationally rare: high latency, high availability burden on the customer-operated keystore, mostly used for sovereign-cloud compliance scenarios. The Microsoft Double Key Encryption pattern is the highest-profile HYOK deployment `[unverified specific product status]`.
+**HYOK (Hold Your Own Key).** Customer holds the KEK entirely outside the cloud. The cloud service makes a call out to a customer-operated keystore (HSM, external KMS) for every wrap/unwrap. Operationally rare: high latency, high availability burden on the customer-operated keystore, mostly used for sovereign-cloud compliance scenarios. Microsoft distinguishes its Double Key Encryption (two keys: one in customer control, one stored in Azure) from its HYOK solution (one key, always on premises).
 
 Choose the right tier for the threat model. Most teams do not need HSM-backed keys; they need to stop checking AWS access keys into GitHub.
 
@@ -170,13 +170,13 @@ The single largest operational improvement in the 2024-2026 period is the shift 
 
 **Production deployments.**
 
-- **GitHub Actions OIDC → AWS IAM.** `sts:AssumeRoleWithWebIdentity` against an IAM role with a trust policy validating `token.actions.githubusercontent.com` as the issuer and `repo:org/repo:ref:refs/heads/main` (or similar) as the `sub`. Generally available since late 2021 `[unverified exact GA date]`. The reference pattern for cloud OIDC.
-- **GitHub Actions OIDC → npm Trusted Publishing.** Generally available Sep 2025 `[unverified — verify before citing date]`. npm publishes the package with provenance attestation tied to the GitHub Actions workflow run. Eliminates the long-lived NPM_TOKEN that was the entry vector for Shai-Hulud and Mini-Shai-Hulud (`cicd_supply_chain_expertise.md` §2.9).
-- **GitHub Actions OIDC → PyPI Trusted Publishing.** Rolled out 2023-2024 `[unverified GA timeline]`. PEP 740 attestations layer cryptographic attestation onto the OIDC-bound publication. Cited as the largest operational hardening of PyPI in the 2024-2025 window.
+- **GitHub Actions OIDC → AWS IAM.** `sts:AssumeRoleWithWebIdentity` against an IAM role with a trust policy validating `token.actions.githubusercontent.com` as the issuer and `repo:org/repo:ref:refs/heads/main` (or similar) as the `sub`. Generally available since November 23, 2021. The reference pattern for cloud OIDC.
+- **GitHub Actions OIDC → npm Trusted Publishing.** Generally available July 31, 2025. npm publishes the package with provenance attestation tied to the GitHub Actions workflow run. Eliminates the long-lived NPM_TOKEN that was the entry vector for Shai-Hulud and Mini-Shai-Hulud (`cicd_supply_chain_expertise.md` §2.9).
+- **GitHub Actions OIDC → PyPI Trusted Publishing.** Launched April 2023. PEP 740 attestations layer cryptographic attestation onto the OIDC-bound publication.
 - **HashiCorp Vault JWT auth via OIDC discovery.** Vault validates an external OIDC token (from GitHub Actions, Kubernetes, Auth0, Okta) and issues a Vault token bound to a policy. Eliminates AppRole bootstrapping for OIDC-aware workloads.
 - **SPIFFE-SVID as cloud-agnostic equivalent.** Workload presents an SVID (SPIFFE Verifiable Identity Document, either X.509 or JWT), trusted by federated SPIRE servers. `zero_trust_workload_identity_expertise.md` covers the mechanism in depth.
 
-**Operational gates.** Configure the trust policy as narrowly as the issuer's claims permit. For GitHub Actions OIDC → AWS, the trust policy should validate not just `repo:org/name:*` but the specific ref or environment. The default-permissive trust policy (`repo:org/name:*`) accepts any workflow in any branch, which is the root cause of multiple 2024 incidents where attacker-controlled branches assumed production roles.
+**Operational gates.** Configure the trust policy as narrowly as the issuer's claims permit. For GitHub Actions OIDC → AWS, the trust policy should validate not just `repo:org/name:*` but the specific ref or environment. The default-permissive trust policy (`repo:org/name:*`) accepts any workflow in any branch.
 
 **Honest limitation.** OIDC binding eliminates long-lived secrets *for the workload identity*. It does not eliminate the underlying secret that the workflow uses to do its job (the DB password, the SaaS API key, the customer encryption key). Short-lived workload identity is the *bootstrap* into the secrets discipline, not the entirety of it.
 
@@ -186,7 +186,7 @@ The single largest operational improvement in the 2024-2026 period is the shift 
 
 This is the section to re-read before responding to a credential-compromise incident.
 
-**Rotation-completion vs revocation-at-authority.** The most common operational failure. The Clinejection incident (disclosed by Adnan Khan and collaborators, advisory `GHSA-9ppg-jx86-fqw7`, see `ai_assisted_coding_tool_security_expertise.md` / `cicd_supply_chain_expertise.md` §10) is the canonical anchor: a credential is "rotated" by the operator at the cloud-provider UI, but the *old* token remains valid at the registry API for weeks because the registry caches token state, or because the rotation flow at the UI only updated a database row that the API path didn't consult, or because the UI's "rotate" button actually meant "issue a new token alongside the old one." The Clinejection 6-week Cline window — old AI-tool tokens still active at the issuer after the UI claimed rotation — is the canonical case study. Khan's incident write-up specifies the verification test as the missing operational practice; treat it as the primary source for this section.
+**Rotation-completion vs revocation-at-authority.** The most common operational failure. The Clinejection incident (disclosed by Adnan Khan and collaborators, advisory `GHSA-9ppg-jx86-fqw7`, see `ai_assisted_coding_tool_security_expertise.md` / `cicd_supply_chain_expertise.md` §10) is the canonical anchor: on February 9, 2026 Cline tried to rotate its exposed npm publish token, but the wrong token was deleted while the exposed one remained active. npm's org-level token page showed zero active tokens; the exposed token was not surfaced in that view. It stayed valid until February 17, after it had been used to publish an unauthorized `cline@2.3.0`. Cline's post-mortem names testing the actual credential, not checking a dashboard, as the missing practice; treat it as the primary source for this section.
 
 Verification test: attempt authentication with the *old* token against the *issuing authority's API*. If it succeeds, the secret was rotated, not revoked.
 
@@ -242,24 +242,22 @@ Break-glass credentials that nobody knows about are the most common form of brea
 
 Secrets-in-code is the failure mode of the *commit pipeline*. The discipline assumes secrets will occasionally land in repositories despite best practice; the question is how fast you detect and respond.
 
-**TruffleHog (Dylan Ayrey, originally at Truffle Security).** The canonical OSS tool. Originally Python (v1-v2, 2017-2018), rewritten in Go (v3, 2022+) as the engine matured into a commercial offering. Entropy-based detection finds high-entropy strings; verifier-based detection validates candidate secrets against the issuing service's API to eliminate false positives (an AWS access key that doesn't authenticate against STS is not actionable). Historical-commit scan walks git history including dangling refs and force-pushed commits still present on the GitHub side. Production deployments scan as a CI gate (pre-receive hook or required PR check) and as a periodic full-history scan; the full-history scan catches credentials committed before TruffleHog was deployed.
+**TruffleHog (Dylan Ayrey, originally at Truffle Security).** The canonical OSS tool. Originally Python (v1-v2, from 2016), rewritten in Go (v3, April 2022) as the engine matured into a commercial offering. Entropy-based detection finds high-entropy strings; verifier-based detection validates candidate secrets against the issuing service's API to eliminate false positives (an AWS access key that doesn't authenticate against STS is not actionable). Historical-commit scan walks git history including dangling refs and force-pushed commits still present on the GitHub side. Production deployments scan as a CI gate (pre-receive hook or required PR check) and as a periodic full-history scan; the full-history scan catches credentials committed before TruffleHog was deployed.
 
-TruffleHog's role in offense: Shai-Hulud and Mini-Shai-Hulud worms used TruffleHog as the *post-compromise discovery primitive*. After taking over an npm package and running malicious install scripts in victim CI environments, the worm ran TruffleHog against the local filesystem to harvest credentials it could use for the next propagation hop (`cicd_supply_chain_expertise.md` §10). The defender's tool is the attacker's tool; this is true throughout the discipline. Hardening implication: any host that has a copy of TruffleHog (or any secret-scanner) under attacker control will be used against you. Restrict installation, audit invocation logs, and treat the presence of an unexpected TruffleHog binary as an indicator of compromise.
+TruffleHog's role in offense: The Shai-Hulud worm used TruffleHog as the *post-compromise discovery primitive*. After taking over an npm package and running malicious install scripts in victim CI environments, the worm ran TruffleHog against the local filesystem to harvest credentials it could use for the next propagation hop (`cicd_supply_chain_expertise.md` §10). The defender's tool is the attacker's tool; this is true throughout the discipline. Hardening implication: any host that has a copy of TruffleHog (or any secret-scanner) under attacker control will be used against you. Restrict installation, audit invocation logs, and treat the presence of an unexpected TruffleHog binary as an indicator of compromise.
 
-**GitHub Secret Scanning + Push Protection.** Generally available 2023, push protection added late 2023 `[unverified exact GA quarters]`. Covers ~200 partner-token formats with auto-revocation: GitHub partners with token-issuers (AWS, npm, PyPI, Slack, Stripe, others) to register format regexes; on detection, GitHub notifies the issuer and the issuer revokes the token. Push Protection blocks the push at the git protocol layer for these formats. Coverage is broader than any OSS tool for partner-token formats; coverage is essentially zero for bespoke internal credentials.
+**GitHub Secret Scanning + Push Protection.** Push protection generally available May 2023 (beta since April 2022). Covers partner-token formats with auto-revocation: GitHub partners with token-issuers (AWS, npm, PyPI, Slack, Stripe, others) to register format regexes; on detection, GitHub notifies the issuer and the issuer revokes the token. Push Protection blocks the push at the git protocol layer for these formats. Coverage is broader than any OSS tool for partner-token formats; coverage is essentially zero for bespoke internal credentials.
 
-**GitLab Secret Detection** — analogous, built into GitLab Ultimate; uses Gitleaks under the hood as of late 2023 `[unverified version status]`.
+**GitLab Secret Detection** — analogous, available in all tiers since GitLab 13.3 (some features Ultimate-only); uses Gitleaks under the hood.
 
 **detect-secrets (Yelp)** — pre-commit-hook-oriented. Plugin architecture for new secret types. Strength: low false-positive rate via the audit workflow.
 
 **Gitleaks (Zachary Rice)** — Go-based, MIT-licensed, easy to embed in CI. Configurable rules engine. The most common drop-in for "scan my repos for secrets" without committing to TruffleHog's heavier dependency footprint.
 
-**TruffleHog v3 ML-classifier engine** — supplements regex/entropy with a classifier trained on known-secret formats. Reduces false positives on bespoke-format credentials at the cost of model-maintenance burden.
-
 **Commercial.**
 
 - **GitGuardian** — SaaS that monitors public + private repos, alerts on detected secrets, integrates with the issuing services for revocation. The leading commercial tool by deployment count.
-- **Spectral (Check Point)** — Acquired 2021, embedded into Check Point CloudGuard. The right choice for Check Point customers.
+- **Spectral (Check Point)** — Acquired 2022, embedded into Check Point CloudGuard. The right choice for Check Point customers.
 - **Aqua Security secrets module** — secrets scanning as part of Aqua's broader cloud-native security platform.
 
 **Honest failure mode.** Detection finds secrets that *look like secrets*. Custom-format internal tokens — your service's bespoke API key format with no public prefix — evade entropy detectors because they look like ordinary base64 or hex strings, and evade regex detectors because nobody has shipped a regex for your format. The defense is to *publish* the regex for your format, contribute it to GitHub's partner program, and make it detectable. The other defense is to issue your bespoke tokens with a prefix that *is* high-entropy and recognizable (`sk_live_`, `myapp_token_`), so detection works.
@@ -290,9 +288,9 @@ For any credential-compromise incident, **target eradication-grade**. Containmen
 
 **Per-vendor IR contacts.** Know these before you need them.
 
-- **npm Security** — `security@npmjs.com`. For supply-chain compromise involving npm packages; can revoke tokens, take down packages, force re-publication. Response SLA varies; engage in parallel with GitHub Security if the package author is a GitHub identity.
+- **npm Security** — via `npmjs.com/support`. For supply-chain compromise involving npm packages; can revoke tokens, take down packages, force re-publication. Response SLA varies; engage in parallel with GitHub Security if the package author is a GitHub identity.
 - **PyPI Security** — `security@pypi.org`. Similar role for Python ecosystem; can revoke PyPI tokens, yank releases, contact package maintainers.
-- **GitHub Security** — `security@github.com` for product issues; HackerOne for vulnerabilities; Trust & Safety for malicious-account reports. For OAuth-app or Personal Access Token compromise, the right path is account-recovery + token-revocation via the user's settings + GitHub Security notification.
+- **GitHub Security** — HackerOne for vulnerabilities; Trust & Safety for malicious-account reports. For OAuth-app or Personal Access Token compromise, the right path is account-recovery + token-revocation via the user's settings + GitHub Security notification.
 - **AWS Security** — `aws-security@amazon.com`. For IAM-credential compromise, the response is typically self-service (rotate keys, audit CloudTrail). For active-attack scenarios, AWS has a Customer Incident Response Team (CIRT) for support customers.
 - **Microsoft Security Response Center (MSRC)** — `secure@microsoft.com`. For Azure / Entra ID credential compromise. Microsoft Defender for Cloud has Azure-side detection that may have already noticed.
 - **Google Cloud Security** — security report form; Cloud Customer Care for active incidents.
@@ -363,7 +361,7 @@ The section that will save the next on-call shift the most pain.
 
 **KMS-as-keystroke-logger.** Envelope encryption bounds the blast radius of *KEK* exfiltration. It does not bound the blast radius of a compromised application that legitimately holds an IAM role permitted to call KMS Decrypt. The compromised app calls KMS, decrypts every secret in its scope, exfiltrates plaintext. KMS audit logs (CloudTrail KMS events, Azure Activity Log for Key Vault, Cloud Audit Logs for Cloud KMS) will show the volume; anomaly detection on KMS-call rate is the defensive primitive. AWS calls this pattern out in CloudTrail-driven defense doctrine `[unverified specific publication]`.
 
-**Detection drift.** Secret-scanner regex patterns become stale. Token formats change (GitHub re-issued its token format from `XXXX...` to `ghp_...` in 2021; older scanners missed the new format for months `[unverified exact dates]`). Bespoke internal credential formats are usually never added to the scanners at all. Treat the scanner ruleset as a maintained artifact; pin the version, review the diff on upgrade, regression-test against known-format examples.
+**Detection drift.** Secret-scanner regex patterns become stale. Token formats change (GitHub re-issued its token format from `XXXX...` to `ghp_...` in 2021). Bespoke internal credential formats are usually never added to the scanners at all. Treat the scanner ruleset as a maintained artifact; pin the version, review the diff on upgrade, regression-test against known-format examples.
 
 **Rotation-without-revocation.** The most common operational failure (§9). Anchored in the Clinejection 6-week Cline window. The corpus shows it happening at every major registry and many enterprise IdPs over the 2020-2026 period. Build the verification test (§9 code snippet) into your rotation runbook; make it a required step, not optional.
 
@@ -383,19 +381,17 @@ The section that will save the next on-call shift the most pain.
 
 ## 13. 2024-2026 currency
 
-**HashiCorp BSL license change (August 2023) + IBM acquisition (closed 2024 `[unverified exact close]`).** Vault Enterprise and OSS users have different license obligations from the pre-BSL era. OpenBao OSS fork is the LF-hosted alternative for users who cannot accept BSL terms. The license question is orthogonal to the operational discipline; both Vault and OpenBao implement the same primitives.
+**HashiCorp BSL license change (August 2023) + IBM acquisition (closed February 2025).** Vault Enterprise and OSS users have different license obligations from the pre-BSL era. OpenBao OSS fork is the LF-hosted alternative for users who cannot accept BSL terms. The license question is orthogonal to the operational discipline; both Vault and OpenBao implement the same primitives.
 
-**npm Trusted Publishing GA (September 2025 `[unverified specific GA date]`).** Eliminates long-lived NPM_TOKEN for OIDC-aware publishing workflows. The single largest hardening of npm against worm-class supply-chain attacks (Shai-Hulud, Mini-Shai-Hulud).
+**npm Trusted Publishing GA (July 2025).** Eliminates long-lived NPM_TOKEN for OIDC-aware publishing workflows. The single largest hardening of npm against worm-class supply-chain attacks (Shai-Hulud, Mini-Shai-Hulud).
 
-**PyPI Trusted Publishing + PEP 740 attestations.** PyPI rolled out Trusted Publishing in 2023; PEP 740 attestations layered on cryptographic attestation in 2024-2025 `[unverified PEP 740 acceptance date]`. The Python ecosystem's substantive response to supply-chain compromise.
-
-**OpenSSF Secrets Scanning Working Group.** Industry-collaborative work on detection-rule sharing, secret-format publication standards, and ecosystem-wide revocation hooks. Outputs include format-rule contributions to TruffleHog and Gitleaks.
+**PyPI Trusted Publishing + PEP 740 attestations.** PyPI rolled out Trusted Publishing in 2023; PEP 740 attestations layered on cryptographic attestation in 2024 (PEP 740 resolved July 2024; PyPI support finalized November 2024). The Python ecosystem's substantive response to supply-chain compromise.
 
 **SLSA L3 + sigstore + npm provenance.** Supply-chain integrity primitives that complement secrets discipline. SLSA Level 3 (build-provenance, signed attestations, isolated build environments), sigstore (Cosign + Fulcio + Rekor) for keyless signing, npm provenance for cryptographic linkage between npm package and source repository. Cross-link: `supply_chain_provenance_expertise.md`.
 
 **AI-agent secrets surface.** The 2025-2026 frontier. MCP server credential storage (servers often request long-lived API tokens), agent-tool-call audit-logging (the call to a tool is itself a secret-bearing operation), Claude API key rotation patterns (Anthropic-issued keys can be scoped per-workspace; rotation is a console operation). The Clinejection incident class lives at this layer. Cross-link: `ai_assisted_coding_tool_security_expertise.md` §13 (Semgrep AI-tool policy worked example) and §14 (devcontainer + settings.json + MCP allowlist).
 
-**EU CRA Article 11** `[unverified exact article number]`. EU Cyber Resilience Act (Regulation 2024/2847) requires secrets-management hygiene for product manufacturers, phased through 2027 with reporting obligations starting earlier. The compliance gradient: at minimum, no default credentials, mandatory rotation paths, vulnerability disclosure with secrets-leak handling.
+**EU CRA.** EU Cyber Resilience Act (Regulation 2024/2847) requires secrets-management hygiene for product manufacturers, phased through 2027 with reporting obligations starting earlier. The compliance gradient: at minimum, no default credentials, mandatory rotation paths, vulnerability disclosure with secrets-leak handling.
 
 **Confidential computing intersection.** TEE-isolated secrets handling (`confidential_computing_expertise.md`) is the high-end of the at-rest-and-in-use protection story. Apple Private Cloud Compute uses TEE attestation as the basis for secrets handling at scale. Most teams do not need this; the teams that do are operating at sovereign-cloud / regulated-AI-inference scale.
 
@@ -447,7 +443,7 @@ A concrete reference deployment. Use as a starting point; adapt to your environm
 
 **What this stack does NOT solve.**
 
-- The bootstrapping problem at the bottom of the stack: Vault must itself trust *something* (cluster CA for ServiceAccount validation, cloud KMS for auto-unseal). That trust must be operated with care; rotating the auto-unseal KMS key is a Vault-rebuild event.
+- The bootstrapping problem at the bottom of the stack: Vault must itself trust *something* (cluster CA for ServiceAccount validation, cloud KMS for auto-unseal). That trust must be operated with care; changing the auto-unseal KMS key requires a seal migration with brief downtime.
 - The Vault root-token problem: the initial root token (or recovery shards) must be sealed and treated as break-glass (§9). If you lose them and Vault becomes unrecoverable, you have a Vault-rebuild event with associated downtime.
 - Detection of secrets *outside* Vault: developers will still occasionally paste credentials into config maps or environment variables. The detection layer (§10) is the safety net.
 

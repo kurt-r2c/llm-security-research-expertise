@@ -38,19 +38,16 @@ CAST emerged from Nancy Leveson's STAMP research program at MIT. The methodology
 - **Nancy Leveson, *Engineering a Safer World: Systems Thinking Applied to Safety* (MIT Press, 2011).** Part III introduces CAST as the post-incident counterpart to STPA. The book is open-access on the MIT SafeWare site `[unverified specific URL]`.
 - **Nancy Leveson, *CAST Handbook: How to Learn More from Incidents and Accidents* (MIT, ~2019) `[unverified specific publication year]`.** The operational manual — step-by-step procedure, templates, worked examples. Updated periodically as the methodology evolves.
 - **John Thomas + MIT SafeWare collaborators** — ongoing CAST research; SafeWare lab publications extend CAST to AI-controlled systems + cybersecurity `[unverified specific paper attributions]`.
-- **Nancy Leveson + Stuart Madnick + Wei Zhao** (MIT Sloan) — cybersecurity CAST applications. Madnick's CISR (Cybersecurity at MIT Sloan) group has published CAST-based incident analyses `[unverified specific paper attributions]`.
-- **Allison Reilly + FAA collaborators** — CAST methodology applied to aviation accident investigation; partial alignment with NTSB practice `[unverified specific role attributions]`.
+- **Nancy Leveson + Stuart Madnick** (MIT Sloan) — cybersecurity CAST applications. Madnick's CAMS (Cybersecurity at MIT Sloan) group has published CAST-based incident analyses `[unverified specific paper attributions]`.
 - **MIT STAMP / STPA Workshops** — annual training events (in person + virtual) covering both STPA and CAST. The workshop materials are the operational tutorial Kurt-types and incident-lead-types consume.
 
-The terminology has shifted: "CAST" originally expanded to "Causal Analysis Technique" with STAMP as the underlying causal model; the current canonical expansion resolves CAST to "Causal Analysis based on STAMP." Texts written 2003-2012 may use the older expansion; treat them as referring to the same methodology.
-
-Leveson defines accident as "an undesired and unplanned event that results in a loss." CAST analyzes realized losses. The methodology is applicable to near-misses but most published case studies analyze realized losses where the loss-event is unambiguous.
+Leveson defines accident as "an undesired or unplanned event that results in a loss." CAST analyzes realized losses. The methodology is applicable to near-misses but most published case studies analyze realized losses where the loss-event is unambiguous.
 
 ---
 
 ## 3. The CAST methodology — eight-step structure
 
-CAST formalizes incident analysis as eight steps. The Leveson presentation occasionally compresses or expands the count, but the canonical structure used in the CAST Handbook covers these phases. Apply them in order; iterate when later steps reveal earlier-step gaps.
+CAST formalizes incident analysis as eight steps. The CAST Handbook groups the analysis into five steps (assemble basic information, model the safety control structure, analyze each component, identify control-structure flaws, create an improvement program); the eight steps here expand that sequence. Apply them in order; iterate when later steps reveal earlier-step gaps.
 
 **Step 1: Identify the incident and the loss.** Define what happened in operational terms. The loss is the realized harm — patient death, aircraft destroyed, system compromised, customer data exfiltrated, deployment broken. Specificity matters: "the SolarWinds incident" is too broad; "Sunburst malware injected into Orion build pipeline, distributed to ~18,000 customers, used for follow-on intrusion at multiple federal agencies between March 2020 and December 2020" is the loss-scope CAST analyzes. Include the date range, the affected systems, the affected parties, the harm category, the harm magnitude.
 
@@ -131,7 +128,7 @@ The cost: CAST takes longer. A 5 Whys analysis takes 30 minutes. A fishbone take
 
 Therac-25 is Leveson's foundational case study. The radiation-therapy machine, developed by Atomic Energy of Canada Limited (AECL), delivered massive radiation overdoses to six patients between 1985 and 1987 (three died from the overdoses). The machine was a successor to Therac-6 and Therac-20, but with a critical architectural change: hardware safety interlocks present in earlier models were removed and replaced with software-controlled safety logic.
 
-**Component-failure framing:** "software bug." The AECL initial investigation focused on specific race conditions in the software (a now-famous data-entry-race-condition that, when the operator changed parameters quickly, left the machine in a state where the high-energy electron beam was active without the targeting filter in place). AECL fixes targeted the specific bugs. New incidents occurred. More bug fixes. More incidents.
+**Component-failure framing:** "software bug." The AECL initial investigation focused on the turntable-position microswitches; the now-famous data-entry race condition (when the operator changed parameters quickly, the machine was left in a state where the high-energy electron beam was active without the targeting filter in place) surfaced in later incidents. AECL fixes targeted the specific bugs. New incidents occurred. More bug fixes. More incidents.
 
 **CAST analysis:** the systems-theoretic frame identifies multiple control-structure inadequacies that the component-failure frame missed.
 
@@ -147,7 +144,7 @@ Therac-25 is Leveson's foundational case study. The radiation-therapy machine, d
 
 *Recommendations (CAST-style, Leveson 2011):* Restore independent hardware interlocks for safety-critical functions; redesign feedback (error messages with semantic content); require independent verification of safety-critical software; restructure regulatory oversight to keep pace with software-replaces-hardware transitions in medical devices; create cross-hospital incident-sharing channels.
 
-**The lesson:** the "software bug" framing identified specific bugs and fixed them. The systems-theoretic framing identified that the architectural choice to remove hardware interlocks was itself the inadequate control action, and that no amount of software bug fixing would close the gap. The Therac-25 incidents drove much of the modern medical-device-software regulatory environment (FDA 510(k), IEC 62304, ISO 14971 — the medical device safety-engineering corpus). Leveson's analysis was foundational; cross-link to `medical_device_security_expertise.md` for the medical-device CVE corpus and FDA regulatory context.
+**The lesson:** the "software bug" framing identified specific bugs and fixed them. The systems-theoretic framing identified that the architectural choice to remove hardware interlocks was itself the inadequate control action, and that no amount of software bug fixing would close the gap. The Therac-25 incidents drove much of the modern medical-device-software regulatory environment (IEC 62304, ISO 14971 — the medical device safety-engineering corpus). Leveson's analysis was foundational; cross-link to `medical_device_security_expertise.md` for the medical-device CVE corpus and FDA regulatory context.
 
 ---
 
@@ -155,7 +152,7 @@ Therac-25 is Leveson's foundational case study. The radiation-therapy machine, d
 
 Apply CAST to a cybersecurity incident. SolarWinds Sunburst (December 2020 disclosure) is one of the few cybersecurity incidents that has received quasi-CAST-style treatment in publicly-available analyses (CSRB has not published a Sunburst review as of `[unverified date]`; Mandiant + Microsoft + CISA + others have published partial analyses).
 
-**The incident.** A threat actor (later attributed to APT29 / Cozy Bear / Russian SVR by US government attribution `[unverified specific attribution authority]`) injected the Sunburst backdoor into the SolarWinds Orion build pipeline between March 2020 and June 2020. Compromised Orion updates were distributed to approximately 18,000 customers, including multiple US federal agencies and Fortune 500 companies. The attacker selected high-value subsets for follow-on intrusion. Discovery occurred in December 2020 when FireEye (now Mandiant) detected the attacker in their own environment.
+**The incident.** A threat actor (later attributed to APT29 / Cozy Bear / Russian SVR by US government attribution `[unverified specific attribution authority]`) injected the Sunburst backdoor into the SolarWinds Orion build pipeline, which delivered trojanized updates between March 2020 and June 2020. Compromised Orion updates were distributed to approximately 18,000 customers, including multiple US federal agencies and Fortune 500 companies. The attacker selected high-value subsets for follow-on intrusion. Discovery occurred in December 2020 when FireEye (now Mandiant) detected the attacker in their own environment.
 
 **Control structure.** Controllers include: SolarWinds engineering team (controls the source code), SolarWinds build infrastructure (controls the build process), SolarWinds release engineering (controls the signing and distribution), SolarWinds security team (controls security monitoring), customer IT teams (control deployment), customer security teams (control detection), threat-intelligence vendors (control IOC publication), CISA (controls cross-government advisory), the broader software-vendor community (controls industry practice norms). Controlled process is the deployed Orion software and the downstream customer environments.
 
@@ -190,25 +187,24 @@ The Sunburst CAST analysis illustrates the systems-theoretic frame applied to cy
 
 ## 8. CAST applied to AI/ML systems
 
-AI-tool incidents (Clinejection GHSA-9ppg-jx86-fqw7, EchoLeak CVE-2025-32711, MCPoison, Comment-and-Control, PwnedRabbit, ShadowLeak, CurXecute CVE-2025-54135) are amenable to CAST.
+AI-tool incidents (Clinejection GHSA-9ppg-jx86-fqw7, EchoLeak CVE-2025-32711, MCPoison, Comment-and-Control, ShadowLeak, CurXecute CVE-2025-54135) are amenable to CAST.
 The methodology adapts naturally because AI systems have explicit controllers (LLM provider, AI-tool vendor, platform host, customer) with explicit control authorities.
 
 **The control-structure question.** What controllers were involved? What control actions did they have? What process models did they maintain? What feedback did they receive?
 
-For Clinejection: the AI-tool vendor (Cursor / Cline) controlled the agent runtime.
-The customer controlled the project being worked on. The LLM provider controlled the model.
-The repository host (GitHub) controlled the project files including the injected `.cursorrules` or equivalent file.
-The control chain that produced the loss: attacker controls a repository file; customer pulls the repository; the agent runtime reads the file as part of its context-loading; the agent runtime treats the file content as instructions; the agent executes those instructions, exfiltrating data or executing commands.
+For Clinejection: the AI-tool vendor (Cline) controlled its GitHub Actions issue-triage workflow, which ran `claude-code-action` with Bash, Write and Edit tools for any GitHub user. The LLM provider controlled the model.
+The repository host (GitHub) controlled the Actions runner and the shared default-branch cache.
+The control chain that produced the loss: attacker opens an issue whose title carries a prompt injection; the workflow interpolates the title into the agent prompt; the agent runs `npm install` on an attacker-controlled commit, giving code execution; the attacker poisons the Actions cache used by the nightly release workflows, exposing npm, VS Code Marketplace and OpenVSX publishing tokens. An unauthorized `cline@2.3.0` was published to npm on February 17, 2026.
 
 **Inadequate control actions in the AI agent control structure.**
-- The AI-tool vendor's tool-allowlist policy did not require user confirmation for newly-encountered tool definitions (MCPoison) or did not validate the tool source (Clinejection).
+- The AI-tool vendor's MCP approval policy did not require re-approval when an already-approved MCP configuration was modified (MCPoison), and the triage workflow gave an agent fed untrusted issue text shell tools (Clinejection).
 - The host's per-user customization (.cursorrules, AGENTS.md, CLAUDE.md) was treated as an instruction source without provenance verification.
 - The customer's MCP-allowlist was either permissive-by-default or absent.
 - The agent runtime's process model treated LLM output as authoritative rather than as a candidate action to be verified.
 
 **The "trust the model" anti-pattern.** Treating LLM output as the process model rather than verifying it against an authoritative source. CAST identifies this as inadequate-control-algorithm at the agent runtime layer. The recommendation is structural: agent runtimes need a verification step between LLM-proposed-action and action-execution, especially for actions with write-effect (file modification, network requests, command execution). Cross-link to `agentic_web_capabilities_expertise.md` for the capability-based-security framing of what such verification should look like.
 
-**The novel-pattern detection gap.** AI-tool incidents are mostly novel-pattern. Sunburst was novel-but-similar-to-known supply-chain compromise. Clinejection was a genuinely new attack class (prompt injection via repository files into agent runtime). The CAST loss-scenario category "process model inaccurate" covers it: the vendor's threat model did not include "repository file as agent-instruction-source" as a process-model element.
+**The novel-pattern detection gap.** AI-tool incidents are mostly novel-pattern. Sunburst was novel-but-similar-to-known supply-chain compromise. Clinejection chained prompt injection via a GitHub issue title into a CI agent with Actions cache poisoning. The CAST loss-scenario category "process model inaccurate" covers it: the vendor's threat model did not include "issue title as agent-instruction-source" as a process-model element.
 
 **Cross-vendor coordination at machine speed.** AI-tool incidents propagate quickly across the ecosystem (multiple agent runtimes share the same architectural pattern). The cross-vendor coordination control action is critical for AI-tool-incident class. Cross-link to `ai_incident_response_playbook_expertise.md` for the vendor-coordination playbook and `ai_agent_session_management_expertise.md` §9 for the incident corpus.
 
@@ -223,17 +219,17 @@ The transcript provides direct evidence of what the agent "thought" the state wa
 
 CAST has seen partial adoption across safety-critical industries. The pattern: the industry already had a systems-theoretic accident-analysis culture, CAST formalized it within STAMP vocabulary, and uptake followed.
 
-**Aviation.** The NTSB (US National Transportation Safety Board), FAA (Federal Aviation Administration), ICAO (International Civil Aviation Organization) all use systems-theoretic accident investigation. NTSB reports rarely conclude "pilot error" without also recommending changes to training, equipment, regulation, or organizational structure. The methodology is not always called CAST but is CAST-compatible. Leveson has analyzed Air France 447 (2009), Boeing 737 MAX MCAS (2018-2019), and other aviation incidents using STAMP/CAST `[unverified specific publications]`. Cross-link to `aviation_aerospace_security_expertise.md`.
+**Aviation.** The NTSB (US National Transportation Safety Board), FAA (Federal Aviation Administration), ICAO (International Civil Aviation Organization) all use systems-theoretic accident investigation. NTSB reports rarely conclude "pilot error" without also recommending changes to training, equipment, regulation, or organizational structure. The methodology is not always called CAST but is CAST-compatible. Cross-link to `aviation_aerospace_security_expertise.md`.
 
-**NASA.** Apollo 1 (1967), Challenger (1986), Columbia (2003) — Leveson and colleagues have applied STAMP/CAST retrospectively to all three. The Columbia Accident Investigation Board (CAIB) report explicitly used systems-theoretic framing. NASA's current accident-analysis practice incorporates STAMP-aligned elements `[unverified specific role of STAMP in current NASA practice]`.
+**NASA.** Columbia (2003) — Leveson and colleagues have applied STAMP retrospectively. The Columbia Accident Investigation Board (CAIB) report explicitly used systems-theoretic framing. NASA's current accident-analysis practice incorporates STAMP-aligned elements `[unverified specific role of STAMP in current NASA practice]`.
 
 **Medical.** FDA medical-device recall investigations, JCAHO (Joint Commission on Accreditation of Healthcare Organizations) patient-safety reviews, and Veterans Affairs hospital systems use blameless analysis that aligns with CAST. The patient-safety community has its own vocabulary (Root Cause Analysis (RCA²) framework, sentinel-event review) that is CAST-compatible. Cross-link to `medical_device_security_expertise.md`.
 
 **Nuclear.** IAEA (International Atomic Energy Agency), INPO (Institute of Nuclear Power Operations), NRC (Nuclear Regulatory Commission) all use systems-theoretic event analysis. The nuclear industry's safety culture (developed in part as a response to Three Mile Island in 1979 and reinforced by Chernobyl in 1986 and Fukushima in 2011) is CAST-aligned `[unverified specific role of STAMP in nuclear practice]`.
 
-**Process industries (oil + gas + chemical).** Bhopal (1984), Texas City refinery (2005), Deepwater Horizon (2010), West Fertilizer (2013) have been subject to CAST or CAST-aligned analyses. Leveson's *Engineering a Safer World* includes Deepwater Horizon as a case study. OSHA Process Safety Management + API standards incorporate systems-theoretic elements `[unverified specific framework alignment]`.
+**Process industries (oil + gas + chemical).** Bhopal (1984), Texas City refinery (2005), Deepwater Horizon (2010), West Fertilizer (2013) have been subject to CAST or CAST-aligned analyses. OSHA Process Safety Management + API standards incorporate systems-theoretic elements `[unverified specific framework alignment]`.
 
-**Cybersecurity — Cyber Safety Review Board (CSRB).** The US CSRB, established by Executive Order 14028 in 2021, is the closest cybersecurity analog to NTSB.
+**Cybersecurity — Cyber Safety Review Board (CSRB).** The US CSRB, established by DHS in February 2022 pursuant to Executive Order 14028, is the closest cybersecurity analog to NTSB.
 CSRB has produced reviews of Log4j (July 2022), Lapsus$ (August 2023), Storm-0558 / Microsoft Exchange Online (April 2024 `[unverified specific date]`).
 The Storm-0558 review reads as CAST-style analysis — inadequate Microsoft control actions (key signing controls, rotation policy, detection of misuse), loss scenarios, contextual factors (Microsoft's market position, customer dependence), and recommendations.
 See the Storm-0558 / Microsoft signing-key-compromise public post-mortem for a systems-theoretic (CAST-shaped) analysis of that incident.
@@ -257,13 +253,12 @@ Visio is traditional; draw.io and Lucidchart are common for newer practitioners.
 Mermaid + Graphviz are usable but the diagrams tend to be too complex for purely-text representations.
 
 **XSTAMPP.** Open-source STPA tool from Asim Abdulkhaleq and Stefan Wagner (University of Stuttgart).
-Primarily STPA-focused; some CAST workflow extensions exist `[unverified specific CAST support in current XSTAMPP version]`.
+Primarily STPA-focused; XSTAMPP 2.0 added an A-CAST plugin for CAST accident analysis.
 Free; runs as an Eclipse plugin.
 
 **MIT SafeWare research tooling.** Academic; not production-deployed.
 
-**Templates.** Leveson's CAST Handbook provides templates: control-structure diagram, UCA table, loss-scenario, recommendation tracking.
-Organizations adopting CAST typically build internal templates based on the handbook and customize them.
+**Templates.** Organizations adopting CAST typically build internal templates based on the handbook and customize them.
 
 **AI-augmented CAST.** Emerging research uses LLMs to generate candidate loss scenarios and recommendations from a control-structure diagram.
 Same novelty-regression limit as AI-augmented STPA: LLMs are reasonable on known patterns, poor on novel ones — and CAST is most valuable on the unprecedented incidents.
@@ -320,7 +315,7 @@ CAST has limits. Name them.
 
 **AI-augmented CAST regresses on novel loss scenarios.** LLM augmentation of CAST analyses speeds routine work — generating candidate UCAs, drafting loss-scenario text, summarizing reports — but regresses on the novel patterns that make CAST analyses valuable. The novel patterns are exactly what the LLM has not seen in training. Treat AI augmentation as analyst-acceleration on routine work, not as replacement on the consequential analyses.
 
-**Industry adoption is slow.** STAMP was published in 2003; *Engineering a Safer World* in 2011.
+**Industry adoption is slow.** STAMP was published in 2004; *Engineering a Safer World* in 2011.
 Two decades later, CAST adoption remains concentrated in safety-critical industries with strong systems-engineering cultures.
 Expect adoption to track institutional structures (CSRB-style review boards, regulatory frameworks) rather than bottom-up.
 

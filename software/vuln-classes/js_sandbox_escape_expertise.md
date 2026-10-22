@@ -2,17 +2,17 @@
 ## Synthesized from Patrik Simek, XmiliaH, Seongil Wi, Takeshi Kaneko (arkark), Marcel Laverdet, Sven Slootweg (joepie91), Mike Pall, Filip Pizlo, and Kurt Boberg
 
 > **Researchers:**
-> - **Patrik Simek (@patriksimek)** — Original author and long-time maintainer of `vm2` (github.com/patriksimek/vm2). Designed the proxy-membrane architecture that distinguishes `vm2` from the bare Node `vm` module. In July 2023, after a series of unfixable architectural CVEs (CVE-2023-37466 the trigger), posted the discontinuation notice that became the textbook example of a maintainer publicly conceding the impossibility of his own threat model. The project was revived under new co-maintainership in late 2025 (the deprecation README text was quietly removed), which is the context for Kurt's CVE-2026-22709 disclosure landing in January 2026 — vm2 is officially dead, officially undead, and still installed everywhere.
-> - **XmiliaH** — The single most prolific vm2-escape researcher; co-maintainer of vm2 in the deprecation era. Reported CVE-2023-29017 (CVSS 9.8, async-handler escape), CVE-2023-30547 (host-Error escape), CVE-2023-32314 patch-bypass, CVE-2023-37466 (`Promise` constructor reach), and the 2026 cluster CVE-2026-24118 (`__lookupGetter__` escape, CVSS 9.8), CVE-2026-24120 (Promise-`species` patch bypass), CVE-2026-24781, CVE-2026-44008/9, and others. The recurring observation in his writeups: "Node itself intercepts calls from the sandbox, preventing arguments from being properly wrapped in proxies" — i.e., the bypass surface is not vm2's code but the V8/Node boundary vm2 cannot reach inside.
-> - **Seongil Wi (leesh3288)** — KAIST WSP Lab. Reporter of CVE-2023-29017 (`Error.prepareStackTrace` host-object leak via asynchronous error, the watershed pre-deprecation CVE), with public PoC gists for vm2@3.9.15 and vm2@3.9.16.
+> - **Patrik Simek (@patriksimek)** — Original author and long-time maintainer of `vm2` (github.com/patriksimek/vm2). Designed the proxy-membrane architecture that distinguishes `vm2` from the bare Node `vm` module. In July 2023, after a series of unfixable architectural CVEs (CVE-2023-37466 the trigger), posted the discontinuation notice that became the textbook example of a maintainer publicly conceding the impossibility of his own threat model. The project was revived in late 2025 (the deprecation README text was quietly removed), which is the context for Kurt's CVE-2026-22709 disclosure landing in January 2026 — vm2 is officially dead, officially undead, and still installed everywhere.
+> - **XmiliaH** — The single most prolific vm2-escape researcher; main contributor to vm2 up until the 2023 discontinuation. Reported the 2026 cluster CVE-2026-24118 (`__lookupGetter__` escape, CVSS 9.8), CVE-2026-24120 (Promise-`species` patch bypass), CVE-2026-24781, CVE-2026-44008/9, and others. XmiliaH's explanation of the deprecation: "The problems that piled up are caused by `node` intercepting calls from the sandbox ... and therefore arguments not being wrapped in a `Proxy`" — i.e., the bypass surface is not vm2's code but the V8/Node boundary vm2 cannot reach inside.
+> - **Seongil Wi (seongil-wi)** — KAIST WSP Lab. Reporter of CVE-2023-29017 (`Error.prepareStackTrace` host-object leak via asynchronous error, the watershed pre-deprecation CVE), with a public PoC gist.
 > - **Takeshi Kaneko (@arkark)** — GMO Cybersecurity by Ierae, Inc. Reporter of CVE-2023-32314 (vm2@3.9.17 sandbox escape) — proved that `prepareStackTrace`'s `err` argument is *not* proxied because the function is called directly by V8, so `err.name.toString` constructs `argArray` in the host context and hands the attacker the host-context `Function` constructor. The canonical "the JS engine itself is the bypass surface" finding.
-> - **Marcel Laverdet (@laverdet)** — Author of `isolated-vm` (github.com/laverdet/isolated-vm), the V8-isolate-per-sandbox library that vm2's deprecation notice points to as the recommended successor. Originally written for Screeps, a JS-game platform that needed to run hundreds of persistent player-submitted sandboxes per host. The reference implementation of "if you actually need to run untrusted JS in-process, this is the bar."
-> - **Sven Slootweg (@joepie91 / Sven Slootweg)** — Long-running thread of npm/Node criticism, including the position that "the `vm` module is not a sandbox and never was, and `vm2` cannot make it one." Maintains the blog at cryto.net/~joepie91; the Hacker News and Twitter corpus of his vm/vm2 commentary is the structural argument the deprecation eventually accepted.
-> - **Mike Pall** — Author of LuaJIT. The canonical formulation of the "you cannot sandbox a fast language" thesis. From his LuaJIT FAQ: *"The only promising approach is to sandbox Lua code at the process level and not at the VM level."* The argument is not Lua-specific — every fast JIT compiler (LuaJIT, V8, JavaScriptCore, SpiderMonkey) builds and executes native machine code at runtime, and the resulting attack surface cannot be contained by in-process scoping tricks. The same reasoning applies one-for-one to JS sandboxing.
-> - **Filip Pizlo (Apple WebKit/JavaScriptCore, 2014–2022)** — Manager of the JavaScriptCore team during the Spectre/Meltdown response and the FTL/B3 compiler design era. Authored "What Spectre and Meltdown mean for WebKit" (Jan 2018) — the foundational engineering writeup on why even a *correctly implemented* JIT compiler cannot defend against speculative side-channels without architectural process-level isolation. The browser-engine argument for "renderer-per-origin process boundary" that informs Site Isolation in Chrome and Web Content Process per-tab in Safari.
-> - **Kurt Boberg (@lapt0r / GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Reporter of **CVE-2026-22709** (vm2 promise-`catch` global-handler bypass, CVSS 9.8, January 2026). The "perfect deprecation-era CVE": vm2 was officially dead, was being un-deprecated by new co-maintainers, and still landed a 9.8 with a five-line PoC because the entire installed base had not moved. Documented at semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox.
+> - **Marcel Laverdet (@laverdet)** — Author of `isolated-vm` (github.com/laverdet/isolated-vm), the V8-isolate-per-sandbox library that vm2's deprecation notice points to as the recommended successor. The reference implementation of "if you actually need to run untrusted JS in-process, this is the bar."
+> - **Sven Slootweg (@joepie91 / Sven Slootweg)** — Long-running thread of npm/Node criticism. Maintains the blog at cryto.net/~joepie91.
+> - **Mike Pall** — Author of LuaJIT. The canonical formulation of the "you cannot sandbox a fast language" thesis. From his LuaJIT FAQ: *"In general, the only promising approach is to sandbox Lua code at the process level and not the VM level."* The argument is not Lua-specific — every fast JIT compiler (LuaJIT, V8, JavaScriptCore, SpiderMonkey) builds and executes native machine code at runtime, and the resulting attack surface cannot be contained by in-process scoping tricks. The same reasoning applies one-for-one to JS sandboxing.
+> - **Filip Pizlo (Apple WebKit/JavaScriptCore)** — Authored "What Spectre and Meltdown mean for WebKit" (Jan 2018), which lays out WebKit's Spectre mitigations (long-term: branchless security checks) and advises apps embedding WebKit to use the Modern WebKit API, which runs untrusted JavaScript in a separate process.
+> - **Kurt Boberg (@lapt0r / GHSA reporter `kurt-r2c`)** — Staff Security Researcher at Semgrep. Reporter of **CVE-2026-22709** (vm2 promise-`catch` global-handler bypass, CVSS 9.8, January 2026). The "perfect deprecation-era CVE": vm2 was officially dead, was being un-deprecated, and still landed a 9.8 with a short PoC because the entire installed base had not moved. Documented at semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox.
 >
-> Sources: semgrep.dev/blog (2023 discontinuation + 2026 calling-back posts); github.com/patriksimek/vm2 advisories; security.snyk.io vm2 catalogue; CVE-2023-29017 / -30547 / -32314 / -37466 / 2026-22709 / -24118 / -24120 / -44001 NVD entries; github.com/laverdet/isolated-vm README; cryto.net/~joepie91; luajit.org/faq.html; webkit.org/blog/8048/what-spectre-and-meltdown-mean-for-webkit/; nodejs.org/api/vm.html security notes; quickjs-ng/quickjs; wasmtime.dev.
+> Sources: semgrep.dev/blog (2023 discontinuation + 2026 calling-back posts); github.com/patriksimek/vm2 advisories; security.snyk.io vm2 catalogue; CVE-2023-29017 / -30547 / -32314 / -37466 / 2026-22709 / -24118 / -24120 NVD entries; github.com/laverdet/isolated-vm README; cryto.net/~joepie91; luajit.org/faq.html; webkit.org/blog/8048/what-spectre-and-meltdown-mean-for-webkit/; nodejs.org/api/vm.html security notes; quickjs-ng/quickjs; wasmtime.dev.
 
 ---
 
@@ -46,11 +46,11 @@ The Node.js documentation has, since at least Node 8 (2017), carried this notice
 
 > "The `node:vm` module is not a security mechanism. **Do not use it to run untrusted code.**"
 
-The exact phrasing has evolved (a 2023 PR strengthened "The `vm` module is not a security mechanism" to "**Do not use it to run untrusted code**" in bold, in response to repeated incidents), but the warning has been there for a decade. Every CVE in the vm2 corpus, structurally, is a consequence of a developer reading that warning and reasoning "OK so I'll use vm2 instead" without observing that vm2 layers over `vm` and inherits all of its boundaries.
+The warning has been there since 2017. Every CVE in the vm2 corpus, structurally, is a consequence of a developer reading that warning and reasoning "OK so I'll use vm2 instead" without observing that vm2 layers over `vm` and inherits all of its boundaries.
 
 ### The "fast-language sandbox is impossible" argument (Mike Pall)
 
-From LuaJIT's FAQ: *"Neither Lua nor LuaJIT are sandboxes. The only promising approach is to sandbox Lua code at the process level and not at the VM level."* The reasoning generalizes one-for-one to JavaScript. A JIT compiler is a runtime native-code generator; the boundary between "code the language semantics allow" and "code the JIT emits" is the JIT's lowering rules — millions of lines of C++ that have to be exactly correct under every input the optimizer can construct. They are not. (Witness: every JavaScriptCore / V8 / SpiderMonkey Pwn2Own CVE since 2013.) Conclusion: **if your threat model includes "the guest is adversarial," the sandbox boundary must be a process, hypervisor, or Wasm-module boundary — not a `vm.createContext()` call.**
+From LuaJIT's FAQ: *"In general, the only promising approach is to sandbox Lua code at the process level and not the VM level."* The reasoning generalizes one-for-one to JavaScript. A JIT compiler is a runtime native-code generator; the boundary between "code the language semantics allow" and "code the JIT emits" is the JIT's lowering rules — millions of lines of C++ that have to be exactly correct under every input the optimizer can construct. They are not. (Witness: every JavaScriptCore / V8 / SpiderMonkey Pwn2Own CVE since 2013.) Conclusion: **if your threat model includes "the guest is adversarial," the sandbox boundary must be a process, hypervisor, or Wasm-module boundary — not a `vm.createContext()` call.**
 
 ---
 
@@ -81,7 +81,7 @@ When you pass a `sandbox` argument to `vm.runInNewContext`, Node calls `vm.creat
 
 ### The microtask queue boundary
 
-V8's microtask queue is *per-isolate*, not per-realm. When sandboxed code does `await somePromise`, the continuation is scheduled on the same isolate-wide queue. If `somePromise` was created in the host realm, the continuation runs with the host realm's intrinsics. Getting this right at the realm boundary requires either (a) a complete shim of every Promise primitive, or (b) running the guest in a separate isolate entirely.
+By default, V8's microtask queue is *per-isolate*, not per-realm (Node's `vm` `microtaskMode: 'afterEvaluate'` gives a context its own microtask queue). When sandboxed code does `await somePromise`, the continuation is scheduled on the same isolate-wide queue. If `somePromise` was created in the host realm, the continuation runs with the host realm's intrinsics. Getting this right at the realm boundary requires either (a) a complete shim of every Promise primitive, or (b) running the guest in a separate isolate entirely.
 
 vm2 chose (a). Every Promise-related vm2 CVE is a place where the shim missed a code path. There are more code paths than the maintainers have engineering time for; this is structural.
 
@@ -89,7 +89,7 @@ vm2 chose (a). Every Promise-related vm2 CVE is a place where the shim missed a 
 
 Quoting Node.js docs (current at time of writing, May 2026):
 
-> "The `node:vm` module is not a security mechanism. **Do not use it to run untrusted code.** The term 'sandbox' is used throughout these docs simply to refer to a separate context, and does not confer any security properties."
+> "The `node:vm` module is not a security mechanism. **Do not use it to run untrusted code.**"
 
 This text is load-bearing. Anyone proposing to "just use `vm.createContext`" for an isolation boundary should be pointed to this paragraph, plus the CVE-2023-29017 / -32314 / -37466 / 2026-22709 cluster, before the conversation continues.
 
@@ -112,11 +112,10 @@ This is the right architecture *in theory*. It is the same architecture Caja use
 
 Every vm2 CVE is structurally the same shape: a code path was discovered where some object slipped across the membrane without being wrapped, or was wrapped but the wrapping was bypassable, or where the *V8 engine itself* invoked a callback with arguments that vm2's interception never got to see. Examples:
 
-- **`Error.prepareStackTrace`** (CVE-2023-29017, leesh3288): V8 calls this function when `.stack` is accessed. The call comes from inside V8's native stack-trace assembly code, *bypassing the proxy membrane.* The `error` argument is a host-realm `Error`. From inside `prepareStackTrace`, the guest has `error.constructor === host.Error`, then `error.constructor.constructor === host.Function`, then RCE.
-- **Async function results** (CVE-2023-29017 variant, XmiliaH): `async () => {}` returns a `globalPromise`, not the sandbox's `localPromise`. The two have different prototype chains. Methods on `globalPromise.prototype` are reachable from the sandbox via `(async()=>{})().constructor`.
-- **`Promise` constructor** (CVE-2023-37466, XmiliaH): when an async stack unwinds through a `Promise` rejection handler not installed by sandbox code, the rejection callback runs with host intrinsics.
+- **`Error.prepareStackTrace`** (CVE-2023-29017, seongil-wi): V8 calls this function when `.stack` is accessed. The call comes from inside V8's native stack-trace assembly code, *bypassing the proxy membrane.* The `error` argument is a host-realm `Error`. From inside `prepareStackTrace`, the guest has `error.constructor === host.Error`, then `error.constructor.constructor === host.Function`, then RCE.
+- **Async function results** (CVE-2026-22709): `async () => {}` returns a `globalPromise`, not the sandbox's `localPromise`. The two have different prototype chains. Methods on `globalPromise.prototype` are reachable from the sandbox via `(async()=>{})().constructor`.
+- **`Promise` constructor** (CVE-2023-37466, leesh3288): when an async stack unwinds through a `Promise` rejection handler not installed by sandbox code, the rejection callback runs with host intrinsics.
 - **`__lookupGetter__`** (CVE-2026-24118, XmiliaH): the legacy `Object.prototype.__lookupGetter__` method returns the *getter function* defined on an object's prototype chain. Calling it on a sandboxed value returns the host-realm getter, which is callable.
-- **Proxy handler escapes** (CVE-2024-43791): vm2's own proxy handlers had a code path where the handler was reachable as a property of a sandbox-side object, and calling it gave host-realm reach.
 
 The pattern repeats. Each CVE is "we forgot to sanitize this one type of object" — and each fix sanitizes that type, leaving the next-discovered type uncovered.
 
@@ -126,39 +125,37 @@ The most instructive vm2 CVEs, in chronological order, with the primitive type e
 
 | CVE | CVSS | Year | Primitive |
 |---|---|---|---|
-| CVE-2021-23449 | 9.8 | 2021 | Proxy handler escape via `then` |
-| CVE-2022-36067 ("Sandbreak") | 9.8 | 2022 | `Error.prepareStackTrace` host-Error access |
+| CVE-2021-23449 | 9.8 | 2021 | Sandbox escape via prototype pollution |
+| CVE-2022-36067 ("Sandbreak") | 10.0 | 2022 | `Error.prepareStackTrace` host-Error access |
 | CVE-2023-29017 | 9.8 | 2023 | `Error.prepareStackTrace` *async* variant; `Symbol()` cast trick |
 | CVE-2023-29199 | 9.8 | 2023 | Source-transformer bypass; `handleException()` leak |
 | CVE-2023-30547 | 9.8 | 2023 | Host-thrown Error reaches guest |
 | CVE-2023-32314 | 9.8 | 2023 | `prepareStackTrace` `argArray` not proxied (V8 native call) |
-| CVE-2023-32413 | 9.8 | 2023 | Asynchronous function property leak |
 | CVE-2023-37466 | 9.8 | 2023 | `Promise` constructor / `globalPromise` reach — the deprecation trigger |
-| CVE-2024-43791 | 9.8 | 2024 | Proxy handler escape (post-revival residual) |
 | CVE-2026-22709 (Kurt) | 9.8 | 2026 | Global promise catch handler sanitization gap |
 | CVE-2026-24118 (XmiliaH) | 9.8 | 2026 | `__lookupGetter__` reach |
 | CVE-2026-24120 (XmiliaH) | 9.8 | 2026 | `Promise` `species` property — patch bypass of CVE-2023-37466 |
 
-Every entry is CVSS 9.8. The pattern is not a coincidence; **the lower bound on a vm2 sandbox escape is RCE-on-the-host. There are no medium-severity vm2 CVEs because there is no medium-severity outcome — once the membrane is pierced, the host's full module-resolution surface is reachable.**
+Every entry is CVSS 9.8 or higher. The pattern is not a coincidence; **the lower bound on a vm2 sandbox escape is RCE-on-the-host — once the membrane is pierced, the host's full module-resolution surface is reachable.**
 
 ### The 2023 deprecation announcement
 
-In July 2023, after CVE-2023-37466, the vm2 maintainers (Simek and XmiliaH) posted to the GitHub repository README:
+In July 2023, after CVE-2023-37466, Patrik Simek posted to the GitHub repository README:
 
-> "The library contains critical security issues and should not be used for production. The maintainer has decided to discontinue development."
+> "The library contains critical security issues and should not be used for production!"
 
 The recommended replacement was `isolated-vm`. Semgrep covered the deprecation in detail in `semgrep.dev/blog/2023/discontinuation-of-node-vm2/` ("The indomitable maintainer spirit versus the indifferent cruelty of JavaScript"). The post is worth reading in full as a writeup of *why* this was structurally necessary.
 
 ### Why projects still use it
 
-The deprecation announcement did not delete the npm package: ~2.5M weekly downloads at deprecation, ~1M+ weekly two years later. Reasons projects do not move:
+The deprecation announcement did not delete the npm package: ~5.7M weekly downloads at deprecation, ~1M+ weekly two years later. Reasons projects do not move:
 
 1. **Transitive dependency** — vm2 sits behind Discord-bot platforms, no-code builders, code-execution-as-a-service, low-code RPA, template renderers. Downstream consumers often do not know it is there.
 2. **Build-system inertia** — replacing vm2 with isolated-vm requires switching from pure-JS to native-addon, which breaks Lambda deployments lacking the right glibc, Electron builds, and some serverless Worker isolates.
 3. **API mismatch** — vm2 is "code + sandbox dict → result"; isolated-vm is "isolate + explicit transfers + registered host functions + memory/CPU budgets." Non-trivial cognitive jump.
 4. **"We don't run untrusted code"** — many projects use vm2 for code authored by trusted users writing automation. That is exactly the threat model vm2 fails on (authenticated insider with crafted payload).
 
-In late 2025 the repo was un-archived and new co-maintainers began merging fixes. The deprecation README text was quietly removed. This is the context CVE-2026-22709 lands into: vm2 is again "actively maintained," the underlying architectural problem is unchanged, the installed base is still ~1M weekly.
+In late 2025 the project resumed releases (3.10.0, October 2025). The deprecation README text was quietly removed. This is the context CVE-2026-22709 lands into: vm2 is again "actively maintained," the underlying architectural problem is unchanged, the installed base is still ~1M weekly.
 
 ---
 
@@ -176,7 +173,7 @@ Quoting the post directly:
 
 And on why this works:
 
-> "a malicious actor can specify a global promise exception handler that JavaScript hoists into the global scope, bypassing the local scope promise sanitizer."
+> "A malicious user can specify a global promise exception handler by specifying an unscoped `promise.catch(...)` that JS will then hoist into the global scope, bypassing the local scope promise sanitizer."
 
 ### The minimum-payload exploit (Kurt's PoC, verbatim from the post)
 
@@ -210,12 +207,12 @@ The chain:
 
 ### Why this is the "perfect deprecation-era CVE"
 
-vm2 was officially deprecated in 2023. It was un-archived in late 2025. The community message in 2023 was "stop using this." The community message in 2025 was "actually we're maintaining it again." The community message implicit in CVE-2026-22709 is **"the architectural problem the deprecation was about hasn't gone away; the un-archiving was social, not technical."**
+vm2 was officially deprecated in 2023. It resumed releases in late 2025. The community message in 2023 was "stop using this." The community message in 2025 was "actually we're maintaining it again." The community message implicit in CVE-2026-22709 is **"the architectural problem the deprecation was about hasn't gone away; the un-archiving was social, not technical."**
 
 The CVSS-9.8 lands because:
 
 - **Huge installed base** — ~1M weekly downloads at disclosure, including transitive dependencies in commercial products.
-- **Trivial PoC** — five lines of code, no exotic prerequisites.
+- **Trivial PoC** — about a dozen lines of code, no exotic prerequisites.
 - **Universal applicability** — every codebase that takes user-supplied JavaScript and runs it through `vm2.VM` or `vm2.NodeVM` is affected, regardless of what they think they're sandboxing.
 - **Patch is single-point fixup** — Kurt's variant is closed in 3.10.2, but the *class* of bugs (global-Promise vs local-Promise distinction) was already closed once before (CVE-2023-37466 fix) and re-opened (CVE-2026-24120 demonstrates a parallel re-open via `Promise[Symbol.species]`). The fix is a fix; it is not a structural defense.
 
@@ -227,7 +224,7 @@ Cross-link to `vulnerability_research_methodology_expertise.md` §2 (variant ana
 - **Every place V8 invokes a JS function from native code without going through the proxy membrane** is a candidate. `Error.prepareStackTrace` is one. `Symbol.toPrimitive` is another. `Symbol.iterator` is another. The full list is in the V8 source.
 - **Every place the language spec adds a new well-known Symbol or a new intrinsic** is a future candidate. Each ES proposal that lands in V8 expands the membrane's coverage requirement; vm2 has to catch up reactively.
 
-CVE-2026-24120 (XmiliaH, also January 2026) demonstrates that the second bullet pays off — the `Promise[Symbol.species]` bypass is precisely the variant of CVE-2023-37466 that re-opens the same class through a different intrinsic. The variant tree under CVE-2026-22709 is unfinished.
+CVE-2026-24120 (XmiliaH, May 2026) demonstrates that the second bullet pays off — the `Promise[Symbol.species]` bypass is precisely the variant of CVE-2023-37466 that re-opens the same class through a different intrinsic. The variant tree under CVE-2026-22709 is unfinished.
 
 ---
 
@@ -237,13 +234,13 @@ CVE-2026-24120 (XmiliaH, also January 2026) demonstrates that the second bullet 
 
 `isolated-vm` uses a *separate V8 isolate per sandbox.* A V8 *isolate* is a complete VM instance — separate heap, JIT code cache, microtask queue, intrinsics — with no cross-isolate references. A V8 *context* (what `vm.runInNewContext` creates) shares the isolate with its parent; an isolate does not. In isolated-vm, the guest cannot reach the host's prototype chain because the host's prototypes live in a different heap. To escape, the guest needs a V8 type-confusion bug (Pwn2Own-grade) or an isolated-vm bridge bug.
 
-Cost: every host-guest call pays a marshalling cost. Primitives copy by value; objects transfer as `Reference` handles, and each property access on a `Reference` is a cross-isolate call. The code reads more like RPC than in-process — the right tradeoff for the security gain. Used in production by Cloudflare Workers (in part), Screeps, and others. In maintenance mode as of 2025 but architecturally sound.
+Cost: every host-guest call pays a marshalling cost. Primitives copy by value; objects transfer as `Reference` handles, and each property access on a `Reference` is a cross-isolate call. The code reads more like RPC than in-process — the right tradeoff for the security gain. Used in production by Screeps, Fly, Algolia, Tripadvisor, and others. In maintenance mode as of 2025 but architecturally sound.
 
 ### QuickJS / quickjs-emscripten
 
-QuickJS (Fabrice Bellard) is a complete ECMAScript engine in ~70K lines of C, small enough to compile to Wasm. When QuickJS-on-Wasm runs in `wasmtime` / `wasmer`, the sandbox has *two* boundaries: QuickJS's own runtime-to-host isolation, plus the Wasm boundary itself (hardware-enforced, capability-typed imports). `quickjs-emscripten` packages this with a JS API. Used in production by Notion, Figma, several serverless platforms.
+QuickJS (Fabrice Bellard) is a complete ECMAScript engine in just a few C files, small enough to compile to Wasm. When QuickJS-on-Wasm runs in `wasmtime` / `wasmer`, the sandbox has *two* boundaries: QuickJS's own runtime-to-host isolation, plus the Wasm boundary itself (hardware-enforced, capability-typed imports). `quickjs-emscripten` packages this with a JS API. Used in production by Figma.
 
-Cost: ~10-50x slower than V8 on most benchmarks. Invisible for "run a 100-line user script in a serverless function"; matters for heavy data-transformation. This is the modern recommendation for new builds where security is dominant: **compile QuickJS to Wasm, run in wasmtime, expose host functions via WASI's capability model.**
+Cost: slower than V8 on most benchmarks. Invisible for "run a 100-line user script in a serverless function"; matters for heavy data-transformation. This is the modern recommendation for new builds where security is dominant: **compile QuickJS to Wasm, run in wasmtime, expose host functions via WASI's capability model.**
 
 ### safe-eval, vm2-process, "sandbox" libraries
 
@@ -251,7 +248,7 @@ Cost: ~10-50x slower than V8 on most benchmarks. Invisible for "run a 100-line u
 
 ### Deno's Worker model
 
-Deno (and post-Deno Bun) take a fundamentally different approach: permissions are first-class to the runtime. A Deno script does not have file-system access unless it was started with `--allow-read`. A Deno script does not have network access unless it was started with `--allow-net`. The granularity extends to specific paths and specific hosts.
+Deno takes a fundamentally different approach: permissions are first-class to the runtime. A Deno script does not have file-system access unless it was started with `--allow-read`. A Deno script does not have network access unless it was started with `--allow-net`. The granularity extends to specific paths and specific hosts.
 
 For "run a user-supplied Deno script," the recommended pattern is:
 
@@ -287,9 +284,9 @@ Escape from a malicious web page to OS code execution requires *two* bugs chaine
 
 ### Type confusion in V8 and the "fast JIT" argument
 
-V8 type-confusion bugs are a *class*: ~5-10 per major Chrome version, structurally reducing to "the JIT's type-inference rules disagreed with the runtime's type checks under a specific code shape, yielding a memory access where the size-of-object the JIT thought it had differed from the actual size." From there, arbitrary read/write of renderer memory; from there, native RCE.
+V8 type-confusion bugs are a *class*, structurally reducing to "the JIT's type-inference rules disagreed with the runtime's type checks under a specific code shape, yielding a memory access where the size-of-object the JIT thought it had differed from the actual size." From there, arbitrary read/write of renderer memory; from there, native RCE.
 
-Filip Pizlo's "What Spectre and Meltdown Mean for WebKit" (webkit.org/blog/8048, Jan 2018) is the canonical engineering writeup on why even *correctly implemented* speculative JITs leak across security boundaries, and why **the only durable defense is moving the boundary to a process boundary** (Site Isolation in Chrome, per-tab Web Content processes in Safari). Cross-link to `cryptography_expertise.md` for the side-channel primitives.
+Filip Pizlo's "What Spectre and Meltdown Mean for WebKit" (webkit.org/blog/8048, Jan 2018) is the canonical engineering writeup on why even *correctly implemented* speculative JITs leak across security boundaries, and recommends that apps embedding WebKit run untrusted JavaScript in a separate process via the Modern WebKit API. Cross-link to `cryptography_expertise.md` for the side-channel primitives.
 
 ### iframe sandbox attribute, service workers, extensions
 
@@ -307,7 +304,7 @@ For LLM-agent browser tooling (Claude Code's web browsing, ChatGPT's browser-use
 
 WebAssembly modules execute against a *linear memory* — a contiguous byte buffer owned by the module — and cannot access any memory outside that buffer except through *imported functions* provided by the host. The linear memory is sized at module instantiation and accessible only by the module's own instructions (`memory.load`, `memory.store`). This is enforced by the Wasm runtime; the module's machine code is JIT-compiled with bounds checks on every memory access (or hardware-accelerated guard-page tricks on 64-bit hosts).
 
-The implication: a Wasm module cannot reach into host memory, cannot call native code unless the host explicitly imports a function for it, cannot inspect the host's stack, cannot perform speculative timing attacks across the boundary (the runtime inserts speculation barriers; see "Mitigations against Spectre" in the Wasm reference manual). The boundary is *architectural* — not "we wrote a careful proxy membrane" but "the machine instructions cannot express the bad operation."
+The implication: a Wasm module cannot reach into host memory, cannot call native code unless the host explicitly imports a function for it, and cannot inspect the host's stack. The boundary is *architectural* — not "we wrote a careful proxy membrane" but "the machine instructions cannot express the bad operation."
 
 ### WASI capability model
 
@@ -324,7 +321,7 @@ For the canonical "I want users to run untrusted code in my product" problem, th
 3. Run in `wasmtime`, `wasmer`, or `WasmEdge`.
 4. Expose host capabilities explicitly via WASI or `wit-bindgen` bindings.
 
-In production at Cloudflare Workers (Wasm path), Fastly Compute@Edge, Shopify Functions, Vercel Edge, Fermyon Spin, every post-2020 blockchain smart-contract platform. Durable, inspectable, regulator-defensible.
+In production at Cloudflare Workers (Wasm path), Fastly Compute (formerly Compute@Edge), Shopify Functions, Vercel Edge, Fermyon Spin. Durable, inspectable, regulator-defensible.
 
 ### Limitations
 
@@ -351,8 +348,8 @@ Cross-link to the [Semgrep rule-writing docs](https://semgrep.dev/docs/writing-r
 - `new Function(arg1, ...)` with any non-string-literal `arg1` (the body)
 - `vm.runInThisContext(...)` with a non-string-literal argument
 - `vm.runInNewContext(code, sandbox, ...)` where `sandbox` is not the literal `Object.create(null)` or `{}` (the literal-`{}` case is also weak but at least has the smallest reach)
-- `require('vm2').VM`, `require('vm2').NodeVM`, `require('vm2').VMScript` — any use; vm2 is structurally insecure (CVE-2026-22709 is the most recent of ~15 CVE-9.8s)
-- `require('safe-eval')` — any use; deprecated and bypassed
+- `require('vm2').VM`, `require('vm2').NodeVM`, `require('vm2').VMScript` — any use; vm2 is structurally insecure (CVE-2026-22709 was followed by a dozen more critical CVEs disclosed in May 2026)
+- `require('safe-eval')` — any use; bypassed, no patched version
 - `Function.prototype.constructor` access on any value that reached the current scope from a sandbox boundary
 
 **Source enrichment (HIGH when these reach a sink above):**
@@ -373,7 +370,7 @@ rules:
   - id: javascript.security.vm2.use-of-vm2
     message: |
       vm2 is structurally insecure and has been the subject of 15+ CVSS-9.8
-      sandbox-escape CVEs (most recently CVE-2026-22709). The library was
+      sandbox-escape CVEs (including CVE-2026-22709). The library was
       deprecated by its maintainer in 2023; the late-2025 un-deprecation does
       not address the underlying architectural problem. Migrate to
       isolated-vm, QuickJS-in-Wasm, or out-of-process workers.
@@ -451,7 +448,7 @@ rules:
   - id: supply-chain.npm.vm2-dependency
     message: |
       vm2 appears in this lockfile (direct or transitive). vm2 has
-      ~15 CVSS-9.8 sandbox-escape CVEs and is structurally insecure.
+      15+ CVSS-9.8 sandbox-escape CVEs and is structurally insecure.
       Run `npm ls vm2` to identify the dependency chain. Remove the
       dependent package or open an issue requesting migration.
     severity: ERROR
@@ -472,8 +469,8 @@ rules:
 ### The structural answers in priority order
 
 1. **Don't run untrusted JS at all.** The only structurally-correct answer. If you can get the requirement to "the user supplies declarative configuration; the application interprets it," you have eliminated the threat class.
-2. **Use a non-Turing-complete configuration language.** TOML, JSON, JSON5, YAML, dhall, jsonnet-with-strict-mode. The first four are pure-data; dhall and jsonnet are total functional languages with no IO, no recursion in dhall's case. If your "users want to write logic" requirement is really "users want to compose declarative rules," push back hard on the "logic" framing.
-3. **Use QuickJS-in-Wasm via quickjs-emscripten.** This is the structurally-correct answer when the requirement really is "run untrusted JS." Pays a ~10-50x performance cost relative to V8, but the security boundary is hardware-enforced.
+2. **Use a non-Turing-complete configuration language.** TOML, JSON, JSON5, YAML, dhall, jsonnet. The first four are pure-data; dhall is a total functional language with no general recursion; jsonnet is side-effect-free but Turing-complete. If your "users want to write logic" requirement is really "users want to compose declarative rules," push back hard on the "logic" framing.
+3. **Use QuickJS-in-Wasm via quickjs-emscripten.** This is the structurally-correct answer when the requirement really is "run untrusted JS." Pays a performance cost relative to V8, but the security boundary is hardware-enforced.
 4. **Use isolated-vm.** Better than vm2 by orders of magnitude. The boundary is V8-isolate-enforced, not proxy-membrane-enforced. Pays a marshalling cost on every host-guest call. Caveat: still in-process; a V8-isolate bug (rare but they exist; Pwn2Own-grade) escapes the boundary.
 5. **Use out-of-process workers with capability-typed IPC.** Spawn a child process (`child_process.fork`), run the guest there, communicate via structured IPC. The OS process boundary is the strongest practical boundary. Pays a per-call IPC cost. Cross-link to `agentic_web_capabilities_expertise.md` for the broader capability-system discussion.
 6. **As a last resort, use Wasm runtimes (`wasmtime`, `wasmer`) with explicit WASI capability sets.** Requires the guest to compile to Wasm; the host trust base shrinks to "the Wasm runtime and the imported host functions."
@@ -504,7 +501,7 @@ vm2 is used by *platforms that run other people's JavaScript.* Canonical configu
 - **Discord / chat-bot platforms** that let users author server-side scripts. The platform's process has the bot's authentication token; an escape gives the attacker the token (`process.env.DISCORD_BOT_TOKEN`), which gives access to every server the bot has joined.
 - **Code-execution-as-a-service** products with a server-side evaluator. The platform's process has the database connection; an escape gives the attacker the connection string and every other user's snippets.
 - **Low-code automation platforms** (Zapier-likes, Workato-likes). The platform's process holds API tokens for every connected integration; an escape yields the full authentication material set.
-- **Server-side template renderers** (Squiz Matrix, Liferay, several CMSes) that allow inline JS expressions. The web-tier process owns DB and filesystem.
+- **Server-side template renderers** (Squiz Matrix, several CMSes) that allow inline JS expressions. The web-tier process owns DB and filesystem.
 
 The cascade: vm2 escape → host process compromise → trust-chain compromise of downstream users. **Blast radius is all the data the host process has access to**, generally "all the customer data on this platform." Cross-link to `cicd_supply_chain_expertise.md` §6 for the broader real-incident corpus.
 
@@ -522,7 +519,7 @@ The following are candidate primitives, not confirmed CVEs. Each is a place wher
 - **Cloudflare Workers V8 isolates.** Per-tenant V8 isolates at scale. Public hardening is extensive. Open question: are there shared host functions whose implementation leaks per-tenant data?
 - **AWS Lambda warm-start state leakage.** Lambda reuses processes across invocations of the same function. For custom-runtime configurations that eval user-supplied code (low-code platforms), the per-invocation boundary is weaker than expected. Scan for vm2 in Lambda layers.
 - **In-process plugin patterns in commercial products.** BI tools, CRM customizations, in-app rule engines — almost always vm2 (legacy) or `eval`-with-pre-filtering (custom). VS Code's extension model is *not* in this class (Extension Host is a separate process — the right design).
-- **AI code-execution sandboxes.** Claude Code, Cursor, etc. running generated code in the user's project: *there is no sandbox.* The agent has the user's permissions. Research question shifts from "can it escape" to "can it be tricked into running prompt-injected code." Cross-link to `llm_agent_security_expertise.md` §prompt-injection-to-code-execution. Hosted runtimes differ: OpenAI's code interpreter uses per-conversation Docker; Vertex uses gVisor; Anthropic's Claude Code uses the host process.
+- **AI code-execution sandboxes.** Claude Code, Cursor, etc. running generated code in the user's project: *there is no sandbox by default.* The agent has the user's permissions. Research question shifts from "can it escape" to "can it be tricked into running prompt-injected code." Cross-link to `llm_agent_security_expertise.md` §prompt-injection-to-code-execution. Anthropic's Claude Code runs on the host; its OS-level Bash sandbox (Seatbelt on macOS, bubblewrap on Linux) is off by default.
 - **IDE-extension snippet-preview features.** Some run in the extension host (full perms), some use Wasm or child processes. Worth auditing popular extensions for `eval`/`Function`/`vm.runInThisContext` on user input.
 - **JS template engines accepting user-controlled template source.** Handlebars, EJS, Pug, Nunjucks, doT, Underscore — when source (not just values) is user-controlled, the compile path lands in `new Function(compiledSource)`. Cross-link to `template_code_injection_expertise.md`.
 
@@ -532,7 +529,7 @@ The following are candidate primitives, not confirmed CVEs. Each is a place wher
 
 ### Anchor case (Kurt's disclosure)
 
-- Kurt Boberg, "Calling Back to vm2 and Escaping the Sandbox" — Semgrep blog, January 27, 2026. https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox
+- Katie Paxton-Fear and Kurt Boberg, "New Sandbox Escape Affecting Popular nodejs Sandbox library vm2" — Semgrep blog, January 27, 2026. https://semgrep.dev/blog/2026/calling-back-to-vm2-and-escaping-sandbox
 - CVE-2026-22709 — NVD: https://nvd.nist.gov/vuln/detail/CVE-2026-22709
 - GHSA-99p7-6v5w-7xg8 — GitHub Security Advisory: https://github.com/advisories/GHSA-99p7-6v5w-7xg8
 - Endor Labs analysis: https://www.endorlabs.com/learn/cve-2026-22709-critical-sandbox-escape-in-vm2-enables-arbitrary-code-execution
@@ -546,14 +543,13 @@ The following are candidate primitives, not confirmed CVEs. Each is a place wher
 
 ### Instructive vm2 CVEs
 
-- CVE-2021-23449 — Proxy handler escape: https://security.snyk.io/vuln/SNYK-JS-VM2-1585918
+- CVE-2021-23449 — Sandbox bypass via prototype pollution: https://security.snyk.io/vuln/SNYK-JS-VM2-1585918
 - CVE-2022-36067 ("Sandbreak") — Oxeye Security disclosure
-- CVE-2023-29017 — `Error.prepareStackTrace` (Seongil Wi / KAIST WSP): https://github.com/advisories/GHSA-7jxr-cg7f-gpgv. PoC gist: https://gist.github.com/leesh3288/381b230b04936dd4d74aaf90cc8bb244
+- CVE-2023-29017 — `Error.prepareStackTrace` (Seongil Wi / KAIST WSP): https://github.com/advisories/GHSA-7jxr-cg7f-gpgv. PoC gist: https://gist.github.com/seongil-wi/2a44e082001b959bfe304b62121fb76d
 - CVE-2023-29199 — Source-transformer bypass: https://github.com/advisories/GHSA-xj72-wvfv-8985
 - CVE-2023-30547 — Host-thrown Error reach: GitHub advisory
-- CVE-2023-32314 — `prepareStackTrace` `argArray` not proxied (Takeshi Kaneko / arkark / GMO Cybersecurity): https://github.com/advisories/GHSA-whpj-8f3w-67p5. PoC gist: https://gist.github.com/arkark/e9f5cf5782dec8321095be3e52acf5ac
-- CVE-2023-37466 — Promise constructor reach: https://github.com/advisories/GHSA-cchq-frgv-rjh5
-- CVE-2024-43791 — Proxy handler escape (post-revival)
+- CVE-2023-32314 — Host object creation via the `Proxy` specification (Takeshi Kaneko / arkark / GMO Cybersecurity): https://github.com/advisories/GHSA-whpj-8f3w-67p5. PoC gist: https://gist.github.com/arkark/e9f5cf5782dec8321095be3e52acf5ac
+- CVE-2023-37466 — Promise handler sanitization bypass: https://github.com/advisories/GHSA-cchq-frgv-rjh5
 - CVE-2026-24118 — `__lookupGetter__` escape (XmiliaH): GitHub advisory
 - CVE-2026-24120 — Promise `species` patch bypass (XmiliaH): GitHub advisory
 - CVE-2026-44001 — Promise constructor unhandled rejection process-crash: https://advisories.gitlab.com/npm/vm2/CVE-2026-44001/
@@ -589,7 +585,7 @@ The following are candidate primitives, not confirmed CVEs. Each is a place wher
 - Snyk, "The security concerns of a JavaScript sandbox with the Node.js VM module": https://snyk.io/blog/security-concerns-javascript-sandbox-node-js-vm-module/
 - BleepingComputer coverage of vm2 escapes (multiple, 2023–2026)
 - PortSwigger / Daily Swig coverage: https://portswigger.net/daily-swig/javascript-sandbox-vm2-remediates-remote-code-execution-risk
-- Uptycs, "CVE-2023-29017: Uncovering Potentially Exploitable vm2 Vulnerabilities": https://www.uptycs.com/blog/threat-research-report-team/exploitable-vm2-vulnerabilities
+- Uptycs, "Uncovering Potentially Exploitable vm2 Vulnerabilities: CVE-2023-29017": https://www.uptycs.com/blog/threat-research-report-team/exploitable-vm2-vulnerabilities
 
 ### Cross-references within this expertise corpus
 

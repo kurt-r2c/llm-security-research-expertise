@@ -2,7 +2,7 @@
 
 > Synthesized from the public research output of Bill Marczak (Citizen Lab),
 > Ian Beer (Google Project Zero), Brandon Azad (formerly Project Zero),
-> Adam Donenfeld (formerly Zimperium), Quinn Sullivan / "axi0mX" (checkm8),
+> Adam Donenfeld (formerly Zimperium), "axi0mX" (checkm8),
 > Tihmstar (jailbreak / ra1nsn0w), Ole André Vadla Ravnås (Frida / NowSecure),
 > Tielei Wang (Pangu Team / MOSEC), Connor Tumbleson (apktool),
 > Bernhard Mueller (OWASP MASVS / MASTG lead author),
@@ -30,7 +30,7 @@
 ### Bill Marczak (Citizen Lab, University of Toronto)
 Senior researcher at The Citizen Lab. Discovered, named, and reverse-
 engineered multiple in-the-wild iOS chains used by Pegasus and competing
-mercenary spyware — Trident (2016), Karma (2018), KISMET (2020),
+mercenary spyware — Trident (2016), KISMET (2020),
 FORCEDENTRY (2021), BLASTPASS (2023), plus three iOS 15/16 zero-click
 chains captured in 2022. Marczak and John Scott-Railton's joint forensic
 work on journalists, dissidents, and HRDs is the canonical public source
@@ -46,19 +46,19 @@ authority on JSC, IOSurface, mach_msg, and iOS ipc. Reference:
 [Project Zero](https://projectzero.google/2020/12/an-ios-zero-click-radio-proximity.html).
 
 ### Brandon Azad (formerly Project Zero, now Apple)
-P0 researcher 2018–2021. Authored oob_timestamp (CVE-2020-3837),
+P0 researcher 2018–2020. Authored oob_timestamp (CVE-2020-3837),
 unauthd sandbox escapes, mach voucher / IOSurface primitives, and the
 canonical "A survey of recent iOS kernel exploits" (June 2020). At
-Apple since 2021. Reference: [github.com/bazad](https://github.com/bazad).
+Apple since 2020. Reference: [github.com/bazad](https://github.com/bazad).
 
-### Adam Donenfeld (formerly Zimperium, now Apple)
+### Adam Donenfeld (formerly Zimperium)
 Author of the public ziVA exploit (iOS ≤ 10.3.1, multi-bug chain in
 AppleAVEDriver/IOSurface) — one of the first fully chained public iOS
 kernel-from-userland exploits with PoC. Reference:
 [github.com/doadam/ziVA](https://github.com/doadam/ziVA),
 [Zimperium blog](https://zimperium.com/blog/ziva-video-audio-ios-kernel-exploit).
 
-### Quinn Sullivan ("axi0mX")
+### axi0mX
 Author of checkm8 (CVE-2019-8900) — the unfixable USB-DFU SecureROM
 exploit for A5–A11 SoCs (iPhone 4S through iPhone X). On-die read-only
 mask ROM means no firmware update can patch it; foundation of checkra1n
@@ -74,13 +74,13 @@ on his infrastructure. Reference:
 
 ### Ole André Vadla Ravnås (NowSecure / Frida Project)
 Creator and maintainer of Frida — canonical cross-platform dynamic
-instrumentation. Security researcher at NowSecure since 2015. Frida is
+instrumentation. Security researcher at NowSecure. Frida is
 load-bearing infrastructure for nearly every public mobile-pentest
 methodology. Reference: [frida.re](https://frida.re),
 [NowSecure Frida](https://www.nowsecure.com/frida/).
 
 ### Tielei Wang (Team Pangu)
-Co-founder of Pangu Team — the most successful long-running public iOS
+Member of Pangu Team — the most successful long-running public iOS
 jailbreak research group. Co-author of Pangu 9 (first untethered iOS 9
 jailbreak) and a sustained corpus of iOS sandbox, IOKit, and XNU
 port-type-confusion research. Frequent MOSEC presenter. Reference:
@@ -93,16 +93,15 @@ rebuild tool, foundation of patch-and-resign. Reference:
 
 ### Bernhard Mueller (OWASP MAS / Floating Pragma)
 Lead author of OWASP MASVS and MASTG — the de-facto international
-standard for mobile-app security controls, adopted by PCI MASA, Google
-Play Data Safety, and EU CRA. Mueller primarily wrote the reverse-
+standard for mobile-app security controls, adopted by the App Defense
+Alliance MASA program (badge shown in Google Play's Data safety section). Mueller primarily wrote the reverse-
 engineering chapter. Pwnie Award (Best Research). Reference:
 [mas.owasp.org](https://mas.owasp.org/).
 
 ### Daniel Komaromy (TASZK / formerly Comsecuris, Qualcomm)
 Most prolific public cellular-baseband researcher. Won Mobile Pwn2Own
 with a Samsung Shannon chain; co-authored "Breaking Band" (Recon 2016,
-with Nico Golde) — canonical public RE of Shannon baseband. BH USA 2021
-"Over-The-Air Baseband Exploit" demonstrated 5G smartphone OTA RCE.
+with Nico Golde) — canonical public RE of Shannon baseband.
 Founder of TASZK Security Labs. Reference:
 [comsecuris.com](https://comsecuris.com/),
 ["Breaking Band" Recon 2016](https://comsecuris.com/slides/recon2016-breaking_band.pdf).
@@ -110,16 +109,14 @@ Founder of TASZK Security Labs. Reference:
 ### Bill Demirkapi
 Independent researcher; OS-internals + RE work spanning Android,
 Windows, embedded supply chain. Published findings on Dell SupportAssist
-(LPE+RCE), exposed-secret discovery via VirusTotal Retrohunt at scale,
-and Android permission-model research. Reference:
+(LPE+RCE) and exposed-secret discovery via VirusTotal Retrohunt at scale. Reference:
 [billdemirkapi.me](https://billdemirkapi.me/).
 
 ### Patrick Wardle (Objective-See / DoubleYou)
 Cited for iOS adjacency; full profile in `macos_apple_security.md`.
 Wardle frames Apple Lockdown Mode in public discourse and covers
 iOS-adjacent topics (Endpoint Security, code signing, MDM) at Mac Admins
-/ Objective by the Sea. His "Hunters & Hunted" nation-state coverage
-materially overlaps with the iOS spyware ecosystem.
+/ Objective by the Sea.
 
 ### Boris Larin / Leonid Bezvershenko / Grigoriy Kucherin (Kaspersky GReAT)
 The Operation Triangulation reverse-engineering team. From 2023's initial
@@ -146,10 +143,9 @@ against treating MTE as a complete defense. Reference:
 
 ### John Scott-Railton (Citizen Lab)
 Joint lead with Marczak on most public Pegasus / Predator / Paragon
-forensic work since 2018. Lead author on the June 2025 Paragon Graphite
+forensic work since 2018. Co-author with Marczak of the June 2025 Paragon Graphite
 disclosure (CVE-2025-43200, zero-click via crafted iCloud-Link photo
-processing, mitigated in iOS 18.3.1) and on the Jordan-wide Pegasus
-campaign (2024). Reference:
+processing, mitigated in iOS 18.3.1). Reference:
 [Citizen Lab — Paragon Graphite](https://citizenlab.ca/research/first-forensic-confirmation-of-paragons-ios-mercenary-spyware-finds-journalists-targeted/),
 [Citizen Lab — Jordan Pegasus](https://citizenlab.ca/2024/02/confirming-large-scale-pegasus-surveillance-of-jordan-based-civil-society/).
 
@@ -206,10 +202,10 @@ reduction (Lockdown Mode disables JIT, image codecs, attachments).
 
 ### 4. The mobile zero-day economy
 Mobile zero-days are the highest-priced public vulnerability class.
-Remote zero-click iOS chains have been quoted USD $1M–$2.5M+; Android
-equivalents typically slightly lower (modulo Pixel-class convergence).
+Remote zero-click iOS chains have been quoted USD $1M–$2.5M+; Zerodium's
+2019 list priced Android zero-click full chains ($2.5M) above iOS ($2M).
 Principal mercenary-spyware vendors: **NSO Group** (Pegasus —
-Trident/Karma/KISMET/FORCEDENTRY/BLASTPASS + 2022 trio), **Cytrox /
+Trident/KISMET/FORCEDENTRY/BLASTPASS + 2022 trio), **Cytrox /
 Intellexa Alliance** (Predator), **Candiru** (DevilsTongue),
 **QuaDream** (shut down 2023). Forensic-extraction vendors (physical
 threat model): **Cellebrite, MSAB, Magnet Forensics**. Western:
@@ -364,7 +360,7 @@ at 37C3 December 2023): four-CVE chain, all CVE-2023, all zero-click:
 | **CVE-2023-41990** | Initial RCE | Undocumented ADJUST TrueType font instruction (removed by patch; "had existed since the early nineties") triggered via iMessage attachment; multi-stage ROP/JOP through NSExpression/NSPredicate |
 | **CVE-2023-32434** | XNU kernel R/W | Integer overflow in `mach_make_memory_entry` / `vm_map` syscalls yielding user-level R/W to entire physical memory |
 | **CVE-2023-38606** | PPL bypass | Hardware-MMIO write to undocumented GPU coprocessor registers at `0x206040000`, `0x206140000`, `0x206150000` (data + destination + Hamming-coded hash) — modifies cache-line-resident page-table state below PPL's protection horizon |
-| **CVE-2023-32435** | Safari RCE | JS payload (~11,000 lines, includes PAC bypass) launches invisible Safari → verification webpage → next-stage delivery |
+| **CVE-2023-32435** | Safari RCE | Safari exploit (reached after the implant launches an invisible Safari process to a verification webpage) used to execute a shellcode |
 
 The CVE-2023-38606 register set belongs to the GFX coprocessor — improper
 access raises a "GFX SERROR Exception." Affected SoCs are A12–A16
@@ -386,12 +382,12 @@ attacker tier, "undocumented" does not mean "unfindable." References:
 - **1-click** — user taps a link, opens a message, accepts a call.
   Usually Safari or in-app webview. Higher target-attrition.
 - **0-click** — triggers on receipt without interaction. Vectors:
-  iMessage attachment preview, FaceTime setup (CVE-2019-8567), AirDrop
+  iMessage attachment preview, AirDrop
   listener (Ian Beer 2020), AWDL/Wi-Fi Aware frames. The gold standard
   for offensive ops — per-target cost is chain-amortized, not
   social-engineering-amortized.
 
-Pegasus/Predator/Triangulation chains since 2020 are all 0-click.
+Pegasus/Triangulation chains since 2020 are all 0-click.
 The 2024–2025 in-the-wild iOS corpus continued the pattern:
 
 | Year | Chain / Vendor | Lead vuln(s) | Patched in | Disclosure |
@@ -422,16 +418,16 @@ Citizen Lab + Project Zero coverage (2021): iMessage receives crafted
 PDF with .gif extension → CoreGraphics CGContext handles malformed
 JBIG2 stream → JBIG2 bytecode interpreter repurposed via integer
 overflow into a small virtual CPU (the "JBIG2 bit-trick computer" Beer
-documents) → that CPU executes a JS-like in-process scripting
-environment to assemble the chain in place → sandbox escape + kernel +
-implant. A useful demonstration that constraint-rich primitives can
+documents) → that computer (registers plus a 64-bit adder and
+comparator) searches memory and performs arithmetic to assemble the
+chain in place → sandbox escape + kernel + implant. A useful demonstration that constraint-rich primitives can
 be Turing-complete with enough work.
 
 ### 8. Trident (2016) historical baseline
 First widely-documented mercenary-spyware chain: CVE-2016-4655 (kernel
 info leak in OSUnserializeBinary), CVE-2016-4656 (kernel UAF privesc),
 CVE-2016-4657 (WebKit RCE via Safari). 1-click via SMS link. iOS 9.3.5
-shipped 10 days after Citizen Lab disclosure — establishing the public-
+shipped alongside Citizen Lab's August 25, 2016 disclosure, 15 days after the August 10 discovery — establishing the public-
 disclosure + fast-Apple-patch pattern that has held since.
 
 ---
@@ -554,8 +550,10 @@ on jailbroken devices to inject code without resigning.
 ### 11. Custom keyboards
 Third-party `UIInputViewController` apps requesting "Full Access" can
 exfiltrate every keystroke. A pentest finding class: apps that accept
-sensitive input (passcode, payment) without explicitly disabling
-third-party keyboards via `UITextField.textContentType`.
+sensitive input (passcode, payment) without disabling third-party
+keyboards — per field via `isSecureTextEntry`, or app-wide by returning
+false from `application(_:shouldAllowExtensionPointIdentifier:)` for the
+keyboard extension point.
 
 ### 12. iOS sideloading and EU Digital Markets Act regime
 iOS 17.4 (March 2024) introduced **EU-only alternative distribution**
@@ -569,13 +567,14 @@ Apple-distributed-but-third-party-curated stores. Each is a separate
 trust domain with its own curation policy, takedown latency, and
 malware-scan posture. Requirements as published by Apple: EU
 geo-presence (no VPN), EU App Store account, iOS 17.4+, and (per
-AltStore PAL) €1.50/year subscription covering Apple's Core
-Technology Commission.
+AltStore PAL, until an Epic MegaGrant removed it in 2024) a €1.50/year
+subscription covering Apple's Core Technology Fee.
 
 **(b) Notarization, not review.** Apps distributed through alternative
 marketplaces or Web Distribution are **notarized** (automated malware
-scan + basic functionality check + signed-developer-identity) but
-**not App-Reviewed** in the traditional human-review sense. The
+scan + basic functionality check + signed-developer-identity, combining
+automated checks with human review) but **not App-Reviewed**: Apple calls
+it a baseline review and leaves broader review to each marketplace. The
 distinction matters: Notarization catches known malware and obvious
 policy violations; it does not catch business-logic abuse,
 manipulative monetization, or privacy violations that human App
@@ -693,11 +692,11 @@ audited code with weak memory-management invariants. Reference:
 
 ### 2a. Pixel 8/9 MTE production deployment and bypass
 Pixel 8 (October 2023) was **the first production handset with ARM
-Memory Tagging Extension enabled by default** (kernel + system services;
-opt-in for apps via `android:memtagMode`). Pixel 8 ships MTE in
-**asynchronous** mode in production for performance (≈1–2% overhead
-per ARM), with synchronous mode reserved for debug profiles — a
-material delta vs. Apple's iPhone-17 EMTE-synchronous-by-default. The
+Memory Tagging Extension support**, exposed as a developer option
+(opt-in for apps via `android:memtagMode`). Android recommends
+**asynchronous** mode for production and synchronous mode for
+development — a material delta vs. Apple's iPhone-17
+EMTE-synchronous-by-default. The
 Pixel 8/9 deployment delivered the long-awaited "production
 spatial+temporal heap safety" but Man Yue Mo's CVE-2023-6241 chain
 demonstrated within months that **MTE only protects CPU pointer
@@ -712,11 +711,11 @@ attackers will pivot to them. Reference:
 
 ### 3. Qualcomm DSP / Hexagon
 Hexagon DSP runs its own OS (QuRT) processing attacker-influenced data
-(audio codec, camera ISP). DSP-to-AP escalation productive in the wild
-(CVE-2020-11261 et al.). Cross-link `firmware_embedded_security.md`.
+(audio codec, camera ISP). DSP-to-AP escalation productive in the wild.
+Cross-link `firmware_embedded_security.md`.
 
 ### 4. WebView (Chromium-derived)
-Mainline module since Android 10. Most WebView CVEs are Chromium
+Updatable APK (via Google Play) since Android 5.0. Most WebView CVEs are Chromium
 renderer/V8 bugs applying unchanged to embedding apps — cross-link
 `browser_js_engine_exploitation_expertise.md` §3.
 
@@ -732,12 +731,8 @@ Mobile Pwn2Own (Tokyo) and Tianfu Cup (Chengdu) are the principal
 non-mercenary-spyware public-chain disclosure venues — Pangu,
 Fluoroacetate, TASZK. Post-2021 Tianfu output largely unpublicized;
 chains believed to flow into Chinese-state offensive use rather than
-vendor disclosure. **Pwn2Own Toronto 2024** continued the consumer
-edition (mobile + surveillance + small-office targets) with 66
-entries from 36 teams; Synacktiv demonstrated a zero-click Wyze
-camera exploit and a Xiaomi 13 Pro full-chain that prompted Xiaomi
-to disable parts of its global services pending patch. Pwn2Own Cork
-(Ireland) 2025 was added to the calendar as a third venue. Reference:
+vendor disclosure. **Pwn2Own Ireland 2024** (Cork) became the new
+home of the consumer edition (mobile + IoT targets). Reference:
 [ZDI — Pwn2Own coverage](https://www.thezdi.com/blog).
 
 ---
@@ -755,13 +750,12 @@ another app under the wrapper's identity — a recurring privesc source).
   (default pre-SDK 31 for components with intent filters) lets any app
   launch the component. Android 12 made `exported` explicit.
 - **PendingIntent mutability** — pre-2023 mutable PendingIntents could
-  be modified before fire (CVE-2020-0188). Apps targeting SDK 23+ must
+  be modified before fire (CVE-2020-0188). Apps targeting SDK 31+ must
   specify `FLAG_IMMUTABLE` / `FLAG_MUTABLE`.
 
 ### 2. Content Provider misuse
 URI-addressed row/file primitive. Vulnerabilities: **SQLi via Provider**
-(`query()` concatenating selection-args into raw SQL, CVE-2018-9492 in
-Samsung as one example), **path traversal via `openFile()`** (file URI
+(`query()` concatenating selection-args into raw SQL), **path traversal via `openFile()`** (file URI
 handler accepting `../` segments), **GrantUriPermission abuse**
 (calling app receives URI permission scoped to a parent that includes
 unintended resources).
@@ -810,7 +804,8 @@ signature). Apps not enabling v2 remain vulnerable.
 ### 8. Tapjacking and accessibility-service abuse
 **Tapjacking** — malicious overlay draws on top of a sensitive button;
 target should set `filterTouchesWhenObscured` (Android 12+ also
-requires explicit SYSTEM_ALERT_WINDOW grant). **Accessibility-service
+blocks touches passing through untrusted overlays from other apps by
+default). **Accessibility-service
 abuse** — `BIND_ACCESSIBILITY_SERVICE` yields full UI read +
 tap/text injection; banking trojans (Anubis, Cerberus, ERMAC) abuse
 this for overlay + 2FA exfil. Play Protect flags non-accessibility
@@ -827,14 +822,14 @@ accessibility-service-abuse + overlay + remote-control pattern with
 several productive evolutions:
 
 - **Anatsa / TeaBot / Toddler** — long-running dropper-family active
-  since 2020; July 2025 campaign distributed via fake "PDF Update"
-  app in Google Play, ≈90,000 installs before takedown. Targets
+  since 2020; July 2025 campaign distributed via fake "Document Viewer -
+  File Reader" app in Google Play, ≈90,000 installs before takedown. Targets
   North American + European banking apps. References:
   [The Hacker News — Anatsa via Google Play 2025](https://thehackernews.com/2025/07/anatsa-android-banking-trojan-hits.html).
 - **ToxicPanda** — surfaced October 2024 (Cleafy Labs); evolved from
   the Asian-targeted TgToxic family. By early 2025 the botnet had
-  doubled to 1,500+ infected devices targeting Portuguese, Spanish,
-  and broader European/LATAM banks. Adds on-device-fraud (ODF) over
+  doubled in size (peaking near 4,500 infected devices), with Portugal
+  and Spain as the main targets. Adds on-device-fraud (ODF) over
   account-takeover (ATO) — money moves from the *victim's* device
   rather than a separate fraudster-side device, defeating
   device-fingerprint risk gates. Attributed to Chinese-speaking
@@ -857,8 +852,8 @@ Three patterns worth flagging for app-team threat models:
    review. The Anatsa droppers ship as innocuous productivity apps
    and download payload post-install — Play Protect catches
    late-stage, not early-stage.
-2. **Manifest-parser differential abuse (SoumniBot) is the third
-   instance in a row** of an Android-malware family weaponizing
+2. **Manifest-parser differential abuse (SoumniBot)** is an
+   instance of an Android-malware family weaponizing
    parser surface to evade static analysis. Cross-link
    `xml_parser_differential_expertise.md`.
 3. **ODF over ATO** — the financial-fraud pattern has shifted from
@@ -1088,8 +1083,9 @@ class).
 ### 5. Wi-Fi
 **FragAttacks** (Vanhoef 2021, frame agg/frag flaws across all Wi-Fi),
 **KRACK** (Vanhoef 2017, WPA2 KRA), **WPA2-PSK offline crack**
-(handshake capture + brute-force), **Krook** (CVE-2019-15126, Broadcom
-chip RCE via crafted EAPOL).
+(handshake capture + brute-force), **Kr00k** (CVE-2019-15126, Broadcom/Cypress
+chips encrypt buffered frames with an all-zero key after
+disassociation).
 
 ### 6. AirDrop / AWDL / Wi-Fi Aware
 AirDrop runs over AWDL (Apple Wireless Direct Link). Ian Beer's 2020
@@ -1115,8 +1111,8 @@ global control framework. v2.0.0 (April 2023) removed the legacy
 verification-level system in favor of **MAS Testing Profiles**; v2.1.0
 (January 2024) added the **MASVS-PRIVACY** control group as a response
 to converging privacy and security regulatory pressure (EU CRA, US
-state privacy laws, sectoral mandates). Lead authors: Bernhard Mueller
-(Floating Pragma), Sven Schleier, Jeroen Willemsen, Carlos Holguera.
+state privacy laws, sectoral mandates). Lead authors: Bernhard Mueller,
+Sven Schleier, Jeroen Willemsen, Carlos Holguera.
 Reference:
 [mas.owasp.org/MASVS](https://mas.owasp.org/MASVS/),
 [MASVS v2.1 release notes](https://mas.owasp.org/news/2024/01/18/masvs-v210-release--masvs-privacy/).
@@ -1167,9 +1163,9 @@ endpoint map → tamper APK/IPA + resign + re-run → test PLATFORM
 surface → map findings to MASVS L1/L2 controls.
 
 ### 6. Regulatory adoption
-**PCI MASA** (required for Visa/Mastercard mobile-payment apps),
-**Google Play Data Safety**, and **EU Cyber Resilience Act** reference
-MASVS as the underlying standard. Materially different from earlier
+**App Defense Alliance MASA** (independent assessment against MASVS
+Level 1 controls, surfaced as a badge on Google Play listings)
+references MASVS as the underlying standard. Materially different from earlier
 educational frameworks like OWASP Mobile Top 10.
 
 ---
@@ -1187,9 +1183,9 @@ The principal commercial offensive-spyware vendors targeting mobile:
 | **Paragon Solutions** | Israel | Graphite | Active; CVE-2025-43200 iOS zero-click confirmed June 2025; targeted European journalists |
 | **QuaDream** | Israel | REIGN / KingsPawn | Shut down April 2023 (Citizen Lab disclosure) |
 | **Variston IT** | Spain | (Heliconia spyware kit + 0-day brokering) | Shut down February 2024 per multiple reports |
-| **Cellebrite** | Israel | UFED + Premium | Active; physical-extraction primarily; Feb 2024 leak surfaced iOS 12.5–17.2.1 + Samsung S24 support |
+| **Cellebrite** | Israel | UFED + Premium | Active; physical-extraction primarily |
 | **MSAB** | Sweden | XRY | Active; physical-extraction |
-| **Magnet Forensics** | Canada | GrayKey (acq'd Grayshift 2024) | Active; partial iOS 18 access claimed |
+| **Magnet Forensics** | Canada | GrayKey (merged with Grayshift 2023) | Active; partial iOS 18 access claimed |
 | **L3Harris / Linchpin Labs** | Western | (undisclosed) | Active; AzimuthSecurity heritage |
 
 **Paragon Graphite** (added 2025) is the most consequential post-NSO
@@ -1204,13 +1200,12 @@ even with Lockdown Mode and BlastDoor in place; Apple's patch
 cadence (Feb 10 patch, June 11 disclosure) is the new attribution
 window standard.
 
-**Forensic-tool capabilities (Feb 2024 Cellebrite leak + 2024–2025
-GrapheneOS public correspondence):** Cellebrite Premium documented
-iOS 12.5–17.2.1 brute-forcing on locked devices plus Samsung Galaxy
-S24 (Qualcomm + Exynos) support. GrayKey claimed partial-access on
-all iOS ≤18. Both Cellebrite and Magnet have publicly acknowledged
-inability to exploit GrapheneOS-hardened devices — a useful data
-point for high-risk-user threat models.
+**Forensic-tool capabilities (leaked 2024 support documents):**
+Cellebrite's April 2024 matrix listed iOS 17.4+ as "In Research" and
+no brute-force on powered-off Pixel 6/7/8; GrayKey's November 2024
+documents showed only partial access on iOS 18/18.0.1. Cellebrite's
+leaked documents also indicated no access to GrapheneOS devices updated
+since late 2022 — a useful data point for high-risk-user threat models.
 
 ### 2. Cytrox Predator chain corpus
 Key references: 2021 — first Citizen Lab disclosure of Predator on a
@@ -1231,12 +1226,9 @@ the rising cost of mitigation-stack-aware chains. Public figures:
 |---|---|---|
 | iOS zero-click full chain | $3M | **$5M–$7M** (and a separate $9M tier for SMS/MMS zero-click) |
 | Android zero-click full chain (Pixel-class) | $3M | **$5M** |
-| iOS one-click | $1M–$2M | **$3M–$3.5M** |
-| Local privilege escalation (either) | $100K–$300K | $200K–$500K |
-| Physical-access full extraction (post-checkm8) | $200K–$1M+ | (broker-private — Cellebrite Premium / GrayKey tier) |
 
 Subsequent reporting documented an August 2025 zero-day startup
-("Operation Zero" successor / Advanced Security Solutions) advertising
+(Advanced Security Solutions) advertising
 up to **$20M for "tools that can hack any smartphone"**, indicating
 continued upward pressure on the full-chain tier as Lockdown Mode and
 MIE further raise reliable-chain construction cost. PAC (A12),
@@ -1326,9 +1318,9 @@ For journalists, dissidents, executives, high-value targets:
 **Apple Lockdown Mode** (iOS 16+, evolution through iOS 18) disables
 arbitrary attachment types in Messages (the WebP/JBIG2 lineage),
 Safari JIT, configuration profiles, Wi-Fi auto-join, FaceTime from
-non-contacts, incoming shared albums. iOS 17 added shortwave-radio
-profile and connector restrictions; **iOS 18.1 added the
-inactivity-reboot timer** (after an unknown idle period the device
+non-contacts, incoming shared albums. iOS 17 added further
+protections; **iOS 18.1 added the
+inactivity-reboot timer**, for all devices rather than only Lockdown Mode (after 72 hours locked the device
 auto-reboots, returning it to before-first-unlock state where
 keybag-protected data is unrecoverable without the passcode — a
 direct counter to forensic-tool extraction). Apple's public position
@@ -1340,8 +1332,9 @@ compromised by mercenary spyware to date.
 **Stolen Device Protection (SDP, iOS 17.3+)** is a separate, broader-
 population control aimed at the "shoulder-surfed passcode + grab and
 walk" threat model rather than zero-click spyware. SDP keys
-high-impact operations (Apple Account password change, lost-mode
-disable, Find My disable, stored-passwords access, Apple Pay setup)
+high-impact operations (saved passwords and passkeys, Safari AutoFill
+payment methods, Lost Mode disable, erase all content and settings,
+new-device setup)
 to **biometric-only authentication with no passcode fallback** when
 the device is away from Frequent Locations. Sensitive operations
 additionally require a **one-hour security delay** plus a second
@@ -1353,7 +1346,7 @@ location avoids the biometric-only gate). References:
 [ElcomSoft — Forensic Implications of SDP](https://blog.elcomsoft.com/2025/03/forensic-implications-of-apples-stolen-device-protection/).
 
 **Google Advanced Protection Program** + hardware security key.
-**Android Identity Check** (Android 15+, opt-in 2024) — biometric-only
+**Android Identity Check** (Android 15+, opt-in, rolled out January 2025) — biometric-only
 gate on changing PIN, disabling theft protection, accessing Passkeys
 from untrusted locations; the closest Android peer to iOS SDP.
 
@@ -1555,8 +1548,8 @@ FORCEDENTRY,
 
 **Project Zero** — Ian Beer
 [radio proximity (2020)](https://projectzero.google/2020/12/an-ios-zero-click-radio-proximity.html);
-[PAC on iPhone XS (2019)](https://projectzero.google/2019/02/examining-pointer-authentication-on.html);
 Azad
+[PAC on iPhone XS (2019)](https://projectzero.google/2019/02/examining-pointer-authentication-on.html);
 [iOS kernel exploits survey (2020)](https://projectzero.google/2020/06/a-survey-of-recent-ios-kernel-exploits.html);
 [In-the-Wild Chain 3 (2019)](https://googleprojectzero.blogspot.com/2019/08/in-wild-ios-exploit-chain-3.html);
 [Blasting Past Webp (2025)](https://projectzero.google/2025/03/blasting-past-webp.html);
@@ -1651,7 +1644,7 @@ Amnesty Tech
 [comsecuris.com](https://comsecuris.com/),
 ["Breaking Band" Recon 2016](https://comsecuris.com/slides/recon2016-breaking_band.pdf),
 [Path of Least Resistance](https://comsecuris.com/blog/posts/path_of_least_resistance/),
-[BH USA 2021 5G baseband OTA RCE](https://i.blackhat.com/USA21/Wednesday-Handouts/us-21-Over-The-Air-Baseband-Exploit-Gaining-Remote-Code-Execution-On-5G-Smartphones.pdf),
+[BH USA 2021 5G baseband OTA RCE (Grassi & Chen, Keen Lab)](https://i.blackhat.com/USA21/Wednesday-Handouts/us-21-Over-The-Air-Baseband-Exploit-Gaining-Remote-Code-Execution-On-5G-Smartphones.pdf),
 [Basebandheimer hardwear.io 2023](https://hardwear.io/netherlands-2023/speakers/daniel-komaromy.php).
 
 **MVT / Amnesty Tech** —

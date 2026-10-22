@@ -28,8 +28,8 @@ The Agenda → Qilin rebrand was accompanied by a **Go-to-Rust rewrite**, the mo
 | 2023-02 | RaaS launch as "Qilin"; Rust rewrite shipped | Group-IB Revisited |
 | 2023-03 | Group-IB infiltrates affiliate panel | Group-IB |
 | 2024-06 | Synnovis attack (NHS pathology) — single most-public victim to date; $50M demand `[unverified specific demand figure]` | The Record, Group-IB Revisited |
-| 2024-Q3 | Qilin-B variant emerges | Halcyon `[unverified detail]` |
-| 2025-04 | Affiliates conduct ScreenConnect MSP spear-phishing chains | Sophos |
+| 2024-10 | Qilin-B variant emerges | Halcyon `[unverified detail]` |
+| 2025-01 | Affiliates conduct ScreenConnect MSP spear-phishing chains | Sophos |
 | 2025-06 | "Call Lawyer" feature added to affiliate panel + in-house journalist team + DDoS module + corporate spam tools | The Hacker News |
 | 2025-Q4 | Linux variant deployed on Windows hosts (cross-platform pivot) | Trend Micro `[unverified — WebFetch HTTP 403, claim from urlscan title only]` |
 | 2026-04 | BYOVD chain via `msimg32.dll` DLL side-loading + `rwdrv.sys`/`hlpdrv.sys` killing 300+ EDR drivers; shared with Akira + Makop | The Hacker News (sourcing Cisco Talos, Trend Micro, CYFIRMA, Cynet) |
@@ -58,7 +58,7 @@ This is **aggressive even by RaaS standards** — LockBit's contemporary split a
 5. **Payments** — wallet + transaction tracking
 6. **FAQs** — affiliate-facing operator documentation
 
-**2025-06 affiliate-panel additions** (The Hacker News, sourcing Cybereason / Qualys / Intel 471 / Intrinsec):
+**2025-06 affiliate-panel additions** (The Hacker News, sourcing Cybereason):
 - **"Call Lawyer" button** — affiliate clicks → operator's "legal team" contacts the affiliate to provide "qualified legal support." Verbatim quote: *"The mere appearance of a lawyer in the chat can exert indirect pressure on the company and increase the ransom amount, as companies want to avoid legal proceedings."*
 - **In-house journalist team** — for leak-site amplification + press outreach
 - **DDoS attack module** — triple-extortion pressure
@@ -79,7 +79,7 @@ The Call Lawyer feature is **operationally novel** — most RaaS programs leave 
 - Windows (primary)
 - ESXi (Linux ELF targeting VMware)
 - Linux generic
-- **Linux-on-Windows cross-deployment** (Trend Micro Oct 2025 `[unverified WebFetch-blocked detail]`) — operators delivering the Linux ELF encryptor to Windows hosts, likely via WSL or VM-hosted execution, as an EDR-evasion play (Windows EDR signatures don't fire on ELF execution paths)
+- **Linux-on-Windows cross-deployment** (Trend Micro Oct 2025 `[unverified WebFetch-blocked detail]`) — operators delivering the Linux ELF encryptor to Windows hosts, via WSL, as an EDR-evasion play (Windows EDR signatures don't fire on ELF execution paths)
 
 **Per-victim binary customization** (Trend Micro 2022, confirmed pattern):
 > "options to tailor the binary payloads for each victim, enabling the operators to decide the ransom note, encryption extension, as well as the list of processes and services to terminate"
@@ -117,7 +117,7 @@ The CLI flag catalog is the **single most-actionable behavioral fingerprint** fo
 | `--safe` | Reboot host into Safe Mode (Networking) before encryption |
 | `--no-escalate` | Skip privilege-escalation attempts |
 | `--no-local` | Skip local-disk encryption |
-| `--no-domain` | Skip domain-discovery |
+| `--no-domain` | Skip encryption of files on domain hosts |
 | `--no-network` | Skip network-share encryption |
 | `--timer <SECS>` | Delay before encryption starts |
 | `--debug` | Verbose / debugging output |
@@ -148,10 +148,10 @@ Qilin affiliates use a **broad initial-access portfolio** — the operator does 
 1. **Veeam Backup & Replication CVE-2023-27532** (Group-IB Revisited) — internet-facing Veeam B&R; pre-auth credential extraction → lateral access. Patched March 2023; still exploited in unpatched environments through at least 2024.
 2. **Fortinet device exploitation** (Group-IB Revisited) — "well-known vulnerabilities" on Fortinet appliances; specific CVE not enumerated in the source `[unverified specific Fortinet CVE]`. Likely candidates: CVE-2022-40684 (FortiOS pre-auth admin bypass), CVE-2023-27997 (FortiOS SSL-VPN heap overflow), CVE-2024-21762 (FortiOS SSL-VPN OOB write).
 3. **VPN brute-force** (Group-IB Revisited) — credential-stuffing against exposed VPN portals; *"logs systematically cleared"* post-compromise to obstruct attribution.
-4. **RDP** (Huntress via BleepingComputer) — direct RDP login with valid (likely stolen or stuffed) credentials. **Most-common observed initial access** in Huntress's 2025 Qilin engagements.
-5. **Microsoft SharePoint** (The Hacker News 2026-04) — unpatched SharePoint servers as 2026 vector (this is the Warlock co-mention; Qilin also observed using the same path).
+4. **RDP** (Huntress via BleepingComputer) — direct RDP login with valid (likely stolen or stuffed) credentials. A number of Huntress's 2025 Qilin engagements started with RDP logins.
+5. **Stolen credentials** (The Hacker News 2026-04) — the group "primarily relies on stolen credentials to gain initial access"; the same article's unpatched-SharePoint vector is attributed to Warlock, not Qilin.
 6. **ScreenConnect MSP spear-phishing** (Sophos April 2025) — affiliates spear-phish the *administrator* of a managed-service-provider's ScreenConnect deployment, then pivot through the MSP's tenancy to many downstream client environments. This is supply-chain compromise via RMM.
-7. **ClickFix → StealC → Qilin** (Sophos) — fake CAPTCHA / "I am not a robot" iframe overlay tricks user into pasting a command (the exact command-paste step is the canonical ClickFix mechanic; Sophos's article does not quote the verbatim PowerShell `[unverified verbatim ClickFix paste-payload]`). Downloads a batch file → NetSupport Manager (RAT) → StealC V2 infostealer (SHA `13fe3c1072ce308192994f2d7b329f7c8cbb192d49bdb538872383192d133ebb`) → VPN credential exfiltration → Qilin deployment **approximately one month later** via stolen VPN credentials.
+7. **ClickFix → StealC → Qilin** (Sophos) — fake CAPTCHA / "I am not a robot" iframe overlay tricks user into pasting a command (the exact command-paste step is the canonical ClickFix mechanic; Sophos's article does not quote the verbatim PowerShell `[unverified verbatim ClickFix paste-payload]`). Downloads a batch file → NetSupport Manager (RAT) → StealC V2 infostealer (sideloading DLL `rtworkq.dll` SHA-256 `13fe3c1072ce308192994f2d7b329f7c8cbb192d49bdb538872383192d133ebb`) → VPN credential exfiltration → Qilin deployment **approximately one month later** via stolen VPN credentials.
 
 The ~30-day gap between ClickFix infostealer execution and Qilin deployment is operationally significant: **credential-aging detections firing on stale VPN credentials would catch this chain**, and credential-rotation discipline (force re-auth on stolen creds via session-management primitives — see [[reference-session-management]]) would break it.
 
@@ -178,7 +178,7 @@ Cross-link: [[reference-windows-kernel-exploitation]] §6 BYOVD doctrine. Detect
 
 ### 8.2 Safe-Mode reboot for encryption
 
-Both Cybereason and Group-IB confirm the safe-mode reboot mechanism. **Exact command** (Cybereason):
+Group-IB and Trend Micro (2022) confirm the safe-mode reboot mechanism. Standard Windows command for Safe Mode with Networking:
 
 ```cmd
 BCDEdit.exe /set {current} safeboot network
@@ -198,9 +198,7 @@ Registry path: `HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet` (`[unverified e
 
 ### 8.4 Volume Shadow Copy / snapshot deletion
 
-Cybereason documented (verbatim where provided):
-- `Dismount-DiskImage -ImagePath` — used to dismount mounted disk images (likely targeting snapshot images)
-- Group-IB documented general "snapshot deletion" but did not quote the exact `vssadmin delete shadows /all /quiet` or `wmic shadowcopy delete` patterns `[unverified exact Qilin VSS-delete command — likely standard ransomware idiom]`
+- Group-IB documented the malware starting the VSS service and deleting shadow copies with `vssadmin.exe Delete Shadows /all /quiet`
 
 ### 8.5 Event-log clearing (Cybereason verbatim)
 
@@ -223,7 +221,7 @@ After VPN brute-force initial access: *"logs systematically cleared"* on the VPN
 
 **Embedded PsExec 2.43** (Group-IB Revisited) — the encryptor binary embeds Sysinternals PsExec v2.43 (a specific older version, useful as a YARA anchor) for SMB-based propagation. Cross-link: [[reference-active-directory-windows-security]] §lateral-movement.
 
-**fsutil symbolic link manipulation** (Group-IB Revisited) — `fsutil` commands to create symbolic links across the filesystem, likely to widen the encryption surface or to chain into restricted directories. Specific command set not quoted.
+**fsutil symbolic link manipulation** (Group-IB Revisited) — `fsutil behavior set SymlinkEvaluation R2R:1` and `fsutil behaviour set SymlinkEvaluation R2L:1` to enable symbolic-link evaluation, likely to widen the encryption surface.
 
 **Spread modes via CLI** (§6):
 - `--spread` — generic SMB self-propagation
@@ -239,7 +237,7 @@ Public reporting on Qilin's in-network credential harvesting is **thinner than t
 
 Confirmed:
 - **`r.ps1` PowerShell script** (Huntress) — enumerates RDP access logs to identify IP addresses, domains, and usernames associated with prior RDP sessions. Used for follow-on lateral access via known-good credential paths.
-- **Indirect credential access via StealC handoff** (Sophos) — when the chain begins with ClickFix → StealC, the infostealer harvests browser-cached credentials + autofill data + browser cookies, then VPN credentials are used 30 days later by Qilin affiliates. This means Qilin affiliates frequently *do not* need to run Mimikatz / LSASS-dumping themselves; they buy or trade infostealer output.
+- **Indirect credential access via StealC handoff** (Sophos) — when the chain begins with ClickFix → StealC, the infostealer obtains credentials, then VPN credentials are used ~30 days later by Qilin affiliates. This means Qilin affiliates frequently *do not* need to run Mimikatz / LSASS-dumping themselves; they buy or trade infostealer output.
 - **Mimikatz / LSASS dump** — `[unverified — not confirmed in any URL fetched, but standard ransomware-affiliate tradecraft and likely used in cases where infostealer handoff is not the chain]`
 
 Cross-link: [[reference-active-directory-windows-security]] for Mimikatz / DCSync / Kerberoasting patterns; [[reference-llm-agent-security]] for credential-harvesting via infostealer chains.
@@ -248,14 +246,14 @@ Cross-link: [[reference-active-directory-windows-security]] for Mimikatz / DCSyn
 
 ## 11. Data exfiltration
 
-**Double-extortion is the baseline** — Qilin exfiltrates before encryption. From Group-IB Revisited, exfil precedes encryption universally.
+**Double-extortion is the baseline** — Qilin exfiltrates before encryption.
 
 Observed exfil tooling:
-- **`s5cmd`** (Huntress — *"one incident mentioned s5cmd for data exfiltration, though not confirmed in this specific case"*) — high-performance S3 client; used to push exfiltrated data to attacker-controlled S3-compatible storage
-- **FTP** (Cybereason) — direct FTP push to operator-controlled servers: `185.208.156.157` and `185.196.10.19`
+- **`s5cmd`** (Huntress — *"In only one incident did analysts observe the use of s5cmd for data exfiltration"*) — high-performance S3 client; used to push exfiltrated data to attacker-controlled S3-compatible storage
+- **FTP** — direct FTP push to operator-controlled servers
 - **Rclone** — `[unverified specific to Qilin in the URLs fetched, but standard RaaS exfil tooling and likely used by affiliates who don't use s5cmd]`
 
-**WikiLeaks V2** instance hosted at `80.64.16.87` (Cybereason; OPTIMA LLC hosting) — Qilin's operator runs a "WikiLeaks V2" project to publish exfiltrated data for publicity / pressure beyond just the standard DLS (Dark Leak Site) Tor hidden-service.
+**WikiLeaks V2** — Qilin's operator runs a "WikiLeaks V2" project to publish exfiltrated data for publicity / pressure beyond just the standard DLS (Dark Leak Site) Tor hidden-service.
 
 **Triple/quadruple extortion (2025-06+):** the affiliate-panel adds (Call Lawyer + journalist team + DDoS + corporate email/phone spam) extend pressure beyond data publication into reputation + legal-process + service-disruption + harassment.
 
@@ -270,7 +268,7 @@ Observed exfil tooling:
 
 **Recovery posture:** RSA-4096-protected AES-256-CTR / ChaCha20 is unbreakable without operator cooperation. Backup-restore is the only recovery path that does not involve paying.
 
-**Ransom demands:** $50,000 to $800,000 (Trend Micro 2022 baseline); Synnovis was reported at **$50 million** (Group-IB Revisited, claim not independently confirmed in The Record's coverage `[unverified specific $50M figure]`).
+**Ransom demands:** $50,000 to $800,000 (Trend Micro 2022 baseline); Synnovis was reported at **$50 million** (Bloomberg).
 
 ---
 
@@ -279,10 +277,10 @@ Observed exfil tooling:
 | Date | Victim | Sector | Country | Notes / impact | Source |
 |------|--------|--------|---------|----------------|--------|
 | 2022-Q3 | Healthcare orgs | Healthcare | Indonesia, Saudi Arabia, South Africa, Thailand | Trend Micro 2022 — original Agenda campaign | The Hacker News mirror |
-| 2024-06 | **Synnovis** (NHS pathology JV) | Healthcare / pathology | UK | 814 elective procedures postponed; 97 cancer treatments postponed; 18 organs diverted to other Trusts; 5 planned C-sections rescheduled; 860+ outpatient appointments postponed; **blood testing capacity to ~10% of normal**; emergency call for O-type blood donations; primary affected Trusts: Guy's and St Thomas' NHS Foundation Trust + King's College Hospital NHS Foundation Trust | The Record |
-| 2025-04 | MSP customers via ScreenConnect chain | Multiple | Multiple | Spear-phishing MSP admin → cascade to client environments | Sophos |
-| 2025+ | **Die Linke** (German political party) | Political / non-profit | Germany | Data theft confirmed | BleepingComputer (urlscan-verified but not fetched this pass) |
-| 2025-10 (~) | Huntress-investigated victim | Unspecified | Unspecified | 3-day dwell; rogue ScreenConnect; r.ps1 RDP-log enumeration; Defender disablement | BleepingComputer / Huntress |
+| 2024-06 | **Synnovis** (NHS pathology JV) | Healthcare / pathology | UK | 814 elective procedures postponed; 97 cancer treatments postponed; 18 organs diverted to other Trusts; 5 planned C-sections rescheduled; **blood testing capacity to ~10% of normal**; emergency call for O-type blood donations; primary affected Trusts: Guy's and St Thomas' NHS Foundation Trust + King's College Hospital NHS Foundation Trust | The Record |
+| 2025-01 | MSP customers via ScreenConnect chain | Multiple | Multiple | Spear-phishing MSP admin → cascade to client environments | Sophos |
+| 2026-03 | **Die Linke** (German political party) | Political / non-profit | Germany | Data theft confirmed | BleepingComputer (urlscan-verified but not fetched this pass) |
+| 2025-10 (~) | Huntress-investigated victim | Unspecified | Unspecified | rogue ScreenConnect; r.ps1 RDP-log enumeration; Defender disablement | BleepingComputer / Huntress |
 
 **Group-IB Revisited total:** "over 150 organizations compromised across 25 countries" as of 2024.
 
@@ -294,25 +292,13 @@ The **Synnovis incident is load-bearing** for any briefing — it is the single 
 
 **Caveat (load-bearing):** Qilin's per-victim binary customization (§4) means **hash IOCs decay fast**. They are useful for forensic confirmation ("yes this was Qilin") but cannot drive ahead-of-time blocking. Behavior is the durable detection surface (§16).
 
-### Windows-variant SHA-256 (Cybereason)
-```
-31c3574456573c89d444478772597db40f075e25c67b8de39926d2faa63ca1d8
-C9707a3bc0f177e1d1a5587c61699975b1153406962d187c9a732f97d8f867c5
-```
-
-### Linux-variant SHA-256 (Cybereason)
-```
-13cda19a9bf493f168d0eb6e8b2300828017b0ef437f75548a6c50bfb4a42a09
-a7f2a21c0cd5681eab30265432367cf4b649d2b340963a977e70a16738e955ac
-```
-
 ### Huntress-investigation hashes
 ```
 s.exe   SHA-256: af9925161d84ef49e8fbbb08c3d276b49d391fd997d272fe1bf81f8c0b200ba1
 ss.exe  SHA-1:   ba79cdbcbd832a0b1c16928c9e8211781bf536cc
 ```
 
-### StealC V2 stage in ClickFix → Qilin chain (Sophos)
+### StealC V2 sideloading DLL (`rtworkq.dll`) in ClickFix → Qilin chain (Sophos)
 ```
 SHA-256: 13fe3c1072ce308192994f2d7b329f7c8cbb192d49bdb538872383192d133ebb
 ```
@@ -349,13 +335,13 @@ Specific Qilin DLS .onion URL not enumerated in any URL fetched this pass `[unve
 
 2. **Affiliate vs operator behavior is conflated in most reporting.** Group-IB's panel-infiltration work cleanly separates operator-developed primitives (the encryptor, the panel, the legal-coercion infrastructure) from affiliate-driven tradecraft (initial access, dwell-time decisions, exfil tooling choices). Most other vendor reports observe an incident and attribute the entire chain to "Qilin," obscuring that the affiliate may have used Mimikatz / Rclone / Cobalt Strike that another Qilin affiliate would not have used. This matters because **detections that key off affiliate-variable tooling are fragile**.
 
-3. **The Synnovis "$50M" demand figure is not independently confirmed.** Group-IB Revisited cites it; The Record's contemporaneous coverage does not. Either it is from operator boast or unsourced reporting. Treat as `[unverified]` until independently corroborated.
+3. **The Synnovis "$50M" demand figure traces to the operator.** Bloomberg reported Qilin's $50 million demand with a 120-hour deadline; Synnovis did not pay, and Qilin published the stolen data on 2024-06-20.
 
 4. **The BYOVD chain (msimg32.dll + rwdrv.sys + hlpdrv.sys) is shared across at least three ransomware families.** Detection rules anchored on these specific files will trigger on Akira and Makop too — high TP for "this is one of three serious ransomware families" but not for "this is Qilin specifically." This is fine for prevention (you want to block all three) but matters for attribution and IR.
 
 5. **The "Call Lawyer" feature may be partly theatrical.** No URL fetched this pass confirms that the lawyers are real, retained attorneys vs. operator-impersonated personas. The forum-post wording (Russian-to-English translation via The Hacker News) is exactly what an operator would write to *appear* credible. Treat the operational sophistication of the legal-coercion vector as `[unverified]`.
 
-6. **Linux-on-Windows pivot (Trend Micro Oct 2025) is reported but not confirmed in this pass.** WebFetch returned HTTP 403; the urlscan title is the only source. The pivot makes operational sense (Windows EDR signatures don't fire on ELF) but the specific delivery mechanism (WSL? VM-mounted? sideloaded interpreter?) needs primary-source confirmation.
+6. **Linux-on-Windows pivot (Trend Micro Oct 2025) is reported but not confirmed in this pass.** WebFetch returned HTTP 403; the urlscan title is the only source. The pivot makes operational sense (Windows EDR signatures don't fire on ELF) and BleepingComputer's coverage of the Trend Micro report names the mechanism: the ELF encryptor is transferred with WinSCP, launched via Splashtop's `SRManager.exe`, and run under WSL.
 
 7. **Public victim counts are operator-published.** "150+ orgs / 25 countries" is from Group-IB; some of those count is via the leak-site, which is the operator's publication channel. Victims who paid before publication never appear; victims the operator chose not to publish never appear. The true scale is higher and unknowable without breach-disclosure regulator data.
 

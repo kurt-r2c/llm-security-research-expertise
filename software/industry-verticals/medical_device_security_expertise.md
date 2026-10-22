@@ -9,7 +9,7 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 ### Karen Sandler — Software Freedom Conservancy (Executive Director)
 
-**Career arc**: Attorney; previously Executive Director of the GNOME Foundation; co-founder and Executive Director of Software Freedom Conservancy since 2011. Diagnosed with hypertrophic cardiomyopathy; implanted with a dual-chamber ICD in 2008. Describes herself as a "cyborg lawyer" because the proprietary firmware in her chest is unreviewable by her or her physicians.
+**Career arc**: Attorney; previously Executive Director of the GNOME Foundation; Executive Director of Software Freedom Conservancy since 2014. Diagnosed with hypertrophic cardiomyopathy; implanted with a defibrillator. Describes herself as a "cyborg lawyer" because the proprietary firmware in her chest is unreviewable by her or her physicians.
 
 **Core contribution**: Legal and ethical advocacy for the right to inspect the source code of life-supporting medical devices. Sandler's 2010 essay "Killed by Code: Software Transparency in Implantable Medical Devices" remains the canonical statement of the position. The argument is not primarily a security argument — closer to medical ethics and informed consent — but the security implications are direct: a device whose source nobody outside the vendor has reviewed cannot be independently assessed for vulnerability or safety.
 
@@ -17,15 +17,15 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 ### Kevin Fu — Northeastern University (Khoury College) / formerly FDA
 
-**Career arc**: Professor at Northeastern; founded and directs the Archimedes Center for Healthcare and Device Security (originally University of Michigan). Served as the first Acting Director of Medical Device Cybersecurity at FDA's Center for Devices and Radiological Health (2021-2022). Co-author on the 2008 Halperin paper. IEEE Security & Privacy Test of Time Award. Research focus: "analog cybersecurity" — modeling threats to the physics of computation and sensing (acoustic injection into MEMS sensors, light-based attacks on pulse oximeters).
+**Career arc**: Professor at Northeastern; founded and directs the Archimedes Center for Healthcare and Device Security (originally University of Michigan). Served as the first Acting Director of Medical Device Cybersecurity at FDA's Center for Devices and Radiological Health (2021-2022). Co-author on the 2008 Halperin paper. IEEE Security & Privacy Test of Time Award. Research focus: "analog cybersecurity" — modeling threats to the physics of computation and sensing (acoustic injection into MEMS sensors).
 
-**Core contribution**: Built the institutional infrastructure that makes medical-device cybersecurity a field rather than a series of one-off disclosures. The Archimedes Center is the canonical academic-industry-regulator convening venue. His FDA tenure pulled the agency's cybersecurity guidance from advisory-only to enforcement-backed (PATCH Act took effect during his tenure).
+**Core contribution**: Built the institutional infrastructure that makes medical-device cybersecurity a field rather than a series of one-off disclosures. The Archimedes Center is the canonical academic-industry-regulator convening venue. His FDA tenure pulled the agency's cybersecurity guidance from advisory-only to enforcement-backed.
 
 **Frame Fu introduced**: Medical-device cybersecurity is a sensor-physics problem at least as much as a software problem. The defender's mental model must include the analog front-end of every clinical sensor. Cross-link to [[reference-hardware-side-channels]].
 
 ### Daniel Halperin and Tadayoshi Kohno — University of Washington
 
-**Career arc**: Halperin — Ph.D. UW under Kohno; later Intel Labs. Kohno — Professor and Director of UW Security and Privacy Research Lab; co-author of *Cryptography Engineering* (Ferguson/Schneier/Kohno, 2010); long-running cross-domain security researcher. Cross-referenced in [[reference-automotive-security]] for the parallel 2010 Oakland and 2011 USENIX automotive papers.
+**Career arc**: Halperin — Ph.D. UW (advised by David Wetherall and Tom Anderson); later UW eScience Institute and Google. Kohno — Professor and Director of UW Security and Privacy Research Lab; co-author of *Cryptography Engineering* (Ferguson/Schneier/Kohno, 2010); long-running cross-domain security researcher. Cross-referenced in [[reference-automotive-security]] for the parallel 2010 Oakland and 2011 USENIX automotive papers.
 
 **Core contribution**: First author (Halperin) and senior author (Kohno) on "Pacemakers and Implantable Cardiac Defibrillators: Software Radio Attacks and Zero-Power Defenses" (IEEE S&P 2008; Best Paper; later Test of Time). Reverse-engineered the wireless interface of a then-current Medtronic ICD operating in the 175 kHz band; demonstrated unauthenticated telemetry harvesting, magic-packet activation, parameter reprogramming, and battery-drain. Proposed "zero-power" RF-harvested authentication primitives. Co-authors: Heydt-Benjamin, Ransford, Clark, Defend, Morgan, Fu, and cardiologist William H. Maisel.
 
@@ -33,9 +33,9 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 ### Marie Moe — mnemonic / formerly SINTEF
 
-**Career arc**: Norwegian information-security researcher; senior research positions at SINTEF, Norwegian NorCERT, now at mnemonic. Diagnosed with heart block in 2011; received a Biotronik dual-chamber pacemaker. Began the Pacemaker Hacking Project in 2015 with Eireann Leverett.
+**Career arc**: Norwegian information-security researcher; senior research positions at SINTEF, Norwegian NorCERT, now at mnemonic. Received a pacemaker in 2011. Began the Pacemaker Hacking Project in 2015 with Eireann Leverett.
 
-**Core contribution**: The "My Heart Depends On Your Code" talk series (DEF CON, CCC, Black Hat Europe) — a patient-researcher first-person account of the lifecycle of a single pacemaker with documented firmware bugs affecting her own clinical care. The 2020 CERT advisory she and her research team triggered identified five vulnerabilities in the Biotronik Home Monitoring Unit, with the vendor declining product updates for some — a useful case study in coordinated-disclosure failure modes for implantables.
+**Core contribution**: The 32C3 talk "Unpatchable: Living with a vulnerable implanted device" (with Leverett) — a patient-researcher first-person account of the lifecycle of a single pacemaker with documented firmware bugs affecting her own clinical care. The 2020 CERT advisory she and her research team triggered identified five vulnerabilities in the Biotronik Home Monitoring Unit, with the vendor declining to issue a product security update — a useful case study in coordinated-disclosure failure modes for implantables.
 
 **Frame Moe introduced**: The patient is a stakeholder. The implantable-device security conversation is a three-party negotiation: regulator, manufacturer, and the patient who carries the device. This frame is now baked into FDA postmarket guidance and EU MDR cybersecurity expectations.
 
@@ -49,9 +49,9 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 ### Jonathan Butts — QED Secure Solutions (founder)
 
-**Career arc**: Air Force veteran; Ph.D. computer science from the Air Force Institute of Technology; long-running ICS and embedded-systems researcher. Founded QED Secure Solutions in 2017.
+**Career arc**: Air Force veteran; Ph.D. computer science from the University of Tulsa; long-running ICS and embedded-systems researcher. Co-founded QED Secure Solutions with Rios.
 
-**Core contribution**: With Rios, the 2017-2018 pacemaker-programmer research documenting ~8,000 known vulnerabilities in third-party libraries across programmers from four major implantable-cardiac vendors (Medtronic, Abbott/St. Jude, BIOTRONIK, Boston Scientific). The Black Hat 2018 talk demonstrated wireless exploitation of a Medtronic pacemaker programmer permitting modification of pacing parameters on an implanted device. Triggered the largest implantable-cardiac-device cybersecurity firmware update in history.
+**Core contribution**: With Rios, the 2017-2018 pacemaker-programmer research documenting ~8,000 known vulnerabilities in third-party libraries across programmers from four major implantable-cardiac vendors (Medtronic, Abbott/St. Jude, BIOTRONIK, Boston Scientific). The Black Hat 2018 talk demonstrated that the Medtronic CareLink 2090 programmer's software-update network delivered unsigned, unencrypted updates, permitting malicious firmware that could alter shock delivery.
 
 **Frame Butts and Rios established**: The pacemaker programmer is the single highest-value target in the implantable-cardiac ecosystem. The implant's security model assumes the programmer is trusted; if the programmer is compromised, the entire trust chain collapses.
 
@@ -59,15 +59,15 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 **Career arc**: Type 1 diabetic; insulin-pump user. Became a security researcher after a self-funded reverse-engineering effort against his own Medtronic pump.
 
-**Core contribution**: Black Hat USA 2011 "Hacking Medical Devices for Fun and Insulin: Breaking the Human SCADA System" — the first public demonstration of remote, wireless, lethal-dose manipulation of an insulin pump (a Medtronic device he wore at the time). Forced the medical-device industry into the public security conversation in a way the 2008 ICD paper had not, because the disclosing party was visibly downstream of the safety-critical bug class. Subsequent CVEs against OneTouch glucose meters and Animas pumps (CVE-2016-5085).
+**Core contribution**: Black Hat USA 2011 "Hacking Medical Devices for Fun and Insulin: Breaking the Human SCADA System" — a live on-stage wireless attack that disabled his own insulin pump (a Medtronic Paradigm). Forced the medical-device industry into the public security conversation in a way the 2008 ICD paper had not, because the disclosing party was visibly downstream of the safety-critical bug class. Subsequent CVEs against OneTouch glucose meters and Animas pumps (CVE-2016-5085).
 
 **Frame Radcliffe introduced**: The patient-researcher is a structurally different disclosure actor. Vendor counter-arguments about "theoretical attacks" do not work when the disclosing party is wearing the device and can demonstrate the kill on themselves.
 
 ### Justine Bone — formerly MedSec (CEO)
 
-**Career arc**: Long-running security researcher with prior leadership at Bloomberg, Dow Jones, ISS X-Force. CEO of MedSec from 2014.
+**Career arc**: Long-running security researcher with prior leadership at Bloomberg, Dow Jones, ISS X-Force. CEO of MedSec.
 
-**Core contribution**: The 2016 MedSec / Muddy Waters short on St. Jude Medical — a categorically different disclosure model where MedSec partnered with activist short-seller Muddy Waters Capital to publish security findings on St. Jude's Merlin@home pacemaker-monitoring transmitter and ICDs after concluding vendor's prior responses had been inadequate. Muddy Waters shorted St. Jude stock; MedSec received research fees and trading-profit share. St. Jude sued; FDA opened an investigation; vulnerabilities were confirmed; firmware updates were issued; the lawsuit was dropped after Abbott's acquisition. The canonical example of "what happens when conventional coordinated disclosure fails."
+**Core contribution**: The 2016 MedSec / Muddy Waters short on St. Jude Medical — a categorically different disclosure model where MedSec partnered with activist short-seller Muddy Waters Capital to publish security findings on St. Jude's Merlin@home pacemaker-monitoring transmitter and ICDs after concluding vendor's prior responses had been inadequate. Muddy Waters shorted St. Jude stock; MedSec received research fees and trading-profit share. St. Jude sued; FDA opened an investigation; vulnerabilities were confirmed; firmware updates were issued. The canonical example of "what happens when conventional coordinated disclosure fails."
 
 **Frame Bone introduced**: Market mechanisms can correct security misalignment when regulatory mechanisms do not. The case did not become the new normal but permanently changed vendor risk-calibration. Cross-link to [[reference-steelman-doctrine-expertise]] on disclosure-ethics adjudication.
 
@@ -87,9 +87,9 @@ Medical-device cybersecurity has three overlapping lineages, each distinct from 
 
 **Frame Woods introduced**: The medical-device security ecosystem is small enough that every relevant practitioner has met every other relevant practitioner at a conference. Standards engagement is the actual mechanism by which the field organizes itself.
 
-### Eireann Leverett — Concinnity Risks / Cambridge Centre for Risk Studies
+### Eireann Leverett — Cambridge Centre for Risk Studies
 
-**Career arc**: Senior researcher on cyber risk at Cambridge Centre for Risk Studies. Founder of Concinnity Risks. Cross-referenced in [[reference-ics-ot-security]] for ICS internet-exposure work; included here for the Pacemaker Hacking Project collaboration with Moe (2015-2020) and ongoing healthcare-aggregate-loss modeling.
+**Career arc**: Senior researcher on cyber risk at Cambridge Centre for Risk Studies. Cross-referenced in [[reference-ics-ot-security]] for ICS internet-exposure work; included here for the Pacemaker Hacking Project collaboration with Moe (2015-2020) and ongoing healthcare-aggregate-loss modeling.
 
 **Core contribution**: With Moe, the multi-year reverse-engineering of the Biotronik pacemaker ecosystem (HMU firmware, proprietary telemetry protocol, vendor cloud back-end). Cambridge healthcare-sector cyber-risk modeling feeds the IEC 80001 risk-management framework and cyber-insurance pricing used by H-ISAC members.
 
@@ -115,7 +115,7 @@ Four dimensions distinguish medical-device cybersecurity from any other connecte
 
 1. **Direct dependency of human life on device function**. ICD shock decisions; insulin-pump dose calculations; ventilator FiO2 control; infusion-pump rate selection. Wrong output kills the patient on a timescale of seconds to minutes. No IT analog; even ICS failure modes are usually slower.
 
-2. **Multi-decade device lifecycles**. A pacemaker is implanted 10-15 years before battery replacement. MRI scanners depreciate over 7-15 years. Infusion pumps remain on hospital wards 8-12 years. A pacemaker programmer in a 2026 cath lab may be running Windows Embedded 7 (extended support ended October 2024). The "ship and patch" cadence of consumer software cannot apply.
+2. **Multi-decade device lifecycles**. A pacemaker is implanted 10-15 years before battery replacement. MRI scanners depreciate over 7-15 years. Infusion pumps remain on hospital wards 8-12 years. A pacemaker programmer in a 2026 cath lab may be running Windows Embedded Standard 7 (extended support ended October 2020). The "ship and patch" cadence of consumer software cannot apply.
 
 3. **Regulatory-required design constraints**. FDA-cleared firmware cannot be patched without going through a 510(k) special, PMA supplement, or letter-to-file. Change-control is engineered to ensure clinical-safety review of every modification. Patch-deploy cycles are months-to-years, not days.
 
@@ -123,7 +123,7 @@ Four dimensions distinguish medical-device cybersecurity from any other connecte
 
 ### Patient safety vs cybersecurity — how FDA reframed it
 
-Before 2014, FDA explicitly took the position that cybersecurity was a hospital IT problem, not a manufacturer problem. The 2014 FDA premarket cybersecurity guidance was the first formal reversal: cybersecurity *is* a patient-safety control. A vulnerability that causes a device to deliver wrong therapy is functionally identical to a hardware fault causing the same outcome. The same risk-management framework (ISO 14971) that manufacturers already used for hardware safety must extend to software vulnerability. The 2016 postmarket and 2023 final premarket guidance walked this further. As of October 2023, FDA can reject marketing submissions lacking cybersecurity content. The patient-safety framing is now load-bearing in the regulatory architecture.
+The 2014 FDA premarket cybersecurity guidance made the framing explicit: cybersecurity *is* a patient-safety control. A vulnerability that causes a device to deliver wrong therapy is functionally identical to a hardware fault causing the same outcome. The same risk-management framework (ISO 14971) that manufacturers already used for hardware safety must extend to software vulnerability. The 2016 postmarket and 2023 final premarket guidance walked this further. As of October 2023, FDA can reject marketing submissions lacking cybersecurity content. The patient-safety framing is now load-bearing in the regulatory architecture.
 
 ### Trust boundaries in the implantable ecosystem
 
@@ -157,7 +157,7 @@ The defender's mental model in 2026: physical proximity is one of several reach 
 
 ### Privacy overlay
 
-Even setting aside patient safety, every connected medical device handles regulated personal data. HIPAA Security Rule (45 CFR §164.302-318) imposes specific technical safeguards on covered entities and business associates. GDPR treats health data as Article 9 special-category data. State laws (CCPA, Washington My Health My Data Act) impose state-level breach-notification regimes. A medical-device security review must consider both the patient-safety surface and the data-protection surface; the controls for each often differ.
+Even setting aside patient safety, every connected medical device handles regulated personal data. HIPAA Security Rule (45 CFR §164.302-318) imposes specific technical safeguards on covered entities and business associates. GDPR treats health data as Article 9 special-category data. State laws (CCPA, Washington My Health My Data Act) impose state-level privacy regimes. A medical-device security review must consider both the patient-safety surface and the data-protection surface; the controls for each often differ.
 
 ### Cross-references
 
@@ -177,7 +177,7 @@ The implantable category is the canonical hard case. The device is inside the pa
 
 ### Pacemakers and ICDs
 
-Dominant implantable cardiac category. Pacemakers initiate cardiac contraction; ICDs add defibrillation shocks in response to ventricular tachyarrhythmia. CRT-D devices combine both with three leads. Major 2026 vendors: Medtronic, Abbott (formerly St. Jude), Boston Scientific, BIOTRONIK, MicroPort. ~1.4M pacemakers and ~300K ICDs implanted globally per year. Wireless interfaces: legacy 175 kHz inductive (Halperin target); modern MICS/MedRadio 402-405 MHz; BLE on newer devices (Abbott Confirm Rx, Medtronic Azure/Astra); proprietary 2.45 GHz ISM on some devices.
+Dominant implantable cardiac category. Pacemakers initiate cardiac contraction; ICDs add defibrillation shocks in response to ventricular tachyarrhythmia. CRT-D devices combine both with three leads. Major 2026 vendors: Medtronic, Abbott (formerly St. Jude), Boston Scientific, BIOTRONIK, MicroPort. Wireless interfaces: legacy 175 kHz inductive (Halperin target); modern MICS/MedRadio 402-405 MHz; BLE on newer devices (Abbott Confirm Rx, Medtronic Azure/Astra); proprietary 2.45 GHz ISM on some devices.
 
 ### Insulin pumps
 
@@ -193,7 +193,7 @@ Audio prostheses for sensorineural hearing loss. Cochlear (dominant share), Adva
 
 ### Drug-delivery pumps (intrathecal)
 
-Implanted pumps delivering pain medication (morphine, ziconotide, baclofen) directly into cerebrospinal fluid. Medtronic SynchroMed is dominant. The wireless programmer has had documented vulnerabilities (CVE-2018-8870, CVE-2018-10591); dose-overrun is a direct lethality vector.
+Implanted pumps delivering pain medication (morphine, ziconotide, baclofen) directly into cerebrospinal fluid. Medtronic SynchroMed is dominant. Dose-overrun is a direct lethality vector.
 
 ### Cardiac monitors (ILRs, CardioMEMS)
 
@@ -209,7 +209,7 @@ A modern pacemaker runs on a coin-cell-class lithium battery for 8-12 years. Eve
 
 ### Closed-loop devices — the dangerous frontier
 
-Closed-loop systems autonomously translate sensor reads into therapy adjustments. The compromise surface is bigger because the attacker can manipulate sensor input rather than control output, which is often a less-defended path. The 2017 NIH-sponsored research on spoofed CGM input to closed-loop insulin pumps demonstrated dose escalation within the design envelope — the pump did nothing wrong, the sensor lied, hyperinsulinemia followed.
+Closed-loop systems autonomously translate sensor reads into therapy adjustments. The compromise surface is bigger because the attacker can manipulate sensor input rather than control output, which is often a less-defended path.
 
 For any closed-loop device, the review must include sensor-input attack surface as a first-class concern. Analog sensor attacks (Fu's work) and signal-injection attacks (spoofed glucose, spoofed heart rate, spoofed temperature) are now in the threat model.
 
@@ -237,7 +237,7 @@ Hospital infrastructure (PACS, EHR clients, infusion-pump network connections, M
 
 ### Proprietary RF protocols
 
-Many older devices use vendor-proprietary protocols at 433 MHz ISM or 2.4 GHz. The historical pattern: protocols designed without cryptographic review, often by hardware engineers without security background, vulnerable to SDR-based reverse engineering. Hospira infusion pumps, older Medtronic CareLink, Animas OneTouch Ping (CVE-2016-5085 — 2.4 GHz proprietary with no encryption between remote and pump) are representative.
+Many older devices use vendor-proprietary protocols at 433 MHz ISM or 2.4 GHz. The historical pattern: protocols designed without cryptographic review, often by hardware engineers without security background, vulnerable to SDR-based reverse engineering. Hospira infusion pumps, older Medtronic CareLink, Animas OneTouch Ping (CVE-2016-5084 — 900 MHz proprietary with no encryption between remote and pump) are representative.
 
 ### "Unencrypted by design"
 
@@ -253,15 +253,15 @@ IEEE S&P (Oakland) May 2008; Best Paper; Test of Time. Target: Medtronic Maximo 
 
 ### Radcliffe 2011 — Insulin pump remote dosing
 
-Black Hat USA 2011, Medtronic MiniMed Paradigm series with 2.4 GHz proprietary interface to paired meter. Captured and replayed the wireless bolus-command from the glucose meter; range extension via directional antenna; lethal-dose feasibility via repeated unauthorized boluses. Forced Medtronic into the first major insulin-pump security update cycle and triggered FDA/DHS ICS-CERT coordinated-disclosure relationships. Follow-up CVEs: Animas OneTouch Ping (CVE-2016-5085), Medtronic MiniMed 508.
+Black Hat USA 2011, Medtronic MiniMed Paradigm series with 916.5 MHz proprietary RF interface. Used a Medtronic MiniMed ComLink transmitter to wirelessly disable the pump on stage from about 100 feet; said modifications could extend range to roughly half a mile. Triggered FDA/DHS ICS-CERT coordinated-disclosure relationships. Follow-up CVEs: Animas OneTouch Ping (CVE-2016-5085), Medtronic MiniMed 508.
 
 ### Rios + Butts 2017 — Pacemaker programmers
 
-"Security Evaluation of the Implantable Cardiac Device Ecosystem Architecture and Implementation Interdependencies" (WhiteScope, May 2017). Cross-vendor analysis (Medtronic, Abbott/St. Jude, BIOTRONIK, Boston Scientific) found ~8,000 known vulnerabilities in third-party libraries on programmers — outdated OpenSSL, decrepit Windows components, unauthenticated remote-management. Follow-up Black Hat 2018 demonstrated wireless exploitation of a Medtronic pacemaker programmer permitting modification of pacing parameters on the implanted device. Triggered Medtronic CareLink 2090 / Encore 29901 programmer firmware update. CVE refs: CVE-2017-12714, CVE-2017-12712, CVE-2017-12716, CVE-2017-12718; CISA advisories ICSMA-17-227-01 and ICSMA-18-219-02.
+"Security Evaluation of the Implantable Cardiac Device Ecosystem Architecture and Implementation Interdependencies" (WhiteScope, May 2017). Cross-vendor analysis (Medtronic, Abbott/St. Jude, BIOTRONIK, Boston Scientific) found ~8,000 known vulnerabilities in third-party libraries on programmers — outdated OpenSSL, decrepit Windows components, unauthenticated remote-management. Follow-up Black Hat 2018 demonstrated that the Medtronic CareLink 2090 programmer's software-update network delivered unsigned, unencrypted updates, permitting malicious firmware that could alter shock delivery. CISA advisories ICSMA-18-058-01 (CareLink 2090 / Encore 29901 programmers) and ICSMA-18-219-02 (MiniMed pump remote controllers).
 
 ### Hospira infusion-pump corpus (2014-2015)
 
-Rios disclosure series on Hospira (later Pfizer) pumps: LifeCare PCA (CVE-2015-3459), Plum A+ (CVE-2015-3955), Symbiq (ICSA-15-174-01). Hardcoded credentials, unauthenticated drug-library upload, telnet on port 23 with no password, lateral-movement primitives. July 2015 FDA Safety Communication on Symbiq — first time FDA explicitly urged hospitals to "discontinue use" of a medical device for cybersecurity reasons.
+Rios disclosure series on Hospira (later Pfizer) pumps: LifeCare PCA (CVE-2015-3459), Plum A+ (ICSA-15-161-01), Symbiq (ICSA-15-174-01). Hardcoded credentials, unauthenticated drug-library upload, telnet on port 23 with no password, lateral-movement primitives. July 2015 FDA Safety Communication on Symbiq — first time FDA explicitly urged hospitals to "discontinue use" of a medical device for cybersecurity reasons.
 
 ### Sandler 2010 — Right-to-inspect advocacy
 
@@ -269,11 +269,11 @@ Rios disclosure series on Hospira (later Pfizer) pumps: LifeCare PCA (CVE-2015-3
 
 ### Marie Moe — Pacemaker Hacking Project (2015-2020)
 
-Multi-year reverse-engineering of the Biotronik pacemaker ecosystem by Moe (patient/researcher), Leverett, and Bour. Extracted HMU firmware via debug interfaces; reverse-engineered proprietary RF between HMU and pacemaker; reverse-engineered cellular protocol between HMU and Biotronik cloud; CERT advisories July 2020 documenting five vulnerabilities. Vendor declined product updates for some — useful documented case of coordinated-disclosure failure mode for implantables.
+Multi-year reverse-engineering of the Biotronik pacemaker ecosystem by Moe (patient/researcher), Leverett, and Bour. Extracted HMU firmware via debug interfaces; reverse-engineered proprietary RF between HMU and pacemaker; reverse-engineered cellular protocol between HMU and Biotronik cloud; CERT advisories June 2020 documenting five vulnerabilities. Vendor declined to issue a product security update — useful documented case of coordinated-disclosure failure mode for implantables.
 
 ### MedSec / St. Jude (2016)
 
-The MedSec / Muddy Waters short. MedSec partnered with Muddy Waters Capital after concluding St. Jude's prior responses to disclosure had been inadequate. Muddy Waters shorted St. Jude; FDA opened investigation; vulnerabilities were confirmed; St. Jude issued firmware updates; the company sued; lawsuit dropped after Abbott's acquisition. Canonical example of disclosure-via-market-mechanism when coordinated disclosure fails.
+The MedSec / Muddy Waters short. MedSec partnered with Muddy Waters Capital after concluding St. Jude's prior responses to disclosure had been inadequate. Muddy Waters shorted St. Jude; FDA opened investigation; vulnerabilities were confirmed; St. Jude issued firmware updates; the company sued. Canonical example of disclosure-via-market-mechanism when coordinated disclosure fails.
 
 ### Medtronic CareLink Conexus (2019)
 
@@ -313,11 +313,11 @@ Legacy messaging protocol for inter-system clinical messaging. Plaintext, unauth
 
 ### HL7 FHIR
 
-Modern REST-based replacement using HTTP, JSON, OAuth2 with SMART on FHIR. The 21st Century Cures Act and ONC Cures Rule require EHRs to expose FHIR APIs to certified third-party applications. Security model is materially better than HL7 v2 (TLS by default, OAuth-based authn, scope-based authz), but the BOLA / BFLA shape remains. Alissa Knight's 2021 "Playing with FHIR" research documented BOLA in three of three production FHIR APIs tested — patient A authenticating with their own token could access patient B's records by changing the patient ID in the API path. Cross-link to [[reference-graphql-api-security]] and [[reference-distributed-authz]] for per-resource authorization patterns.
+Modern REST-based replacement using HTTP, JSON, OAuth2 with SMART on FHIR. The 21st Century Cures Act and ONC Cures Rule require EHRs to expose FHIR APIs to certified third-party applications. Security model is materially better than HL7 v2 (TLS by default, OAuth-based authn, scope-based authz), but the BOLA / BFLA shape remains. Alissa Knight's 2021 "Playing with FHIR" research documented BOLA in third-party FHIR aggregator and app implementations (not the EHR vendors' own FHIR APIs) — patient A authenticating with their own token could access patient B's records by changing the patient ID in the API path. Cross-link to [[reference-graphql-api-security]] and [[reference-distributed-authz]] for per-resource authorization patterns.
 
 ### Medication administration systems
 
-Pyxis (BD), Omnicell, MedSelect — automated medication dispensing cabinets (ADCs) on wards. CVE-2022-22767 (BD Pyxis): hardcoded default credentials that were not changed during deployment, allowing privileged file-system access and ePHI exposure. A May 2022 FDA warning letter to BD mentioned 544 open software-defect tickets on Pyxis, 111 categorized as catastrophic or severe, including 4 cybersecurity issues. Compensating controls (segmentation, credential rotation) are the documented defense.
+Pyxis (BD), Omnicell, MedSelect — automated medication dispensing cabinets (ADCs) on wards. CVE-2022-22767 (BD Pyxis): hardcoded default credentials that were not changed during deployment, allowing privileged file-system access and ePHI exposure. A November 2024 FDA warning letter to BD mentioned 544 open software-defect tickets on Pyxis, 111 categorized as catastrophic or severe, including 4 cybersecurity issues. Compensating controls (segmentation, credential rotation) are the documented defense.
 
 ### MRI, CT, ultrasound console computers
 
@@ -339,7 +339,7 @@ The Synnovis attack (June 2024) was identified as a contributing factor in at le
 
 The "Internet of Medical Things" is the catchall for connected medical devices and clinical-adjacent IoT. Broader than the FDA-regulated-medical-device set.
 
-**Connected pumps and monitors.** A typical ICU bed has 6-12 connected devices; a typical ward has hundreds; a large academic medical center may have tens of thousands. The aggregate is the largest IoT deployment most enterprises will manage.
+**Connected pumps and monitors.** A typical ward has hundreds of connected devices; a large academic medical center may have tens of thousands. The aggregate is the largest IoT deployment most enterprises will manage.
 
 **BYOD nurse phones and clinical apps.** Vocera, Epic Rover, Halo, PerfectServe integrate with the EHR and have substantial PHI access. Cross-link to [[reference-mobile-security]] on enterprise-mobile-management compromises.
 
@@ -349,9 +349,9 @@ The "Internet of Medical Things" is the catchall for connected medical devices a
 
 **Sterilization tracking** (Censis, SPM). Compromise yields the ability to falsify sterilization records — a Joint Commission compliance and infection-control issue with direct patient-safety implications.
 
-**Real-time location systems (RTLS).** Asset and patient tracking via RFID, BLE beacons, ultrasound, Wi-Fi triangulation. Major vendors: Stanley CenTrak, AiRISTA, Sonitor, Versus. Compromise allows falsification of location data — consequence-bearing in workflows like hand-hygiene compliance monitoring or psychiatric-ward elopement prevention.
+**Real-time location systems (RTLS).** Asset and patient tracking via RFID, BLE beacons, ultrasound, Wi-Fi triangulation. Major vendors: CenTrak, AiRISTA, Sonitor, Versus. Compromise allows falsification of location data — consequence-bearing in workflows like hand-hygiene compliance monitoring or psychiatric-ward elopement prevention.
 
-**The inventory problem.** The dominant operational problem for IoMT-aware security teams is inventory. The CMMS typically lists 60-80% of actual networked devices. Passive-discovery products (Cylera, Medigate / Claroty xDome, Asimily, Ordr, Armis) fill the gap.
+**The inventory problem.** The dominant operational problem for IoMT-aware security teams is inventory. Passive-discovery products (Cylera, Medigate / Claroty xDome, Asimily, Ordr, Armis) fill the gap.
 
 **RTOS substrate.** Many medical IoT devices run FreeRTOS, ThreadX (Azure RTOS), MQX, Nucleus, VxWorks rather than Linux. URGENT/11 (2019, VxWorks) and Ripple20 (2020, Treck TCP/IP) specifically called out medical-device fleets in coordinated disclosure. RTOS-substrate vulnerabilities are typically slow to patch because vendor testing is regulatory-bound. Cross-link to [[reference-rtos-embedded-os]] §VII.
 
@@ -361,7 +361,7 @@ The "Internet of Medical Things" is the catchall for connected medical devices a
 
 The incident corpus below shaped policy and regulatory response. Each lesson is the load-bearing artifact.
 
-**WannaCry NHS 2017** — May 12, 2017. NSA-leaked EternalBlue weaponized into ransomware. 600+ NHS organisations affected; 34 hospitals directly hit; 1,200+ pieces of diagnostic equipment infected or disconnected; 13,500 outpatient appointments cancelled; five trusts diverted emergency ambulances. NAO report is the canonical post-mortem. Lesson: the medical-device fleet's exposure to commodity malware is not theoretical. Windows-embedded consoles inherited EternalBlue and could not be patched in the available window.
+**WannaCry NHS 2017** — May 12, 2017. NSA-leaked EternalBlue weaponized into ransomware. 600+ NHS organisations affected; 37 trusts infected and locked out of devices; an estimated 19,000 appointments cancelled; five A&E departments diverted patients. NAO report is the canonical post-mortem. Lesson: the medical-device fleet's exposure to commodity malware is not theoretical. Windows-embedded consoles inherited EternalBlue and could not be patched in the available window.
 
 **NotPetya hospitals 2017** — June 27, 2017. Sandworm wiper masquerading as ransomware. Hit Heritage Valley Health System (Pennsylvania, two hospitals, dozens of clinics) — offline nearly a week. Merck lost HPV-vaccine manufacturing capacity; reported $870M in losses. Cross-link to [[reference-supply-chain-provenance]] §VIII. Lesson: collateral damage from nation-state operations is catastrophic for healthcare.
 
@@ -373,7 +373,7 @@ The incident corpus below shaped policy and regulatory response. Each lesson is 
 
 **Scripps Health 2021** — May 2021. Ransomware disabled clinical systems for nearly a month. $112M in lost revenue and IR costs. Cyber-insurance market responded with material premium increases and reduced coverage limits for hospital-system clients.
 
-**Vastaamo 2020** — Finnish psychotherapy chain breach. ~36,000 patients' session notes stolen. After failed corporate ransom, the attacker (Aleksanteri Kivimäki, sentenced 2024 to 6 years 3 months) extorted patients individually, threatening publication of their session notes. At least two patient suicides reported. Lesson: the patient-data-confidentiality surface in medical contexts has unique harm dimensions not captured by standard breach-cost models. HIPAA-style regimes treat all PHI categorically the same; in practice certain categories (mental health, HIV, fertility, gender-affirming care) carry vastly higher individual harm potential. Cross-link to [[reference-privacy-engineering]].
+**Vastaamo 2020** — Finnish psychotherapy chain breach. ~33,000 patients' session notes stolen. After failed corporate ransom, the attacker (Aleksanteri Kivimäki, sentenced 2024 to 6 years 3 months) extorted patients individually, threatening publication of their session notes. A victims' lawyer told the court that some patients had taken their own lives after the records were published. Lesson: the patient-data-confidentiality surface in medical contexts has unique harm dimensions not captured by standard breach-cost models. HIPAA-style regimes treat all PHI categorically the same; in practice certain categories (mental health, HIV, fertility, gender-affirming care) carry vastly higher individual harm potential. Cross-link to [[reference-privacy-engineering]].
 
 **Change Healthcare 2024** — February 12, 2024. ALPHV/BlackCat accessed Change Healthcare via a compromised Citrix gateway without MFA. Change Healthcare processes ~50% of all U.S. medical claims and ~67,000 pharmacies' prescription billing. The outage created national pharmacy disruption for over a month. UnitedHealth paid $22M ransom; data was leaked anyway. UHG reported $2.4B in incident-response and operational costs. Lesson: U.S. healthcare-payment infrastructure is single-point-of-failure on a small number of clearinghouses.
 
@@ -392,7 +392,7 @@ The incident corpus below shaped policy and regulatory response. Each lesson is 
 
 ### FDA premarket cybersecurity guidance
 
-Three generations: 2014 ("Content of Premarket Submissions for Management of Cybersecurity in Medical Devices" — first formal FDA acknowledgement that cybersecurity is a premarket criterion); 2018 draft (expanded scope; introduced the "cyber device" concept under 21st Century Cures Act authority); **2023 final** ("Cybersecurity in Medical Devices: Quality System Considerations and Content of Premarket Submissions," September 27, 2023). The 2023 guidance operationalizes the PATCH Act. Specific requirements: cybersecurity risk plan; SBOM in CycloneDX or SPDX (JSON or XML); coordinated-vulnerability-disclosure procedure; postmarket-patching commitment. FDA can refuse to accept marketing submissions (510(k), De Novo, PMA) that don't include the cybersecurity content. For "cyber devices" (defined in FDCA §524B), this is now a market-access gate.
+Three generations: 2014 ("Content of Premarket Submissions for Management of Cybersecurity in Medical Devices" — first formal FDA acknowledgement that cybersecurity is a premarket criterion); 2018 draft (expanded scope); **2023 final** ("Cybersecurity in Medical Devices: Quality System Considerations and Content of Premarket Submissions," September 27, 2023). The 2023 guidance operationalizes the PATCH Act. Specific requirements: cybersecurity risk plan; SBOM in CycloneDX or SPDX (JSON or XML); coordinated-vulnerability-disclosure procedure; postmarket-patching commitment. FDA can refuse to accept marketing submissions (510(k), De Novo, PMA) that don't include the cybersecurity content. For "cyber devices" (defined in FDCA §524B), this is now a market-access gate.
 
 ### FDA postmarket guidance (2016)
 
@@ -404,11 +404,11 @@ The Protecting and Transforming Cyber Health Care Act, enacted as Section 3305 o
 
 ### EU MDR / IVDR cybersecurity annex
 
-Medical Device Regulation (EU) 2017/745 and In Vitro Diagnostic Regulation (EU) 2017/746, in force May 2021 and May 2022. Annex I §17.4 (MDR) and §16.4 (IVDR) explicitly require cybersecurity for software-containing medical devices:
+Medical Device Regulation (EU) 2017/745 and In Vitro Diagnostic Regulation (EU) 2017/746, in force May 2021 and May 2022. Annex I §17.2 (MDR) and §16.2 (IVDR) explicitly require cybersecurity for software-containing medical devices:
 
 > "For devices that incorporate software or for software that are devices in themselves, the software shall be developed and manufactured in accordance with the state of the art taking into account the principles of development life cycle, risk management, including information security, verification and validation."
 
-Mandatory reporting to national CSIRTs and ENISA via Eudamed within 30 days. MDCG 2019-16 ("Guidance on Cybersecurity for medical devices") is the operational implementation reference.
+Serious incidents must be reported to competent authorities within 15 days (MDR Article 87). MDCG 2019-16 ("Guidance on Cybersecurity for medical devices") is the operational implementation reference.
 
 ### IEC 62304 — Medical device software lifecycle
 
@@ -416,7 +416,7 @@ Published 2006; amended 2015. Medical-device software-lifecycle process requirem
 
 ### IEC 81001-5-1 — Health software cybersecurity
 
-Published 2021. The cybersecurity-process supplement to IEC 62304. 64 additional cybersecurity activities mapped to IEC 62304 lifecycle phases: security risk management integrated with ISO 14971; secure design including threat modeling, secure-coding standards, code review, static analysis; verification and validation as an independent security activity (pen testing, fuzz testing, vulnerability scanning) — explicitly required rather than implied; vulnerability handling with coordinated-disclosure process; configuration management for security-relevant components and SBOM. EN IEC 81001-5-1 (2022) is the state-of-the-art reference for MDR/IVDR Annex I compliance.
+Published 2021. The cybersecurity-process supplement to IEC 62304. Additional cybersecurity activities mapped to IEC 62304 lifecycle phases: security risk management integrated with ISO 14971; secure design including threat modeling, secure-coding standards, code review, static analysis; verification and validation as an independent security activity (pen testing, fuzz testing, vulnerability scanning) — explicitly required rather than implied; vulnerability handling with coordinated-disclosure process; configuration management for security-relevant components and SBOM. EN IEC 81001-5-1 (2022) is the state-of-the-art reference for MDR/IVDR Annex I compliance.
 
 ### ISO 14971 — Medical-device risk management
 
@@ -428,11 +428,11 @@ The risk-management standard for medical devices generally. Cybersecurity risk m
 
 ### AAMI TIR57
 
-"Principles for medical device security — Risk management" (2016, updated 2023). U.S. industry-consensus reference on cybersecurity risk management integrating with ISO 14971. FDA recognizes as consensus standard.
+"Principles for medical device security — Risk management" (2016, reaffirmed 2023). U.S. industry-consensus reference on cybersecurity risk management integrating with ISO 14971. FDA recognizes as consensus standard.
 
 ### Cross-jurisdictional summary
 
-For a global manufacturer: U.S. (FDA premarket + PATCH Act + HIPAA for providers); EU (MDR/IVDR Annex I + EN IEC 81001-5-1 + NIS2 for healthcare CI operators); Canada (Health Canada's "Pre-market Requirements for Medical Device Cybersecurity"); UK (post-Brexit MHRA tracking FDA + EU MDR; NHS-side DCB1596); Japan (PMDA guidance, 2021); Australia (TGA guidance, 2019). Harmonization is narrowing. Most major manufacturers organize a single global cybersecurity QMS meeting FDA + EU MDR; IEC 81001-5-1 is increasingly the universal reference.
+For a global manufacturer: U.S. (FDA premarket + PATCH Act + HIPAA for providers); EU (MDR/IVDR Annex I + EN IEC 81001-5-1 + NIS2 for healthcare CI operators); Canada (Health Canada's "Pre-market Requirements for Medical Device Cybersecurity"); UK (post-Brexit MHRA tracking FDA + EU MDR); Japan (PMDA guidance, 2021); Australia (TGA guidance, 2019). Harmonization is narrowing. Most major manufacturers organize a single global cybersecurity QMS meeting FDA + EU MDR; IEC 81001-5-1 is increasingly the universal reference.
 
 ---
 
@@ -450,11 +450,11 @@ A characteristic operational reality. A medical device shipped 2010 with OpenSSL
 
 ### VEX (Vulnerability Exploitability eXchange)
 
-CycloneDX VEX and CSAF VEX let manufacturers assert which CVEs in their SBOM are actually exploitable on the device. FDA 2023 guidance encourages but does not require VEX. MDISS and H-ISAC have produced shared VEX guidance for medical-device manufacturers. A typical SBOM-generated CVE list has 50-200 CVEs; VEX-asserted exploitable count is typically 1-5%. The defender's question is whether to trust manufacturer VEX assertions; manufacturer incentive runs toward over-asserting "not exploitable" to reduce postmarket reporting burden.
+CycloneDX VEX and CSAF VEX let manufacturers assert which CVEs in their SBOM are actually exploitable on the device. The defender's question is whether to trust manufacturer VEX assertions; manufacturer incentive runs toward over-asserting "not exploitable" to reduce postmarket reporting burden.
 
 ### Information-sharing nodes
 
-MITRE (CVE database; ATT&CK for Medical Devices planned matrix); MedISAO (manufacturer-side consortium); H-ISAC (provider-side and manufacturer-side; Medical Device Security Council is the formal venue). As of 2026, a vulnerability disclosed to a manufacturer is typically shared with H-ISAC within hours via confidential channel, CISA/FDA within days. Public disclosure (CVE assignment, CISA advisory) follows patch availability.
+MITRE (CVE database); MedISAO (manufacturer-side consortium); H-ISAC (provider-side and manufacturer-side; Medical Device Security Council is the formal venue). As of 2026, a vulnerability disclosed to a manufacturer is typically shared with H-ISAC within hours via confidential channel, CISA/FDA within days. Public disclosure (CVE assignment, CISA advisory) follows patch availability.
 
 ### Lifecycle considerations
 
@@ -474,7 +474,7 @@ Within the medical-device VLAN, microsegment by device class and clinical functi
 
 ### Device inventory
 
-Persistently the most-skipped first step. The CMMS typically lists 60-80% of actual networked devices. Passive-discovery tools (Cylera, Medigate / Claroty xDome, Asimily, Ordr, Armis, Phosphorus, Sternum) fill the gap. Accurate inventory is the prerequisite for everything else.
+Persistently the most-skipped first step. Passive-discovery tools (Cylera, Medigate / Claroty xDome, Asimily, Ordr, Armis, Phosphorus, Sternum) fill the gap. Accurate inventory is the prerequisite for everything else.
 
 ### Vulnerability management
 
@@ -494,7 +494,7 @@ Routes through H-ISAC (threat-intel sharing) + FDA CDRH (premarket/postmarket-re
 
 ### Procurement requirements
 
-The highest-leverage defensive control. Write cybersecurity into procurement contracts. The MDS2 (Manufacturer Disclosure Statement for Medical Device Security) form is the industry-consensus procurement-question framework. Required items for any new device purchase: current MDS2 with specific responses to all 26 categories; SBOM in CycloneDX or SPDX; cybersecurity risk plan per AAMI TIR57; vulnerability-disclosure and patch-management commitment; VEX maintenance; vendor product-security contact. Procurement-time control is dramatically cheaper than post-deployment retrofit.
+The highest-leverage defensive control. Write cybersecurity into procurement contracts. The MDS2 (Manufacturer Disclosure Statement for Medical Device Security) form is the industry-consensus procurement-question framework. Required items for any new device purchase: current MDS2 with specific responses to all 23 sections; SBOM in CycloneDX or SPDX; cybersecurity risk plan per AAMI TIR57; vulnerability-disclosure and patch-management commitment; VEX maintenance; vendor product-security contact. Procurement-time control is dramatically cheaper than post-deployment retrofit.
 
 ### Code review checklist for medical-device software
 
@@ -559,11 +559,11 @@ Training a shared model across institutions without centralized data pooling. Pr
 
 **Surgical robot tele-surgery.** Latency-critical RTOS aspects make this particularly sensitive. The 2019 5G-Smart Hospital initiatives anticipated remote tele-surgery over 5G public networks; the cybersecurity-and-latency properties of this surface are still emerging. 2026 deployments are small-scale and proof-of-concept.
 
-**Direct-to-consumer health devices.** Apple Watch ECG, Whoop, Oura, Garmin, Withings. Not FDA-regulated for most functions (some are 510(k)-cleared for specific indications like AFib detection on Apple Watch). Data-protection regime is weaker (HIPAA only applies if integrated with a healthcare provider). The structural property worth noting: DTC health-device data is increasingly used to inform clinical care (cardiologists looking at Apple Watch ECG strips; sleep specialists looking at Oura data). The data-integrity surface — falsified biometric data influencing clinical decisions — is under-considered.
+**Direct-to-consumer health devices.** Apple Watch ECG, Whoop, Oura, Garmin, Withings. Not FDA-regulated for most functions (some are De Novo-cleared for specific indications like AFib detection on Apple Watch). Data-protection regime is weaker (HIPAA only applies if integrated with a healthcare provider). The structural property worth noting: DTC health-device data is increasingly used to inform clinical care (cardiologists looking at Apple Watch ECG strips; sleep specialists looking at Oura data). The data-integrity surface — falsified biometric data influencing clinical decisions — is under-considered.
 
 **Brain-computer interfaces (BCIs).** Neuralink, Synchron, Blackrock Neurotech, Paradromics. The 2024 Synchron switch-control trials and Neuralink human implant create a small but growing population. Attack surface combines implantable-device challenges with extreme consequence (read access to brain signals; in some architectures, stim access to brain tissue). Too young to have a canonical disclosure or attack pattern, but structural risk is among the highest in any embedded-device category.
 
-**Consumer health-LLM advisory products.** OpenAI healthcare-adjacent ChatGPT applications, Google Med-Gemini, dedicated medical LLM products (Hippocratic AI, Glass.ai, OpenEvidence). Not FDA-regulated as medical devices in most current deployments. Attack surface: prompt injection (cross-link [[reference-llm-agent-security]]), hallucinated recommendations, training-data leakage of PHI. Clinical-impact gradient is high because the consumer interpreting LLM output may take medical action without clinician review.
+**Consumer health-LLM advisory products.** OpenAI healthcare-adjacent ChatGPT applications, Google Med-Gemini, dedicated medical LLM products (Hippocratic AI, Glass Health, OpenEvidence). Not FDA-regulated as medical devices in most current deployments. Attack surface: prompt injection (cross-link [[reference-llm-agent-security]]), hallucinated recommendations, training-data leakage of PHI. Clinical-impact gradient is high because the consumer interpreting LLM output may take medical action without clinician review.
 
 ---
 
@@ -573,13 +573,13 @@ Training a shared model across institutions without centralized data pooling. Pr
 
 - Halperin, Heydt-Benjamin, Ransford, Clark, Defend, Morgan, Fu, Kohno, Maisel, "Pacemakers and Implantable Cardiac Defibrillators: Software Radio Attacks and Zero-Power Defenses" (IEEE S&P 2008). https://www.secure-medicine.org/hubfs/public/publications/icd-study.pdf
 - Rios and Butts, "Security Evaluation of the Implantable Cardiac Device Ecosystem Architecture and Implementation Interdependencies" (WhiteScope, May 2017). https://web.archive.org/web/2017*/blog.whitescope.io/2017/05/understanding-pacemaker-systems.html
-- Sandler, Ohrstrom, Moy, McVay, "Killed by Code: Software Transparency in Implantable Medical Devices" (Software Freedom Law Center, July 2010). https://sfconservancy.org/docs/sandler-killed_by_code.pdf
-- Moe et al., "My Heart Depends on Your Code" talk series (DEF CON 24/25, CCC 33C3, Black Hat Europe). https://blog.sintef.com/digital-en/security-testing-of-the-pacemaker-ecosystem/
+- Sandler, Ohrstrom, Moy, McVay, "Killed by Code: Software Transparency in Implantable Medical Devices" (Software Freedom Law Center, July 2010). https://softwarefreedom.org/resources/2010/transparent-medical-devices.pdf
+- Moe and Leverett, "Unpatchable: Living with a Vulnerable Implanted Device" (CCC 32C3, December 2015); Moe, "My Heart Depends on Your Code" (O'Reilly Security Conference Amsterdam, 2016). https://blog.sintef.com/digital-en/security-testing-of-the-pacemaker-ecosystem/
 - Radcliffe, "Hacking Medical Devices for Fun and Insulin: Breaking the Human SCADA System" (Black Hat USA 2011). https://www.blackhat.com/html/bh-us-11/bh-us-11-archives.html
 - Picado Ortiz / Cylera Labs, "HIPAA-Protected Malware? Exploiting DICOM Flaw to Embed Malware in CT/MRI Imagery" (April 2019). https://labs.cylera.com/2019/04/16/pe-dicom-medical-malware/
 - Praetorian, "ELFDICOM: PoC Malware Polyglot Exploiting Linux-Based Medical Devices." https://www.praetorian.com/blog/elfdicom-poc-malware-polyglot-exploiting-linux-based-medical-devices/
 - Armis, "PwnedPiper: Pneumatic Tube System Vulnerabilities in North American Hospitals" (August 2021). https://www.armis.com/research/pwnedpiper/
-- Finlayson, Chung, Kohane, Beam, "Adversarial Attacks Against Medical Deep Learning Systems" (Science 2019). https://www.science.org/doi/10.1126/science.aaw4399
+- Finlayson, Bowers, Ito, Zittrain, Beam, Kohane, "Adversarial attacks on medical machine learning" (Science 2019). https://www.science.org/doi/10.1126/science.aaw4399
 - Marin et al., "On the (in)security of the latest generation implantable cardiac defibrillators and how to secure them" (ACSAC 2016).
 
 ### FDA guidance documents
@@ -617,7 +617,7 @@ Training a shared model across institutions without centralized data pooling. Pr
 - CISA, "Hospira Plum A+ and Symbiq Infusion Systems Vulnerabilities" (ICSA-15-161-01).
 - CISA, "Hospira Symbiq Infusion System Vulnerability" (ICSA-15-174-01, June 2015). https://www.cisa.gov/news-events/ics-advisories/icsa-15-174-01
 - CISA, "Medtronic Conexus Radio Frequency Telemetry Protocol" (ICSMA-19-080-01, March 2019). https://www.cisa.gov/news-events/ics-medical-advisories/icsma-19-080-01
-- CISA, "Abbott Laboratories' Defibrillators (Update A)" (ICSMA-18-219-02).
+- CISA, "Abbott Laboratories Defibrillator" (ICSMA-18-107-01).
 
 ### Incident retrospectives
 
@@ -632,7 +632,7 @@ Training a shared model across institutions without centralized data pooling. Pr
 
 - Archimedes Center for Healthcare and Device Security. https://archimedescenter.org/
 - Health-ISAC. https://health-isac.org/
-- MedISAO / Medical Device Innovation, Safety, and Security Consortium. https://medisao.org/
+- MedISAO. https://medisao.org/
 - I Am The Cavalry "Hippocratic Oath for Connected Medical Devices" (January 2016). https://iamthecavalry.org/2016/01/19/i-am-the-cavalry-proposes-hippocratic-oath-for-connected-medical-devices/
 - MDIC Medical Device Penetration Testing. https://mdic.org/our-work/medical-device-penetration-testing/
 - Software Freedom Conservancy. https://sfconservancy.org/
@@ -641,7 +641,7 @@ Training a shared model across institutions without centralized data pooling. Pr
 ### Books and long-form
 
 - Kim Zetter, *Countdown to Zero Day* (Crown, 2014).
-- John Halamka, *The Digital Reconstruction of Healthcare* (Springer, 2022).
+- Paul Cerrato and John Halamka, *The Digital Reconstruction of Healthcare* (Taylor & Francis / HIMSS, 2021).
 - Andy Greenberg, *Sandworm* (Doubleday, 2019).
 
 ### Wikipedia anchors
@@ -656,13 +656,13 @@ Training a shared model across institutions without centralized data pooling. Pr
 
 ### Conferences
 
-- DEF CON BioHackTheVillage (medical-device village; since DC24, 2016).
+- DEF CON Biohacking Village (medical-device village).
 - Archimedes Center workshops (annual).
 - H-ISAC Spring / Fall Summits.
 - AAMI Annual Conference and MD Expo (clinical-engineering audience).
 - HIMSS Cybersecurity Forum (annual; provider-side).
 - Black Hat USA / DEF CON medical-device tracks (since ~2011).
-- CCC (European medical-device disclosure venue, e.g. Moe's 33C3 talk).
+- CCC (European medical-device disclosure venue, e.g. Moe's 32C3 talk).
 
 ### Cross-link summary
 
