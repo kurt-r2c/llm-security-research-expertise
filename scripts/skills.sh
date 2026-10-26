@@ -7,7 +7,7 @@
 # its documented user-level skills root. Any other well-known root that already
 # holds a */SKILL.md is included too. Override everything with ROOTS="dir1 dir2".
 #
-# Safety: only tracked files are installed. Each installed skill carries a
+# Safety: gitignored files (venvs, eval runs) are never installed. Each installed skill carries a
 # marker file; uninstall and update only touch directories that have it (or
 # symlinks pointing back into this repo). A same-named skill that is not ours,
 # or another skill with the same frontmatter name, is skipped unless FORCE=1.
@@ -109,16 +109,23 @@ name_clash() {
   return 1
 }
 
-copy_tracked() {  # copy only git-tracked files, minus vulnerable eval corpora
+copy_tracked() {  # copy non-ignored files, minus vulnerable eval corpora
   src=$1 dest=$2
   rel=${src#"$REPO"/}
   tmp=$(mktemp -d)
   if git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1; then
-    git -C "$REPO" ls-files -z -- "$rel" | (cd "$REPO" && xargs -0 tar -cf - 2>/dev/null) | tar -xf - -C "$tmp"
+    # Tracked plus untracked-but-not-ignored, so .venv, eval runs and other
+    # gitignored output stay out. Skip tracked files deleted from the tree.
+    (cd "$REPO" && git ls-files -z --cached --others --exclude-standard -- "$rel" |
+      while IFS= read -r -d '' f; do [ -f "$f" ] && printf '%s\0' "$f"; done |
+      xargs -0 tar -cf -) | tar -xf - -C "$tmp"
   else
     (cd "$REPO" && tar -cf - --exclude .venv --exclude __pycache__ --exclude runs "$rel") | tar -xf - -C "$tmp"
   fi
   rm -rf "$tmp/$rel/eval/corpus"*
+  if [ ! -f "$tmp/$rel/SKILL.md" ]; then
+    rm -rf "$tmp"; log "  FAIL  nothing to copy from $src"; return 1
+  fi
   rm -rf "$dest"
   mv "$tmp/$rel" "$dest"
   rm -rf "$tmp"
@@ -145,7 +152,7 @@ install_into() {
     elif [ "$DRY_RUN" = 1 ]; then
       log "  [dry-run] copy $s -> $dest"
     else
-      copy_tracked "$s" "$dest"
+      copy_tracked "$s" "$dest" || continue
     fi
     log "  ok    $dest"
   done
