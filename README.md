@@ -10,7 +10,7 @@ Staff-level domain reference guides for security research and secure code review
 
 ## Layout
 
-`skills/` holds Claude Code skills; see [`skills/README.md`](skills/README.md).
+`skills/` holds agent skills (`SKILL.md` directories). `make install` installs them into every detected agent runtime (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Goose, OpenCode, Windsurf, OpenClaw); see [`skills/README.md`](skills/README.md).
 
 `software/static_analysis/` holds `marp_expertise.md` (Marp slide-deck authoring).
 
