@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).parent
-EXPERTISE_SOFTWARE = HERE.parent.parent / "software"
+EXPERTISE_KB = HERE.parent.parent / "knowledge-base"
 FINDINGS_SCHEMA = (HERE / "schema/findings.schema.json").read_text()
 VERDICT_SCHEMA = (HERE / "schema/verdict.schema.json").read_text()
 VERIFIER_PROMPT = (HERE / "verifier-prompt.md").read_text()
@@ -61,7 +61,7 @@ def stage(repo, extra_skills=None, expertise=False):
     if expertise:
         (d / "expertise").mkdir()
         shutil.copy(HERE / "eval/expertise-INDEX.md", d / "expertise/INDEX.md")
-        (d / "expertise/software").symlink_to(EXPERTISE_SOFTWARE)
+        (d / "expertise/knowledge-base").symlink_to(EXPERTISE_KB)
     return d / "r"
 
 

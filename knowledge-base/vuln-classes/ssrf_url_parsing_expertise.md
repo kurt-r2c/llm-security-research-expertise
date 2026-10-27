@@ -900,14 +900,14 @@ do authorization at the upstream (where the actual destination is known), not at
 
 ### Related expertise docs in this collection
 
-- `software/networking/dns_network_infrastructure.md` — DNS rebinding, BGP, network
+- `knowledge-base/networking/dns_network_infrastructure.md` — DNS rebinding, BGP, network
   position.
-- `software/appsec-web/http_web_security.md` — HTTP semantics, CORS, redirect handling.
-- `software/appsec-web/distributed_authz_expertise.md` — OAuth, OIDC, SAML authorization
+- `knowledge-base/appsec-web/http_web_security.md` — HTTP semantics, CORS, redirect handling.
+- `knowledge-base/appsec-web/distributed_authz_expertise.md` — OAuth, OIDC, SAML authorization
   models and the placement of authz checks.
-- `software/ai-ml-security/llm_agent_security_expertise.md` — agent runtimes and tool-execution
+- `knowledge-base/ai-ml-security/llm_agent_security_expertise.md` — agent runtimes and tool-execution
   threat model.
-- `software/methodology/code_review_expertise.md` — secure-code-review heuristics for
+- `knowledge-base/methodology/code_review_expertise.md` — secure-code-review heuristics for
   candidate-point auditing, click-count severity, and the "resolve then verify" path-handling
   recipe.
   and corpus discipline for SSRF/open-redirect rules.

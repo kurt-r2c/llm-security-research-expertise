@@ -227,7 +227,7 @@ Cline's post-mortem states the principle directly: "Giving an LLM shell access i
 - **Audit log everything.** Every tool invocation by the agent, with arguments, signed and shipped to a logging backend the workflow itself cannot edit. The class of bug Cacheract enables — exfil completes silently, with no log line visible to the maintainer until the malicious npm version surfaces — is the failure mode an immutable audit log addresses.
 - **Disable AI auto-publish.** If the business risk model puts npm/PyPI/marketplace token compromise at the top, the simplest defense is "no AI-driven workflow ever holds a publish credential, regardless of how isolated the cache is." Publish remains a human-in-the-loop step; the agent files PRs and labels, never tags releases.
 
-The class will not stay confined to Cline-the-product. Probot apps with AI integrations, custom `pull_request_target` reviewers wired to OpenAI or Anthropic APIs, Renovate with AI changelog summarization, Dependabot with AI re-review, marketplace agent-as-a-service products — anything that combines "reads attacker-controlled text" with "executes tool calls in a CI context" inherits the shape. Cross-link `software/ai-ml-security/ai_assisted_coding_tool_security_expertise.md` §3 for the prompt-injection primitive catalog and §9 for the AI-PR-review platform threat model that this attack instantiates on the CI side.
+The class will not stay confined to Cline-the-product. Probot apps with AI integrations, custom `pull_request_target` reviewers wired to OpenAI or Anthropic APIs, Renovate with AI changelog summarization, Dependabot with AI re-review, marketplace agent-as-a-service products — anything that combines "reads attacker-controlled text" with "executes tool calls in a CI context" inherits the shape. Cross-link `knowledge-base/ai-ml-security/ai_assisted_coding_tool_security_expertise.md` §3 for the prompt-injection primitive catalog and §9 for the AI-PR-review platform threat model that this attack instantiates on the CI side.
 
 Primary sources: Adnan Khan, *Clinejection* (Feb 9 2026, adnanthekhan.com/posts/clinejection/); Cline post-mortem (cline.bot/blog/post-mortem-unauthorized-cline-cli-npm); Snyk, *Cline Supply Chain Attack: Prompt Injection via GitHub Actions*; GHSA-9ppg-jx86-fqw7 (published Feb 19 2026; no CVE assigned as of writing).
 
@@ -636,7 +636,7 @@ NIST SP 800-218 (Secure Software Development Framework, SSDF v1.1; `https://csrc
 
 ### Internal cross-references
 
-- `software/cloud-containers/container_k8s_security.md` — container/Kubernetes primitives for runner-pod and ARC threat modeling
-- `software/ai-ml-security/llm_agent_security_expertise.md` — agent-runtime threat model when AI coding tools commit workflow changes
-- `software/crypto-trust/cryptography_expertise.md` — signing keys, signature verification, sigstore / cosign internals
+- `knowledge-base/cloud-containers/container_k8s_security.md` — container/Kubernetes primitives for runner-pod and ARC threat modeling
+- `knowledge-base/ai-ml-security/llm_agent_security_expertise.md` — agent-runtime threat model when AI coding tools commit workflow changes
+- `knowledge-base/crypto-trust/cryptography_expertise.md` — signing keys, signature verification, sigstore / cosign internals
 - `reference_key_artifacts` memory — index of operating docs and existing rules

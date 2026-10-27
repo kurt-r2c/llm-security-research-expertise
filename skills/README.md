@@ -1,6 +1,6 @@
 # Skills
 
-Agent skills (`SKILL.md` directories) that pair with the guides under `software/`.
+Agent skills (`SKILL.md` directories) that pair with the guides under `knowledge-base/`.
 
 | Skill | What it does |
 |-------|--------------|

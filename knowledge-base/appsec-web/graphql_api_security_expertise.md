@@ -33,7 +33,7 @@
 >   the systematic methodology for finding GraphQL endpoints (via `__schema`,
 >   suggested-field error oracles, alias-batching detection) and the broader HTTP-layer
 >   primitives (request smuggling, cache poisoning, CORS abuse) that compose with
->   GraphQL-specific bugs. See `expertise/software/http_web_security.md`.
+>   GraphQL-specific bugs. See `knowledge-base/appsec-web/http_web_security.md`.
 > - **Kurt Boberg (`kurt-r2c`)** — Staff Security Researcher at Semgrep; previously AppSec
 >   at DocuSign and Chegg. The Chegg work is the load-bearing operator credential for this
 >   document. Per the tl;dr sec staff-engineer interview with Clint Gibler:
@@ -47,7 +47,7 @@
 >   > authorization issues." — *tl;dr sec, "Kurt Boberg - Staff Security Researcher at r2c"*
 >
 >   Publicly credited (with yoshmidev) on CVE-2022-24901 (parse-server). See
->   `expertise/software/distributed_authz_expertise.md` for per-CVE writeups.
+>   `knowledge-base/appsec-web/distributed_authz_expertise.md` for per-CVE writeups.
 >
 > Sources: OWASP API Security Top 10 2023; *Black Hat GraphQL* (No Starch, 2023); Apollo
 > GraphQL documentation; GraphQL specification (graphql.org); PortSwigger Web Security
@@ -198,7 +198,7 @@ scoping:
 return Order.findOne({ _id: id, userId: context.user.id });
 ```
 
-Same pattern as `expertise/software/distributed_authz_expertise.md` §4: instead of
+Same pattern as `knowledge-base/appsec-web/distributed_authz_expertise.md` §4: instead of
 "fetch X, then check X.owner == user," the lookup is "fetch X where X.owner == user." Null
 result means null response — no oracle distinguishes "doesn't exist" from "exists but
 forbidden."
@@ -1130,25 +1130,25 @@ hostname. Cross-link `cicd_supply_chain_expertise.md` and `container_k8s_securit
 
 ### Internal cross-references
 
-- `software/appsec-web/distributed_authz_expertise.md` — Zanzibar, OAuth threat
+- `knowledge-base/appsec-web/distributed_authz_expertise.md` — Zanzibar, OAuth threat
   model, BOLA/BFLA/BOPLA primitives, authz CWE mapping.
-- `software/appsec-web/http_web_security.md` — HTTP request smuggling, web cache
+- `knowledge-base/appsec-web/http_web_security.md` — HTTP request smuggling, web cache
   poisoning, CORS. The transport-layer surface GraphQL inherits.
-- `software/methodology/code_review_expertise.md` — candidate-point auditing,
+- `knowledge-base/methodology/code_review_expertise.md` — candidate-point auditing,
   auth-homogeneity, click-count severity, format-string/path heuristics.
-- `software/vuln-classes/template_code_injection_expertise.md` — Jinja2/Handlebars/
+- `knowledge-base/vuln-classes/template_code_injection_expertise.md` — Jinja2/Handlebars/
   FreeMarker SSTI. Resolver-layer template injection (§5).
-- `software/vuln-classes/ssrf_url_parsing_expertise.md` — URL-parser discrepancies,
+- `knowledge-base/vuln-classes/ssrf_url_parsing_expertise.md` — URL-parser discrepancies,
   IMDS blocking. Resolver-layer SSRF (§5, §7).
-- `software/vuln-classes/redos_algorithmic_dos_expertise.md` — algorithmic-DoS,
+- `knowledge-base/vuln-classes/redos_algorithmic_dos_expertise.md` — algorithmic-DoS,
   token-bucket budgets, worst-case bounding. GraphQL complexity (§4, §9).
-- `software/crypto-trust/cryptography_expertise.md` — JWT algorithm confusion,
+- `knowledge-base/crypto-trust/cryptography_expertise.md` — JWT algorithm confusion,
   JWS/JWE, TLS/mTLS. AuthN credentials (§8).
-- `software/ai-ml-security/llm_agent_security_expertise.md` — LLM agent runtime,
+- `knowledge-base/ai-ml-security/llm_agent_security_expertise.md` — LLM agent runtime,
   delegated authority. AI-agent API consumption (§13).
-- `software/supply-chain/cicd_supply_chain_expertise.md` — pipeline hygiene,
+- `knowledge-base/supply-chain/cicd_supply_chain_expertise.md` — pipeline hygiene,
   internal-only-exposed misconfiguration. Inventory failure (§10).
-- `software/methodology/vulnerability_research_methodology_expertise.md` — surface
+- `knowledge-base/methodology/vulnerability_research_methodology_expertise.md` — surface
   enumeration, variant analysis, finding-rate floors. GraphQL discovery discipline (§6, §11).
 
 ---

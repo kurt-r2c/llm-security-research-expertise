@@ -63,10 +63,10 @@ When a system has compute and an attacker can inject into that compute, the atta
 Injection, broadly defined, is any input that crosses a trust boundary and is interpreted as one of:
 
 - **Code** — `eval` / `exec` / `Function()` / `new Function` / Python `compile`, scriptable engines (SpEL, OGNL, MVEL, JEXL), template-engines that allow code (Jinja2 `{% %}`, Velocity, Freemarker, ERB). See [[reference-template-code-injection]] for the engine-by-engine reach map.
-- **Query** — SQL, NoSQL (Mongo `$where`, `$regex`), GraphQL, LDAP, XPath, Cypher, SPARQL. Per-dialect quirks live in `software/language-footguns/sql_dialect_footguns_expertise.md` (Postgres `COPY FROM PROGRAM`, MSSQL `xp_cmdshell`, etc.).
+- **Query** — SQL, NoSQL (Mongo `$where`, `$regex`), GraphQL, LDAP, XPath, Cypher, SPARQL. Per-dialect quirks live in `knowledge-base/language-footguns/sql_dialect_footguns_expertise.md` (Postgres `COPY FROM PROGRAM`, MSSQL `xp_cmdshell`, etc.).
 - **Command** — shell argv (CWE-78 metachar / CWE-88 argv-injection / CWE-150 terminal-escape). The three-class split matters: `escapeshellcmd`-strength sanitizers stop CWE-78 but pass CWE-88. See [[reference-shell-injection]].
-- **Format string** — `printf`-family in C, `%n` write primitive, `String.format` indirect leaks, log injection. See `software/language-footguns/c_cpp_footguns_expertise.md`.
-- **Deserialized object** — pickle / Marshal / Java Serialization / Jackson polymorphic / PHP `unserialize` / .NET `BinaryFormatter` / Ruby `Marshal.load` / YAML constructors / JSON with prototype-keys. See `software/vuln-classes/deserialization_expertise.md` and [[reference-prototype-pollution]] for the `__proto__` class.
+- **Format string** — `printf`-family in C, `%n` write primitive, `String.format` indirect leaks, log injection. See `knowledge-base/language-footguns/c_cpp_footguns_expertise.md`.
+- **Deserialized object** — pickle / Marshal / Java Serialization / Jackson polymorphic / PHP `unserialize` / .NET `BinaryFormatter` / Ruby `Marshal.load` / YAML constructors / JSON with prototype-keys. See `knowledge-base/vuln-classes/deserialization_expertise.md` and [[reference-prototype-pollution]] for the `__proto__` class.
 - **Path** — directory traversal, `path/filepath.Join` quirks, Zip Slip, tarfile filter, archive-extraction-into-arbitrary-location.
 - **Parser-differential** — XML / SAML / HTML / JSON / YAML / URL / HTTP-header. See [[reference-xml-parser-differential]] for XXE + SAML XSW; [[reference-ssrf-url-parsing]] for URL parser differentials (Orange Tsai taxonomy).
 - **Prompt** — direct + indirect prompt injection into LLM contexts; tool-use surface in MCP / agentic loops. See [[reference-llm-agent-security]].
@@ -84,13 +84,13 @@ The five primitive categories Kurt names in the doctrine. For each, ask: how doe
 What to enumerate: open / read / write / unlink / glob / rename / `os.path.join` family / archive-extraction / symlink-following / temp-file creation / `chmod` and `chown` with attacker-influenced paths.
 
 Per-language footgun docs (read before authoring a hypothesis on a file in that language):
-- Python — `software/language-footguns/python_footguns_expertise.md` (tarfile filter, `pathlib` path traversal, `shutil.copytree`, `tempfile.mktemp` race).
-- Java — `software/language-footguns/java_footguns_expertise.md` (Zip Slip, `Files.copy` follow-symlinks default, `File.createTempFile` permissions).
-- Ruby — `software/language-footguns/ruby_footguns_expertise.md` (`File.open` mode-string quirks, `Tempfile` permissions).
-- Go — `software/language-footguns/go_footguns_expertise.md` (`path/filepath.Join` cleaning, `os.OpenFile` mode bits, `archive/tar` traversal).
-- Node — `software/language-footguns/javascript_node_footguns_expertise.md` (`fs.realpath` symlink resolution, missing `O_NOFOLLOW`, `tar` package extraction).
-- C/C++ — `software/language-footguns/c_cpp_footguns_expertise.md` (`open`/`openat` flag mistakes, `O_NOFOLLOW`, `RESOLVE_BENEATH`).
-- Rust — `software/language-footguns/rust_footguns_expertise.md` (`std::fs::canonicalize` semantics, `tar` crate defaults).
+- Python — `knowledge-base/language-footguns/python_footguns_expertise.md` (tarfile filter, `pathlib` path traversal, `shutil.copytree`, `tempfile.mktemp` race).
+- Java — `knowledge-base/language-footguns/java_footguns_expertise.md` (Zip Slip, `Files.copy` follow-symlinks default, `File.createTempFile` permissions).
+- Ruby — `knowledge-base/language-footguns/ruby_footguns_expertise.md` (`File.open` mode-string quirks, `Tempfile` permissions).
+- Go — `knowledge-base/language-footguns/go_footguns_expertise.md` (`path/filepath.Join` cleaning, `os.OpenFile` mode bits, `archive/tar` traversal).
+- Node — `knowledge-base/language-footguns/javascript_node_footguns_expertise.md` (`fs.realpath` symlink resolution, missing `O_NOFOLLOW`, `tar` package extraction).
+- C/C++ — `knowledge-base/language-footguns/c_cpp_footguns_expertise.md` (`open`/`openat` flag mistakes, `O_NOFOLLOW`, `RESOLVE_BENEATH`).
+- Rust — `knowledge-base/language-footguns/rust_footguns_expertise.md` (`std::fs::canonicalize` semantics, `tar` crate defaults).
 
 The TOCTOU class lives here too: any pattern that `stat`s a path then operates on it has a race window. See [[reference-race-conditions-concurrency]] for the canonical primitives (openat2 `RESOLVE_BENEATH`, Kettle single-packet attack, filesystem-race exploitation).
 
@@ -134,7 +134,7 @@ Per-format reach:
 - Ruby — `Marshal.load`; `YAML.load` with object instantiation; `Oj.load` default mode (vakzz universal-gadget chain adapted to Oj by GitHub Security Lab).
 - JS / Node — `JSON.parse` with `__proto__` ([[reference-prototype-pollution]]); `node-serialize` (eval-on-deserialize by design).
 
-Cross-link: `software/vuln-classes/deserialization_expertise.md` is the canonical primary. The per-language footgun docs catalog the language-specific entry points. When you find a deserialization sink on attacker-controlled bytes, the hypothesis is automatic.
+Cross-link: `knowledge-base/vuln-classes/deserialization_expertise.md` is the canonical primary. The per-language footgun docs catalog the language-specific entry points. When you find a deserialization sink on attacker-controlled bytes, the hypothesis is automatic.
 
 ### (f) Per-language grep-first quick reference
 
@@ -158,7 +158,7 @@ The five axes above are organized by primitive class. When you arrive at a targe
 
 **PowerShell.** Compute: `Invoke-Expression` / `iex`, `ScriptBlock::Create`, `Add-Type` with attacker source, `[scriptblock]::Create`. Execution-policy bypass shape: `-EncodedCommand <base64>`. Complex serialization: CLIXML deserialization (`Import-Clixml`, PSRemoting serialized objects) — full .NET type instantiation surface. AMSI / Constrained Language Mode: bypasses exist; the bug-hunter's audit is for reflection-based unloads (`amsiInitFailed`-style patches). Network / filesystem: `Invoke-WebRequest` redirect-follow, `Out-File` UTF-16-BOM defaults causing escape-bypass on downstream parsers, `Set-Acl` race. Grep first: `Invoke-Expression|iex\s|Add-Type|ScriptBlock::Create|Import-Clixml|-EncodedCommand`.
 
-**Shell (bash/zsh/sh).** IFS / word-splitting: unquoted variable expansion is the universal injection primitive. `cmd $var` is bug-shaped; `cmd "$var"` is not. Any `eval "$var"` with attacker influence on `$var` is RCE. Missing `set -euo pipefail` on most production scripts; `-u` catches half the injection bugs by accident. Shellshock-class: function-export envvar injection (CVE-2014-6271) still shows up in CGI-shaped contexts. Glob expansion: `rm $files` with attacker filename `-rf` becomes `rm -rf`. See `software/language-footguns/shell_footguns_expertise.md` for the broader catalog and the per-shell quirks (macOS bash-3.2 array semantics, zsh prompt-expansion CVE-2021-45444). Grep first: `eval\s+["'\$]|\$\w+[^"]|read\s+\w+(\s|$)|<\$\(|\| sh`.
+**Shell (bash/zsh/sh).** IFS / word-splitting: unquoted variable expansion is the universal injection primitive. `cmd $var` is bug-shaped; `cmd "$var"` is not. Any `eval "$var"` with attacker influence on `$var` is RCE. Missing `set -euo pipefail` on most production scripts; `-u` catches half the injection bugs by accident. Shellshock-class: function-export envvar injection (CVE-2014-6271) still shows up in CGI-shaped contexts. Glob expansion: `rm $files` with attacker filename `-rf` becomes `rm -rf`. See `knowledge-base/language-footguns/shell_footguns_expertise.md` for the broader catalog and the per-shell quirks (macOS bash-3.2 array semantics, zsh prompt-expansion CVE-2021-45444). Grep first: `eval\s+["'\$]|\$\w+[^"]|read\s+\w+(\s|$)|<\$\(|\| sh`.
 
 The pattern: on a multi-language target, run the grep pass per language before reading any code. The output goes into §5's matrix as rows; the §2(b) inventory provides the columns.
 
@@ -280,7 +280,7 @@ The doctrine becomes concrete on real stacks. For each below: (a) inventory; (b)
 - *Assets:* `GITHUB_TOKEN` (repo write or admin), org / OIDC sub-claim, secrets in workflow environment, release-signing keys if release workflow.
 - *Trust:* `pull_request` event = untrusted (forked PR); `pull_request_target` = elevated context but still untrusted body; `issues` event = untrusted body; `schedule` = trusted; `workflow_run` = elevated but triggered by untrusted parent.
 
-(b) Hotspots: `pull_request_target` checking out PR HEAD then running build (`pwn_request`); `${{ github.event.* }}` interpolation into `run:` (shell-injection in YAML); cache-poisoning across PR boundary; mutable tag references for third-party actions; AI-bot reading issue/PR body with tool-use authority (Clinejection class — see §9 + `software/supply-chain/cicd_supply_chain_expertise.md` §2.9).
+(b) Hotspots: `pull_request_target` checking out PR HEAD then running build (`pwn_request`); `${{ github.event.* }}` interpolation into `run:` (shell-injection in YAML); cache-poisoning across PR boundary; mutable tag references for third-party actions; AI-bot reading issue/PR body with tool-use authority (Clinejection class — see §9 + `knowledge-base/supply-chain/cicd_supply_chain_expertise.md` §2.9).
 
 (c) Top-5:
 1. `pull_request_target` + checkout-PR-head + run-build → arbitrary code in privileged context — CRITICAL ([[reference-cicd-supply-chain]] §2.1).
@@ -359,7 +359,7 @@ Kurt's specific gate: N-clicks that are entirely agentic *may* be considered 0-c
 When both hold, treat the bug as 0-click for prioritization purposes. The victim org had no human standing at the gate.
 
 Concrete examples:
-- **Clinejection** (Adnan Khan, GHSA-9ppg-jx86-fqw7, public Feb 2026). CI-bot in `claude-code-action` triggered by issue title — N=1 human click in the issue creator, but the bot's read+exec was entirely agentic with no HITL → 0-click for the org owning the bot. See `software/supply-chain/cicd_supply_chain_expertise.md` §2.9. The structural pattern: untrusted text + agent tool access + privileged context. The GHA trigger event is incidental; `issues` / `pull_request_target` / `workflow_run` / `discussion_comment` all inherit the same shape.
+- **Clinejection** (Adnan Khan, GHSA-9ppg-jx86-fqw7, public Feb 2026). CI-bot in `claude-code-action` triggered by issue title — N=1 human click in the issue creator, but the bot's read+exec was entirely agentic with no HITL → 0-click for the org owning the bot. See `knowledge-base/supply-chain/cicd_supply_chain_expertise.md` §2.9. The structural pattern: untrusted text + agent tool access + privileged context. The GHA trigger event is incidental; `issues` / `pull_request_target` / `workflow_run` / `discussion_comment` all inherit the same shape.
 - **Comment-and-Control class** (Aonan Guan with Johns Hopkins researchers, Apr 2026; CVSS 9.4 on Claude Code Security Review variant). PR-title-in-prompt → shell exec → secrets exfil via PR comment. The bot is agentic; the human PR author's "click" is creating a PR. For the org running the review bot, this is 0-click.
 - **PwnedRabbit** (Kudelski Security Research, Jan 2025 / Aug 2025 published). CodeRabbit's Rubocop linter executed in unsandboxed context → PEM-file exfil → 1M-repo write access. The bot is agentic; the PR is the trigger; the org running CodeRabbit had no HITL gate. Partial fit: the human PR author had to write malicious code, but for the *org running CodeRabbit*, the compromise was 0-click.
 - **CurXecute** (CVE-2025-54135, Aim Labs, Aug 2025) on Cursor. Indirect prompt injection in fetched content → MCP-tool-call to write a new workspace `.cursor/mcp.json` → arbitrary command. Creating that file needed no user approval (GHSA-4cxx-hrm3-49rm), so 0-click.
@@ -377,9 +377,9 @@ Operational rule: when reviewing an agentic system, the highest-leverage questio
 Honest accounting. The doctrine is not universal. Four classes where it dead-ends and you need a different frame:
 
 - **Capability-mismatch.** When the system has no useful compute and no useful information, first-principles produces nothing. A static-content CDN cache, a stateless number-formatting library, a public health-check endpoint. Pivot to **upstream** (the supply chain that produces the static content, the build pipeline that compiles the library) or **downstream** (where this system's outputs are consumed and could be poisoned). The bug is rarely *in* the trivial system; it is in what the trivial system feeds.
-- **Symbolic-trustworthy targets.** Formally verified microkernels (seL4), hardware roots-of-trust (TPMs, secure-enclave processors). First-principles is still useful for the *protocol* layer — how messages flow between verified and unverified components, how attestation is bound to identity — but not for the verified code itself. Reading the verified code looking for traditional bugs is a category error. The bug is in the boundary, the spec, or the unverified attestation flow. See `software/crypto-trust/formal_verification_protocols_expertise.md` for the discipline of attacking the protocol around verified code.
+- **Symbolic-trustworthy targets.** Formally verified microkernels (seL4), hardware roots-of-trust (TPMs, secure-enclave processors). First-principles is still useful for the *protocol* layer — how messages flow between verified and unverified components, how attestation is bound to identity — but not for the verified code itself. Reading the verified code looking for traditional bugs is a category error. The bug is in the boundary, the spec, or the unverified attestation flow. See `knowledge-base/crypto-trust/formal_verification_protocols_expertise.md` for the discipline of attacking the protocol around verified code.
 - **Business-logic-only bugs.** When there's no injection, no language-feature primitive, just a flawed policy. The classic: a coupon system that lets you stack two non-stackable coupons; a wire-transfer flow that lets a sender choose the destination account after the recipient confirmed; an OAuth flow where the redirect URI is checked against the wrong domain. First-principles produces no hypotheses on these; you need domain expertise and threat modeling. Closest sibling: [[reference-distributed-authz]] for the authz-policy anti-pattern catalog. The frame is "what is the system's intended invariant, and where does the implementation diverge from the spec the humans believed?"
-- **Configuration-only bugs.** IAM wildcards, exposed S3 buckets, open security groups, default credentials in deployed config, signed-but-untrusted artifacts. The hotspot is the misconfig itself; the code is correct. Cross-link [[reference-cloud-iam]] and `software/supply-chain/supply_chain_provenance_expertise.md`. First-principles applies, but the "primitive" is "an IAM statement is a programming language for AWS authority" — extending §3's compute-as-universal-target framing one level up.
+- **Configuration-only bugs.** IAM wildcards, exposed S3 buckets, open security groups, default credentials in deployed config, signed-but-untrusted artifacts. The hotspot is the misconfig itself; the code is correct. Cross-link [[reference-cloud-iam]] and `knowledge-base/supply-chain/supply_chain_provenance_expertise.md`. First-principles applies, but the "primitive" is "an IAM statement is a programming language for AWS authority" — extending §3's compute-as-universal-target framing one level up.
 
 Recognize these patterns early. When the matrix at §5 produces no high-priority hypotheses for an hour, you are probably in one of these four cases, not in a "the target is secure" case. Pivot frames.
 
@@ -511,22 +511,22 @@ This is the doctrine's deliverable: prioritized hypotheses with concrete test pl
 - [[reference-cicd-supply-chain]] — GHA pwn_request / pull_request_target / workflow_run primitives, Clinejection §2.9.
 
 File-path cites (no canonical reference-slug yet, or domain-specific docs not in the cross-link spec):
-- `software/vuln-classes/deserialization_expertise.md` — canonical deserialization catalog.
-- `software/language-footguns/sql_dialect_footguns_expertise.md` — per-dialect SQL footguns.
-- `software/language-footguns/python_footguns_expertise.md`, `java_footguns_expertise.md`, `ruby_footguns_expertise.md`, `go_footguns_expertise.md`, `javascript_node_footguns_expertise.md`, `c_cpp_footguns_expertise.md`, `rust_footguns_expertise.md`, `php_footguns_expertise.md` — language-specific dangerous-primitive enumeration; pair with §4.
-- `software/crypto-trust/formal_verification_protocols_expertise.md` — the discipline of attacking the protocol around verified code; cited in §10 for symbolic-trustworthy targets.
-- `software/supply-chain/supply_chain_provenance_expertise.md` — SLSA / sigstore / SBOM operationalization; cited in §10 for config-only bugs and §11 for the supply-chain column.
+- `knowledge-base/vuln-classes/deserialization_expertise.md` — canonical deserialization catalog.
+- `knowledge-base/language-footguns/sql_dialect_footguns_expertise.md` — per-dialect SQL footguns.
+- `knowledge-base/language-footguns/python_footguns_expertise.md`, `java_footguns_expertise.md`, `ruby_footguns_expertise.md`, `go_footguns_expertise.md`, `javascript_node_footguns_expertise.md`, `c_cpp_footguns_expertise.md`, `rust_footguns_expertise.md`, `php_footguns_expertise.md` — language-specific dangerous-primitive enumeration; pair with §4.
+- `knowledge-base/crypto-trust/formal_verification_protocols_expertise.md` — the discipline of attacking the protocol around verified code; cited in §10 for symbolic-trustworthy targets.
+- `knowledge-base/supply-chain/supply_chain_provenance_expertise.md` — SLSA / sigstore / SBOM operationalization; cited in §10 for config-only bugs and §11 for the supply-chain column.
 
 ### What this doc does *not* cover
 
 Be honest about scope. This doc is the *prioritization* doctrine, not a primitive catalog or per-domain field guide. Specifically:
 
-- **Browser-engine specifics** — V8 / JSC / SpiderMonkey type-confusion, JIT-spray primitives, Wasm-exit bugs, Mojo IPC sandbox escape. First-principles still applies at the protocol layer (what does the renderer have access to, what is the trust boundary at the IPC), but the dangerous-primitive enumeration is domain-specific and lives in `software/exploitation/browser_js_engine_exploitation_expertise.md`.
+- **Browser-engine specifics** — V8 / JSC / SpiderMonkey type-confusion, JIT-spray primitives, Wasm-exit bugs, Mojo IPC sandbox escape. First-principles still applies at the protocol layer (what does the renderer have access to, what is the trust boundary at the IPC), but the dangerous-primitive enumeration is domain-specific and lives in `knowledge-base/exploitation/browser_js_engine_exploitation_expertise.md`.
 - **Mobile platform specifics** — iOS / Android sandbox model, BLASTPASS / Operation Triangulation chains, Frida runtime instrumentation, baseband. The doctrine's zero-click framing (§8) anchors here, but the surface-specific primitives are in [[reference-mobile-security]].
-- **Hardware side-channels** — Spectre / Meltdown / Rowhammer / SGX-attack lineage. First-principles applies at the protocol layer (what is the boundary between attacker and victim execution), but the primitive catalog is in `software/exploitation/hardware_side_channels_expertise.md`.
-- **Cryptographic protocol attacks** — symbolic vs computational adversary models, Tamarin / ProVerif analyses, padding-oracle / nonce-reuse / hash-length-extension primitive enumeration. The doctrine's "every interpreter is a candidate point" rule still applies, but crypto-protocol attacks need the formal-verification doctrine in `software/crypto-trust/formal_verification_protocols_expertise.md` and the crypto-specific primitives in `software/crypto-trust/cryptography_expertise.md`.
-- **Smart-contract / EVM** — reentrancy, flash-loan, oracle manipulation, MEV. First-principles applies at the asset-inventory step (the contract's tokens are the asset; its callable functions are the surface), but the primitive catalog is in `software/industry-verticals/smart_contract_evm_security_expertise.md`.
-- **OS kernel exploitation** — heap-spray primitives, slab grooming, eBPF / io_uring / netfilter surface, mitigation bypass. See `software/exploitation/linux_kernel_exploitation_expertise.md`. First-principles applies at the syscall-surface enumeration; the spray-primitives are domain-specific.
+- **Hardware side-channels** — Spectre / Meltdown / Rowhammer / SGX-attack lineage. First-principles applies at the protocol layer (what is the boundary between attacker and victim execution), but the primitive catalog is in `knowledge-base/exploitation/hardware_side_channels_expertise.md`.
+- **Cryptographic protocol attacks** — symbolic vs computational adversary models, Tamarin / ProVerif analyses, padding-oracle / nonce-reuse / hash-length-extension primitive enumeration. The doctrine's "every interpreter is a candidate point" rule still applies, but crypto-protocol attacks need the formal-verification doctrine in `knowledge-base/crypto-trust/formal_verification_protocols_expertise.md` and the crypto-specific primitives in `knowledge-base/crypto-trust/cryptography_expertise.md`.
+- **Smart-contract / EVM** — reentrancy, flash-loan, oracle manipulation, MEV. First-principles applies at the asset-inventory step (the contract's tokens are the asset; its callable functions are the surface), but the primitive catalog is in `knowledge-base/industry-verticals/smart_contract_evm_security_expertise.md`.
+- **OS kernel exploitation** — heap-spray primitives, slab grooming, eBPF / io_uring / netfilter surface, mitigation bypass. See `knowledge-base/exploitation/linux_kernel_exploitation_expertise.md`. First-principles applies at the syscall-surface enumeration; the spray-primitives are domain-specific.
 - **Specific detection / runtime-rule authoring** — this doc tells you where to hunt; detection-rule authoring is the inverse problem (write rules that catch the patterns at runtime). See [[reference-detection-engineering]].
 
 ### Known gaps in the doctrine itself

@@ -288,7 +288,7 @@ a human" rose by ~2x in 2025. The auditor's value is correspondingly higher
 on the work that *did not* clear the 86%/68% bar — the semantic, architectural,
 and threat-model-dependent findings that still require a human to articulate.
 
-See also: `software/methodology/fuzzing_discipline_expertise.md` for the
+See also: `knowledge-base/methodology/fuzzing_discipline_expertise.md` for the
 fuzzing-side discipline (corpus design, harness construction, coverage
 feedback) that pairs with LLM-augmented review; the Buttercup architecture
 is the canonical "fuzzer + reviewer + patcher" composition.
@@ -821,7 +821,7 @@ out. The audit posture:
    that survive a malicious model.
 
 This pattern cross-references heavily with
-`software/ai-ml-security/adversarial_ml_model_security_expertise.md` — that
+`knowledge-base/ai-ml-security/adversarial_ml_model_security_expertise.md` — that
 doc covers the model-content security tier (poisoned weights, backdoored
 training data, adversarial inputs); the code-review tier covered here is the
 loader-side trust boundary. Both apply to every ML-loading PR.
@@ -880,7 +880,7 @@ codegen produces at substantially higher rates than human-only codegen:
    ([LLM Generated Code Security (Emergent Mind)](https://www.emergentmind.com/topics/security-of-llm-generated-code)).
    The slop-squatting attack vector: an attacker pre-registers the
    hallucinated package name and ships a backdoor. Cross-reference
-   `software/supply-chain/supply_chain_provenance_expertise.md`
+   `knowledge-base/supply-chain/supply_chain_provenance_expertise.md`
    for the broader supply-chain dimension.
 
 The reviewer's grep heuristic for AI-generated code is the union of every
@@ -921,7 +921,7 @@ The reviewer's defense:
   seen in production AI-review tooling, where a bypass flag on the
   permission mode silently widened the tool's own write access, not just
   a hypothetical).
-- **Cross-link to `software/ai-ml-security/llm_agent_security_expertise.md`**
+- **Cross-link to `knowledge-base/ai-ml-security/llm_agent_security_expertise.md`**
   for the agent-side defense; that doc covers the runtime tier
   (sandboxing, capability scoping, MCP server review) that complements
   the code-review tier covered here.
@@ -1182,8 +1182,8 @@ include:
   with untrusted PR content, `${{ }}` expansion of attacker-controlled
   values into shell, missing `permissions:` block on the workflow,
   unpinned actions. The supply-chain-tier expertise lives in
-  `software/supply-chain/supply_chain_provenance_expertise.md`
-  and `software/detection-ir/detection_engineering_expertise.md`;
+  `knowledge-base/supply-chain/supply_chain_provenance_expertise.md`
+  and `knowledge-base/detection-ir/detection_engineering_expertise.md`;
   the code-review tier treats every CI config as production code.
 
 The combined principle: **the audit's scope is every artifact the
@@ -1210,7 +1210,7 @@ means the auditor can verify, post-hoc, *which workflow and commit built which
 artifact* — and trace back-compromises to the review gate that
 admitted them. This is the operational tie between code review and
 incident response; cross-link to
-`software/supply-chain/supply_chain_provenance_expertise.md` for
+`knowledge-base/supply-chain/supply_chain_provenance_expertise.md` for
 the broader pipeline tier.
 
 ---

@@ -208,7 +208,7 @@ Gareth Heyes maintains a running catalogue at [portswigger.net/research](https:/
 
 ## 5. The Cross-Language Variant Class
 
-Prototype pollution is named for JavaScript, but the recipe ports to any language with dynamic attribute resolution and a recursive-merge primitive that accepts untrusted input. The class is "deserialization-into-trusted-shape," and the JS variant is the canonical case study; conceptually adjacent to the unsafe-deserialization class covered in `software/vuln-classes/deserialization_expertise.md`.
+Prototype pollution is named for JavaScript, but the recipe ports to any language with dynamic attribute resolution and a recursive-merge primitive that accepts untrusted input. The class is "deserialization-into-trusted-shape," and the JS variant is the canonical case study; conceptually adjacent to the unsafe-deserialization class covered in `knowledge-base/vuln-classes/deserialization_expertise.md`.
 
 ### 5.1 Python class pollution
 
@@ -321,7 +321,7 @@ The sanitizer list must include any schema-validation or allowlist step the code
 
 ### 6.4 Reachability discipline
 
-A polluted prototype is harmless unless a gadget exists in the same process. This is the *click-count* discipline from `software/methodology/code_review_expertise.md` §1: pollution alone is zero-click DoS (high severity for stability but low for confidentiality); pollution + child_process gadget in the same process is zero-click RCE (CRITICAL). For server-side Node, the answer is almost always yes — npm itself spawns child processes, every Express app eventually invokes git or a system tool, template engines are everywhere. Treat any unguarded server-side pollution source as CRITICAL until ruled out by *demonstrating* the gadgets are unreachable. For client-side, the equivalent gating question is "does any property read flow to innerHTML / eval / Function() in any library on the page." With jQuery, AngularJS 1.x, DOMPurify pre-3.4, or any of the BlackFan-catalogued libraries on the page, the answer is yes. Corollary: **the same primitive can be MEDIUM in a tightly-controlled SPA and CRITICAL on a marketing page that loads ten third-party scripts.**
+A polluted prototype is harmless unless a gadget exists in the same process. This is the *click-count* discipline from `knowledge-base/methodology/code_review_expertise.md` §1: pollution alone is zero-click DoS (high severity for stability but low for confidentiality); pollution + child_process gadget in the same process is zero-click RCE (CRITICAL). For server-side Node, the answer is almost always yes — npm itself spawns child processes, every Express app eventually invokes git or a system tool, template engines are everywhere. Treat any unguarded server-side pollution source as CRITICAL until ruled out by *demonstrating* the gadgets are unreachable. For client-side, the equivalent gating question is "does any property read flow to innerHTML / eval / Function() in any library on the page." With jQuery, AngularJS 1.x, DOMPurify pre-3.4, or any of the BlackFan-catalogued libraries on the page, the answer is yes. Corollary: **the same primitive can be MEDIUM in a tightly-controlled SPA and CRITICAL on a marketing page that loads ten third-party scripts.**
 
 ### 6.5 The "weak sanitizer" pattern
 
@@ -484,7 +484,7 @@ TypeScript validates types structurally: any object that *looks* like a `User` i
 
 ### 9.6 The LLM-agent context
 
-Polluted runtimes feed into LLM-agent tool implementations like any other Node code. An MCP server, an agent that calls Node-based tools, an Express backing an agent's tool API — all are vulnerable to pollution from input the agent processes. See `software/ai-ml-security/llm_agent_security_expertise.md`: prompt-injection-as-source feeding into tool-output-as-context is structurally analogous to pollution-as-source feeding into gadget-as-sink. A prompt injection that causes an agent to make a tool call with `__proto__` in the payload pollutes the agent's runtime; subsequent tool calls run polluted. This is a real chain in agent systems with insufficient sanitization at the MCP-tool boundary.
+Polluted runtimes feed into LLM-agent tool implementations like any other Node code. An MCP server, an agent that calls Node-based tools, an Express backing an agent's tool API — all are vulnerable to pollution from input the agent processes. See `knowledge-base/ai-ml-security/llm_agent_security_expertise.md`: prompt-injection-as-source feeding into tool-output-as-context is structurally analogous to pollution-as-source feeding into gadget-as-sink. A prompt injection that causes an agent to make a tool call with `__proto__` in the payload pollutes the agent's runtime; subsequent tool calls run polluted. This is a real chain in agent systems with insufficient sanitization at the MCP-tool boundary.
 
 ---
 
@@ -548,9 +548,9 @@ Polluted runtimes feed into LLM-agent tool implementations like any other Node c
 
 ### Cross-link to other expertise docs
 
-- `software/vuln-classes/deserialization_expertise.md` — conceptually adjacent class (deserialize-into-trusted-shape); shared structural framing of Property-Oriented Programming and gadget chains; defenses share the schema-validation principle.
-- `software/methodology/code_review_expertise.md` — click-count severity discipline; the "weak sanitizer" pattern recognition; auth-homogeneity heuristics for property-walking code.
-- `software/ai-ml-security/llm_agent_security_expertise.md` — proto-pollution as a primitive in MCP/agent runtimes; the parallel of "untrusted bytes flow into trusted state without parsing boundary" across both classes.
+- `knowledge-base/vuln-classes/deserialization_expertise.md` — conceptually adjacent class (deserialize-into-trusted-shape); shared structural framing of Property-Oriented Programming and gadget chains; defenses share the schema-validation principle.
+- `knowledge-base/methodology/code_review_expertise.md` — click-count severity discipline; the "weak sanitizer" pattern recognition; auth-homogeneity heuristics for property-walking code.
+- `knowledge-base/ai-ml-security/llm_agent_security_expertise.md` — proto-pollution as a primitive in MCP/agent runtimes; the parallel of "untrusted bytes flow into trusted state without parsing boundary" across both classes.
 
 ### Memory cross-link
 

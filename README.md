@@ -12,9 +12,7 @@ Staff-level domain reference guides for security research and secure code review
 
 `skills/` holds agent skills (`SKILL.md` directories). `make install` installs them into every detected agent runtime (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Goose, OpenCode, Windsurf, OpenClaw); see [`skills/README.md`](skills/README.md).
 
-`software/static_analysis/` holds `marp_expertise.md` (Marp slide-deck authoring).
-
-`software/` holds the domain guides, grouped by category:
+`knowledge-base/` holds the domain guides, grouped by category:
 
 | Category | Covers |
 |----------|--------|
@@ -34,6 +32,7 @@ Staff-level domain reference guides for security research and secure code review
 | `industry-verticals/` | ICS/OT, automotive, aviation/aerospace, medical devices, building automation, drones/UAV, smart-contract/EVM, blockchain/wallet/consensus, game consoles. |
 | `detection-ir/` | Detection engineering, Falco/Tetragon runtime detection, DFIR methodology, threat intel, a ransomware-family deep-dive. |
 | `trust-safety/` | Anti-fraud/abuse engineering, misinformation/influence ops, privacy-preserving advertising. |
+| `speaking/` | Talks and slide decks: Marp authoring. |
 
 ## Integrating with Claude Code (or any LLM coding agent)
 
@@ -51,7 +50,7 @@ The plumbing is one rule in a `CLAUDE.md` plus a local clone: tell the agent to 
    - Before working on a problem with relevant context in `~/expertise/`
      (e.g., deserialization, SSRF, cloud IAM, a specific language's footguns,
      threat modeling, secure code review), read the applicable
-     `software/**/*_expertise.md` doc(s) first — they synthesize
+     `knowledge-base/**/*_expertise.md` doc(s) first — they synthesize
      staff-level domain knowledge and should inform approach, recommendations,
      and framing. The guide index is this repo's README.
    ```

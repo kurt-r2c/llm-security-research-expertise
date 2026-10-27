@@ -586,7 +586,7 @@ Documented earlier in §11. The OpenVMS CVE corpus is sparser; VSI publishes sec
 
 ### Notable incidents (verified-to-the-extent-public-reporting-allows)
 
-- **Maersk NotPetya 2017** — the public account focuses on Active Directory compromise. Cross-reference `[[reference-active-directory-windows-security]]` for the AD-pivot mechanism (file path `software/platform-security/active_directory_windows_security.md`).
+- **Maersk NotPetya 2017** — the public account focuses on Active Directory compromise. Cross-reference `[[reference-active-directory-windows-security]]` for the AD-pivot mechanism (file path `knowledge-base/platform-security/active_directory_windows_security.md`).
 - **MOVEit / Cl0p 2023-2024** — affected enterprise file-transfer infrastructure that often serves as the gateway between mainframe and distributed systems.
 - **HCA Healthcare 2023 data breach** — large-scale data exposure. The relationship to mainframe infrastructure is not clearly documented in public reporting; HCA's environment includes substantial mainframe presence but the breach disclosure does not anchor specifics. `[unverified involvement of mainframe substrate]`.
 - **SHARE / GSE conference disclosures (2023-2026)** — small but consistent stream of integrity bugs presented at the user-group level, often months ahead of or alongside CVE assignment. Track the SHARE security project agendas for current research; the named researchers in §2 anchor the community.
@@ -649,7 +649,7 @@ z/OS hardware crypto and tamper resistance:
 - **CPACF (CP Assist for Cryptographic Functions)** — instructions on the central processor that implement symmetric crypto (AES, DES variants, SHA), bulk hashing, random number generation. Not a tamper-resistant boundary by itself; just hardware acceleration.
 - **Crypto Express (CEX)** — a tamper-evident HSM card. Modern variants (CEX7S) are FIPS 140-2 Level 4 certified. Key material can be encrypted under a master key that never leaves the card; clear-key operations are also supported.
 
-Cross-link `software/crypto-trust/cryptography_expertise.md` for the broader crypto primitive treatment. CPACF and CEX are first-class hardware crypto in industry; the cryptography document covers them at the level of "what is the right algorithm" and this section covers them at the level of "how is the key material protected on the mainframe."
+Cross-link `knowledge-base/crypto-trust/cryptography_expertise.md` for the broader crypto primitive treatment. CPACF and CEX are first-class hardware crypto in industry; the cryptography document covers them at the level of "what is the right algorithm" and this section covers them at the level of "how is the key material protected on the mainframe."
 
 ### Modernization risk — lift-and-shift to cloud
 
@@ -705,7 +705,7 @@ z/OS gets the most weight (§3-9). IBM i gets §10. OpenVMS gets §11. COBOL get
 
 ### Crypto-on-mainframe is undertreated
 
-CPACF and Crypto Express get a paragraph in §14. The actual depth of key-management, master-key custody, key-ceremony procedure, RACF integration with ICSF (Integrated Cryptographic Service Facility), HSM-domain isolation across LPARs — none of that is covered here. A future deepening into "crypto on the mainframe" would warrant its own document or an explicit subsection of `software/crypto-trust/cryptography_expertise.md`.
+CPACF and Crypto Express get a paragraph in §14. The actual depth of key-management, master-key custody, key-ceremony procedure, RACF integration with ICSF (Integrated Cryptographic Service Facility), HSM-domain isolation across LPARs — none of that is covered here. A future deepening into "crypto on the mainframe" would warrant its own document or an explicit subsection of `knowledge-base/crypto-trust/cryptography_expertise.md`.
 
 ---
 
@@ -717,7 +717,7 @@ CPACF and Crypto Express get a paragraph in §14. The actual depth of key-manage
 - `[[reference-detection-engineering]]` — SMF → SIEM ingest is the runtime detection substrate. The Splunk / QRadar IBM Z content packs build on this.
 - `[[reference-language-footguns-class]]` — language-level unsafe primitives. COBOL belongs in this class and is added here.
 - `[[reference-shell-injection]]` — applies to z/OS USS shell, IBM i PASE, and OpenVMS DCL. The three-class taxonomy (CWE-78 / CWE-88 / CWE-150) carries unmodified.
-- `software/crypto-trust/cryptography_expertise.md` — CPACF, Crypto Express crypto primitives. The mainframe-specific hardware crypto layer is a key-management substrate worth a deeper treatment than this document affords.
-- `software/platform-security/active_directory_windows_security.md` — the Windows / AD parallel auth universe. Modernization-bridge architectures (mainframe + AD-integrated authentication, mainframe via SAML through an AD-fronted IdP) compose the two threat models.
+- `knowledge-base/crypto-trust/cryptography_expertise.md` — CPACF, Crypto Express crypto primitives. The mainframe-specific hardware crypto layer is a key-management substrate worth a deeper treatment than this document affords.
+- `knowledge-base/platform-security/active_directory_windows_security.md` — the Windows / AD parallel auth universe. Modernization-bridge architectures (mainframe + AD-integrated authentication, mainframe via SAML through an AD-fronted IdP) compose the two threat models.
 - `[[reference-bug-hunting-first-principles]]` — first-principles auditing lens. Applies to mainframe substrates with the caveat that the substrate-specific primitives (APF, object authorities, DCL symbol substitution) have to be in working memory for the first-principles lens to land.
 - `[[reference-vr-methodology]]` — VR methodology. Mainframe VR is an open community-research frontier where the four canonical methods (code review, variant analysis, fuzzing, patch diffing) apply unmodified but with substrate-specific tooling and corpora.

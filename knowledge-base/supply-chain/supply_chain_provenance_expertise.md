@@ -695,11 +695,11 @@ Decentralized provenance (blockchain-anchored attestations) is research-stage; R
 
 ### Internal cross-references
 
-- `software/supply-chain/cicd_supply_chain_expertise.md` — parent doc on CI/CD attack surface; covers tj-actions, pwn-request, the incident corpus, and how SLSA/sigstore wire into CI workflows
-- `software/crypto-trust/cryptography_expertise.md` — signing primitives (Ed25519, X.509, Merkle trees) underpinning sigstore + TUF
-- `software/detection-ir/detection_engineering_expertise.md` — attestation-anomaly detection patterns and the "match + context filter" structure that VEX adds to SBOM
-- `software/methodology/appsec_program_building_expertise.md` — buying decisions and program-level posture choices for supply-chain controls
-- `software/ai-ml-security/agentic_web_capabilities_expertise.md` — agent runtime attestation for tool definitions and capability binding
-- `software/ai-ml-security/llm_agent_security_expertise.md` — provenance for AI-tool-generated code; agent supply-chain threats
-- `software/ai-ml-security/adversarial_ml_model_security_expertise.md` — model provenance, training data SBOM, model-card formats
-- `software/methodology/vulnerability_research_methodology_expertise.md` — methodology for evaluating supply-chain frameworks empirically
+- `knowledge-base/supply-chain/cicd_supply_chain_expertise.md` — parent doc on CI/CD attack surface; covers tj-actions, pwn-request, the incident corpus, and how SLSA/sigstore wire into CI workflows
+- `knowledge-base/crypto-trust/cryptography_expertise.md` — signing primitives (Ed25519, X.509, Merkle trees) underpinning sigstore + TUF
+- `knowledge-base/detection-ir/detection_engineering_expertise.md` — attestation-anomaly detection patterns and the "match + context filter" structure that VEX adds to SBOM
+- `knowledge-base/methodology/appsec_program_building_expertise.md` — buying decisions and program-level posture choices for supply-chain controls
+- `knowledge-base/ai-ml-security/agentic_web_capabilities_expertise.md` — agent runtime attestation for tool definitions and capability binding
+- `knowledge-base/ai-ml-security/llm_agent_security_expertise.md` — provenance for AI-tool-generated code; agent supply-chain threats
+- `knowledge-base/ai-ml-security/adversarial_ml_model_security_expertise.md` — model provenance, training data SBOM, model-card formats
+- `knowledge-base/methodology/vulnerability_research_methodology_expertise.md` — methodology for evaluating supply-chain frameworks empirically

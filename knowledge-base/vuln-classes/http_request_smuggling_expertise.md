@@ -571,7 +571,7 @@ Kettle's "Smashing the State Machine: The True Potential of Web Race Conditions"
 
 This doc is the HRS-specific anchor. Related expertise:
 
-- `[[reference-http-web-security]]` (file: `software/appsec-web/http_web_security.md`) — Broader HTTP semantics, CORS, CSP, session management, the prerequisite protocol layer this doc assumes. Read this first if you don't yet know what `Transfer-Encoding: chunked` is.
+- `[[reference-http-web-security]]` (file: `knowledge-base/appsec-web/http_web_security.md`) — Broader HTTP semantics, CORS, CSP, session management, the prerequisite protocol layer this doc assumes. Read this first if you don't yet know what `Transfer-Encoding: chunked` is.
 - `[[reference-ssrf-url-parsing]]` — URL parser differentials are HRS's siblings. Same structural bug (two parsers disagreeing on the same byte string), different protocol surface.
 - `[[reference-xml-parser-differential]]` — The protocol-differential class in XML. The xmldom multi-root CVE and the SAML XSW class are the XML-shaped HRS.
 - `[[reference-race-conditions-concurrency]]` — The single-packet attack and HTTP/2 race conditions live here. HRS and race conditions are technically separate bug classes but share the HTTP/2 framing primitives.

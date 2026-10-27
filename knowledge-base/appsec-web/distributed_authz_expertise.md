@@ -781,7 +781,7 @@ the user's identity is bound to every tool call; the agent's identity is reserve
 agent-internal operations (memory writes, planning state) and treated as a low-privilege
 service identity. Prompt-injection-induced privilege escalation is the dominant failure
 mode — if a tool runs under the agent's identity, the agent's identity defines the blast
-radius. Cross-link `expertise/software/llm_agent_security_expertise.md`.
+radius. Cross-link `knowledge-base/ai-ml-security/llm_agent_security_expertise.md`.
 
 **Vector databases** (Pinecone, Weaviate, Milvus, Chroma) support per-namespace indices but
 allow cross-namespace search if the namespace is parameterized. "Client-controlled
@@ -843,15 +843,15 @@ restricting to the caller's tenant.
 
 ### Related documents
 
-- `software/methodology/code_review_expertise.md` — candidate-point auditing,
+- `knowledge-base/methodology/code_review_expertise.md` — candidate-point auditing,
   auth-homogeneity heuristic, click-count severity
-- `software/crypto-trust/cryptography_expertise.md` — JWT algorithm confusion, SAML
+- `knowledge-base/crypto-trust/cryptography_expertise.md` — JWT algorithm confusion, SAML
   signature wrapping, TLS/mTLS substrate
-- `software/cloud-containers/container_k8s_security.md` — K8s RBAC permission graphs,
+- `knowledge-base/cloud-containers/container_k8s_security.md` — K8s RBAC permission graphs,
   nodes/proxy as cluster-admin, kubelet API bypass
-- `software/appsec-web/http_web_security.md` — HTTP auth headers, cookie scoping,
+- `knowledge-base/appsec-web/http_web_security.md` — HTTP auth headers, cookie scoping,
   CSRF, session management
-- `software/ai-ml-security/llm_agent_security_expertise.md` — agent identity, delegated
+- `knowledge-base/ai-ml-security/llm_agent_security_expertise.md` — agent identity, delegated
   tool calls, prompt-injection blast radius
 
 ---

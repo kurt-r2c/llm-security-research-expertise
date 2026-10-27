@@ -80,7 +80,7 @@ def tree_hash(path):
 def config_id(suite, model, skills_dir):
     import harness
 
-    guides = tree_hash(ROOT.parent.parent / "software") + (EVAL / "expertise-INDEX.md").read_text()
+    guides = tree_hash(ROOT.parent.parent / "knowledge-base") + (EVAL / "expertise-INDEX.md").read_text()
 
     s = SUITES[suite]
     if suite == "cve":

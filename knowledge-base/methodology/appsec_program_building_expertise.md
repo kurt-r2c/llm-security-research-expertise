@@ -1580,34 +1580,34 @@ specifics that apply to both closed-source and OSS workloads.
 ### Cross-references within this expertise corpus
 
 - **[[reference-john-heasman]]** —
-  `software/principles-voice/john_heasman_appsec_principles.md` —
+  `knowledge-base/principles-voice/john_heasman_appsec_principles.md` —
   the adversarial-AppSec counterpart doctrine; covers the technical-
   depth side of staff-IC AppSec work.
 - **[[reference-steelman-doctrine]]** —
-  `software/methodology/steelman_doctrine_expertise.md` — the
+  `knowledge-base/methodology/steelman_doctrine_expertise.md` — the
   Champion / Foil / Adjudicator procedural discipline; ports onto
   executive-communication and budget-defense work.
 - **[[reference-vr-methodology]]** —
-  `software/methodology/vulnerability_research_methodology_expertise.md`
+  `knowledge-base/methodology/vulnerability_research_methodology_expertise.md`
   — the methodology counterpart for the vulnerability-finding work
   that an AppSec program enables.
 - **[[reference-code-review-expertise]]** —
-  `software/methodology/code_review_expertise.md` — the
+  `knowledge-base/methodology/code_review_expertise.md` — the
   technical-depth counterpart for PR-review work; the prose-tone
   guidance in Section 7 ports onto code-review tone.
 - **[[reference-agentic-web-capabilities]]** —
-  `software/ai-ml-security/agentic_web_capabilities_expertise.md`
+  `knowledge-base/ai-ml-security/agentic_web_capabilities_expertise.md`
   — the capability model for agentic-system AppSec (Section 11).
 - **[[reference-llm-agent-security]]** —
-  `software/ai-ml-security/llm_agent_security_expertise.md` — the
+  `knowledge-base/ai-ml-security/llm_agent_security_expertise.md` — the
   per-class detail for LLM-agent threats; pairs with the MCP-era
   program doctrine.
 - **[[reference-cicd-supply-chain]]** —
-  `software/supply-chain/cicd_supply_chain_expertise.md` — the
+  `knowledge-base/supply-chain/cicd_supply_chain_expertise.md` — the
   build-chain visibility surface (Section 3) and the OSS-maintenance
   variant (Section 11).
 - **[[reference-distributed-authz]]** —
-  `software/appsec-web/distributed_authz_expertise.md` — the
+  `knowledge-base/appsec-web/distributed_authz_expertise.md` — the
   authorization-coverage visibility surface (Section 3) and the
   Chegg "batteries included authorization scheme" case study
   (Section 2).
