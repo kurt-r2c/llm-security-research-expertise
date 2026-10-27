@@ -86,6 +86,37 @@ ideas, anything that would read as a paragraph on the slide, thesis statements, 
 Always. Three bullets is the cognitive default. Two feels incomplete. Four feels like a
 list. When you have four items, collapse two or move one to speaker notes.
 
+### Semantic echo
+
+When a list pays off an earlier list, reuse its wording and its order. The audience
+pattern-matches the callback before you say it; reworded labels read as new points and
+the payoff is lost.
+
+Setup slide:
+```
+- **Agents only know their training data**
+- **Agents lie to hit the reward**
+- **Agents draw conclusions from incomplete or wrong data**
+```
+
+Wrong payoff (new labels, new order):
+```
+- **Incomplete:** ...
+- **Training data:** ...
+- **Lying for reward:** ...
+```
+
+Right payoff (same labels, same order, evidence after the colon):
+```
+- **Agents only know their training data:** ...
+- **Agents lie to hit the reward:** ...
+- **Agents draw conclusions from incomplete data:** ...
+```
+
+The same applies to takeaways that close the talk and to a list that answers a question
+posed earlier: echo the earlier slide's nouns. Keep speaker notes in the same order as
+the bullets.
+
 ### Progressive display order
 
 **Top to bottom:** Design slides so content reveals top-to-bottom. The `add_fragments.py`
