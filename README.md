@@ -12,6 +12,8 @@ Staff-level domain reference guides for security research and secure code review
 
 `skills/` holds agent skills (`SKILL.md` directories). `make install` installs them into every detected agent runtime (Claude Code, Cursor, Codex, Copilot, Gemini CLI, Goose, OpenCode, Windsurf, OpenClaw); see [`skills/README.md`](skills/README.md).
 
+`hooks/` holds Claude Code hooks. [`hooks/session-notes/`](hooks/session-notes/README.md) keeps a daily work log across compactions and `/clear`.
+
 `knowledge-base/` holds the domain guides, grouped by category:
 
 | Category | Covers |

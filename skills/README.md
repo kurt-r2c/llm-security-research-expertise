@@ -7,6 +7,9 @@ Agent skills (`SKILL.md` directories) that pair with the guides under `knowledge
 | `security-research/` | Structured security audit: nine domain skills (injection, SSRF, auth, data security, supply chain, agent runtime, infrastructure, output hardening, observability, business logic) plus a `triage` skill applied last. |
 | `root-cause-fanout/` | Decomposes a CVE reported against a product down to the single-purpose component that broke (decoder, parser, codec), then fans out to every consumer by inheritance mechanism, every other implementation (ports of a reference implementation first), and every side effect and input direction. Worked example: the October 2026 Brotli decoder bug. |
 | `evidence-gated-findings/` | Gates findings behind an independent read-only verifier. Includes a headless harness and a 13-repo SSRF eval. Result: opt-in, not default; see `evidence-gated-findings/eval/RESULTS.md`. |
+| `thoroughness/` | Five-whys for lists: before calling an enumeration complete, re-derive it from a mechanism (reverse deps, a spec's implementers, code search) instead of memory, and give every excluded branch a reason. The general form of `root-cause-fanout`. |
+| `report-worthiness/` | Gate applied after severity triage: a valid finding is worth reporting only if its impact is ongoing, user-facing, and can't be cheaply shrugged off (blackhole the route, flip a flag). |
+| `vuln-description/` | Terse, fixed-shape vulnerability write-up: what it is, what it lets an attacker do, PoC (only if confirmed), remediation. |
 
 ## Install
 
